@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de marque AtelierOS — repris de docs/design/autorappel-prototype
+ * (prototype OpenDesign du module Relances). Ne pas modifier ces valeurs
+ * sans mettre à jour brand-spec.md en parallèle.
+ */
+:root {
+  --bg: oklch(97% 0.004 240);
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(94.5% 0.006 240);
+  --fg: oklch(23% 0.025 240);
+  --muted: oklch(48% 0.02 240);
+  --border: oklch(89% 0.008 240);
+
+  --accent: oklch(66% 0.185 42);
+  --accent-fg: oklch(99% 0 0);
+  --accent-hover: oklch(60% 0.19 42);
+  --accent-active: oklch(54% 0.19 42);
+
+  --primary: oklch(27% 0.045 235);
+  --primary-fg: oklch(97% 0.005 240);
+  --primary-2: oklch(33% 0.05 235);
+
+  --status-ok: oklch(62% 0.135 148);
+  --status-ok-bg: oklch(94% 0.045 148);
+  --status-warn: oklch(66% 0.145 60);
+  --status-warn-bg: oklch(93% 0.06 72);
+  --status-bad: oklch(57% 0.21 23);
+  --status-bad-bg: oklch(93% 0.055 23);
+  --status-off: oklch(55% 0.012 240);
+  --status-off-bg: oklch(93% 0.006 240);
+
+  --chan-whatsapp: oklch(53% 0.14 150);
+  --chan-whatsapp-bg: oklch(93% 0.05 150);
+  --chan-sms: oklch(50% 0.14 252);
+  --chan-sms-bg: oklch(93% 0.035 252);
+  --chan-email: oklch(48% 0.13 302);
+  --chan-email-bg: oklch(93% 0.035 302);
+
+  --shadow-sm: 0 1px 2px oklch(20% 0.02 240 / 0.06), 0 1px 1px oklch(20% 0.02 240 / 0.04);
+  --shadow-md: 0 4px 14px oklch(20% 0.02 240 / 0.1), 0 2px 4px oklch(20% 0.02 240 / 0.06);
+  --shadow-lg: 0 16px 40px oklch(20% 0.02 240 / 0.18), 0 4px 10px oklch(20% 0.02 240 / 0.08);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+}
+
+.dark {
+  --bg: oklch(17% 0.018 240);
+  --surface: oklch(22% 0.022 240);
+  --surface-2: oklch(26% 0.024 240);
+  --fg: oklch(95% 0.004 240);
+  --muted: oklch(68% 0.018 240);
+  --border: oklch(33% 0.022 240);
+
+  --accent: oklch(70% 0.175 44);
+  --accent-fg: oklch(14% 0.01 240);
+  --accent-hover: oklch(76% 0.17 44);
+  --accent-active: oklch(80% 0.165 44);
+
+  --primary: oklch(20% 0.03 235);
+  --primary-fg: oklch(95% 0.004 240);
+  --primary-2: oklch(26% 0.035 235);
+
+  --status-ok: oklch(72% 0.15 150);
+  --status-ok-bg: oklch(28% 0.05 150);
+  --status-warn: oklch(76% 0.145 68);
+  --status-warn-bg: oklch(30% 0.06 70);
+  --status-bad: oklch(68% 0.19 23);
+  --status-bad-bg: oklch(30% 0.07 20);
+  --status-off: oklch(62% 0.012 240);
+  --status-off-bg: oklch(28% 0.01 240);
+
+  --chan-whatsapp: oklch(70% 0.15 150);
+  --chan-whatsapp-bg: oklch(28% 0.05 150);
+  --chan-sms: oklch(70% 0.13 252);
+  --chan-sms-bg: oklch(28% 0.045 252);
+  --chan-email: oklch(72% 0.12 302);
+  --chan-email-bg: oklch(28% 0.045 302);
+
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.3);
+  --shadow-md: 0 4px 14px oklch(0% 0 0 / 0.4);
+  --shadow-lg: 0 16px 40px oklch(0% 0 0 / 0.5);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-fg);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-fg);
+  --color-primary-2: var(--primary-2);
+
+  --color-status-ok: var(--status-ok);
+  --color-status-ok-bg: var(--status-ok-bg);
+  --color-status-warn: var(--status-warn);
+  --color-status-warn-bg: var(--status-warn-bg);
+  --color-status-bad: var(--status-bad);
+  --color-status-bad-bg: var(--status-bad-bg);
+  --color-status-off: var(--status-off);
+  --color-status-off-bg: var(--status-off-bg);
+
+  --color-chan-whatsapp: var(--chan-whatsapp);
+  --color-chan-whatsapp-bg: var(--chan-whatsapp-bg);
+  --color-chan-sms: var(--chan-sms);
+  --color-chan-sms-bg: var(--chan-sms-bg);
+  --color-chan-email: var(--chan-email);
+  --color-chan-email-bg: var(--chan-email-bg);
+
+  --shadow-brand-sm: var(--shadow-sm);
+  --shadow-brand-md: var(--shadow-md);
+  --shadow-brand-lg: var(--shadow-lg);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  --font-display: var(--font-sora);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

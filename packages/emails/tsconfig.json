@@ -1,0 +1,8 @@
+{
+  "extends": "@atelieros/config/base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}

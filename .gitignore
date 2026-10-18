@@ -4,3 +4,13 @@ node_modules/
 .env.local
 dist/
 build/
+.next/
+.turbo/
+coverage/
+playwright-report/
+test-results/
+.pnpm-store/
+*.tsbuildinfo
+prisma/generated/
+.vscode/*
+!.vscode/extensions.json
