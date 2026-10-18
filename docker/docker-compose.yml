@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: atelieros
       POSTGRES_DB: atelieros
     ports:
-      - "5432:5432"
+      - "55432:5432" # 5432/5433 déjà pris par d'autres services locaux sur certaines machines dev
     volumes:
       - atelieros-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +22,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379" # 6379 est déjà pris par un Redis natif sur certaines machines dev
     volumes:
       - atelieros-redis:/data
     healthcheck:

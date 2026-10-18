@@ -1,7 +1,4 @@
 {
   "extends": "@atelieros/config/base.json",
-  "compilerOptions": {
-    "rootDir": "src"
-  },
-  "include": ["src"]
+  "include": ["src", "prisma/seed.ts"]
 }
