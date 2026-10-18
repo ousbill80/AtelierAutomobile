@@ -10,6 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0"
+  },
   "devDependencies": {
     "@atelieros/config": "workspace:*",
     "@types/node": "^20",
