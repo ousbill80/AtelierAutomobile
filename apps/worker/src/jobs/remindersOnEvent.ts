@@ -303,7 +303,9 @@ export async function processRemindersOnEventJob(): Promise<void> {
         "reminders.on_event : échec du traitement d'un événement",
       );
     } finally {
-      await adminDb.domainEvent.update({
+      // updateMany : l'événement a pu être supprimé entre-temps (organisation supprimée, ou
+      // nettoyage d'un test parallèle) — ne pas interrompre le traitement des suivants.
+      await adminDb.domainEvent.updateMany({
         where: { id: event.id },
         data: { processedAt: new Date() },
       });
