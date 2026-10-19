@@ -45,6 +45,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             Messages
           </Link>
           <Link
+            href="/relances"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            Relances
+          </Link>
+          <Link
+            href="/relances/echeances"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            Échéances
+          </Link>
+          <Link
             href="/parametres/canaux"
             className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
           >
@@ -55,6 +67,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
           >
             Modèles
+          </Link>
+          <Link
+            href="/parametres/relances"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            Règles de relance
           </Link>
         </nav>
       </aside>

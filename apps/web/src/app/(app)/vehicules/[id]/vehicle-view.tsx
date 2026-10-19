@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button, DueBadge, Input, PlateBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { ReminderMiniBlock } from "../../relances/reminder-mini-block";
 
 export function VehicleView({ id }: { id: string }) {
   const utils = trpc.useUtils();
@@ -118,6 +119,8 @@ export function VehicleView({ id }: { id: string }) {
           </form>
         </section>
       </div>
+
+      <ReminderMiniBlock vehicleId={id} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ export {
   formatDate,
   isBusinessDay,
   isHoliday,
+  subBusinessDays,
   today,
 } from "./calendar";
 
@@ -132,6 +133,58 @@ export { inspectionStatus, serviceStatus } from "./vehicles/status";
 
 export type { ServiceDueInput, ServiceDueResult, ServiceDueTrigger } from "./reminders/serviceDue";
 export { computeNextServiceDue } from "./reminders/serviceDue";
+
+export { addDays, diffDays, isoDateOnly } from "./reminders/dates";
+
+export type { GroupKeyInput, RecipientAddress, SequenceKeyInput } from "./reminders/keys";
+export {
+  buildDedupeKey,
+  buildGroupKey,
+  buildManualDedupeKey,
+  buildPromiseBrokenDedupeKey,
+  buildRecipientKey,
+  buildSequenceKey,
+} from "./reminders/keys";
+
+export type {
+  PickStepHistoryEntry,
+  PickStepInput,
+  PickStepResult,
+  PickStepRuleStep,
+} from "./reminders/pickStep";
+export { pickStep, stepsToSupersede, targetDate } from "./reminders/pickStep";
+
+export { approvalExpiry } from "./reminders/approvalExpiry";
+
+export type { PriorityOfOptions, PriorityStep, ReminderTypeLike } from "./reminders/priority";
+export { priorityOf } from "./reminders/priority";
+
+export type { InitialReminderStatus, InitialStatusInput } from "./reminders/initialStatus";
+export { initialStatus } from "./reminders/initialStatus";
+
+export type { AntiSpamCountsInput } from "./reminders/antiSpam";
+export { antiSpamAllows, deferOutcome } from "./reminders/antiSpam";
+
+export type { GroupableReminder, GroupTemplateKeyInput } from "./reminders/grouping";
+export {
+  detectCombo,
+  formatVehicleList,
+  resolveGroupTemplateKey,
+  templateKeyCandidates,
+} from "./reminders/grouping";
+
+export type { ReminderOutcomeLike } from "./reminders/outcome";
+export { strongerOutcome } from "./reminders/outcome";
+
+export type { NextSendSlotInput, SendWindowLike } from "./reminders/nextSendSlot";
+export { nextSendSlot } from "./reminders/nextSendSlot";
+
+export type {
+  ClientNamespaceInput,
+  GarageNamespaceInput,
+  VehicleNamespaceInput,
+} from "./reminders/context";
+export { clientNamespace, garageNamespace, vehicleNamespace } from "./reminders/context";
 
 export type { SmsSegmentsResult } from "./messaging/smsSegments";
 export { isGsm7, nonGsmChars, smsSegments, transliterate } from "./messaging/smsSegments";

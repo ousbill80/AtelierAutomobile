@@ -16,6 +16,7 @@ import {
   type OutboundMessageStatus,
 } from "@atelieros/core";
 import type { ProviderMessageStatus } from "@atelieros/integrations";
+import { emitDomainEvent } from "../events/emit";
 import { markMessageFailedWithFallback } from "./fallback";
 import { enqueueMessageSendJob } from "./queue";
 
@@ -137,11 +138,23 @@ export async function recordInboundMessage(input: InboundMessageInput): Promise<
     },
   });
 
-  if (isStopKeyword(input.body)) {
+  const stop = isStopKeyword(input.body);
+  if (stop) {
     await handleOptOut(tx, input.organizationId, address, customerId, message.id, conversation.id);
   } else if (isStartKeyword(input.body)) {
     await handleOptIn(tx, address, customerId);
   }
+
+  // RG-M10-22 : consommé par `reminders.on_event` (STOP → OPTED_OUT ; sinon → REPLIED,
+  // séquence suspendue 48 h).
+  await emitDomainEvent(tx, input.organizationId, "message.inbound_received", {
+    address,
+    customerId,
+    messageId: message.id,
+    conversationId: conversation.id,
+    stop,
+    occurredAt: input.occurredAt.toISOString(),
+  });
 }
 
 async function handleOptOut(
@@ -162,7 +175,6 @@ async function handleOptOut(
     await tx.customer.update({ where: { id: customerId }, data: { optedOutAt: new Date() } });
   }
   await tx.conversation.update({ where: { id: conversationId }, data: { lastIntent: "OPT_OUT" } });
-  console.info("customer.opted_out (RG-M11-19)", { organizationId, address });
 }
 
 async function handleOptIn(

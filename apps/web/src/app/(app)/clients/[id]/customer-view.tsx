@@ -4,6 +4,7 @@ import Link from "next/link";
 import { DueBadge, EmptyState, PlateBadge, StatusBadge } from "@atelieros/ui";
 import { LinkButton } from "@/components/link-button";
 import { trpc } from "@/trpc/react";
+import { ReminderMiniBlock } from "../../relances/reminder-mini-block";
 
 export function CustomerView({ id }: { id: string }) {
   const { data: customer, isLoading, isError } = trpc.customer.get.useQuery({ id });
@@ -86,6 +87,8 @@ export function CustomerView({ id }: { id: string }) {
           </ul>
         )}
       </section>
+
+      <ReminderMiniBlock customerId={id} />
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">Chronologie</h2>
