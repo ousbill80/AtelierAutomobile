@@ -11,6 +11,8 @@ export const REMINDERS_JOB_NAMES = {
   OUTCOMES: "reminders.outcomes",
   ON_EVENT: "reminders.on_event",
   ESTIMATE_MILEAGE: "vehicles.estimate_mileage",
+  RECEIVABLES_AGE: "receivables.age",
+  COLLECTIONS_PROMISES: "collections.promises",
 } as const;
 
 let queue: Queue | undefined;
@@ -59,5 +61,16 @@ export async function scheduleReminderJobs(): Promise<void> {
     REMINDERS_JOB_NAMES.ESTIMATE_MILEAGE,
     { pattern: "0 2 * * *" },
     { name: REMINDERS_JOB_NAMES.ESTIMATE_MILEAGE },
+  );
+  // M09 §9 : vieillissement des créances (01:00) puis évaluation des promesses (01:15).
+  await queue.upsertJobScheduler(
+    REMINDERS_JOB_NAMES.RECEIVABLES_AGE,
+    { pattern: "0 1 * * *" },
+    { name: REMINDERS_JOB_NAMES.RECEIVABLES_AGE },
+  );
+  await queue.upsertJobScheduler(
+    REMINDERS_JOB_NAMES.COLLECTIONS_PROMISES,
+    { pattern: "15 1 * * *" },
+    { name: REMINDERS_JOB_NAMES.COLLECTIONS_PROMISES },
   );
 }

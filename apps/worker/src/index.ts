@@ -15,6 +15,7 @@ import { processRemindersDispatchJob } from "./jobs/remindersDispatch";
 import { processRemindersOnEventJob } from "./jobs/remindersOnEvent";
 import { processRemindersOutcomesJob } from "./jobs/remindersOutcomes";
 import { processVehiclesEstimateMileageJob } from "./jobs/vehiclesEstimateMileage";
+import { processCollectionsPromisesJob, processReceivablesAgeJob } from "./jobs/receivablesAge";
 
 logger.info("AtelierOS worker démarré");
 
@@ -69,6 +70,10 @@ const remindersWorker = new Worker(
         return processRemindersOnEventJob();
       case REMINDERS_JOB_NAMES.ESTIMATE_MILEAGE:
         return processVehiclesEstimateMileageJob();
+      case REMINDERS_JOB_NAMES.RECEIVABLES_AGE:
+        return processReceivablesAgeJob();
+      case REMINDERS_JOB_NAMES.COLLECTIONS_PROMISES:
+        return processCollectionsPromisesJob();
       default:
         logger.warn({ jobName: job.name }, "reminders : job inconnu, ignoré");
         return undefined;

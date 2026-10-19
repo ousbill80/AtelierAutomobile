@@ -92,3 +92,22 @@ export const UNREACHABLE_THRESHOLD = 3;
 export function isUnreachable(unreachableCount: number): boolean {
   return unreachableCount >= UNREACHABLE_THRESHOLD;
 }
+
+/** RG-M09-04 : palier M10 → `stage` du dossier et effets M09 associés. */
+export interface StageEffect {
+  stage: number;
+  creditHold: boolean;
+  escalate: boolean;
+}
+
+const STAGE_BY_STEP: Record<string, StageEffect> = {
+  "J+3": { stage: 1, creditHold: false, escalate: false },
+  "J+15": { stage: 2, creditHold: false, escalate: false },
+  "J+30": { stage: 3, creditHold: true, escalate: false },
+  "J+45": { stage: 4, creditHold: false, escalate: true },
+  "J+60": { stage: 5, creditHold: false, escalate: false },
+};
+
+export function stageEffectForStep(stepKey: string): StageEffect | null {
+  return STAGE_BY_STEP[stepKey] ?? null;
+}

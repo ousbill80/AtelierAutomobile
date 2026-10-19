@@ -170,15 +170,16 @@ async function serviceCandidates(tenantDb: TenantDb, today: Date): Promise<Candi
 async function receivableCaseCandidates(tenantDb: TenantDb): Promise<Candidate[]> {
   const cases = await tenantDb.collectionCase.findMany({
     where: { status: { in: ["OPEN", "ESCALATED"] } },
-    select: { id: true, customerId: true, oldestDueDate: true, totalDue: true },
+    select: { id: true, customerId: true, oldestDueDate: true, anchorDate: true, overdueDue: true },
   });
+  // M09 RG-M09-03 : ancre figée à l'ouverture (`anchorDate`) ; montant relançable = part échue.
   return cases
-    .filter((c) => c.oldestDueDate)
+    .filter((c) => c.anchorDate ?? c.oldestDueDate)
     .map((c) => ({
       entityId: c.id,
       customerId: c.customerId,
-      amount: c.totalDue,
-      anchors: { default: c.oldestDueDate! },
+      amount: c.overdueDue,
+      anchors: { default: (c.anchorDate ?? c.oldestDueDate)! },
     }));
 }
 

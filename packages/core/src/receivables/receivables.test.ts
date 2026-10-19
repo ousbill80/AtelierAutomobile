@@ -510,3 +510,14 @@ describe("statement (RG-M09-15)", () => {
     );
   });
 });
+
+describe("stageEffectForStep (RG-M09-04)", () => {
+  it("mappe les paliers", async () => {
+    const { stageEffectForStep } = await import(".");
+    expect(stageEffectForStep("J+3")).toEqual({ stage: 1, creditHold: false, escalate: false });
+    expect(stageEffectForStep("J+30")?.creditHold).toBe(true);
+    expect(stageEffectForStep("J+45")?.escalate).toBe(true);
+    expect(stageEffectForStep("J+60")?.stage).toBe(5);
+    expect(stageEffectForStep("PROMISE_BROKEN")).toBeNull();
+  });
+});
