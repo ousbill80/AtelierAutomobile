@@ -32,6 +32,12 @@ import { settingsRouter } from "./settings";
 import { siteRouter } from "./site";
 import { templateRouter } from "./template";
 import { vehicleRouter } from "./vehicle";
+import { productRouter } from "./product";
+import { purchaseOrderRouter } from "./purchaseOrder";
+import { stockRouter } from "./stock";
+import { stockCountRouter } from "./stockCount";
+import { stockTransferRouter } from "./stockTransfer";
+import { supplierRouter } from "./supplier";
 
 export const appRouter = router({
   auth: authRouter,
@@ -69,6 +75,13 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   alerts: alertsRouter,
   digest: digestRouter,
+  // M07 — stock, pièces, fournisseurs, achats
+  product: productRouter,
+  stock: stockRouter,
+  stockCount: stockCountRouter,
+  stockTransfer: stockTransferRouter,
+  supplier: supplierRouter,
+  purchaseOrder: purchaseOrderRouter,
 });
 
 export type AppRouter = typeof appRouter;

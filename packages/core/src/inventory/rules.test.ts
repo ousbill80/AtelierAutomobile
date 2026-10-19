@@ -419,3 +419,40 @@ describe("recherche, codes-barres et paramètres", () => {
     });
   });
 });
+
+describe("buildPurchaseOrderMessage (US-M07-07)", () => {
+  it("liste les lignes et le total", async () => {
+    const { buildPurchaseOrderMessage } = await import("./purchaseMessage");
+    const { subject, body } = buildPurchaseOrderMessage({
+      garageName: "Excellence Auto",
+      siteName: "Yopougon",
+      number: "BC-YOP-2026-00008",
+      supplierName: "CFAO Motors",
+      expectedAt: "25/10/2026",
+      lines: [
+        {
+          sku: "FH-TOY-001",
+          name: "Filtre à huile",
+          unit: "pièce",
+          quantity: 20,
+          quantityScale: 1,
+          unitCost: 3600,
+        },
+        {
+          sku: "HU-5W30",
+          name: "Huile 5W30",
+          unit: "litre",
+          quantity: 2080,
+          quantityScale: 10,
+          unitCost: 4000,
+        },
+      ],
+      total: 904_000,
+    });
+    expect(subject).toBe("Bon de commande BC-YOP-2026-00008 — Excellence Auto");
+    expect(body).toContain("- 20 pièce × Filtre à huile (réf. FH-TOY-001) à 3 600 FCFA");
+    expect(body).toContain("- 208 litre × Huile 5W30");
+    expect(body).toContain("Total HT : 904 000 FCFA");
+    expect(body).toContain("Livraison souhaitée le 25/10/2026.");
+  });
+});

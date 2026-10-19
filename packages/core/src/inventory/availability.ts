@@ -88,3 +88,11 @@ export function isStaleReservation(
   if (reservation.status !== "RESERVED" || repairOrderActive) return false;
   return now.getTime() - reservation.createdAt.getTime() > days * 86_400_000;
 }
+
+/** Seuil mini d'un site en unités de base : StockLevel.minStock ?? Product.minStock × échelle. */
+export function minStockOfLevel(
+  level: { minStock: number | null },
+  product: { minStock: number; quantityScale: number },
+): number {
+  return level.minStock ?? product.minStock * product.quantityScale;
+}

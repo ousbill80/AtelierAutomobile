@@ -6,6 +6,7 @@
 import {
   applyMovementDuringCount,
   incomingQty,
+  minStockOfLevel,
   OUTGOING_TYPES_FOR_DORMANCY,
   planMovement,
   projectedAvailable,
@@ -77,11 +78,6 @@ export async function incomingFor(tx: Tx, siteId: string, productId: string): Pr
   return incomingQty(lines);
 }
 
-/** Seuil mini du site (unités de base) : StockLevel.minStock ?? Product.minStock × échelle. */
-export function minStockOf(level: StockLevel, product: Product): number {
-  return level.minStock ?? product.minStock * product.quantityScale;
-}
-
 /**
  * `stock.below_minimum` (§9) : émis quand le prévisionnel passe sous le mini, une fois par
  * produit et site jusqu'à remontée (détection du franchissement).
@@ -94,7 +90,7 @@ export async function checkBelowMinimum(
   after: StockLevel,
 ): Promise<boolean> {
   if (!product.isStocked || !product.isActive) return false;
-  const min = minStockOf(after, product);
+  const min = minStockOfLevel(after, product);
   if (min <= 0) return false;
   const incoming = await incomingFor(tx, after.siteId, product.id);
   const projectedBefore = projectedAvailable(before, incoming);

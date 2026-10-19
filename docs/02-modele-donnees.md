@@ -660,6 +660,7 @@ model PurchaseOrder {
   repairOrderId  String?                      // commande liée à un OR
   total          Int @default(0)
   notes          String?
+  createdAt      DateTime @default(now())     // M07 §14
   lines          PurchaseOrderLine[]
   @@unique([organizationId, number])
 }

@@ -64,11 +64,12 @@ export function valueOf(baseQty: number, scale: number, unitCost: number): numbe
 
 /** Division entière arrondie au demi supérieur en valeur absolue (comme `roundHalfUp`). */
 export function divRoundHalfUp(numerator: bigint, denominator: bigint): number {
-  if (denominator === 0n) throw new DomainError("stock.division_by_zero", "Division par zéro.");
-  const negative = numerator < 0n !== denominator < 0n;
-  const n = numerator < 0n ? -numerator : numerator;
-  const d = denominator < 0n ? -denominator : denominator;
-  const q = (2n * n + d) / (2n * d);
+  if (denominator === BigInt(0))
+    throw new DomainError("stock.division_by_zero", "Division par zéro.");
+  const negative = numerator < BigInt(0) !== denominator < BigInt(0);
+  const n = numerator < BigInt(0) ? -numerator : numerator;
+  const d = denominator < BigInt(0) ? -denominator : denominator;
+  const q = (BigInt(2) * n + d) / (BigInt(2) * d);
   const result = Number(q);
   return negative && result !== 0 ? -result : result;
 }

@@ -18,6 +18,9 @@ ADD COLUMN     "packSize" INTEGER NOT NULL DEFAULT 1,
 ADD COLUMN     "quantityScale" INTEGER NOT NULL DEFAULT 1;
 
 -- AlterTable
+ALTER TABLE "PurchaseOrder" ADD COLUMN     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
 ALTER TABLE "PurchaseOrderLine" ADD COLUMN     "receivedCost" INTEGER;
 
 -- AlterTable
