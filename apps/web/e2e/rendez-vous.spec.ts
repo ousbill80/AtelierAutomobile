@@ -8,6 +8,7 @@ import {
 } from "@atelieros/core";
 import { adminDb, issuePortalToken } from "@atelieros/db";
 import { handleAppointmentEvent } from "../../worker/src/jobs/appointments";
+import { getMessagesQueue } from "../../worker/src/queues/messages";
 
 // M03 §12 — parcours principal : le réceptionnaire crée un RDV révision pour Kouassi Jean-Marc
 // samedi 09:00 Pont 1 → confirmation visible dans /dev/outbox → glisse le RDV sur Pont 2 11:00
@@ -19,6 +20,24 @@ import { handleAppointmentEvent } from "../../worker/src/jobs/appointments";
 // du worker (sondage toutes les 2 min, trop lent pour un E2E).
 
 const TZ = "Africa/Abidjan";
+
+/**
+ * M03 RG-M03-08 : hors de 07:00-22:00 (heure réelle d'Abidjan), un message transactionnel est
+ * mis en file avec un délai jusqu'à 07:00. Pour que le test ne dépende pas de l'heure à
+ * laquelle il tourne, on avance les jobs différés des messages de son organisation : l'envoi
+ * passe ensuite par le vrai worker et le fournisseur console, comme en journée.
+ */
+async function promoteDelayedMessages(organizationId: string): Promise<void> {
+  const messages = await adminDb.message.findMany({
+    where: { organizationId },
+    select: { id: true },
+  });
+  const queue = getMessagesQueue();
+  for (const { id } of messages) {
+    const job = await queue.getJob(id);
+    if (job && (await job.isDelayed())) await job.promote();
+  }
+}
 const SAT_HOURS = {
   mon: [["07:30", "18:00"]],
   tue: [["07:30", "18:00"]],
@@ -123,6 +142,9 @@ test("parcours RDV : création, confirmation, déplacement, portail, arrivée, O
   context,
   browser,
 }) => {
+  // Parcours long (planning, glisser-déposer, portail, réception) : 30 s par défaut ne suffisent
+  // pas sur un serveur encore froid.
+  test.setTimeout(90_000);
   const { organization, site, pont1, pont2, customer, vehicle, phone } = await setup(context);
   const SAT = nextSaturday();
 
@@ -159,6 +181,7 @@ test("parcours RDV : création, confirmation, déplacement, portail, arrivée, O
   const entry = outbox.getByTestId(`outbox-entry-SMS-${phone}`).first();
   await outbox.goto("/dev/outbox");
   await expect(async () => {
+    await promoteDelayedMessages(organization.id);
     await outbox.reload();
     await expect(entry).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 40_000, intervals: [2000] });
