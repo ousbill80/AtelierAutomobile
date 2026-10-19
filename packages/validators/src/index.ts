@@ -17,3 +17,10 @@ export {
   signUpInputSchema,
   verifyOtpInputSchema,
 } from "./auth";
+
+export type { RevokeSessionInput, SetActiveOrganizationInput, SetActiveSiteInput } from "./session";
+export {
+  revokeSessionInputSchema,
+  setActiveOrganizationInputSchema,
+  setActiveSiteInputSchema,
+} from "./session";
