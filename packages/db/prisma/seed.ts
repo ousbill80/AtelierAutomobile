@@ -5,6 +5,7 @@ import {
   hashPassword,
   lineAmounts,
   normalizePlate,
+  quoteTotals,
 } from "@atelieros/core";
 import { adminDb } from "../src/client";
 import { Prisma } from "@prisma/client";
@@ -2232,6 +2233,137 @@ async function main() {
     }
   }
 
+  console.log("Seed — devis de démonstration (M05)...");
+  type SeedQuoteLine = {
+    type: "LABOR" | "PART";
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    groupKey: string;
+    groupLabel: string;
+    priority: "URGENT" | "WATCH" | null;
+    isOptional: boolean;
+    accepted: boolean | null;
+    customerExplanation?: string;
+  };
+  const brakeGroup = (accepted: boolean | null): SeedQuoteLine[] => [
+    {
+      type: "LABOR",
+      description: "Remplacement plaquettes AV",
+      quantity: 1,
+      unitPrice: 15_000,
+      groupKey: "pads",
+      groupLabel: "Plaquettes avant",
+      priority: "URGENT",
+      isOptional: false,
+      accepted,
+      customerExplanation: "Les plaquettes sont usées à 90 % : le freinage devient dangereux.",
+    },
+    {
+      type: "PART",
+      description: "Jeu de plaquettes AV",
+      quantity: 1,
+      unitPrice: 28_000,
+      groupKey: "pads",
+      groupLabel: "Plaquettes avant",
+      priority: "URGENT",
+      isOptional: false,
+      accepted,
+    },
+  ];
+  const shockGroup = (accepted: boolean | null): SeedQuoteLine[] => [
+    {
+      type: "LABOR",
+      description: "Remplacement amortisseurs AR",
+      quantity: 2,
+      unitPrice: 15_000,
+      groupKey: "shocks",
+      groupLabel: "Amortisseurs arrière",
+      priority: "WATCH",
+      isOptional: true,
+      accepted,
+    },
+    {
+      type: "PART",
+      description: "Amortisseur AR",
+      quantity: 2,
+      unitPrice: 45_000,
+      groupKey: "shocks",
+      groupLabel: "Amortisseurs arrière",
+      priority: "WATCH",
+      isOptional: true,
+      accepted,
+    },
+  ];
+  const quoteScenarios: Array<{
+    status: "DRAFT" | "VIEWED" | "PARTIALLY_ACCEPTED";
+    lines: SeedQuoteLine[];
+    sentDaysAgo: number | null;
+  }> = [
+    { status: "VIEWED", lines: [...brakeGroup(null), ...shockGroup(null)], sentDaysAgo: 2 },
+    {
+      status: "PARTIALLY_ACCEPTED",
+      lines: [...brakeGroup(true), ...shockGroup(false)],
+      sentDaysAgo: 5,
+    },
+    { status: "DRAFT", lines: shockGroup(null), sentDaysAgo: null },
+  ];
+  for (const [index, scenario] of quoteScenarios.entries()) {
+    const customer = await adminDb.customer.findUniqueOrThrow({
+      where: { id: fillerCustomers[(index * 7 + 11) % fillerCustomers.length]!.id },
+    });
+    const vehicle = await adminDb.vehicle.findFirst({ where: { customerId: customer.id } });
+    const totals = quoteTotals(
+      scenario.lines.map((l, i) => ({
+        ...l,
+        id: String(i),
+        discountRate: 0,
+        vatRate: 18,
+        payer: "CUSTOMER" as const,
+      })),
+    );
+    const sentAt = scenario.sentDaysAgo != null ? daysFrom(-scenario.sentDaysAgo) : null;
+    await adminDb.quote.create({
+      data: {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        number: `DEV-${siteYopougon.code}-2026-${String(index + 1).padStart(5, "0")}`,
+        customerId: customer.id,
+        vehicleId: vehicle?.id ?? null,
+        status: scenario.status,
+        origin: "STANDALONE",
+        validUntil: daysFrom(15 - (scenario.sentDaysAgo ?? 0)),
+        sentAt,
+        sentVia: sentAt ? "WA_LINK" : null,
+        viewedAt: sentAt ? new Date(sentAt.getTime() + 3_600_000) : null,
+        decidedAt: scenario.status === "PARTIALLY_ACCEPTED" ? daysFrom(-4) : null,
+        decisionChannel: scenario.status === "PARTIALLY_ACCEPTED" ? "phone" : null,
+        signerName: scenario.status === "PARTIALLY_ACCEPTED" ? customer.displayName : null,
+        subtotal: totals.subtotal,
+        vatTotal: totals.vatTotal,
+        total: totals.total,
+        customerShare: totals.customerShare,
+        acceptedTotal: totals.acceptedTotal,
+        discountApprovalStatus: "NONE",
+        createdById: advisorMembershipId,
+        recordedById: scenario.status === "PARTIALLY_ACCEPTED" ? advisorMembershipId : null,
+        createdAt: sentAt ?? TODAY,
+        lines: {
+          create: scenario.lines.map((l, i) => ({
+            organizationId: organization.id,
+            ...l,
+            vatRate: 18,
+            sortOrder: i,
+            lineSubtotal: totals.lines[i]!.subtotal,
+            lineVat: totals.lines[i]!.vat,
+            lineTotal: totals.lines[i]!.total,
+            declineReason: l.accepted === false ? "later" : null,
+          })),
+        },
+      },
+    });
+  }
+
   console.log("Seed — compteurs de numérotation (DocumentSequence)...");
   await adminDb.documentSequence.createMany({
     data: [
@@ -2248,6 +2380,13 @@ async function main() {
         docType: "REC",
         year: 2026,
         lastValue: receiptSeq - 1,
+      },
+      {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        docType: "DEV",
+        year: 2026,
+        lastValue: quoteScenarios.length,
       },
       {
         organizationId: organization.id,

@@ -27,6 +27,9 @@ import { publicProcedure, router } from "../trpc";
 // RG-M05-09 / RG-M14-06 — 30 requêtes/min par jeton (mémoire du processus).
 const hits = new Map<string, number[]>();
 function rateLimit(key: string, now: number): void {
+  if (hits.size > 10_000) {
+    for (const [k, times] of hits) if (times.every((t) => now - t >= 60_000)) hits.delete(k);
+  }
   const recent = (hits.get(key) ?? []).filter((t) => now - t < 60_000);
   recent.push(now);
   hits.set(key, recent);
