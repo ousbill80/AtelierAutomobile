@@ -23,7 +23,9 @@ export function Sidebar({ garageName, garageSub, logoLabel, children }: SidebarP
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
-        <div className="sidebar-logo">{logoLabel}</div>
+        <div className="sidebar-logo" title={logoLabel} aria-label={logoLabel}>
+          {logoLabel.charAt(0).toUpperCase()}
+        </div>
         <div className="sidebar-garage">
           <div className="name">{garageName}</div>
           {garageSub ? <div className="sub">{garageSub}</div> : null}

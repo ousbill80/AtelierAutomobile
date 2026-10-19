@@ -32,6 +32,7 @@ export default function InscriptionPage() {
         purpose: "VERIFY",
         channel: result.otpChannel,
       });
+      if (result.devCode) params.set("devCode", result.devCode);
       router.push(`/verification?${params.toString()}`);
     },
     onError(err) {

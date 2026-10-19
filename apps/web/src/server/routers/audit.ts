@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@atelieros/db";
-import { db } from "@atelieros/db";
+import { adminDb, db } from "@atelieros/db";
 import { auditExportInputSchema, auditListInputSchema } from "@atelieros/validators";
 import { requirePermission, router } from "../trpc";
 
@@ -25,6 +25,21 @@ function buildWhere(input: {
     siteId: input.siteId,
     createdAt: input.from || input.to ? { gte: input.from, lte: input.to } : undefined,
   };
+}
+
+/** Noms des utilisateurs référencés par le journal (table User non multi-locataire). */
+async function loadUsers(userIds: Array<string | null>) {
+  const ids = [...new Set(userIds.filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0)
+    return {} as Record<string, { id: string; name: string; email: string | null }>;
+  const rows = await adminDb.user.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, email: true },
+  });
+  return Object.fromEntries(rows.map((u) => [u.id, u])) as Record<
+    string,
+    { id: string; name: string; email: string | null }
+  >;
 }
 
 function csvEscape(value: unknown): string {
@@ -55,8 +70,33 @@ export const auditRouter = router({
         nextCursor = items[items.length - 1]?.id;
       }
 
-      return { items, nextCursor };
+      const users = await loadUsers(items.map((row) => row.userId));
+      return {
+        items: items.map((row) => ({
+          ...row,
+          user: row.userId ? (users[row.userId] ?? null) : null,
+        })),
+        nextCursor,
+      };
     }),
+
+  /** Valeurs distinctes (actions, utilisateurs) présentes dans le journal, pour les filtres. */
+  facets: requirePermission("audit:read").query(async ({ ctx }) => {
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    const [actions, userRows] = await Promise.all([
+      tenantDb.auditLog.findMany({
+        distinct: ["action"],
+        select: { action: true },
+        orderBy: { action: "asc" },
+      }),
+      tenantDb.auditLog.findMany({ distinct: ["userId"], select: { userId: true } }),
+    ]);
+    const users = await loadUsers(userRows.map((row) => row.userId));
+    return {
+      actions: actions.map((row) => row.action),
+      users: Object.values(users).sort((a, b) => a.name.localeCompare(b.name, "fr")),
+    };
+  }),
 
   export: requirePermission("audit:read")
     .input(auditExportInputSchema)

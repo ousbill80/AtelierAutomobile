@@ -22,3 +22,16 @@ export function t(path: string, vars?: Vars): string {
     key in vars ? String(vars[key]) : match,
   );
 }
+
+/**
+ * Libellé d'un dictionnaire plat dont les clés contiennent des points
+ * (ex. tEntry("auditActions", "auth.login.success")). Renvoie la clé brute si absente.
+ */
+export function tEntry(section: string, key: string): string {
+  const dict = getPath(fr, section);
+  if (dict && typeof dict === "object" && key in dict) {
+    const value = (dict as Record<string, unknown>)[key];
+    if (typeof value === "string") return value;
+  }
+  return key;
+}

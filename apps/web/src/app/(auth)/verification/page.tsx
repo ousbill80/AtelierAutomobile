@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, OtpInput } from "@atelieros/ui";
+import { DevOtpHint } from "@/components/auth/DevOtpHint";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 
@@ -23,6 +24,7 @@ function VerificationForm() {
   const purpose = (searchParams.get("purpose") ?? "VERIFY") as "VERIFY" | "RESET" | "NEW_DEVICE";
   const [channel, setChannel] = useState(searchParams.get("channel") ?? "EMAIL");
   const [code, setCode] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(searchParams.get("devCode"));
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SEC);
 
@@ -33,8 +35,10 @@ function VerificationForm() {
   }, [cooldown]);
 
   const sendOtp = trpc.auth.sendOtp.useMutation({
-    onSuccess() {
+    onSuccess(result) {
       setCooldown(RESEND_COOLDOWN_SEC);
+      setDevCode(result.devCode ?? null);
+      setCode("");
       setError(null);
     },
     onError(err) {
@@ -62,7 +66,8 @@ function VerificationForm() {
       <h1>{t("auth.verifyOtp.title")}</h1>
       <p>{t("auth.verifyOtp.description", { channel, identifier })}</p>
       <form onSubmit={handleSubmit} className="stack">
-        <OtpInput value={code} onChange={setCode} />
+        <OtpInput value={code} onChange={setCode} autoFocus />
+        <DevOtpHint code={devCode} onUse={setCode} />
         {error ? <p className="error">{error}</p> : null}
         <Button type="submit" block loading={verifyOtp.isPending} disabled={code.length !== 6}>
           {t("auth.verifyOtp.submit")}

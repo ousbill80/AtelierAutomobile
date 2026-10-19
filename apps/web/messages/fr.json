@@ -50,13 +50,27 @@
       "forgotPassword": "Mot de passe oublié ?",
       "submit": "Se connecter",
       "noAccount": "Pas encore de compte ?",
-      "createAccount": "Créer un garage",
+      "createAccount": "Créer mon compte",
       "invalidCredentials": "Identifiants invalides.",
       "locked": "Compte verrouillé après plusieurs échecs. Réinitialisez votre mot de passe pour le déverrouiller.",
-      "useAtelierMode": "Mode atelier (code PIN)"
+      "useAtelierMode": "Mode atelier (code PIN)",
+      "subtitle": "Connectez-vous à votre espace garage.",
+      "identifierHint": "Le numéro saisi comme 07 08 12 34 56 est accepté.",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "submitting": "Connexion en cours…",
+      "otpTitle": "Vérifiez cet appareil",
+      "otpDescription": "Première connexion depuis cet appareil. Saisissez le code à 6 chiffres envoyé par SMS ou email.",
+      "otpBack": "Utiliser un autre compte",
+      "devOtpHint": "Code de test (développement)",
+      "devOtpUse": "Utiliser ce code",
+      "lockedUntil": "Compte verrouillé jusqu'à {time} après plusieurs échecs.",
+      "lockedHelp": "Réinitialisez votre mot de passe pour le déverrouiller sans attendre.",
+      "resetPassword": "Réinitialiser le mot de passe",
+      "atelierHint": "Sur une tablette partagée de l'atelier ?"
     },
     "signUp": {
-      "title": "Créer votre garage",
+      "title": "Créer votre compte",
       "nameLabel": "Votre nom",
       "phoneLabel": "Téléphone",
       "emailLabel": "Email",
@@ -65,7 +79,8 @@
       "acceptTerms": "J'accepte les conditions d'utilisation",
       "submit": "Créer mon compte",
       "hasAccount": "Déjà un compte ?",
-      "signInLink": "Se connecter"
+      "signInLink": "Se connecter",
+      "subtitle": "Vous configurerez votre garage juste après, en quelques étapes."
     },
     "verifyOtp": {
       "title": "Vérification",
@@ -97,6 +112,16 @@
       "pinLabel": "Code PIN",
       "wrongPin": "Code PIN incorrect.",
       "blocked": "Trop d'essais. Utilisez votre mot de passe."
+    },
+    "panel": {
+      "title": "Le garage tourne tout seul pour tout ce qui est répétitif.",
+      "point1Title": "Rendez-vous et ordres de réparation",
+      "point1Desc": "Du rendez-vous à la facture, sans papier.",
+      "point2Title": "Relances automatiques",
+      "point2Desc": "Visites techniques, révisions et créances par WhatsApp, SMS et email.",
+      "point3Title": "Facturation FNE et mobile money",
+      "point3Desc": "Factures normalisées DGI, paiements Wave, Orange Money, MTN et Moov.",
+      "foot": "Conçu pour les ateliers de Côte d'Ivoire"
     }
   },
   "nav": {
@@ -132,20 +157,32 @@
       "legalNameLabel": "Raison sociale",
       "communeLabel": "Commune",
       "addressLabel": "Adresse",
-      "phoneLabel": "Téléphone"
+      "phoneLabel": "Téléphone",
+      "description": "Ces informations apparaîtront sur vos devis, factures et messages aux clients.",
+      "namePlaceholder": "Ex. : Garage Excellence Auto",
+      "nameHint": "C'est le nom que vos clients verront dans les messages.",
+      "legalNamePlaceholder": "Ex. : Excellence Auto SARL",
+      "communePlaceholder": "Ex. : Cocody",
+      "addressPlaceholder": "Ex. : Riviera 2, rue des Jardins, Abidjan",
+      "phoneHint": "Numéro affiché à vos clients pour vous joindre."
     },
     "workshop": {
       "title": "Votre premier site",
       "nameLabel": "Nom du site",
       "codeLabel": "Code du site",
-      "codeHint": "Lettres majuscules et chiffres uniquement."
+      "codeHint": "2 à 10 caractères, lettres majuscules et chiffres. Il sert à numéroter vos documents.",
+      "description": "Un site correspond à un atelier physique. Vous pourrez en ajouter d'autres plus tard.",
+      "namePlaceholder": "Ex. : Atelier principal",
+      "codePlaceholder": "Ex. : PRINC"
     },
     "mode": {
       "title": "Comment utilisez-vous AtelierOS ?",
       "full": "Gestion complète",
       "fullDescription": "RDV, ordres de réparation, devis, facturation, stock.",
       "remindersOnly": "Relances uniquement",
-      "remindersOnlyDescription": "Je garde mon logiciel actuel, AtelierOS gère mes relances."
+      "remindersOnlyDescription": "Je garde mon logiciel actuel, AtelierOS gère mes relances.",
+      "description": "Vous pourrez changer de mode à tout moment dans les paramètres.",
+      "recommended": "Recommandé"
     },
     "team": {
       "title": "Invitez votre équipe",
@@ -154,7 +191,10 @@
       "nameLabel": "Nom",
       "roleLabel": "Rôle",
       "channelLabel": "Canal",
-      "submit": "Envoyer les invitations"
+      "submit": "Envoyer les invitations",
+      "member": "Membre {n}",
+      "empty": "Aucun membre ajouté pour l'instant.",
+      "remove": "Retirer ce membre"
     },
     "channels": {
       "title": "Canaux de communication",
@@ -162,18 +202,29 @@
       "smsEnabled": "Activer les SMS",
       "emailEnabled": "Activer l'email",
       "sendTestLabel": "Envoyer un message de test à",
-      "submit": "Enregistrer"
+      "submit": "Enregistrer",
+      "smsDescription": "Relances et confirmations par SMS pour les clients sans WhatsApp.",
+      "emailDescription": "Envoi des devis, factures et rappels par email.",
+      "whatsappNote": "WhatsApp est le canal principal. Il se configure dans les paramètres.",
+      "sendTestHint": "Nous enverrons un message de test à ce numéro."
     },
     "data": {
       "title": "Données de démonstration",
       "description": "Ajoutez des clients et véhicules fictifs pour découvrir AtelierOS.",
       "demo": "Charger les données de démonstration",
-      "skip": "Commencer avec un garage vide"
+      "skip": "Commencer avec un garage vide",
+      "demoDescription": "Quelques clients, véhicules et rendez-vous fictifs, supprimables en un clic.",
+      "skipDescription": "Vous ajouterez vos clients et véhicules vous-même ou par import."
     },
     "done": {
       "title": "Tout est prêt !",
-      "description": "Votre garage est configuré. Vous pouvez commencer à travailler."
-    }
+      "description": "Votre garage est configuré. Vous pouvez commencer à travailler.",
+      "next1": "Ajouter vos premiers clients et véhicules",
+      "next2": "Configurer vos relances automatiques",
+      "next3": "Inviter le reste de l'équipe"
+    },
+    "intro": "Votre compte est créé. Configurons maintenant votre garage : cela prend moins de cinq minutes.",
+    "stepOf": "Étape {current} sur {total}"
   },
   "settings": {
     "team": {
@@ -232,12 +283,37 @@
         "date": "Date",
         "user": "Utilisateur",
         "action": "Action",
-        "entity": "Élément"
+        "entity": "Élément",
+        "reason": "Motif"
       },
       "filters": {
         "user": "Utilisateur",
         "action": "Action",
-        "period": "Période"
+        "period": "Période",
+        "from": "Du",
+        "to": "Au",
+        "allActions": "Toutes les actions",
+        "allUsers": "Tous les utilisateurs",
+        "reset": "Réinitialiser"
+      },
+      "shown": "{count} entrée(s) affichée(s)",
+      "loadMore": "Afficher plus",
+      "loadError": "Impossible de charger le journal.",
+      "exportError": "Aucune entrée à exporter avec ces filtres.",
+      "empty": {
+        "title": "Aucune entrée",
+        "description": "Aucune action ne correspond à ces filtres. Les actions sensibles (connexions, membres, sites, rôles) apparaîtront ici."
+      },
+      "unknownUser": "Système",
+      "entities": {
+        "Organization": "Organisation",
+        "Site": "Site",
+        "Invitation": "Invitation",
+        "Membership": "Membre",
+        "User": "Utilisateur",
+        "Session": "Session",
+        "Role": "Rôle",
+        "TrustedDevice": "Appareil"
       }
     }
   },

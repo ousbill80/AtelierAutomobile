@@ -7,10 +7,12 @@ export interface OtpInputProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** Place le focus sur la première case au montage. */
+  autoFocus?: boolean;
 }
 
 /** Saisie OTP en cases séparées, avec collage du code complet supporté. */
-export function OtpInput({ length = 6, value, onChange, disabled }: OtpInputProps) {
+export function OtpInput({ length = 6, value, onChange, disabled, autoFocus }: OtpInputProps) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const digits = Array.from({ length }, (_, i) => value[i] ?? "");
 
@@ -30,6 +32,8 @@ export function OtpInput({ length = 6, value, onChange, disabled }: OtpInputProp
           }}
           className="otp-digit"
           inputMode="numeric"
+          autoFocus={autoFocus && i === 0}
+          aria-label={`Chiffre ${i + 1} sur ${length}`}
           autoComplete={i === 0 ? "one-time-code" : "off"}
           maxLength={1}
           disabled={disabled}

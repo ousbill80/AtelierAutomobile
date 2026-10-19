@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { checkPasswordPolicy } from "@atelieros/core/src/auth/password-policy";
 import { Button, Field, Input, OtpInput } from "@atelieros/ui";
+import { DevOtpHint } from "@/components/auth/DevOtpHint";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 
@@ -14,12 +15,14 @@ export default function MotDePasseOubliePage() {
   const [step, setStep] = useState<Step>("identifier");
   const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const sendOtp = trpc.auth.sendOtp.useMutation({
-    onSuccess() {
+    onSuccess(result) {
+      setDevCode(result.devCode ?? null);
       setStep("code");
       setError(null);
     },
@@ -103,7 +106,8 @@ export default function MotDePasseOubliePage() {
             verifyOtp.mutate({ identifier, code, purpose: "RESET" });
           }}
         >
-          <OtpInput value={code} onChange={setCode} />
+          <OtpInput value={code} onChange={setCode} autoFocus />
+          <DevOtpHint code={devCode} onUse={setCode} />
           {error ? <p className="error">{error}</p> : null}
           <Button type="submit" block loading={verifyOtp.isPending} disabled={code.length !== 6}>
             {t("auth.verifyOtp.submit")}
