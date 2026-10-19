@@ -13,3 +13,5 @@ export * from "./batch";
 export * from "./messages";
 export * from "./replies";
 export * from "./preferences";
+export { formatDate } from "../calendar";
+export type { OpeningHours } from "../organization/opening-hours";

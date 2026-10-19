@@ -65,6 +65,12 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
 
   const mainItems = [
     { href: "/tableau-de-bord", label: t("nav.ownerDashboard"), permission: "dashboard:owner" },
+    { href: "/rendez-vous", label: t("nav.appointments"), permission: "appointment:read" },
+    {
+      href: "/rendez-vous/aujourdhui",
+      label: t("nav.appointmentsToday"),
+      permission: "appointment:read",
+    },
     { href: "/clients", label: t("nav.customers"), permission: "customer:read" },
     { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
     { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },
@@ -94,6 +100,11 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       href: "/parametres/relances",
       label: t("nav.settingsReminderRules"),
       permission: "reminder:rules_manage",
+    },
+    {
+      href: "/parametres/planning",
+      label: t("nav.settingsPlanning"),
+      permission: "planning:manage",
     },
   ].filter((item) => has(item.permission));
 
