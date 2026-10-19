@@ -1696,7 +1696,14 @@
       "customerSupplied": "Fournie par le client",
       "movements": "Mouvements de stock",
       "none": "Aucune pièce sur cet OR.",
-      "m07": "Réservations et sorties gérées par le module Stock (M07)."
+      "m07": "Les pièces approuvées sont réservées en stock ; elles sortent du stock quand la ligne est terminée (ou depuis la file du magasin).",
+      "stock": {
+        "missing": "Pièce manquante",
+        "partial": "Pièce manquante (en partie)",
+        "reserved": "Réservée en stock",
+        "issued": "Sortie du stock",
+        "none": "Non réservée"
+      }
     },
     "time": {
       "none": "Aucun pointage (M06).",
