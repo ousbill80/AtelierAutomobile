@@ -11,6 +11,7 @@ import {
   clientNamespace,
   deferOutcome,
   detectCombo,
+  formatDate,
   formatFCFA,
   formatVehicleList,
   garageNamespace,
@@ -292,6 +293,7 @@ async function buildContext(
     } else {
       const kase = await tenantDb.collectionCase.findFirst({
         where: { customerId: first.customerId },
+        orderBy: { createdAt: "desc" },
       });
       const invoices = await tenantDb.invoice.findMany({
         where: {
@@ -315,6 +317,20 @@ async function buildContext(
         resume: `${invoices.length} facture(s), ${formatFCFA(totalDue)}`,
         detail: invoices.map((i) => `${i.number} : ${formatFCFA(i.balance)}`).join(" ; "),
       };
+      // M09 RG-M09-06 : `{{promesse.*}}` pour la relance « promesse rompue » (cr_promesse_rompue).
+      if (first.stepKey === "PROMISE_BROKEN") {
+        const promiseId = first.dedupeKey.split(":PROMISE_BROKEN:")[1];
+        const promise = promiseId
+          ? await tenantDb.paymentPromise.findFirst({ where: { id: promiseId } })
+          : null;
+        if (promise) {
+          base.promesse = {
+            montant: formatFCFA(promise.amount),
+            date: formatDate(promise.promisedDate, "UTC"),
+            paye: formatFCFA(promise.paidAmount),
+          };
+        }
+      }
     }
   }
   if (group.type === "QUOTE_FOLLOWUP" && first.quote) {

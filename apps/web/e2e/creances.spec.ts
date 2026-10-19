@@ -76,6 +76,11 @@ test("parcours créances : enregistrer un paiement ferme le dossier", async ({ p
   await expect(page.getByText("Balance âgée")).toBeVisible();
   await expect(page.getByText("Koné Ibrahim").first()).toBeVisible();
 
+  // §7.3 : alerte crédit orange (non bloquante) sur la fiche client.
+  await page.goto(`/clients/${customer.id}`);
+  await expect(page.getByText("Client en retard de paiement")).toBeVisible();
+  await expect(page.getByText(/185 000 FCFA impayés depuis 12 jours/)).toBeVisible();
+
   await page.goto(`/creances/${kase.id}`);
   await page.getByRole("button", { name: "Enregistrer un paiement" }).first().click();
   await page.getByLabel("Montant (FCFA)").fill("185000");

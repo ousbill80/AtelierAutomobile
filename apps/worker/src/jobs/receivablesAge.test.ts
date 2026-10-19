@@ -1,7 +1,10 @@
 import { fixedClock } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { getMessagesQueue } from "../queues/messages";
+import { getRemindersQueue } from "../queues/reminders";
 import { processCollectionsPromisesJob, processReceivablesAgeJob } from "./receivablesAge";
+import { processRemindersDispatchJob } from "./remindersDispatch";
 
 const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
@@ -15,7 +18,12 @@ describe("receivables.age / collections.promises — intégration (M09)", () => 
       data: { organizationId: org.id, name: "Cocody", code: "COC" },
     });
     customer = await adminDb.customer.create({
-      data: { organizationId: org.id, displayName: "Koné Ibrahim", phone: "+2250152770943" },
+      data: {
+        organizationId: org.id,
+        displayName: "Koné Ibrahim",
+        phone: "+2250152770943",
+        whatsappPhone: "+2250152770943",
+      },
     });
     await adminDb.reminderRule.create({
       data: {
@@ -34,9 +42,9 @@ describe("receivables.age / collections.promises — intégration (M09)", () => 
           },
         ],
         sendWindow: {
-          days: [1, 2, 3, 4, 5, 6],
-          from: "08:00",
-          to: "19:00",
+          days: [0, 1, 2, 3, 4, 5, 6],
+          from: "00:00",
+          to: "23:59",
           preferredTime: "09:00",
         },
         conditions: {},
@@ -59,7 +67,10 @@ describe("receivables.age / collections.promises — intégration (M09)", () => 
   });
 
   afterAll(async () => {
+    await adminDb.message.deleteMany({ where: { organizationId: org.id } });
     await adminDb.reminder.deleteMany({ where: { organizationId: org.id } });
+    await adminDb.messageTemplate.deleteMany({ where: { organizationId: org.id } });
+    await adminDb.channelConfig.deleteMany({ where: { organizationId: org.id } });
     await adminDb.paymentPromise.deleteMany({ where: { organizationId: org.id } });
     await adminDb.reminderRule.deleteMany({ where: { organizationId: org.id } });
     await adminDb.invoice.deleteMany({ where: { organizationId: org.id } });
@@ -68,6 +79,8 @@ describe("receivables.age / collections.promises — intégration (M09)", () => 
     await adminDb.customer.deleteMany({ where: { organizationId: org.id } });
     await adminDb.site.deleteMany({ where: { organizationId: org.id } });
     await adminDb.organization.delete({ where: { id: org.id } });
+    await getRemindersQueue().close();
+    await getMessagesQueue().close();
   });
 
   it("le 07/10 à 01:00 la facture passe OVERDUE et le dossier s'ouvre (idempotent)", async () => {
@@ -125,6 +138,42 @@ describe("receivables.age / collections.promises — intégration (M09)", () => 
     expect(reminders[0]!.dedupeKey).toBe(
       `RECEIVABLE:${kase.id}:2026-10-06:PROMISE_BROKEN:${promise.id}`,
     );
+  });
+
+  it("la relance PROMISE_BROKEN part avec le modèle cr_promesse_rompue et le montant promis", async () => {
+    await adminDb.channelConfig.create({
+      data: {
+        organizationId: org.id,
+        channel: "WHATSAPP",
+        provider: "console",
+        isActive: true,
+        priority: 1,
+        credentials: "",
+      },
+    });
+    await adminDb.messageTemplate.create({
+      data: {
+        organizationId: org.id,
+        key: "cr_promesse_rompue",
+        name: "Créances — promesse non tenue",
+        channel: "WHATSAPP",
+        body: "Bonjour {{client.salutation}}, le paiement de {{promesse.montant}} prévu le {{promesse.date}} ne nous est pas parvenu.",
+        isActive: true,
+      },
+    });
+    const reminder = await adminDb.reminder.findFirstOrThrow({
+      where: { organizationId: org.id, stepKey: "PROMISE_BROKEN" },
+    });
+    await adminDb.reminder.update({
+      where: { id: reminder.id },
+      data: { status: "PLANNED", approvedAt: new Date(), scheduledFor: new Date() },
+    });
+    await processRemindersDispatchJob();
+    const sent = await adminDb.reminder.findUniqueOrThrow({ where: { id: reminder.id } });
+    expect(sent.status).toBe("QUEUED");
+    const message = await adminDb.message.findUniqueOrThrow({ where: { id: sent.messageId! } });
+    expect(message.body).toContain("185 000 FCFA");
+    expect(message.body).toContain("25/10/2026");
   });
 
   it("facture réglée ailleurs → dossier CLOSED_PAID au passage suivant", async () => {
