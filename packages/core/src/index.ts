@@ -52,6 +52,25 @@ export type {
 } from "./reminders/serviceDue";
 export { computeNextServiceDue } from "./reminders/serviceDue";
 
+export type { ComputeDisplayNameInput, CustomerType } from "./customers/display-name";
+export { computeDisplayName } from "./customers/display-name";
+
+export type {
+  DuplicateLevel,
+  DuplicateScoreResult,
+  DuplicateSignals,
+} from "./customers/duplicates";
+export { computeDuplicateScore } from "./customers/duplicates";
+
+export type {
+  ConsentState,
+  MergeFieldInput,
+  MergePlanInput,
+  MergePlanResult,
+  MergeSide,
+} from "./customers/merge";
+export { mergePlan } from "./customers/merge";
+
 export type { DocumentSequenceKey, DocumentType, SequenceStore } from "./numbering";
 export {
   formatDocumentNumber,
