@@ -3,6 +3,7 @@ import {
   canAddMember,
   defaultChannelConfigs,
   defaultInspectionTemplate,
+  extraInspectionTemplates,
   defaultLaborOperations,
   defaultMessageTemplates,
   defaultReminderRules,
@@ -191,8 +192,19 @@ async function saveGarageStep(
       organizationId: org.id,
       name: inspection.name,
       items: inspection.items as unknown as Prisma.InputJsonValue,
+      isDefault: true,
     },
   });
+  // RG-M04-16 : modèles « Pré-visite technique » et « Inspection achat véhicule d'occasion ».
+  for (const template of extraInspectionTemplates()) {
+    await tenantDb.inspectionTemplate.create({
+      data: {
+        organizationId: org.id,
+        name: template.name,
+        items: template.items as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
   await tenantDb.laborOperation.createMany({
     data: defaultLaborOperations().map((op) => ({ ...op, organizationId: org.id })),
   });

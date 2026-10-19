@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createContext } from "../context";
 import { createCallerFactory } from "../trpc";
 import { appRouter } from "./_app";
+import { searchCustomers, searchVehicles } from "../customers/trigram";
 
 const callerFactory = createCallerFactory(appRouter);
 
@@ -304,6 +305,19 @@ describe("search router (M02)", () => {
     expect(byDocument.documents).toEqual([]);
     const byContact = await callerB.search.global({ q: "Diabaté" });
     expect(byContact.customers).toEqual([]);
+  });
+
+  it("façades searchVehicles/searchCustomers (réception M04) : plaque partielle, téléphone, isolation", async () => {
+    expect((await searchVehicles(orgA.id, "1234", 8)).map((v) => v.id)).toContain(vehicleA.id);
+    expect((await searchVehicles(orgA.id, "flotte-17", 8)).map((v) => v.id)).toContain(
+      vehicleVin.id,
+    );
+    expect((await searchCustomers(orgA.id, "07 08 12 39 87", 8)).map((c) => c.id)).toContain(
+      customerA.id,
+    );
+    expect((await searchCustomers(orgA.id, "Kouassi", 8))[0]?.id).toBe(customerA.id);
+    expect(await searchVehicles(orgB.id, "1234", 8)).toEqual([]);
+    expect(await searchCustomers(orgB.id, "Kouassi", 8)).toEqual([]);
   });
 
   it("refuse une requête de moins de 2 caractères", async () => {

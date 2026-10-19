@@ -1,3 +1,4 @@
+import { analyzeSearchQuery } from "@atelieros/core";
 import { adminDb, Prisma } from "@atelieros/db";
 
 // La similarité trigramme (pg_trgm) n'a pas d'équivalent dans le query-builder Prisma :
@@ -248,4 +249,51 @@ export async function searchVehiclesByIdentifier(
       ) DESC
     LIMIT ${limit}
   `);
+}
+
+function mergeHits<T extends { id: string; rank: number }>(lists: T[][], limit: number): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of lists.flatMap((list) => [...list].sort((a, b) => b.rank - a.rank))) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+  }
+  return out.slice(0, limit);
+}
+
+/**
+ * RG-M02-19 — clients pour une saisie libre (réception M04, etc.) : suffixe de téléphone si la
+ * saisie ressemble à un numéro, sinon nom (fiche, raison sociale, contacts).
+ */
+export async function searchCustomers(
+  organizationId: string,
+  query: string,
+  limit = 5,
+): Promise<CustomerSearchHit[]> {
+  const analysis = analyzeSearchQuery(query);
+  return analysis.kinds.includes("PHONE")
+    ? searchCustomersByPhone(organizationId, analysis.digits, limit)
+    : searchCustomersByName(organizationId, analysis.text, limit);
+}
+
+/**
+ * RG-M02-19 — véhicules pour une saisie libre : plaque (toujours tentée, une saisie partielle
+ * « 2547 » est fréquente), puis téléphone du chauffeur ou VIN / n° de flotte selon la saisie.
+ */
+export async function searchVehicles(
+  organizationId: string,
+  query: string,
+  limit = 5,
+): Promise<VehicleSearchHit[]> {
+  const analysis = analyzeSearchQuery(query);
+  const lists = await Promise.all([
+    analysis.plateLoose.length >= 2
+      ? searchVehiclesByPlate(organizationId, analysis.plateLoose, limit)
+      : Promise.resolve([]),
+    analysis.kinds.includes("PHONE")
+      ? searchVehiclesByDriverPhone(organizationId, analysis.digits, limit)
+      : searchVehiclesByIdentifier(organizationId, analysis.text, limit),
+  ]);
+  return mergeHits(lists, limit);
 }
