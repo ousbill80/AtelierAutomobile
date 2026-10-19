@@ -29,6 +29,29 @@ export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./phone";
 export type { NormalizedPlate, PlateType } from "./plate";
 export { normalizePlate } from "./plate";
 
+export type {
+  AvgKmPerDayResult,
+  AvgKmPerDaySource,
+  ComputeAvgKmPerDayInput,
+  MileageReadingLike,
+  VehicleUsage,
+} from "./vehicles/mileage";
+export {
+  computeAvgKmPerDay,
+  computeEstimatedMileage,
+  DEFAULT_AVG_KM_PER_DAY,
+} from "./vehicles/mileage";
+
+export type { InspectionStatus, ServiceStatus } from "./vehicles/status";
+export { computeInspectionStatus, computeServiceStatus } from "./vehicles/status";
+
+export type {
+  ComputeNextServiceDueInput,
+  NextServiceDueResult,
+  ServiceDueTrigger,
+} from "./reminders/serviceDue";
+export { computeNextServiceDue } from "./reminders/serviceDue";
+
 export type { DocumentSequenceKey, DocumentType, SequenceStore } from "./numbering";
 export {
   formatDocumentNumber,
