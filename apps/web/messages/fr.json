@@ -745,6 +745,10 @@
       "OK": "Crédit OK",
       "WARN": "Attention",
       "BLOCK": "Crédit bloqué"
+    },
+    "creditAlert": {
+      "blockTitle": "Crédit bloqué",
+      "warnTitle": "Client en retard de paiement"
     }
   }
 }

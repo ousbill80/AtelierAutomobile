@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { DueBadge, EmptyState, PlateBadge, StatusBadge } from "@atelieros/ui";
+import { CreditAlert } from "@/components/credit-alert";
 import { LinkButton } from "@/components/link-button";
 import { trpc } from "@/trpc/react";
 import { ReminderMiniBlock } from "../../relances/reminder-mini-block";
@@ -47,6 +48,7 @@ export function CustomerView({ id }: { id: string }) {
           )}
         </div>
       </header>
+      <CreditAlert customerId={customer.id} />
 
       <section>
         <div className="mb-2 flex items-center justify-between">

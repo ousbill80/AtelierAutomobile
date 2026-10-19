@@ -1310,6 +1310,30 @@ async function main() {
     // une notification interne / ligne du résumé quotidien (RG-M10-02), jamais un message client.
     // Pas de ligne MessageTemplate pour cette clé : le modèle n'a pas de champ Channel pertinent.
 
+    // M09 RG-M09-06 : relance hors séquence le lendemain d'une promesse non tenue
+    // (planifiée par collections.promises, stepKey PROMISE_BROKEN). Annexe A de M10.
+    {
+      key: "cr_promesse_rompue",
+      name: "Créances — promesse non tenue",
+      channel: "WHATSAPP",
+      type: "RECEIVABLE",
+      body: "Bonjour {{client.salutation}}, sauf erreur, le paiement de {{promesse.montant}} prévu le {{promesse.date}} ne nous est pas parvenu. Pouvez-vous régler aujourd'hui ou nous rappeler au {{garage.telephone}} ? Paiement : {{lien.paiement}}. {{garage.nom}}",
+    },
+    {
+      key: "cr_promesse_rompue",
+      name: "Créances — promesse non tenue",
+      channel: "SMS",
+      type: "RECEIVABLE",
+      body: "{{garage.nom}}: {{client.salutation}}, paiement de {{promesse.montant}} prevu le {{promesse.date}} non recu. Payer: {{lien.paiement}}",
+    },
+    {
+      key: "cr_promesse_rompue",
+      name: "Créances — promesse non tenue",
+      channel: "EMAIL",
+      type: "RECEIVABLE",
+      subject: "Paiement prévu le {{promesse.date}} non reçu",
+      body: "Bonjour {{client.salutation}},\nVous nous aviez indiqué un paiement de {{promesse.montant}} pour le {{promesse.date}}. Sauf erreur, nous ne l'avons pas reçu.\nMerci de régler aujourd'hui ({{lien.paiement}}) ou de nous appeler au {{garage.telephone}} pour convenir d'une nouvelle date.\n{{garage.nom}}",
+    },
     // Variante entreprises, step unique de la règle "Échéance proche (entreprises)" (inactive
     // par défaut). Annexe A donne aussi une variante SMS ; on la transcrit même si le palier
     // par défaut n'utilise que EMAIL + WHATSAPP (RG-M10-02), pour que le modèle soit disponible
