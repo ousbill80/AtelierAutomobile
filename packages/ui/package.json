@@ -24,5 +24,11 @@
     "react-dom": "^19",
     "typescript": "^5",
     "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.59.0",
+    "tailwind-merge": "^3.7.0"
   }
 }
