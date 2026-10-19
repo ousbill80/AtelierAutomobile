@@ -8,7 +8,6 @@
 import { adminDb, db } from "@atelieros/db";
 import {
   antiSpamAllows,
-  buildRecipientKey,
   clientNamespace,
   deferOutcome,
   detectCombo,
@@ -17,20 +16,18 @@ import {
   garageNamespace,
   isWithinSendWindow,
   nextSendWindowStart,
-  normalizePhoneCI,
-  phoneLineType,
   pickChannel,
   renderTemplate,
   resolveGroupTemplateKey,
   templateKeyCandidates,
   vehicleNamespace,
   type Channel,
-  type ChannelCandidate,
 } from "@atelieros/core";
 import { reminderSendWindowSchema, reminderStepSchema } from "@atelieros/validators";
 import { z } from "zod";
 import { enqueueMessageSendJob } from "../queues/messages";
 import { logger } from "../logger";
+import { resolveChannelCandidates, resolveRecipient } from "./reminderChannel";
 
 // Création du `Message` : réimplémentée ici plutôt que de réutiliser
 // `apps/web/src/server/messaging/enqueue.ts` (`messagingEnqueue`), qui n'est pas un module
@@ -71,48 +68,6 @@ async function loadDueReminders(tenantDb: TenantDb, now: Date) {
 
 function dayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
-}
-
-interface RecipientInfo {
-  customerId: string;
-  recipientKey: string;
-  to: { phone?: string | null; whatsapp?: string | null; email?: string | null };
-}
-
-async function resolveRecipient(
-  tenantDb: TenantDb,
-  reminder: DueReminder,
-): Promise<RecipientInfo | null> {
-  const customer = reminder.customer;
-  if (customer.type === "COMPANY") {
-    const isReceivable = reminder.type === "RECEIVABLE";
-    const contact = await tenantDb.customerContact.findFirst({
-      where: {
-        customerId: customer.id,
-        deletedAt: null,
-        ...(isReceivable ? { receivesInvoices: true } : { receivesReminders: true }),
-      },
-      orderBy: { isPrimary: "desc" },
-    });
-    const phone = contact?.phone ?? contact?.phone2 ?? customer.phone ?? null;
-    const email = contact?.email ?? customer.email ?? null;
-    if (!phone && !email) return null;
-    const recipientKey = phone
-      ? buildRecipientKey({ kind: "phone", e164: phone })
-      : buildRecipientKey({ kind: "email", address: email! });
-    return { customerId: customer.id, recipientKey, to: { phone, whatsapp: phone, email } };
-  }
-
-  const whatsapp = customer.whatsappPhone ?? customer.phone;
-  const phone = customer.phone ?? customer.phone2;
-  const email = customer.email;
-  if (!whatsapp && !phone && !email) return null;
-  const recipientKey = phone
-    ? buildRecipientKey({ kind: "phone", e164: phone })
-    : whatsapp
-      ? buildRecipientKey({ kind: "phone", e164: whatsapp })
-      : buildRecipientKey({ kind: "email", address: email! });
-  return { customerId: customer.id, recipientKey, to: { phone, whatsapp, email } };
 }
 
 interface DispatchGroup {
@@ -373,63 +328,6 @@ async function buildContext(
   return base;
 }
 
-interface ChannelResolution {
-  candidates: ChannelCandidate[];
-  providerByChannel: Map<Channel, string>;
-}
-
-async function resolveChannelCandidates(
-  tenantDb: TenantDb,
-  recipient: RecipientInfo,
-  stepChannels: Channel[],
-): Promise<ChannelResolution> {
-  const configs = await tenantDb.channelConfig.findMany({
-    where: { channel: { in: stepChannels } },
-  });
-  const optOuts = await tenantDb.optOut.findMany({
-    where: {
-      address: {
-        in: [recipient.to.whatsapp, recipient.to.phone, recipient.to.email].filter(
-          (a): a is string => !!a,
-        ),
-      },
-    },
-  });
-  const customer = await tenantDb.customer.findFirst({ where: { id: recipient.customerId } });
-
-  const providerByChannel = new Map<Channel, string>();
-  const candidates = stepChannels.map((channel): ChannelCandidate => {
-    const address =
-      channel === "WHATSAPP"
-        ? (recipient.to.whatsapp ?? recipient.to.phone ?? null)
-        : channel === "SMS"
-          ? (recipient.to.phone ?? null)
-          : (recipient.to.email ?? null);
-    const isFixedLine =
-      channel !== "EMAIL" &&
-      !!address &&
-      phoneLineType(normalizePhoneCI(address).e164 ?? address) === "FIXED";
-    const activeConfig = configs
-      .filter((c) => c.channel === channel && c.isActive && c.status !== "ERROR")
-      .sort((a, b) => a.priority - b.priority)[0];
-    providerByChannel.set(channel, activeConfig?.provider ?? "console");
-    return {
-      channel,
-      address: isFixedLine ? null : address,
-      isOptedOut:
-        !!address &&
-        optOuts.some((o) => o.address === address && (o.channel === null || o.channel === channel)),
-      isAddressInvalid:
-        channel === "EMAIL" ? !!customer?.emailInvalidAt : !!customer?.phoneInvalidAt,
-      isChannelActive: !!activeConfig,
-      // Simplification : la fenêtre WhatsApp 24h / modèle Meta approuvé (RG-M11-10) n'est pas
-      // revérifiée ici ; déjà couverte côté M11 pour l'envoi manuel.
-      hasApprovedTemplate: channel === "WHATSAPP" ? true : undefined,
-    };
-  });
-  return { candidates, providerByChannel };
-}
-
 async function dispatchGroup(
   organizationId: string,
   tenantDb: TenantDb,
@@ -457,7 +355,7 @@ async function dispatchGroup(
   }
   if (valid.length === 0) return;
 
-  const recipient = await resolveRecipient(tenantDb, valid[0]!);
+  const recipient = await resolveRecipient(tenantDb, valid[0]!.customer, valid[0]!.type);
   if (!recipient) {
     await tenantDb.reminder.updateMany({
       where: { id: { in: valid.map((r) => r.id) } },
@@ -669,7 +567,7 @@ async function dispatchForOrganization(organizationId: string, timeZone: string)
 
   const recipientKeyOf = new Map<string, string>();
   for (const r of due) {
-    const recipient = await resolveRecipient(tenantDb, r);
+    const recipient = await resolveRecipient(tenantDb, r.customer, r.type);
     if (recipient) recipientKeyOf.set(r.id, recipient.recipientKey);
   }
 

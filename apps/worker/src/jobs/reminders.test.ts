@@ -128,6 +128,10 @@ describe("reminders.plan / reminders.dispatch — intégration (M10)", () => {
     // véhicule et le passage du job) → NEEDS_APPROVAL, jamais d'envoi automatique à l'activation.
     expect(remindersA[0]?.status).toBe("NEEDS_APPROVAL");
     expect(remindersA[0]?.isCatchUp).toBe(true);
+    // RG-M10-31 : un canal préliminaire est posé dès la planification (le client a un
+    // whatsappPhone et WHATSAPP est actif) pour que la relance apparaisse dans « À valider »
+    // plutôt que « À appeler » tant qu'un canal est exploitable.
+    expect(remindersA[0]?.channel).toBe("WHATSAPP");
     expect(remindersA[0]?.sequenceKey).toBe(
       `INSPECTION:${vehicleA.id}:${daysFromNow(30).toISOString().slice(0, 10)}`,
     );
