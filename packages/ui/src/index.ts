@@ -68,3 +68,20 @@ export {
   type BarcodeScannerLabels,
   type BarcodeScannerProps,
 } from "./BarcodeScanner";
+// M04 — composants tablette de la réception (schéma, jauge, signature, photos).
+export {
+  BodyDiagram,
+  type BodyDiagramMarker,
+  type BodyDiagramProps,
+  type BodyType,
+  type BodyView,
+} from "./BodyDiagram";
+export { FuelGauge, type FuelGaugeProps } from "./FuelGauge";
+export { SignaturePad, type SignaturePadProps } from "./SignaturePad";
+export {
+  compressImage,
+  PhotoCapture,
+  type CompressedImage,
+  type PhotoCaptureProps,
+  type PhotoStatus,
+} from "./PhotoCapture";

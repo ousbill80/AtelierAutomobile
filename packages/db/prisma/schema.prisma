@@ -55,6 +55,8 @@ model Organization {
   inspectionItems        InspectionItem[]
   inspectionTemplates    InspectionTemplate[]
   laborOperations        LaborOperation[]
+  orStatusHistory        RepairOrderStatusHistory[] // M04 §14
+  vehicleRecommendations VehicleRecommendation[] // M04 §14
   timeEntries            TimeEntry[]
   attendances            Attendance[]
   quotes                 Quote[]
@@ -747,48 +749,63 @@ enum AppointmentSource {
 // ═══════════════════════════════════════════════════════════════
 
 model RepairOrder {
-  id                   String            @id @default(cuid(2))
-  organizationId       String
-  siteId               String
-  number               String // OR-YOP-2026-00042
-  customerId           String
-  vehicleId            String
-  appointmentId        String?
-  advisorId            String?
-  bayId                String?
-  cashOnly             Boolean           @default(false) // M09 §14 : OR ouvert sous blocage crédit sans dérogation
-  status               RepairOrderStatus @default(DRAFT)
-  priority             Priority          @default(NORMAL)
-  mileageIn            Int?
-  fuelLevel            Int? // 0-8 (huitièmes)
-  complaint            String? // doléances du client
-  diagnosis            String?
-  checkIn              Json              @default("{}") // état des lieux : rayures, objets, accessoires (M04)
-  customerSignatureUrl String?
-  signedAt             DateTime?
-  promisedAt           DateTime? // date de restitution promise
-  startedAt            DateTime?
-  completedAt          DateTime?
-  deliveredAt          DateTime?
-  qcById               String?
-  qcAt                 DateTime?
-  insuranceClaimId     String?
-  internalNotes        String?
-  totalEstimate        Int               @default(0)
-  origin               RecordOrigin      @default(NATIVE)
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-  deletedAt            DateTime?
+  id                     String            @id @default(cuid(2))
+  organizationId         String
+  siteId                 String
+  number                 String // OR-YOP-2026-00042
+  customerId             String
+  vehicleId              String
+  appointmentId          String?
+  advisorId              String?
+  bayId                  String?
+  cashOnly               Boolean           @default(false) // M09 §14 : OR ouvert sous blocage crédit sans dérogation
+  status                 RepairOrderStatus @default(DRAFT)
+  priority               Priority          @default(NORMAL)
+  mileageIn              Int?
+  fuelLevel              Int? // 0-8 (huitièmes)
+  complaint              String? // doléances du client
+  diagnosis              String?
+  checkIn                Json              @default("{}") // état des lieux : rayures, objets, accessoires (M04)
+  customerSignatureUrl   String?
+  signedAt               DateTime?
+  promisedAt             DateTime? // date de restitution promise
+  startedAt              DateTime?
+  completedAt            DateTime?
+  deliveredAt            DateTime?
+  qcById                 String?
+  qcAt                   DateTime?
+  insuranceClaimId       String?
+  internalNotes          String?
+  totalEstimate          Int               @default(0)
+  origin                 RecordOrigin      @default(NATIVE)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  deletedAt              DateTime?
+  // M04 §14
+  publicToken            String?           @unique // hash du jeton portail (A2) : suivi client / signature à distance
+  isComeback             Boolean           @default(false)
+  comebackOfId           String? // OR d'origine (retour sur travaux)
+  warrantyDecision       WarrantyDecision?
+  warrantyDecisionReason String?
+  waitingPartsSince      DateTime?
+  qcChecklist            Json? // [{ key, label, result: OK|NOK|NA }] + roadTest
+  deliverySignatureUrl   String?
+  cancelledAt            DateTime?
+  cancelReason           String?
+  invoicedAt             DateTime?
+  createdById            String? // Membership.id
+  readyAt                DateTime? // M04 : passage en READY (ancre VEHICLE_READY M10, frais de gardiennage)
+  clientRequestId        String? // M04 : idempotence de la réception hors-ligne (US-M04-01)
 
-  organization          Organization      @relation(fields: [organizationId], references: [id])
-  site                  Site              @relation(fields: [siteId], references: [id])
-  customer              Customer          @relation(fields: [customerId], references: [id])
-  vehicle               Vehicle           @relation(fields: [vehicleId], references: [id])
-  appointment           Appointment?      @relation("RepairOrderOrigin", fields: [appointmentId], references: [id])
-  advisor               Membership?       @relation("RepairOrderAdvisor", fields: [advisorId], references: [id])
-  bay                   Bay?              @relation(fields: [bayId], references: [id])
-  qcBy                  Membership?       @relation("RepairOrderQc", fields: [qcById], references: [id])
-  insuranceClaim        InsuranceClaim?   @relation(fields: [insuranceClaimId], references: [id])
+  organization          Organization               @relation(fields: [organizationId], references: [id])
+  site                  Site                       @relation(fields: [siteId], references: [id])
+  customer              Customer                   @relation(fields: [customerId], references: [id])
+  vehicle               Vehicle                    @relation(fields: [vehicleId], references: [id])
+  appointment           Appointment?               @relation("RepairOrderOrigin", fields: [appointmentId], references: [id])
+  advisor               Membership?                @relation("RepairOrderAdvisor", fields: [advisorId], references: [id])
+  bay                   Bay?                       @relation(fields: [bayId], references: [id])
+  qcBy                  Membership?                @relation("RepairOrderQc", fields: [qcById], references: [id])
+  insuranceClaim        InsuranceClaim?            @relation(fields: [insuranceClaimId], references: [id])
   lines                 RepairOrderLine[]
   inspections           Inspection[]
   mileageReadings       MileageReading[]
@@ -796,11 +813,23 @@ model RepairOrder {
   invoices              Invoice[]
   timeEntries           TimeEntry[]
   purchaseOrders        PurchaseOrder[]
-  resultingAppointments Appointment[]     @relation("AppointmentResultingOrder")
+  resultingAppointments Appointment[]              @relation("AppointmentResultingOrder")
   stockMovements        StockMovement[]
+  comebackOf            RepairOrder?               @relation("RepairOrderComeback", fields: [comebackOfId], references: [id])
+  comebacks             RepairOrder[]              @relation("RepairOrderComeback")
+  statusHistory         RepairOrderStatusHistory[]
 
   @@unique([organizationId, number])
+  @@unique([organizationId, clientRequestId])
   @@index([organizationId, status])
+  @@index([organizationId, vehicleId])
+  @@index([organizationId, siteId, status])
+}
+
+enum WarrantyDecision {
+  COVERED
+  NOT_COVERED
+  PARTIAL
 }
 
 enum RepairOrderStatus {
@@ -826,23 +855,40 @@ enum Priority {
 }
 
 model RepairOrderLine {
-  id               String        @id @default(cuid(2))
-  organizationId   String
-  repairOrderId    String
-  type             LineType
-  productId        String?
-  laborOperationId String?
-  description      String
-  quantity         Float // heures pour la MO, unités pour les pièces
-  unitPrice        Int
-  discountRate     Int           @default(0)
-  vatRate          Int
-  assignedToId     String? // Membership.id du mécanicien
-  status           LineStatus    @default(PENDING)
-  approval         ApprovalState @default(NOT_REQUIRED)
-  quoteLineId      String?
-  payer            Payer         @default(CUSTOMER)
-  sortOrder        Int           @default(0)
+  id                    String        @id @default(cuid(2))
+  organizationId        String
+  repairOrderId         String
+  type                  LineType
+  productId             String?
+  laborOperationId      String?
+  description           String
+  quantity              Float // heures pour la MO, unités pour les pièces
+  unitPrice             Int
+  discountRate          Int           @default(0)
+  vatRate               Int
+  assignedToId          String? // Membership.id du mécanicien
+  status                LineStatus    @default(PENDING)
+  approval              ApprovalState @default(NOT_REQUIRED)
+  quoteLineId           String?
+  payer                 Payer         @default(CUSTOMER)
+  sortOrder             Int           @default(0)
+  // M04 §14
+  isCustomerSupplied    Boolean       @default(false) // pièce fournie par le client (unitPrice 0, non garantie)
+  costPrice             Int? // coût unitaire (sous-traitance, pièce hors stock)
+  supplierId            String? // sous-traitant / fournisseur ponctuel (relation branchée par M07)
+  subcontractStatus     String? // TO_SEND | SENT | RETURNED
+  subcontractExpectedAt DateTime?
+  approvalSource        String? // CHECK_IN | PRE_AUTHORIZED | QUOTE | PHONE | IN_PERSON
+  inspectionItemId      String?
+  warrantyMonths        Int?
+  warrantyKm            Int?
+  warrantyUntilDate     DateTime?     @db.Date // figé à la livraison
+  warrantyUntilMileage  Int?
+  completedAt           DateTime?
+  completedById         String? // Membership.id
+  cancelReason          String? // M04 : motif d'annulation/refus de la ligne (historique)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   organization   Organization    @relation(fields: [organizationId], references: [id])
   repairOrder    RepairOrder     @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
@@ -853,6 +899,7 @@ model RepairOrderLine {
   timeEntries    TimeEntry[]
 
   @@index([organizationId, repairOrderId])
+  @@index([repairOrderId])
 }
 
 enum LineType {
@@ -892,6 +939,8 @@ model Inspection {
   templateId     String?
   performedById  String?
   completedAt    DateTime?
+  createdAt      DateTime  @default(now()) // M04 §14
+  summary        Json? // M04 §14 : { urgent, watch, ok, notChecked }
 
   organization Organization        @relation(fields: [organizationId], references: [id])
   repairOrder  RepairOrder         @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
@@ -915,6 +964,8 @@ model InspectionItem {
   recommendedProductIds String[]
   recommendedLaborIds   String[]
   addedToQuote          Boolean          @default(false)
+  shareWithCustomer     Boolean          @default(true) // M04 §14
+  sortOrder             Int              @default(0) // M04 §14
 
   organization Organization @relation(fields: [organizationId], references: [id])
   inspection   Inspection   @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
@@ -930,10 +981,12 @@ enum InspectionResult {
 }
 
 model InspectionTemplate {
-  id             String @id @default(cuid(2))
+  id             String  @id @default(cuid(2))
   organizationId String
   name           String
-  items          Json // [{category,label}]
+  items          Json // [{ category, label, measurementUnit?, recommendedLaborCode?, recommendedProductCategory? }]
+  isDefault      Boolean @default(false) // M04 §14
+  isActive       Boolean @default(true) // M04 §14
 
   organization Organization @relation(fields: [organizationId], references: [id])
   inspections  Inspection[]
@@ -959,6 +1012,47 @@ model LaborOperation {
   invoiceLines     InvoiceLine[]
 
   @@index([organizationId, code])
+}
+
+model RepairOrderStatusHistory {
+  // M04 §14 — une ligne par transition de la machine à états
+  id             String             @id @default(cuid(2))
+  organizationId String
+  repairOrderId  String
+  fromStatus     RepairOrderStatus?
+  toStatus       RepairOrderStatus
+  transition     String
+  reason         String?
+  membershipId   String? // null = automatique
+  createdAt      DateTime           @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  repairOrder  RepairOrder  @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+
+  @@index([repairOrderId, createdAt])
+  @@index([organizationId])
+}
+
+model VehicleRecommendation {
+  // M04 §14 — travaux conseillés non réalisés (relance M10 RECOMMENDED_WORK, A8)
+  id               String           @id @default(cuid(2))
+  organizationId   String
+  vehicleId        String
+  customerId       String
+  repairOrderId    String?
+  inspectionItemId String?
+  quoteLineId      String?
+  label            String // "Amortisseurs arrière"
+  severity         InspectionResult // WATCH | URGENT
+  estimatedAmount  Int? // TTC
+  remindAt         DateTime?        @db.Date // défaut : +90 jours
+  status           String           @default("OPEN") // OPEN | DONE | DISMISSED
+  createdAt        DateTime         @default(now())
+  resolvedAt       DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, vehicleId, status])
 }
 
 enum LaborRateType {
