@@ -74,13 +74,59 @@ export { mergePlan } from "./customers/merge";
 export type { ComputeReachabilityInput, ReachabilityStatus } from "./customers/reachability";
 export { computeReachability } from "./customers/reachability";
 
-export type { DocumentSequenceKey, DocumentType, SequenceStore } from "./numbering";
+export type {
+  DocumentSequenceKey,
+  DocumentType,
+  NumberingConfig,
+  NumberingRenderContext,
+  SequenceStore,
+} from "./numbering";
 export {
+  assertStartValueIncrease,
+  DEFAULT_NUMBERING_CONFIG,
   formatDocumentNumber,
   isFiscalDocumentType,
   nextDocumentNumber,
+  renderNumberingPattern,
   sequenceKey,
+  validateNumberingConfig,
 } from "./numbering";
+
+export type { CivilDate, GeneratedHoliday } from "./ci-holidays";
+export {
+  civilDateToUtcDate,
+  computeEasterSunday,
+  generateCiHolidays,
+  getEstimatedIslamicHolidays,
+  getFixedHolidays,
+} from "./ci-holidays";
+
+export type { OpeningHours, WeekdayKey } from "./organization/opening-hours";
+export { validateOpeningHours, WEEKDAY_KEYS } from "./organization/opening-hours";
+
+export type { OrganizationIdentityForInvoicing } from "./organization/identity";
+export {
+  assertCanIssueInvoice,
+  getMissingInvoiceFields,
+  isValidNccFormat,
+  isValidRccmFormat,
+  NCC_REGEX,
+  RCCM_REGEX,
+} from "./organization/identity";
+
+export type {
+  CanSwitchOperatingModeInput,
+  ModuleKey,
+  OperatingMode,
+  OperatingModeSwitchResult,
+} from "./organization/operating-mode";
+export {
+  assertModuleAllowed,
+  canSwitchOperatingMode,
+  isModuleVisible,
+  MODULE_KEYS,
+  REMINDERS_ONLY_VISIBLE_MODULES,
+} from "./organization/operating-mode";
 
 export type { Permission, ResolvePermissionsInput, Role } from "./auth/permissions";
 export {
