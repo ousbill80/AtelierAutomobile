@@ -108,7 +108,10 @@
     "settingsJournal": "Journal d'audit",
     "profile": "Mon profil",
     "profileSecurity": "Sécurité",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "appointments": "Rendez-vous",
+    "appointmentsToday": "Aujourd'hui",
+    "settingsPlanning": "Planning"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -177,7 +180,10 @@
       "title": "Équipe",
       "description": "Membres de votre garage et invitations en attente.",
       "inviteAction": "Inviter un membre",
-      "tabs": { "members": "Membres", "invitations": "Invitations en attente" },
+      "tabs": {
+        "members": "Membres",
+        "invitations": "Invitations en attente"
+      },
       "table": {
         "name": "Nom",
         "role": "Rôle",
@@ -222,8 +228,17 @@
       "title": "Journal d'audit",
       "description": "Historique des actions sensibles de votre organisation.",
       "export": "Exporter (CSV)",
-      "table": { "date": "Date", "user": "Utilisateur", "action": "Action", "entity": "Élément" },
-      "filters": { "user": "Utilisateur", "action": "Action", "period": "Période" }
+      "table": {
+        "date": "Date",
+        "user": "Utilisateur",
+        "action": "Action",
+        "entity": "Élément"
+      },
+      "filters": {
+        "user": "Utilisateur",
+        "action": "Action",
+        "period": "Période"
+      }
     }
   },
   "profile": {
@@ -521,6 +536,303 @@
         "downloadErrorReport": "Télécharger le rapport d'erreurs",
         "backToList": "Retour aux imports"
       }
+    }
+  },
+  "appointments": {
+    "title": "Rendez-vous",
+    "planningTitle": "Planning",
+    "todayTitle": "Rendez-vous du jour",
+    "newTitle": "Nouveau rendez-vous",
+    "actions": {
+      "new": "Nouveau RDV",
+      "newPhone": "RDV téléphone",
+      "findSlot": "Trouver un créneau",
+      "today": "Aujourd'hui",
+      "prev": "Jour précédent",
+      "next": "Jour suivant",
+      "confirm": "Confirmer",
+      "arrived": "Client arrivé",
+      "move": "Déplacer",
+      "cancel": "Annuler le RDV",
+      "noShow": "Marquer absent",
+      "revertNoShow": "Corriger l'absence",
+      "sendReminder": "Envoyer un rappel maintenant",
+      "sendNoShowMessage": "Proposer une reprogrammation",
+      "openOrder": "Ouvrir l'OR",
+      "complete": "Terminer",
+      "completeWithoutOrder": "Terminer sans OR",
+      "save": "Enregistrer",
+      "saveAndNotify": "Enregistrer et envoyer la confirmation",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "markConfirmedByPhone": "Client a confirmé par téléphone",
+      "copyPortalLink": "Copier le lien client",
+      "viewDetails": "Voir le détail",
+      "force": "Forcer quand même",
+      "useSlot": "Choisir ce créneau",
+      "batch": "Planifier en lot"
+    },
+    "views": {
+      "dayByBay": "Jour par pont",
+      "dayByMechanic": "Jour par mécanicien",
+      "week": "Semaine",
+      "list": "Liste"
+    },
+    "filters": {
+      "type": "Type",
+      "status": "Statut",
+      "source": "Source",
+      "all": "Tous"
+    },
+    "types": {
+      "SERVICE": "Révision",
+      "INSPECTION_PREP": "Pré-visite technique",
+      "REPAIR": "Réparation",
+      "DIAGNOSTIC": "Diagnostic",
+      "BODYWORK": "Carrosserie",
+      "TIRES": "Pneus",
+      "OTHER": "Autre"
+    },
+    "statuses": {
+      "BOOKED": "Réservé",
+      "CONFIRMED": "Confirmé",
+      "ARRIVED": "Arrivé",
+      "COMPLETED": "Terminé",
+      "NO_SHOW": "Absent",
+      "CANCELLED": "Annulé"
+    },
+    "sources": {
+      "STAFF": "Comptoir",
+      "PHONE": "Téléphone",
+      "WHATSAPP": "WhatsApp",
+      "PORTAL": "Portail",
+      "REMINDER": "Relance"
+    },
+    "confirmVia": {
+      "phone": "Téléphone",
+      "whatsapp": "WhatsApp",
+      "sms": "SMS",
+      "portal": "Portail",
+      "in_person": "Au comptoir"
+    },
+    "fields": {
+      "customer": "Client",
+      "vehicle": "Véhicule",
+      "type": "Type",
+      "date": "Date",
+      "time": "Heure",
+      "duration": "Durée (min)",
+      "bay": "Pont",
+      "unassignedBay": "À affecter",
+      "mechanic": "Mécanicien",
+      "noMechanic": "Aucun",
+      "advisor": "Conseiller",
+      "complaint": "Motif / doléances",
+      "notes": "Notes internes",
+      "source": "Source",
+      "notifyCustomer": "Prévenir le client",
+      "force": "Forcer (surréservation, hors horaires, capacité)",
+      "cancelReason": "Motif d'annulation",
+      "cancelledBy": "Annulé par",
+      "reason": "Motif",
+      "searchCustomer": "Nom, téléphone ou plaque…",
+      "noVehicle": "Véhicule à identifier",
+      "withoutVehicle": "Sans véhicule enregistré",
+      "date_hint": "Jour du rendez-vous"
+    },
+    "badges": {
+      "overbooked": "Surréservation",
+      "outsideHours": "Hors horaires",
+      "late": "En retard / absent ?",
+      "noShows": "{count} absences",
+      "inspectionSoon": "VT bientôt",
+      "inspectionExpired": "VT expirée",
+      "serviceDue": "Révision due",
+      "unreachable": "Sans canal écrit",
+      "mandatoryConfirmation": "Confirmation obligatoire",
+      "walkIn": "Sans RDV",
+      "fromReminder": "Issu d'une relance"
+    },
+    "capacity": {
+      "label": "Capacité {period}",
+      "am": "matin",
+      "pm": "après-midi",
+      "value": "{load} / {capacity}",
+      "appointments": "{count} RDV",
+      "full": "Complet"
+    },
+    "today": {
+      "counter": "{total} RDV · {confirmed} confirmés · {unanswered} sans réponse",
+      "sections": {
+        "upcoming": "À venir",
+        "late": "En retard",
+        "arrived": "Arrivés",
+        "noShow": "Absents",
+        "cancelled": "Annulés",
+        "callsToMake": "Confirmations à obtenir par téléphone"
+      },
+      "empty": "Aucun RDV aujourd'hui.",
+      "callsEmpty": "Aucun appel à passer pour demain."
+    },
+    "empty": {
+      "title": "Aucun RDV ce jour.",
+      "description": "Les relances VT et révision vont remplir votre agenda.",
+      "noSlots": "Aucun créneau disponible sur cette période."
+    },
+    "panel": {
+      "title": "Rendez-vous",
+      "customerSection": "Client",
+      "vehicleSection": "Véhicule",
+      "planningSection": "Planification",
+      "messagesSection": "Messages liés",
+      "noMessages": "Aucun message envoyé pour ce rendez-vous.",
+      "originReminder": "Relance d'origine : {type} {step}",
+      "inspectionExpiry": "VT : {date}",
+      "serviceDue": "Révision : {date}",
+      "unknown": "Inconnue",
+      "laborOperations": "Opérations prévues",
+      "cancelledInfo": "Annulé le {date} par {by} — {reason}",
+      "noShowInfo": "Absent le {date}",
+      "arrivedInfo": "Arrivé à {time}",
+      "confirmedInfo": "Confirmé ({via})",
+      "durationValue": "{minutes} min"
+    },
+    "slots": {
+      "title": "Prochains créneaux disponibles",
+      "hint": "Pont adapté libre, capacité suffisante, dans les horaires du site.",
+      "type": "Type de rendez-vous",
+      "from": "À partir du",
+      "search": "Chercher"
+    },
+    "move": {
+      "title": "Déplacer le rendez-vous",
+      "newDate": "Nouvelle date",
+      "newTime": "Nouvelle heure",
+      "newBay": "Nouveau pont"
+    },
+    "cancelDialog": {
+      "title": "Annuler le rendez-vous",
+      "reasonRequired": "Indiquez le motif."
+    },
+    "noShowDialog": {
+      "title": "Corriger l'absence",
+      "hint": "Possible dans les 48 h : le client est bien venu mais n'a pas été pointé."
+    },
+    "completeDialog": {
+      "title": "Terminer sans ordre de réparation",
+      "hint": "Ex. simple contrôle gratuit. Un motif est requis."
+    },
+    "batchDialog": {
+      "title": "Planifier en lot",
+      "hint": "Répartit les véhicules sur les créneaux libres du jour choisi, deux en parallèle au maximum. Une seule confirmation est envoyée au responsable.",
+      "maxParallel": "Véhicules en parallèle",
+      "result": "{placed} RDV créés, {unplaced} véhicule(s) non placé(s)."
+    },
+    "suggestion": {
+      "prefill": "Ajouter : pré-visite technique (+30 min)",
+      "vtSoon": "La visite technique de ce véhicule expire bientôt.",
+      "serviceDue": "Une révision est due pour ce véhicule."
+    },
+    "toasts": {
+      "created": "Rendez-vous créé.",
+      "createdNoChannel": "Rendez-vous créé. Client injoignable par écrit : confirmer par téléphone.",
+      "updated": "Rendez-vous mis à jour.",
+      "moved": "Rendez-vous déplacé.",
+      "confirmed": "Rendez-vous confirmé.",
+      "arrived": "Client arrivé.",
+      "cancelled": "Rendez-vous annulé.",
+      "noShow": "Absence enregistrée.",
+      "reminderSent": "Rappel envoyé.",
+      "linkCopied": "Lien copié.",
+      "conflict": "Créneau indisponible : {message}"
+    },
+    "week": {
+      "appointments": "{count} RDV",
+      "occupancy": "{percent} % d'occupation"
+    },
+    "mechanicView": {
+      "load": "{planned} planifiées / {available} disponibles",
+      "absent": "Absent"
+    },
+    "reminderOnlyHint": "En mode Relances seul, l'ordre de réparation est géré dans votre ancien logiciel : terminez le RDV ici."
+  },
+  "planningSettings": {
+    "title": "Planning et rendez-vous",
+    "description": "Durées par type, pas de grille, capacité, portail de prise de RDV, blocages.",
+    "sections": {
+      "durations": "Durées standard par type de RDV (minutes)",
+      "grid": "Grille et capacité",
+      "portal": "Prise de rendez-vous en ligne",
+      "blocks": "Indisponibilités (ponts, mécaniciens, site)"
+    },
+    "fields": {
+      "slotStepMinutes": "Pas de la grille (min)",
+      "lateAfterMinutes": "Retard avant « absent ? » (min)",
+      "noShowJobTime": "Heure du passage automatique en absent",
+      "maxAppointmentsPerHalfDay": "RDV simultanés max par demi-journée",
+      "maxAppointmentsAuto": "Automatique (ponts actifs × 2)",
+      "productivityRate": "Taux de productivité",
+      "lunchBreak": "Pause déjeuner",
+      "lunchBreakNone": "Aucune pause",
+      "portalEnabled": "Activer le portail",
+      "portalTypes": "Types proposés en ligne",
+      "portalMinLeadHours": "Délai minimum de réservation (h)",
+      "portalHorizonDays": "Horizon (jours)",
+      "portalRequiresApproval": "Validation du garage avant confirmation",
+      "autoAssignBay": "Affecter automatiquement un pont"
+    },
+    "blocks": {
+      "add": "Ajouter un blocage",
+      "target": "Ressource",
+      "site": "Site entier",
+      "bay": "Pont",
+      "mechanic": "Mécanicien",
+      "from": "Du",
+      "to": "Au",
+      "reason": "Motif",
+      "empty": "Aucun blocage à venir.",
+      "conflict": "Des RDV sont prévus sur cette période.",
+      "forceUnassign": "Créer quand même et passer les RDV « À affecter »",
+      "delete": "Supprimer",
+      "upcoming": "Blocages à venir"
+    },
+    "saved": "Réglages enregistrés."
+  },
+  "portal": {
+    "rdv": {
+      "title": "Prendre rendez-vous",
+      "yourVehicle": "Votre véhicule",
+      "yourAppointment": "Votre rendez-vous",
+      "chooseType": "Que souhaitez-vous faire ?",
+      "chooseDay": "Choisissez un jour",
+      "chooseSlot": "Choisissez une heure",
+      "morning": "Matin",
+      "afternoon": "Après-midi",
+      "noSlots": "Aucun créneau disponible sur les prochains jours. Appelez-nous.",
+      "comment": "Commentaire (facultatif)",
+      "book": "Réserver",
+      "confirm": "Confirmer",
+      "reschedule": "Déplacer",
+      "cancel": "Annuler",
+      "cancelConfirm": "Confirmer l'annulation",
+      "booked": "Votre rendez-vous est enregistré.",
+      "bookedPending": "Votre demande est enregistrée. Le garage la confirmera rapidement.",
+      "confirmed": "Merci, votre rendez-vous est confirmé.",
+      "cancelled": "Votre rendez-vous a été annulé.",
+      "moved": "Votre rendez-vous a été déplacé.",
+      "slotTaken": "Ce créneau vient d'être réservé. Choisissez-en un autre.",
+      "expired": "Ce lien a expiré.",
+      "invalid": "Ce lien n'est pas valide.",
+      "callUs": "Appelez-nous au {phone}",
+      "summary": "Récapitulatif",
+      "summaryLine": "{type} — {date}",
+      "statusLabel": "Statut",
+      "inspectionExpiry": "Visite technique : {date}",
+      "serviceDue": "Prochaine révision : {date}",
+      "back": "Retour",
+      "otherDay": "Autre jour",
+      "fullDay": "Complet",
+      "garageContact": "Contact du garage"
     }
   }
 }
