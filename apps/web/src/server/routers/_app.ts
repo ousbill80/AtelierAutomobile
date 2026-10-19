@@ -4,6 +4,7 @@ import { catalogRouter } from "./catalog";
 import { channelRouter } from "./channel";
 import { contactRouter } from "./contact";
 import { customerRouter } from "./customer";
+import { alertsRouter, dashboardRouter } from "./dashboard";
 import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
@@ -47,6 +48,8 @@ export const appRouter = router({
   reminders: remindersRouter,
   reminderRules: reminderRulesRouter,
   reminderSettings: reminderSettingsRouter,
+  dashboard: dashboardRouter,
+  alerts: alertsRouter,
 });
 
 export type AppRouter = typeof appRouter;

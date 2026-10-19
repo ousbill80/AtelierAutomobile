@@ -267,3 +267,11 @@ export {
   reminderUpdateInputSchema,
   REMINDER_SKIP_REASONS,
 } from "./reminders";
+
+export type { DashboardInput } from "./dashboard";
+export {
+  alertsListInputSchema,
+  alertsMarkReadInputSchema,
+  dashboardInputSchema,
+  dashboardPeriodSchema,
+} from "./dashboard";
