@@ -282,7 +282,10 @@ export function forTenant(ctx: TenantContext) {
      * filtrage automatique que `db.forTenant(ctx)` (y compris pour le catalogue global en
      * lecture), mais via plusieurs appels partageant la même transaction Postgres.
      */
-    async transaction<T>(callback: (scoped: ScopedTenantClient) => Promise<T>): Promise<T> {
+    async transaction<T>(
+      callback: (scoped: ScopedTenantClient) => Promise<T>,
+      options?: { timeout?: number; maxWait?: number },
+    ): Promise<T> {
       return appDb.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.organization_id', ${organizationId}, true)`;
         const txLike = tx as unknown as TxLike;
@@ -298,7 +301,7 @@ export function forTenant(ctx: TenantContext) {
           },
         });
         return callback(scoped);
-      });
+      }, options);
     },
   });
 }

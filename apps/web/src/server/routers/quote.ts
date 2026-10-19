@@ -97,6 +97,26 @@ function siteFilter(ctx: OrgCtx): Prisma.QuoteWhereInput {
   return ctx.allowedSiteIds === "ALL" ? {} : { siteId: { in: ctx.allowedSiteIds } };
 }
 
+/** M07 RG-M07-01 : stock en unités de base (× quantityScale) ramené en unités d'affichage. */
+async function availabilityAt(
+  tx: Tx,
+  siteId: string,
+  productIds: string[],
+): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map();
+  const [levels, products] = await Promise.all([
+    tx.stockLevel.findMany({ where: { siteId, productId: { in: productIds } } }),
+    tx.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, quantityScale: true },
+    }),
+  ]);
+  const scale = new Map(products.map((p) => [p.id, Math.max(1, p.quantityScale)]));
+  return new Map(
+    levels.map((l) => [l.productId, (l.onHand - l.reserved) / (scale.get(l.productId) ?? 1)]),
+  );
+}
+
 async function loadQuote(tx: Tx, ctx: OrgCtx, id: string): Promise<Quote> {
   const quote = await tx.quote.findFirst({ where: { id, deletedAt: null } });
   if (!quote) quoteNotFound();
@@ -429,14 +449,9 @@ async function quoteDetail(tx: Tx, ctx: OrgCtx, org: OrgQuoteContext, quote: Quo
   if (discount.reasonRequired && !quote.discountReason) {
     blockers.push("Indiquez le motif de la remise (au-delà de 5 %).");
   }
-  // Disponibilité stock (M07, interface en lecture) : `onHand − reserved` au site du devis.
+  // Disponibilité stock (M07) : `onHand − reserved` au site du devis, en unités d'affichage.
   const productIds = lines.map((l) => l.productId).filter((p): p is string => !!p);
-  const levels = productIds.length
-    ? await tx.stockLevel.findMany({
-        where: { siteId: quote.siteId, productId: { in: productIds } },
-      })
-    : [];
-  const available = new Map(levels.map((l) => [l.productId, l.onHand - l.reserved]));
+  const available = await availabilityAt(tx, quote.siteId, productIds);
   const alreadyApproved = quote.repairOrderId
     ? await tx.repairOrderLine.findMany({
         where: {
@@ -1073,12 +1088,15 @@ export const quoteRouter = router({
           take: 15,
         }),
       ]);
-      const levels = quote
-        ? await tenantDb.stockLevel.findMany({
-            where: { siteId: quote.siteId, productId: { in: products.map((p) => p.id) } },
-          })
-        : [];
-      const available = new Map(levels.map((l) => [l.productId, l.onHand - l.reserved]));
+      const available = quote
+        ? await tenantDb.transaction((tx) =>
+            availabilityAt(
+              tx,
+              quote.siteId,
+              products.map((p) => p.id),
+            ),
+          )
+        : new Map<string, number>();
       return {
         labor: ops.map((op) => ({
           id: op.id,

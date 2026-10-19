@@ -93,6 +93,11 @@ export const PERMISSIONS = [
   "purchase:create",
   "purchase:approve",
   "supplier:manage",
+  // M07 (A5) : réserver (conseiller), compter / valider un inventaire, valorisation.
+  "stock:reserve",
+  "stock:count",
+  "stock:count_validate",
+  "stock:valuation",
   // Facturation (M08)
   "invoice:read",
   "invoice:create",
@@ -210,6 +215,10 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["purchase:approve", ["MANAGER"]],
   ["product:manage", ["MANAGER", "STOREKEEPER"]],
   ["product:view_cost", ["MANAGER", "STOREKEEPER", "ACCOUNTANT"]],
+  ["stock:reserve", ["MANAGER", "ADVISOR", "STOREKEEPER"]],
+  ["stock:count", ["MANAGER", "STOREKEEPER"]],
+  ["stock:count_validate", ["MANAGER"]],
+  ["stock:valuation", ["MANAGER", "ACCOUNTANT"]],
   ["invoice:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["payment:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["invoice:create", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],

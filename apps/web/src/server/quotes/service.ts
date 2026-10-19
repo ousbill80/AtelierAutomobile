@@ -10,6 +10,7 @@ import {
   businessDate,
   canonicalQuoteContent,
   checkDiscounts,
+  checkSalePrice,
   DEFAULT_NUMBERING_CONFIG,
   decisionResult,
   depositAmount,
@@ -285,9 +286,15 @@ export async function assertMinSalePrice(
 ): Promise<void> {
   if (!productId || input.isCustomerSupplied) return;
   const product = await tx.product.findFirst({ where: { id: productId } });
-  if (!product || product.minSalePrice == null) return;
-  const net = Math.round((input.unitPrice * (100 - input.discountRate)) / 100);
-  if (net >= product.minSalePrice) return;
+  if (!product) return;
+  // RG-M07-13 : même contrôle que `product.checkPrice` (M07).
+  const check = checkSalePrice({
+    unitPrice: input.unitPrice,
+    discountRate: input.discountRate,
+    minSalePrice: product.minSalePrice,
+    averageCost: product.averageCost,
+  });
+  if (!check.belowMin) return;
   if (!actor.permissions.has("invoice:price_below_min")) {
     throw new TRPCError({
       code: "FORBIDDEN",
