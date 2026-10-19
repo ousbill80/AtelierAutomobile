@@ -7,3 +7,8 @@ const envPath = path.resolve(__dirname, "../../.env");
 if (existsSync(envPath)) {
   process.loadEnvFile(envPath);
 }
+
+// M13 — les tests tournent toujours sans worker séparé : on force le pilote
+// `inline` (traitement synchrone, pas de Redis requis) quelle que soit la
+// valeur de `.env` (qui vise `pnpm dev`/prod avec `apps/worker`).
+process.env.IMPORT_QUEUE_DRIVER = "inline";

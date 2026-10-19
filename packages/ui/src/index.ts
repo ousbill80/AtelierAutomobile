@@ -1,3 +1,5 @@
+export { cn } from "./cn";
+
 export {
   Button,
   LinkButton,

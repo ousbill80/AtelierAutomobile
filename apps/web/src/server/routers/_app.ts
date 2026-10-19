@@ -2,6 +2,7 @@ import { router } from "../trpc";
 import { auditRouter } from "./audit";
 import { authRouter } from "./auth";
 import { deviceRouter } from "./device";
+import { importRouter } from "./import";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
 import { memberRouter } from "./member";
@@ -23,6 +24,7 @@ export const appRouter = router({
   device: deviceRouter,
   audit: auditRouter,
   onboarding: onboardingRouter,
+  import: importRouter,
 });
 
 export type AppRouter = typeof appRouter;
