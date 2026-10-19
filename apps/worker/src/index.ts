@@ -56,6 +56,8 @@ async function main(): Promise<void> {
   const { QUOTES_JOB_NAMES, QUOTES_QUEUE_NAME, scheduleQuoteJobs } =
     await import("./queues/quotes");
   const { processQuotesExpireJob } = await import("./jobs/quotes");
+  const { CASH_JOB_NAMES, CASH_QUEUE_NAME, scheduleCashJobs } = await import("./queues/cash");
+  const { processCashCheckUnclosedJob } = await import("./jobs/cashJobs");
 
   logger.info("AtelierOS worker démarré");
 
@@ -232,6 +234,22 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "quotes : un job a échoué");
   });
 
+  // M08 §9 : caisse non clôturée à 23:00 (RG-M08-29).
+  await scheduleCashJobs();
+
+  const cashWorker = new Worker(
+    CASH_QUEUE_NAME,
+    async (job: Job) => {
+      if (job.name === CASH_JOB_NAMES.CHECK_UNCLOSED) return processCashCheckUnclosedJob();
+      logger.warn({ jobName: job.name }, "cash : job inconnu, ignoré");
+      return undefined;
+    },
+    { connection: createRedisConnection() },
+  );
+  cashWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "cash : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -243,6 +261,7 @@ async function main(): Promise<void> {
       repairOrdersWorker.close(),
       stockWorker.close(),
       quotesWorker.close(),
+      cashWorker.close(),
     ]);
     process.exit(0);
   }

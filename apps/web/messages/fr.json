@@ -132,7 +132,12 @@
     "purchases": "Achats",
     "quotes": "Devis",
     "settingsQuotes": "Devis",
-    "settingsLaborCatalog": "Catalogue main-d'œuvre"
+    "settingsLaborCatalog": "Catalogue main-d'œuvre",
+    "invoices": "Factures",
+    "cash": "Caisse",
+    "payments": "Paiements",
+    "cashSessions": "Sessions de caisse",
+    "accountingExports": "Exports comptables"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -384,7 +389,13 @@
     "stock:reserve": "Réserver des pièces pour un OR",
     "stock:count": "Compter un inventaire",
     "stock:count_validate": "Valider un inventaire",
-    "stock:valuation": "Consulter la valorisation du stock"
+    "stock:valuation": "Consulter la valorisation du stock",
+    "invoice:edit_due": "Modifier l'échéance d'une facture émise",
+    "fne:manage": "Gérer la FNE (saisie manuelle, nouvel essai)",
+    "payment:void": "Annuler un paiement, confirmer ou rejeter un chèque",
+    "cash:review": "Valider un écart de caisse",
+    "cash:expense_approve": "Valider une dépense de caisse au-delà du seuil",
+    "accounting:export": "Exporter les écritures comptables"
   },
   "auditActions": {
     "auth.login.failed": "Connexion échouée",
@@ -407,7 +418,26 @@
     "site.updated": "Site modifié",
     "contact.created": "Contact client ajouté",
     "contact.deleted": "Contact client supprimé",
-    "contact.updated": "Contact client modifié"
+    "contact.updated": "Contact client modifié",
+    "invoice.issued": "Facture émise",
+    "invoice.created": "Facture créée",
+    "invoice.created_from_repair_order": "Facture créée depuis un OR",
+    "invoice.deposit_created": "Acompte créé",
+    "invoice.draft_deleted": "Brouillon de facture supprimé",
+    "invoice.credit_note": "Avoir émis",
+    "invoice.due_date_changed": "Échéance modifiée",
+    "invoice.price_below_min": "Prix sous le minimum (facture)",
+    "payment.created": "Encaissement",
+    "payment.allocated": "Paiement affecté",
+    "payment.voided": "Paiement annulé",
+    "payment.cheque_confirmed": "Chèque encaissé",
+    "payment.cheque_failed": "Chèque rejeté",
+    "payment.refunded": "Remboursement",
+    "cash.opened": "Caisse ouverte",
+    "cash.closed": "Caisse clôturée",
+    "cash.reviewed": "Écart de caisse validé",
+    "cash.expense": "Dépense de caisse",
+    "cash.drop": "Versement coffre / banque"
   },
   "import": {
     "list": {
@@ -2783,6 +2813,266 @@
       "chooseAll": "Choisissez pour chaque travail.",
       "validate": "Valider mon choix",
       "declineAll": "Je refuse ce devis"
+    }
+  },
+  "billing": {
+    "title": "Factures",
+    "new": "Vente comptoir",
+    "exports": {
+      "title": "Exports comptables",
+      "from": "Du",
+      "to": "Au",
+      "journal": "Journal",
+      "format": "Format",
+      "journals": {
+        "ALL": "Tous les journaux",
+        "VT": "Ventes (VT)",
+        "EN": "Encaissements (EN)",
+        "CA": "Caisse (CA)"
+      },
+      "formats": {
+        "syscohada_csv": "Écritures SYSCOHADA (CSV)",
+        "sales_csv": "Journal des ventes lisible (CSV)"
+      },
+      "submit": "Exporter",
+      "balanced": "Écritures équilibrées : débit {debit} = crédit {credit} ({count} lignes).",
+      "download": "Télécharger à nouveau"
+    },
+    "back": "Retour",
+    "loadError": "Impossible de charger les données. Vérifiez votre connexion puis réessayez.",
+    "retry": "Réessayer",
+    "search": "N° de facture, client ou plaque",
+    "draft": "Brouillon",
+    "views": {
+      "all": "Toutes",
+      "drafts": "Brouillons",
+      "open": "À encaisser",
+      "paid": "Payées",
+      "fne_pending": "Non certifiées FNE",
+      "credit_notes": "Avoirs"
+    },
+    "empty": {
+      "title": "Aucune facture",
+      "description": "Facturez un OR prêt depuis sa fiche, ou créez une vente comptoir."
+    },
+    "type": {
+      "INVOICE": "Facture",
+      "DEPOSIT": "Acompte",
+      "CREDIT_NOTE": "Avoir"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "ISSUED": "Émise",
+      "PARTIALLY_PAID": "Partiellement payée",
+      "PAID": "Payée",
+      "OVERDUE": "En retard",
+      "VOID": "Annulée",
+      "WRITTEN_OFF": "Passée en perte",
+      "DISPUTED": "En litige"
+    },
+    "fne": {
+      "NOT_REQUIRED": "FNE non requise",
+      "PENDING": "FNE en attente",
+      "CERTIFIED": "Certifiée FNE",
+      "FAILED": "Non certifiée FNE",
+      "MANUAL": "FNE saisie"
+    },
+    "billTo": {
+      "INSURANCE": "Facture assurance"
+    },
+    "fields": {
+      "number": "N°",
+      "date": "Date",
+      "customer": "Client",
+      "vehicle": "Véhicule",
+      "total": "Total TTC",
+      "paid": "Payé",
+      "balance": "Solde",
+      "dueDate": "Échéance",
+      "repairOrder": "OR",
+      "site": "Site",
+      "notes": "Notes internes",
+      "mileage": "Kilométrage"
+    },
+    "lines": {
+      "title": "Lignes",
+      "description": "Désignation",
+      "quantity": "Qté",
+      "unitPrice": "PU HT",
+      "discount": "Remise %",
+      "vat": "TVA %",
+      "total": "Total HT",
+      "add": "Ajouter une ligne",
+      "remove": "Retirer",
+      "type": "Type",
+      "product": "Pièce du catalogue",
+      "searchProduct": "Rechercher une pièce"
+    },
+    "lineType": {
+      "LABOR": "Main-d'œuvre",
+      "PART": "Pièce",
+      "SUBCONTRACT": "Sous-traitance",
+      "FEE": "Frais",
+      "CONSUMABLE": "Ingrédient"
+    },
+    "totals": {
+      "gross": "Total HT brut",
+      "discount": "Remises",
+      "subtotal": "Total HT",
+      "vat": "TVA",
+      "total": "Total TTC",
+      "paid": "Déjà payé",
+      "balance": "Reste à payer",
+      "pendingCheques": "Chèque en attente {amount}",
+      "credited": "Avoirs",
+      "inWords": "Arrêtée à la somme de : {words}"
+    },
+    "actions": {
+      "issue": "Émettre",
+      "encaisser": "Encaisser",
+      "creditNote": "Créer un avoir",
+      "pdf": "Facture PDF",
+      "deleteDraft": "Supprimer le brouillon",
+      "saveDraft": "Enregistrer le brouillon",
+      "deposit": "Acompte",
+      "invoiceRo": "Facturer",
+      "viewInvoice": "Voir la facture",
+      "receipt": "Reçu",
+      "print": "Imprimer"
+    },
+    "issue": {
+      "title": "Émettre la facture",
+      "confirm": "La facture ne sera plus modifiable : toute correction passera par un avoir.",
+      "deposits": "Acomptes payés à déduire",
+      "submit": "Émettre la facture",
+      "missingIdentity": "Émission impossible : renseignez {fields} dans Paramètres > Entreprise."
+    },
+    "fnePending": "FNE en attente de certification : la saisie du numéro FNE arrive à l'étape suivante (FNE).",
+    "payments": {
+      "title": "Paiements",
+      "empty": "Aucun paiement enregistré.",
+      "voided": "Annulé",
+      "pending": "En attente",
+      "unallocated": "Non affecté : {amount}"
+    },
+    "creditNotes": {
+      "title": "Avoirs"
+    },
+    "encaisser": {
+      "title": "Encaisser",
+      "method": "Mode de paiement",
+      "amount": "Montant reçu",
+      "reference": "Référence",
+      "referenceHint": "ID de transaction (mobile money), n° de chèque et banque, ou référence du virement.",
+      "payerPhone": "Numéro du payeur",
+      "submit": "Valider l'encaissement",
+      "success": "Paiement {number} enregistré.",
+      "receipt": "Imprimer le reçu",
+      "overpaid": "Trop-perçu de {amount} : il reste au crédit du client (remboursable depuis Caisse > Paiements).",
+      "cashClosed": "Ouvrez la caisse pour encaisser en espèces.",
+      "openCash": "Ouvrir la caisse"
+    },
+    "method": {
+      "CASH": "Espèces",
+      "WAVE": "Wave",
+      "ORANGE_MONEY": "Orange Money",
+      "MTN_MOMO": "MTN MoMo",
+      "MOOV_MONEY": "Moov Money",
+      "CARD": "Carte",
+      "BANK_TRANSFER": "Virement",
+      "CHEQUE": "Chèque",
+      "INSURANCE": "Assurance",
+      "OTHER": "Autre"
+    },
+    "credit": {
+      "title": "Créer un avoir",
+      "full": "Avoir total (annule la facture)",
+      "partial": "Avoir partiel (lignes et quantités)",
+      "reason": "Motif",
+      "submit": "Émettre l'avoir",
+      "quantity": "Qté à créditer"
+    },
+    "editor": {
+      "title": "Nouvelle vente comptoir",
+      "customer": "Client",
+      "searchCustomer": "Rechercher un client (nom ou téléphone)",
+      "change": "Changer",
+      "noVehicle": "Sans véhicule",
+      "walkIn": "Client comptoir",
+      "priceReason": "Motif (prix sous le minimum / vente à perte)"
+    },
+    "ro": {
+      "invoiced": "Facture {number}",
+      "draft": "Brouillon de facture"
+    }
+  },
+  "cash": {
+    "title": "Caisse",
+    "site": "Site : {site}",
+    "noSession": "Aucune caisse ouverte sur ce site.",
+    "openTitle": "Ouvrir la caisse",
+    "float": "Fond de caisse",
+    "open": "Ouvrir la caisse",
+    "openedBy": "Ouverte par {name} le {date}",
+    "summary": "Récapitulatif",
+    "byMethod": "Encaissements par mode",
+    "cashIn": "Espèces encaissées",
+    "expenses": "Dépenses",
+    "drops": "Versements",
+    "refunds": "Remboursements espèces",
+    "expected": "Espèces attendues",
+    "expense": "Dépense",
+    "drop": "Versement coffre / banque",
+    "close": "Clôturer la caisse",
+    "history": "Historique des sessions",
+    "payments": "Paiements",
+    "expenseForm": {
+      "title": "Enregistrer une dépense",
+      "category": "Catégorie",
+      "amount": "Montant",
+      "description": "Description",
+      "submit": "Enregistrer",
+      "approvalHint": "Au-delà de {amount}, la dépense doit être validée par le gérant."
+    },
+    "dropForm": {
+      "title": "Versement",
+      "destination": "Destination",
+      "safe": "Coffre",
+      "bank": "Banque",
+      "reference": "Référence (bordereau)",
+      "submit": "Enregistrer le versement"
+    },
+    "closeForm": {
+      "title": "Clôturer la caisse",
+      "counted": "Montant compté",
+      "denominations": "Comptage par coupures (facultatif)",
+      "notes": "Commentaire (obligatoire en cas d'écart)",
+      "difference": "Écart : {amount}",
+      "submit": "Clôturer"
+    },
+    "sessions": {
+      "title": "Sessions de caisse",
+      "empty": "Aucune session.",
+      "open": "Ouverte",
+      "closed": "Clôturée",
+      "reviewed": "Écart validé",
+      "late": "Clôture tardive",
+      "difference": "Écart",
+      "review": "Valider l'écart",
+      "reviewComment": "Commentaire de validation"
+    },
+    "paymentsList": {
+      "title": "Paiements",
+      "empty": "Aucun paiement.",
+      "unallocatedOnly": "Non affectés seulement",
+      "void": "Annuler",
+      "voidReason": "Motif de l'annulation",
+      "confirmCheque": "Chèque encaissé",
+      "failCheque": "Chèque rejeté",
+      "refund": "Rembourser",
+      "refundReason": "Motif du remboursement",
+      "refundAmount": "Montant à rembourser",
+      "allMethods": "Tous les modes"
     }
   }
 }

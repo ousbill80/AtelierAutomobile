@@ -23,6 +23,7 @@ import {
   type BodyView,
 } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { RepairOrderInvoiceButton } from "@/components/billing/repair-order-invoice-button";
 import {
   InspectionResultBadge,
   LineApprovalBadge,
@@ -421,6 +422,12 @@ function ActionBar({
               {t("detail.deliver")}
             </Link>
           )}
+        {["READY", "DELIVERED", "INVOICED"].includes(order.status) && perms.has("invoice:read") && (
+          <RepairOrderInvoiceButton
+            repairOrderId={order.id}
+            canCreate={perms.has("invoice:create")}
+          />
+        )}
         {perms.has("repair_order:update") && !LOCKED.has(order.status) && (
           <Button
             size="sm"

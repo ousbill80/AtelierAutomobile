@@ -94,14 +94,21 @@ describe("M08 — facturation, paiements, caisse", () => {
     accountant = (await member(orgA.id, "ACCOUNTANT")).caller;
     callerB = (await member(orgB.id, "OWNER")).caller;
     kouassi = await adminDb.customer.create({
-      data: { organizationId: orgA.id, displayName: "Kouassi Jean-Marc", phone: "+2250707070707" },
+      // Échéance à 60 j : les jobs worker globaux (horloge figée fin octobre) qui tournent en
+      // parallèle sous turbo ne doivent pas passer ces factures en retard pendant le test.
+      data: {
+        organizationId: orgA.id,
+        displayName: "Kouassi Jean-Marc",
+        phone: "+2250707070707",
+        paymentTermsDays: 60,
+      },
     });
     sotra = await adminDb.customer.create({
       data: {
         organizationId: orgA.id,
         type: "COMPANY",
         displayName: "SOTRA Logistique SARL",
-        paymentTermsDays: 30,
+        paymentTermsDays: 60,
       },
     });
     vehicle = await adminDb.vehicle.create({
@@ -274,7 +281,7 @@ describe("M08 — facturation, paiements, caisse", () => {
       balance: 56_464,
       costTotal: 4.5 * 4_100 + 3_000,
     });
-    expect(issued.dueDate!.toISOString().slice(0, 10)).toBe("2026-10-19");
+    expect(issued.dueDate!.toISOString().slice(0, 10)).toBe("2026-12-18");
     const movements = await adminDb.stockMovement.findMany({
       where: { organizationId: orgA.id, reason: "auto à la facturation" },
     });
@@ -376,15 +383,15 @@ describe("M08 — facturation, paiements, caisse", () => {
     // Échéances distinctes (création le même jour) : on vieillit les deux premières.
     await adminDb.invoice.update({
       where: { id: ids[0] },
-      data: { dueDate: new Date("2026-11-01") },
+      data: { dueDate: new Date("2026-12-01") },
     });
     await adminDb.invoice.update({
       where: { id: ids[1] },
-      data: { dueDate: new Date("2026-11-05") },
+      data: { dueDate: new Date("2026-12-05") },
     });
     await adminDb.invoice.update({
       where: { id: ids[2] },
-      data: { dueDate: new Date("2026-11-18") },
+      data: { dueDate: new Date("2026-12-18") },
     });
     const suggestion = await cashier.payment.suggestAllocation({
       customerId: sotra.id,
