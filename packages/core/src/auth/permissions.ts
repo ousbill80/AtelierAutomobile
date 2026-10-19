@@ -81,6 +81,15 @@ export const PERMISSIONS = [
   "time:clock",
   "time:edit",
   "attendance:manage",
+  // M06 §10 (A5) : kanban/ponts, CQ sur son propre travail, demandes de pièces, sous-traitance,
+  // productivité. Les autres actions M06 réutilisent : workshop:move → repair_order:update,
+  // workshop:assign → repair_order:assign, timeentry:own → time:clock, timeentry:others et
+  // timeentry:edit → time:edit, workshop:qc → repair_order:qc.
+  "workshop:view",
+  "workshop:qc_self",
+  "partrequest:create",
+  "workshop:subcontract",
+  "workshop:productivity",
   // Stock (M07)
   "stock:read",
   "stock:issue",
@@ -211,6 +220,10 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["task:read_all", ["MANAGER"]],
   ["time:edit", ["MANAGER"]],
   ["attendance:manage", ["MANAGER"]],
+  ["workshop:view", ["MANAGER", "ADVISOR", "STOREKEEPER"]],
+  ["partrequest:create", ["MANAGER", "ADVISOR", "MECHANIC"]],
+  ["workshop:subcontract", ["MANAGER"]],
+  ["workshop:productivity", ["MANAGER"]],
   ["stock:read", ["MANAGER", "ADVISOR", "MECHANIC", "STOREKEEPER", "ACCOUNTANT"]],
   ["stock:issue", ["MANAGER", "STOREKEEPER"]],
   ["stock:receive", ["MANAGER", "STOREKEEPER"]],
@@ -266,7 +279,7 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   // org:update, site:manage, member:deactivate, role:manage, settings:update,
   // settings:channels, settings:payments, settings:fne, settings:billing,
   // repair_order:deliver_unpaid, invoice:void, invoice:price_below_min, payment:refund,
-  // cash:review,
+  // cash:review, workshop:qc_self,
   // receivable:writeoff, receivable:formal_notice, dashboard:owner, integration:manage,
   // ai:configure.
 ];

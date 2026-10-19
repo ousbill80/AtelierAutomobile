@@ -402,3 +402,4 @@ export {
   updateDueDateInputSchema,
   updateInvoiceInputSchema,
 } from "./billing";
+export * from "./workshop";

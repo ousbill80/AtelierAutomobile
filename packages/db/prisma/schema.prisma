@@ -59,6 +59,10 @@ model Organization {
   vehicleRecommendations VehicleRecommendation[] // M04 §14
   timeEntries            TimeEntry[]
   attendances            Attendance[]
+  qualityChecks          QualityCheck[] // M06 §14
+  partRequests           PartRequest[] // M06 §14
+  workNotes              WorkNote[] // M06 §14
+  techSyncOperations     TechSyncOperation[] // M06 (hors §14)
   quotes                 Quote[]
   quoteLines             QuoteLine[]
   products               Product[]
@@ -181,6 +185,8 @@ model Site {
   refunds           Refund[] // M08 §14
   holidays          Holiday[]
   resourceBlocks    ResourceBlock[]
+  attendances       Attendance[] // M06 §14
+  partRequests      PartRequest[] // M06 §14
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -311,6 +317,11 @@ model Membership {
   duplicateDismissalsCreated  DuplicateDismissal[]  @relation("DuplicateDismissalDismissedBy")
   customerSegmentsCreated     CustomerSegment[]     @relation("CustomerSegmentCreatedBy")
   quickRepliesCreated         QuickReply[]          @relation("QuickReplyCreatedBy")
+  qualityChecks               QualityCheck[]        @relation("QualityCheckBy") // M06 §14
+  partRequestsCreated         PartRequest[]         @relation("PartRequestBy") // M06 §14
+  partRequestsHandled         PartRequest[]         @relation("PartRequestHandledBy") // M06 §14
+  workNotesWritten            WorkNote[]            @relation("WorkNoteAuthor") // M06 §14
+  workNotesApproved           WorkNote[]            @relation("WorkNoteApprovedBy") // M06 §14
 
   @@unique([organizationId, userId])
   @@index([organizationId])
@@ -884,6 +895,9 @@ model RepairOrder {
   quotes                Quote[]
   invoices              Invoice[]
   timeEntries           TimeEntry[]
+  qualityChecks         QualityCheck[] // M06 §14
+  partRequests          PartRequest[] // M06 §14
+  workNotes             WorkNote[] // M06 §14
   purchaseOrders        PurchaseOrder[]
   resultingAppointments Appointment[]              @relation("AppointmentResultingOrder")
   stockMovements        StockMovement[]
@@ -959,6 +973,10 @@ model RepairOrderLine {
   completedAt           DateTime?
   completedById         String? // Membership.id
   cancelReason          String? // M04 : motif d'annulation/refus de la ligne (historique)
+  // M06 §14 — sous-traitance : subcontractorId/subcontractCost/subcontractDueAt du PRD sont
+  // les champs M04 supplierId/costPrice/subcontractExpectedAt ; subcontractStatus (M04, texte)
+  // prend les valeurs de SubcontractStatus (TO_SEND | SENT | RETURNED | CANCELLED).
+  subcontractReturnedAt DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -969,6 +987,8 @@ model RepairOrderLine {
   assignedTo     Membership?     @relation("RepairOrderLineAssignee", fields: [assignedToId], references: [id])
   quoteLine      QuoteLine?      @relation(fields: [quoteLineId], references: [id])
   timeEntries    TimeEntry[]
+  partRequests   PartRequest[] // M06 §14
+  workNotes      WorkNote[] // M06 §14
 
   @@index([organizationId, repairOrderId])
   @@index([repairOrderId])
@@ -1082,6 +1102,7 @@ model LaborOperation {
   defaultParts        Json          @default("[]") // [{ productId? , category?, quantity }]
   vehicleOverrides    Json          @default("[]") // [{ make, model?, yearFrom?, yearTo?, standardHours }]
   isServiceOperation  Boolean       @default(false) // compte comme « révision » (M02 RG-M02-13)
+  requiredSkill       String? // M06 §14 : doit correspondre à une valeur de Membership.skills
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -1143,16 +1164,24 @@ enum LaborRateType {
 
 model TimeEntry {
   // pointage mécanicien sur une tâche
-  id                String    @id @default(cuid(2))
+  id                String        @id @default(cuid(2))
   organizationId    String
   membershipId      String
   repairOrderId     String
   repairOrderLineId String?
   startedAt         DateTime
   endedAt           DateTime?
-  pauseMinutes      Int       @default(0)
+  pauseMinutes      Int           @default(0)
   note              String?
-  source            String    @default("tablet") // tablet | web | offline-sync
+  source            String        @default("tablet") // tablet | web | offline-sync
+  // M06 §14
+  kind              TimeEntryKind @default(WORK)
+  pausedAt          DateTime?
+  pauseReason       String? // parts | lunch | approval | other
+  clientOpId        String?       @unique // idempotence de la synchro hors-ligne
+  deviceId          String?
+  needsReview       Boolean       @default(false)
+  reviewReason      String? // M06 (hors §14) : motif du signalement (chevauchement, clôture auto…)
 
   organization    Organization     @relation(fields: [organizationId], references: [id])
   membership      Membership       @relation(fields: [membershipId], references: [id])
@@ -1161,6 +1190,13 @@ model TimeEntry {
 
   @@index([organizationId, repairOrderId])
   @@index([organizationId, membershipId])
+  @@index([organizationId, membershipId, startedAt])
+}
+
+enum TimeEntryKind {
+  WORK
+  DIAGNOSTIC
+  REWORK
 }
 
 model Attendance {
@@ -1171,11 +1207,127 @@ model Attendance {
   date           DateTime  @db.Date
   clockIn        DateTime?
   clockOut       DateTime?
+  // M06 §14
+  siteId         String?
+  breakMinutes   Int       @default(60)
+  autoClosed     Boolean   @default(false)
 
   organization Organization @relation(fields: [organizationId], references: [id])
   membership   Membership   @relation(fields: [membershipId], references: [id])
+  site         Site?        @relation(fields: [siteId], references: [id])
 
+  @@unique([organizationId, membershipId, date])
   @@index([organizationId, membershipId, date])
+}
+
+// ───────────── M06 §14 — atelier : contrôle qualité, demandes de pièces, remarques ─────────────
+
+model QualityCheck {
+  id             String   @id @default(cuid(2))
+  organizationId String
+  repairOrderId  String
+  checkedById    String // Membership.id
+  result         QcResult
+  checklist      Json     @default("{}") // { "road_test": true, "wheel_torque": true, … }
+  comment        String?
+  reworkLineIds  String[]
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  repairOrder  RepairOrder  @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  checkedBy    Membership   @relation("QualityCheckBy", fields: [checkedById], references: [id])
+
+  @@index([organizationId, repairOrderId])
+}
+
+enum QcResult {
+  PASSED
+  FAILED
+}
+
+model PartRequest {
+  // demande de pièce tablette → magasin (traitée dans M07)
+  id                String            @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  repairOrderId     String
+  repairOrderLineId String?
+  requestedById     String // Membership.id
+  productId         String?
+  freeText          String? // si produit introuvable
+  quantity          Float
+  urgency           Priority          @default(NORMAL)
+  status            PartRequestStatus @default(REQUESTED)
+  handledById       String?
+  purchaseOrderId   String?
+  rejectReason      String?
+  clientOpId        String?           @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  site            Site             @relation(fields: [siteId], references: [id])
+  repairOrder     RepairOrder      @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  repairOrderLine RepairOrderLine? @relation(fields: [repairOrderLineId], references: [id])
+  requestedBy     Membership       @relation("PartRequestBy", fields: [requestedById], references: [id])
+  handledBy       Membership?      @relation("PartRequestHandledBy", fields: [handledById], references: [id])
+  product         Product?         @relation(fields: [productId], references: [id])
+
+  @@index([organizationId, siteId, status])
+  @@index([organizationId, repairOrderId])
+}
+
+enum PartRequestStatus {
+  REQUESTED
+  PREPARING
+  ORDERED
+  DELIVERED
+  REJECTED
+  CANCELLED
+}
+
+model WorkNote {
+  // remarques mécanicien sur un OR / une ligne
+  id                String   @id @default(cuid(2))
+  organizationId    String
+  repairOrderId     String
+  repairOrderLineId String?
+  authorId          String // Membership.id
+  body              String
+  visibleToCustomer Boolean  @default(false)
+  approvedById      String? // conseiller ayant validé la diffusion
+  clientOpId        String?  @unique
+  createdAt         DateTime @default(now())
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  repairOrder     RepairOrder      @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  repairOrderLine RepairOrderLine? @relation(fields: [repairOrderLineId], references: [id])
+  author          Membership       @relation("WorkNoteAuthor", fields: [authorId], references: [id])
+  approvedBy      Membership?      @relation("WorkNoteApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([organizationId, repairOrderId])
+}
+
+model TechSyncOperation {
+  // M06 (hors §14) — journal des opérations tablette appliquées (RG-M06-14 : idempotence par
+  // clientOpId pour toutes les opérations, y compris pause/reprise/inspection sans ligne créée).
+  id             String    @id @default(cuid(2))
+  organizationId String
+  clientOpId     String
+  membershipId   String // acteur (mécanicien identifié)
+  deviceId       String?
+  type           String // task.start | task.pause | … (TechOp)
+  status         String // ok | rejected
+  error          String?
+  entityId       String?
+  deviceAt       DateTime?
+  appliedAt      DateTime // horodatage corrigé (serverOffset)
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, clientOpId])
+  @@index([organizationId, membershipId, createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1358,6 +1510,7 @@ model Product {
   stockReservations  StockReservation[]
   stockCountLines    StockCountLine[]
   stockTransferLines StockTransferLine[]
+  partRequests       PartRequest[] // M06 §14
 
   @@unique([organizationId, sku])
   @@index([organizationId, barcode])
