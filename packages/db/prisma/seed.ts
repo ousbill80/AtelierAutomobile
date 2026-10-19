@@ -1,4 +1,4 @@
-import { hashPassword } from "@atelieros/core";
+import { hashPassword, normalizePlate } from "@atelieros/core";
 import { adminDb } from "../src/client";
 import type { Prisma } from "@prisma/client";
 
@@ -86,11 +86,183 @@ const VEHICLE_CATALOG: Array<{ make: string; model: string; fuel: "PETROL" | "DI
 
 const COMMUNES = ["Yopougon", "Cocody", "Abobo", "Adjamé", "Marcory", "Treichville", "Koumassi"];
 
+// RG-M02-20 — catalogue global marques/modèles courants en Côte d'Ivoire, avec intervalle
+// de révision par défaut (km / mois). Les véhicules utilitaires/diesel (pick-up, 4x4) ont
+// un intervalle plus court que les véhicules particuliers essence.
+type FuelSeed = "PETROL" | "DIESEL";
+const VEHICLE_MAKE_CATALOG: Array<{
+  name: string;
+  models: Array<{
+    name: string;
+    fuel: FuelSeed;
+    serviceIntervalKm: number;
+    serviceIntervalMonths: number;
+  }>;
+}> = [
+  {
+    name: "Toyota",
+    models: [
+      { name: "Corolla", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Hilux", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+      { name: "Land Cruiser", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+      { name: "Yaris", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "RAV4", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Hyundai",
+    models: [
+      { name: "Tucson", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Accent", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "H100", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+    ],
+  },
+  {
+    name: "Kia",
+    models: [
+      { name: "Picanto", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Sportage", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Rio", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Nissan",
+    models: [
+      { name: "Navara", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+      { name: "Patrol", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+      { name: "Qashqai", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Mitsubishi",
+    models: [
+      { name: "L200", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+      { name: "Pajero", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+    ],
+  },
+  {
+    name: "Suzuki",
+    models: [
+      { name: "Swift", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Jimny", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Isuzu",
+    models: [{ name: "D-Max", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 }],
+  },
+  {
+    name: "Peugeot",
+    models: [
+      { name: "301", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "2008", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Partner", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Renault",
+    models: [
+      { name: "Duster", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Logan", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Citroën",
+    models: [{ name: "C4", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  },
+  {
+    name: "Mercedes-Benz",
+    models: [
+      { name: "Classe C", fuel: "DIESEL", serviceIntervalKm: 15000, serviceIntervalMonths: 12 },
+      { name: "Sprinter", fuel: "DIESEL", serviceIntervalKm: 15000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "BMW",
+    models: [
+      { name: "Série 3", fuel: "PETROL", serviceIntervalKm: 15000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Ford",
+    models: [
+      { name: "Ranger", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+    ],
+  },
+  {
+    name: "Honda",
+    models: [{ name: "CR-V", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  },
+  {
+    name: "Mazda",
+    models: [{ name: "CX-5", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  },
+  {
+    name: "Volkswagen",
+    models: [{ name: "Polo", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  },
+  {
+    name: "Land Rover",
+    models: [
+      { name: "Defender", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Chevrolet",
+    models: [{ name: "Aveo", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  },
+  {
+    name: "Changan",
+    models: [{ name: "CS35", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  },
+  {
+    name: "Geely",
+    models: [
+      { name: "Coolray", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Chery",
+    models: [
+      { name: "Tiggo", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+  },
+  {
+    name: "Dongfeng",
+    models: [{ name: "AX7", fuel: "PETROL", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  },
+  {
+    name: "Great Wall",
+    models: [
+      { name: "Wingle", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 },
+    ],
+  },
+  {
+    name: "JAC",
+    models: [{ name: "T6", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 }],
+  },
+  {
+    name: "Tata",
+    models: [{ name: "Xenon", fuel: "DIESEL", serviceIntervalKm: 10000, serviceIntervalMonths: 6 }],
+  },
+];
+
 function plateFor(index: number): string {
   const letters = ["AB", "CD", "EF", "GH", "JK", "LM", "FD", "HB", "NP", "RS"];
   const letter = letters[index % letters.length];
   const num = 1000 + index;
   return `${num} ${letter} 01`;
+}
+
+// RG-M02-05 : dérive plate/plateCompact/plateType depuis la saisie, au lieu de recopier
+// à la main la forme compacte dans chaque fixture du seed.
+function plateFields(input: string) {
+  const normalized = normalizePlate(input);
+  return {
+    plate: normalized.plate,
+    plateCompact: normalized.plateCompact,
+    plateType: normalized.plateType,
+  };
 }
 
 function phoneFor(index: number): string {
@@ -372,6 +544,25 @@ async function main() {
   }
   await adminDb.stockLevel.createMany({ data: stockRows });
 
+  console.log("Seed — catalogue marques/modèles (RG-M02-20)...");
+  // organizationId NULL = catalogue global seedé par la plateforme (lu directement via
+  // adminDb, cf. commentaire schema.prisma sur VehicleMake/VehicleModel).
+  for (const makeSpec of VEHICLE_MAKE_CATALOG) {
+    const make = await adminDb.vehicleMake.create({
+      data: { organizationId: null, name: makeSpec.name },
+    });
+    await adminDb.vehicleModel.createMany({
+      data: makeSpec.models.map((model) => ({
+        organizationId: null,
+        makeId: make.id,
+        name: model.name,
+        defaultFuel: model.fuel,
+        serviceIntervalKm: model.serviceIntervalKm,
+        serviceIntervalMonths: model.serviceIntervalMonths,
+      })),
+    });
+  }
+
   console.log("Seed — clients et véhicules (scénarios de démonstration)...");
 
   // Kouassi Jean-Marc — VT expire dans 15 jours
@@ -391,7 +582,7 @@ async function main() {
     data: {
       organizationId: organization.id,
       customerId: kouassi.id,
-      plate: "2547 GH 01",
+      ...plateFields("2547 GH 01"),
       make: "Toyota",
       model: "Corolla",
       year: 2018,
@@ -420,7 +611,7 @@ async function main() {
     data: {
       organizationId: organization.id,
       customerId: bamba.id,
-      plate: "8812 JK 01",
+      ...plateFields("8812 JK 01"),
       make: "Hyundai",
       model: "Tucson",
       year: 2020,
@@ -457,7 +648,7 @@ async function main() {
         data: {
           organizationId: organization.id,
           customerId: sotra.id,
-          plate: `${3000 + i} SV 01`,
+          ...plateFields(`${3000 + i} SV 01`),
           make: "Toyota",
           model: "Hilux",
           year: 2019 + (i % 4),
@@ -469,7 +660,7 @@ async function main() {
         data: {
           organizationId: organization.id,
           customerId: sotra.id,
-          plate: `${3100 + i} SV 01`,
+          ...plateFields(`${3100 + i} SV 01`),
           make: "Isuzu",
           model: "D-Max",
           year: 2019 + (i % 4),
@@ -497,7 +688,7 @@ async function main() {
     data: {
       organizationId: organization.id,
       customerId: kone.id,
-      plate: "4421 FD 01",
+      ...plateFields("4421 FD 01"),
       make: "Peugeot",
       model: "301",
       year: 2017,
@@ -523,7 +714,7 @@ async function main() {
     data: {
       organizationId: organization.id,
       customerId: yao.id,
-      plate: "1190 LM 01",
+      ...plateFields("1190 LM 01"),
       make: "Kia",
       model: "Picanto",
       year: 2021,
@@ -553,7 +744,7 @@ async function main() {
     data: {
       organizationId: organization.id,
       customerId: traore.id,
-      plate: "6630 HB 01",
+      ...plateFields("6630 HB 01"),
       make: "Mitsubishi",
       model: "L200",
       year: 2019,
@@ -585,7 +776,7 @@ async function main() {
     data: {
       organizationId: organization.id,
       customerId: diabate.id,
-      plate: "7745 NP 01",
+      ...plateFields("7745 NP 01"),
       make: "Suzuki",
       model: "Swift",
       year: 2019,
@@ -616,7 +807,7 @@ async function main() {
       data: {
         organizationId: organization.id,
         customerId: customer.id,
-        plate: plateFor(i + 400),
+        ...plateFields(plateFor(i + 400)),
         make: vehicleSpec.make,
         model: vehicleSpec.model,
         year: 2015 + (i % 10),
