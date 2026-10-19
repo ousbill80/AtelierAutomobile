@@ -3,10 +3,16 @@ import { authedProcedure, router } from "../trpc";
 
 export const meRouter = router({
   get: authedProcedure.query(async ({ ctx }) => {
-    const memberships = await adminDb.membership.findMany({
-      where: { userId: ctx.user.id, isActive: true },
-      include: { organization: true },
-    });
+    const [memberships, user] = await Promise.all([
+      adminDb.membership.findMany({
+        where: { userId: ctx.user.id, isActive: true },
+        include: { organization: true },
+      }),
+      adminDb.user.findUniqueOrThrow({
+        where: { id: ctx.user.id },
+        select: { id: true, name: true, phone: true, email: true },
+      }),
+    ]);
 
     const organizations = memberships.map((m) => ({
       id: m.organizationId,
@@ -29,9 +35,10 @@ export const meRouter = router({
     }
 
     return {
-      user: ctx.user,
+      user,
       organizations,
       activeOrganization,
+      activeSiteId: ctx.session?.activeSiteId ?? null,
       membership: ctx.membership,
       permissions: [...ctx.permissions],
       allowedSites,

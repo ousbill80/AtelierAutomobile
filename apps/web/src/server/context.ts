@@ -2,7 +2,8 @@ import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { adminDb, db } from "@atelieros/db";
 import { isSessionExpired, resolvePermissions, type Permission, type Role } from "@atelieros/core";
 
-export const SESSION_COOKIE_NAME = "atelieros_session";
+export { SESSION_COOKIE_NAME } from "./session-cookie-name";
+import { SESSION_COOKIE_NAME } from "./session-cookie-name";
 
 export interface CtxUser {
   id: string;

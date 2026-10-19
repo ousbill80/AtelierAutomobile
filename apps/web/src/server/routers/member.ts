@@ -82,6 +82,13 @@ export const memberRouter = router({
       return { ...membership, effectivePermissions };
     }),
 
+  listInvitations: requirePermission("member:invite").query(async ({ ctx }) => {
+    return adminDb.invitation.findMany({
+      where: { organizationId: ctx.organizationId, status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
   invite: requirePermission("member:invite")
     .input(inviteMemberInputSchema)
     .mutation(async ({ ctx, input }) => {

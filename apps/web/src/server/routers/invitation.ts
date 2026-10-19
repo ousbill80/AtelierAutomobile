@@ -112,6 +112,11 @@ export const invitationRouter = router({
       },
     });
 
+    await adminDb.user.update({
+      where: { id: userId },
+      data: { lastActiveOrganizationId: invitation.organizationId },
+    });
+
     await adminDb.invitation.update({
       where: { id: invitation.id },
       data: { status: "ACCEPTED", acceptedAt: new Date(), acceptedUserId: userId },
