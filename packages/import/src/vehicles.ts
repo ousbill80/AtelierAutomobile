@@ -8,6 +8,7 @@ import type { db } from "@atelieros/db";
 import { writeAuditLog } from "@atelieros/db";
 import {
   mergeFields,
+  normalizePlate,
   resolveVehicleMatchKey,
   type ImportPolicy,
   type RowOutcome,
@@ -34,7 +35,11 @@ export interface VehicleImportValues {
 
 function toVehicleFields(values: VehicleImportValues): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
-  if (values["vehicle.plate"] !== undefined) fields.plate = values["vehicle.plate"];
+  if (values["vehicle.plate"] !== undefined) {
+    const normalized = normalizePlate(values["vehicle.plate"]!);
+    fields.plate = normalized.plate;
+    fields.plateCompact = normalized.plateCompact;
+  }
   if (values["vehicle.make"] !== undefined) fields.make = values["vehicle.make"];
   if (values["vehicle.model"] !== undefined) fields.model = values["vehicle.model"];
   if (values["vehicle.vin"] !== undefined) fields.vin = values["vehicle.vin"];
@@ -89,14 +94,12 @@ export async function applyVehicleRow(input: ApplyVehicleRowInput): Promise<Appl
     };
   }
 
-  const matchKey = resolveVehicleMatchKey({
-    plateCompact: plate ? plate.replace(/\s/g, "") : null,
-    vin,
-  });
+  const plateCompact = (fields.plateCompact as string | undefined) ?? null;
+  const matchKey = resolveVehicleMatchKey({ plateCompact, vin });
 
   let existing: { id: string; customerId: string; [key: string]: unknown } | null = null;
-  if (matchKey.strategy === "plate" && plate) {
-    existing = await tenantDb.vehicle.findFirst({ where: { plate } });
+  if (matchKey.strategy === "plate" && matchKey.value) {
+    existing = await tenantDb.vehicle.findFirst({ where: { plateCompact: matchKey.value } });
   } else if (matchKey.strategy === "vin" && vin) {
     existing = await tenantDb.vehicle.findFirst({ where: { vin } });
   }
@@ -133,6 +136,7 @@ export async function applyVehicleRow(input: ApplyVehicleRowInput): Promise<Appl
         model: "Inconnu",
         ...fields,
         plate: plate!,
+        plateCompact: plateCompact!,
       },
     });
     await writeAuditLog({

@@ -1,115 +1,97 @@
-// RG-M02-13 — prochaine révision, premier critère atteint entre date et kilométrage.
+import { addDays, addMonths } from "date-fns";
+import { computeEstimatedMileage } from "../vehicles/mileage";
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+export type ServiceDueTrigger = "DATE" | "MILEAGE";
 
-export interface ServiceDueInput {
+export interface ComputeNextServiceDueInput {
   lastServiceDate?: Date | null;
   lastServiceMileage?: number | null;
   serviceIntervalKm?: number | null;
   serviceIntervalMonths?: number | null;
   currentMileage?: number | null;
   currentMileageAt?: Date | null;
+  /** km/jour (cf. computeAvgKmPerDay) ; 0 ou absent désactive le critère kilométrique. */
   avgKmPerDay?: number | null;
   today: Date;
 }
 
-export type ServiceDueTrigger = "DATE" | "MILEAGE";
-
-export interface ServiceDueResult {
+export interface NextServiceDueResult {
   nextServiceDueDate: Date | null;
   nextServiceDueMileage: number | null;
   trigger: ServiceDueTrigger | null;
-  overdue: boolean;
-}
-
-function addMonths(date: Date, months: number): Date {
-  const result = new Date(date);
-  result.setMonth(result.getMonth() + months);
-  return result;
 }
 
 /**
- * RG-M02-13 — `dueByDate` et `dueMileage` sont calculés indépendamment selon les données
- * disponibles ; la date retenue est la plus proche des deux (`nextServiceDueDate`), le
- * déclencheur (`trigger`) indiquant lequel a produit le minimum. Si un seul critère est
- * connu, il fait foi seul ; si aucun n'est connu, le résultat est entièrement `null`.
+ * RG-M02-13 — prochaine révision, premier critère atteint entre date et kilométrage.
+ * Si aucune des deux données n'est disponible, retourne des valeurs nulles
+ * (« Révision : historique inconnu » côté interface).
  */
-export function computeNextServiceDue(input: ServiceDueInput): ServiceDueResult {
-  const {
-    lastServiceDate,
-    lastServiceMileage,
-    serviceIntervalKm,
-    serviceIntervalMonths,
-    currentMileage,
-    currentMileageAt,
-    avgKmPerDay,
-    today,
-  } = input;
-
+export function computeNextServiceDue(input: ComputeNextServiceDueInput): NextServiceDueResult {
   const dueByDate =
-    lastServiceDate && serviceIntervalMonths != null
-      ? addMonths(lastServiceDate, serviceIntervalMonths)
+    input.lastServiceDate && input.serviceIntervalMonths != null
+      ? addMonths(input.lastServiceDate, input.serviceIntervalMonths)
       : null;
 
   const dueMileage =
-    lastServiceMileage != null && serviceIntervalKm != null
-      ? lastServiceMileage + serviceIntervalKm
+    input.lastServiceMileage != null && input.serviceIntervalKm != null
+      ? input.lastServiceMileage + input.serviceIntervalKm
       : null;
 
   let dateForKm: Date | null = null;
   if (
     dueMileage != null &&
-    avgKmPerDay != null &&
-    avgKmPerDay > 0 &&
-    currentMileage != null &&
-    currentMileageAt != null
+    input.avgKmPerDay != null &&
+    input.avgKmPerDay > 0 &&
+    input.currentMileage != null &&
+    input.currentMileageAt != null
   ) {
-    const daysSinceReading = (today.getTime() - currentMileageAt.getTime()) / MS_PER_DAY;
-    const estimatedToday = currentMileage + avgKmPerDay * daysSinceReading;
+    const estimatedToday = computeEstimatedMileage({
+      currentMileage: input.currentMileage,
+      currentMileageAt: input.currentMileageAt,
+      avgKmPerDay: input.avgKmPerDay,
+      at: input.today,
+    });
+
     if (dueMileage <= estimatedToday) {
-      dateForKm = today;
+      dateForKm = input.today;
     } else {
-      const daysNeeded = Math.ceil((dueMileage - currentMileage) / avgKmPerDay);
-      dateForKm = new Date(currentMileageAt.getTime() + daysNeeded * MS_PER_DAY);
+      const days = Math.ceil((dueMileage - input.currentMileage) / input.avgKmPerDay);
+      dateForKm = addDays(input.currentMileageAt, days);
     }
   }
 
-  if (!dueByDate && !dateForKm) {
-    return { nextServiceDueDate: null, nextServiceDueMileage: null, trigger: null, overdue: false };
+  const candidates: Array<{ date: Date; trigger: ServiceDueTrigger }> = [];
+  if (dueByDate) candidates.push({ date: dueByDate, trigger: "DATE" });
+  if (dateForKm) candidates.push({ date: dateForKm, trigger: "MILEAGE" });
+
+  if (candidates.length === 0) {
+    return { nextServiceDueDate: null, nextServiceDueMileage: dueMileage, trigger: null };
   }
 
-  let nextServiceDueDate: Date;
-  let trigger: ServiceDueTrigger;
-  if (dueByDate && dateForKm) {
-    if (dateForKm.getTime() <= dueByDate.getTime()) {
-      nextServiceDueDate = dateForKm;
-      trigger = "MILEAGE";
-    } else {
-      nextServiceDueDate = dueByDate;
-      trigger = "DATE";
-    }
-  } else if (dateForKm) {
-    nextServiceDueDate = dateForKm;
-    trigger = "MILEAGE";
-  } else {
-    nextServiceDueDate = dueByDate!;
-    trigger = "DATE";
-  }
+  candidates.sort((a, b) => a.date.getTime() - b.date.getTime());
+  const winner = candidates[0]!;
 
-  let nextServiceDueMileage: number | null;
-  if (dueMileage != null) {
-    nextServiceDueMileage = dueMileage;
-  } else if (currentMileage != null && currentMileageAt != null && avgKmPerDay != null) {
-    const days = (nextServiceDueDate.getTime() - currentMileageAt.getTime()) / MS_PER_DAY;
-    nextServiceDueMileage = Math.round(currentMileage + avgKmPerDay * days);
-  } else {
-    nextServiceDueMileage = null;
+  let nextServiceDueMileage = dueMileage;
+  if (
+    nextServiceDueMileage == null &&
+    input.currentMileage != null &&
+    input.currentMileageAt != null &&
+    input.avgKmPerDay != null &&
+    input.avgKmPerDay > 0
+  ) {
+    nextServiceDueMileage = Math.round(
+      computeEstimatedMileage({
+        currentMileage: input.currentMileage,
+        currentMileageAt: input.currentMileageAt,
+        avgKmPerDay: input.avgKmPerDay,
+        at: winner.date,
+      }),
+    );
   }
 
   return {
-    nextServiceDueDate,
-    nextServiceDueMileage,
-    trigger,
-    overdue: nextServiceDueDate.getTime() <= today.getTime(),
+    nextServiceDueDate: winner.date,
+    nextServiceDueMileage: nextServiceDueMileage ?? null,
+    trigger: winner.trigger,
   };
 }

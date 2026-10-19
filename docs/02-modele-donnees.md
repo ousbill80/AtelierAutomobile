@@ -37,7 +37,7 @@ Organization ─┬─ Site ─┬─ Bay
 
 ```prisma
 generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL"); extensions = [pg_trgm] }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL"); extensions = [pg_trgm, unaccent] }
 
 // ───────────── Organisation, sites, utilisateurs ─────────────
 
@@ -137,7 +137,7 @@ model Customer {
   firstName          String?
   lastName           String?
   companyName        String?
-  displayName        String                    // calculé : "Kouassi Jean-Marc" ou "SOTRA Logistique SARL"
+  displayName        String                    // calculé (RG-M02-01) : "Kouassi Jean-Marc" ou "SOTRA Logistique SARL"
   civility           Civility?
   phone              String?                   // E.164, principal
   phone2             String?
@@ -154,6 +154,8 @@ model Customer {
   optedOutAt         DateTime?                 // a répondu STOP
   doNotRemind        Boolean @default(false)   // décision interne
   doNotRemindReason  String?
+  consentUpdatedAt   DateTime?                 // RG-M02-15 : date du dernier changement de consentement
+  consentSource      String?                   // "counter" | "phone" | "whatsapp_reply" | "portal" | "import" | "staff"
   paymentTermsDays   Int     @default(0)       // 0 = comptant
   creditLimit        Int?                      // en FCFA
   priceListId        String?
@@ -162,6 +164,9 @@ model Customer {
   tags               String[]
   notes              String?
   source             String?                   // "import", "portail", "comptoir"
+  mergedIntoId       String?                   // RG-M02-08 : client cible après fusion (self-relation "CustomerMerge")
+  anonymizedAt       DateTime?                 // RG-M02-18 : export/anonymisation
+  lastVisitAt        DateTime?                 // dénormalisé (dernier OR livré/facture), tri/filtre
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
@@ -169,35 +174,47 @@ model Customer {
   phoneInvalidAt     DateTime?                 // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
   vehicles           Vehicle[]
   contacts           CustomerContact[]
+  notesLog           CustomerNote[]
   @@index([organizationId, displayName])
   @@index([organizationId, phone])
+  @@index([organizationId, phone2])
+  @@index([organizationId, email])
+  // + index trigram customer_display_name_trgm (GIN, gin_trgm_ops) — recherche globale (RG-M02-19)
 }
 enum CustomerType { INDIVIDUAL COMPANY }
 enum Civility { M MME MLLE }
 enum Channel { WHATSAPP SMS EMAIL }
 
 model CustomerContact {                         // interlocuteurs d'une entreprise
-  id             String @id @default(cuid())
-  organizationId String
-  customerId     String
-  name           String
-  role           String?                        // "Responsable flotte", "Comptabilité"
-  phone          String?
-  phone2         String?                        // M10 §14, RG-M10-11
-  email          String?
+  id                String @id @default(cuid())
+  organizationId    String
+  customerId        String
+  name              String
+  role              String?                     // "Responsable flotte", "Comptabilité"
+  phone             String?
+  phone2            String?                     // RG-M02-?? ; aussi consommé par M10 §14
+  email             String?
   receivesInvoices  Boolean @default(false)
   receivesReminders Boolean @default(false)
-  isPrimary         Boolean @default(false)      // M10 §14, RG-M10-11 : contact prioritaire
+  isPrimary         Boolean @default(false)      // M10 §14, RG-M10-11 : contact prioritaire pour les relances
+  createdAt         DateTime @default(now())
+  deletedAt         DateTime?
+  // + index trigram customer_contact_name_trgm (GIN, gin_trgm_ops)
 }
 
 model Vehicle {
   id                        String @id @default(cuid())
   organizationId            String
   customerId                String
-  plate                     String                   // normalisée : majuscules, sans espaces multiples
+  plate                     String                   // affichée : "2547 GH 01", "WW 4512 01", "SANS PLAQUE"…
+  plateCompact              String                   // RG-M02-05 : forme compacte ("2547GH01"), unicité + recherche
+  plateType                 PlateType @default(STANDARD)
+  usage                     VehicleUsage @default(PRIVATE)
   vin                       String?
-  make                      String                   // Toyota
+  make                      String                   // Toyota (texte affiché, source de vérité)
   model                     String                   // Corolla
+  makeId                    String?                  // lien catalogue (facultatif, RG-M02-20)
+  modelId                   String?
   version                   String?
   year                      Int?
   firstRegistrationDate     DateTime? @db.Date
@@ -211,8 +228,10 @@ model Vehicle {
   // Kilométrage
   currentMileage            Int?
   currentMileageAt          DateTime?
-  avgKmPerDay               Float?                   // calculé à partir des relevés
-  estimatedMileage          Int?                     // estimé du jour (worker)
+  odometerOffset            Int     @default(0)       // cumulé après remplacement(s) de compteur
+  odometerInMiles           Boolean @default(false)
+  avgKmPerDay               Float?                   // calculé à partir des relevés (RG-M02-10)
+  estimatedMileage          Int?                     // estimé du jour (worker, RG-M02-11)
   // Visite technique
   inspectionLastDate        DateTime? @db.Date
   inspectionExpiryDate      DateTime? @db.Date
@@ -222,7 +241,7 @@ model Vehicle {
   serviceIntervalMonths     Int?                     // ex. 6
   lastServiceDate           DateTime? @db.Date
   lastServiceMileage        Int?
-  nextServiceDueDate        DateTime? @db.Date       // calculé (M10)
+  nextServiceDueDate        DateTime? @db.Date       // calculé (RG-M02-13)
   nextServiceDueMileage     Int?                     // calculé
   nextServiceTrigger        String?                  // "DATE" | "MILEAGE" — critère ayant déterminé nextServiceDue*
   // M10 §14
@@ -234,15 +253,24 @@ model Vehicle {
   insuranceExpiryDate       DateTime? @db.Date
   insurancePolicyNumber     String?
   notes                     String?
+  mergedIntoId              String?                  // RG-M02-08 : véhicule cible après fusion (self-relation "VehicleMerge")
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   deletedAt                 DateTime?
+  customerNotes             CustomerNote[]
   @@index([organizationId, plate])
+  @@index([organizationId, plateCompact])
+  @@index([organizationId, vin])
   @@index([organizationId, inspectionExpiryDate])
   @@index([organizationId, nextServiceDueDate])
+  // Unicité partielle (RG-M02-04) : hors véhicules supprimés et plaques non identifiantes (NONE)
+  // @@unique([organizationId, plateCompact]) WHERE deletedAt IS NULL AND plateType <> 'NONE' — index "vehicle_plate_unique"
+  // + index trigram vehicle_plate_trgm / vehicle_vin_trgm (GIN, gin_trgm_ops) — recherche globale (RG-M02-19)
 }
 enum FuelType { PETROL DIESEL HYBRID ELECTRIC LPG OTHER }
 enum Transmission { MANUAL AUTOMATIC }
+enum PlateType { STANDARD TEMPORARY DIPLOMATIC GOVERNMENT FOREIGN NONE OTHER }
+enum VehicleUsage { PRIVATE TAXI TRANSPORT UTILITY RENTAL OTHER }
 
 model MileageReading {
   id             String @id @default(cuid())
@@ -253,6 +281,10 @@ model MileageReading {
   source         MileageSource
   repairOrderId  String?
   createdById    String?
+  isOutlier      Boolean  @default(false)      // RG-M02-10 : exclu du calcul de km/j
+  createdAt      DateTime @default(now())
+  @@index([organizationId, vehicleId])
+  @@index([vehicleId, readAt])
 }
 enum MileageSource { RECEPTION IMPORT CUSTOMER MANUAL INVOICE }
 
@@ -260,10 +292,75 @@ model VehicleEvent {                             // historique libre (VT faite, 
   id             String @id @default(cuid())
   organizationId String
   vehicleId      String
-  type           String
+  type           String                          // VEHICLE_EVENT_TYPES : inspection_done, service_done, owner_changed,
+                                                  // plate_changed, odometer_replaced, accident, insurance_renewed, note, merged
   occurredAt     DateTime
   data           Json @default("{}")
   createdById    String?
+}
+
+model CustomerNote {                             // notes internes datées, US-M02-10 (chronologie 360°)
+  id             String @id @default(cuid())
+  organizationId String
+  customerId     String
+  vehicleId      String?
+  body           String
+  pinned         Boolean  @default(false)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  deletedAt      DateTime?
+  @@index([organizationId, customerId])
+}
+
+model DuplicateDismissal {                       // paires de doublons ignorées depuis /clients/doublons (RG-M02-07)
+  id             String @id @default(cuid())
+  organizationId String
+  entity         String                          // "customer" | "vehicle"
+  idA            String                          // plus petit des deux id (ordre lexical)
+  idB            String
+  dismissedById  String?
+  createdAt      DateTime @default(now())
+  @@unique([organizationId, entity, idA, idB])
+}
+
+model CustomerSegment {                          // segments enregistrés (filtres réutilisables, liens M10/M12)
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  filters        Json                            // mêmes clés que customer.list / vehicle.list
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([organizationId])
+}
+
+// RG-M02-20 — Catalogue marques/modèles : organizationId NULL = catalogue global (seedé par
+// la plateforme), non NULL = ajout propre à l'organisation. Exception documentée à la règle
+// « toute requête passe par db.forTenant » : l'égalité stricte de db.forTenant() exclurait
+// les lignes globales (organizationId NULL). Ces deux modèles sont donc lus/écrits directement
+// via adminDb, avec un filtre manuel organizationId IS NULL OR organizationId = :orgId — même
+// précédent que TrustedDevice (M01).
+model VehicleMake {
+  id             String  @id @default(cuid())
+  organizationId String?
+  name           String                          // "Toyota"
+  isActive       Boolean @default(true)
+  models         VehicleModel[]
+  @@unique([organizationId, name])
+}
+
+model VehicleModel {
+  id                    String  @id @default(cuid())
+  organizationId        String?
+  makeId                String
+  name                  String                   // "Corolla"
+  yearFrom              Int?
+  yearTo                Int?
+  defaultFuel           FuelType?
+  serviceIntervalKm     Int?                     // ex. 10000
+  serviceIntervalMonths Int?                     // ex. 12
+  isActive              Boolean @default(true)
+  @@unique([makeId, organizationId, name])
 }
 
 // ───────────── Rendez-vous ─────────────
@@ -1167,6 +1264,17 @@ model DocumentSequence {
   @@unique([organizationId, siteId, docType, year])
 }
 
+model Holiday {                                   // jours fériés — source unique (A1), M15 §14
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String?                         // null = tous les sites
+  date           DateTime @db.Date
+  name           String                          // "Fête de l'Indépendance"
+  kind           String @default("PUBLIC")       // PUBLIC | CLOSURE (fermeture exceptionnelle)
+  isEstimated    Boolean @default(false)         // fêtes religieuses à confirmer
+  @@unique([organizationId, siteId, date])
+}
+
 model AuditLog {
   id             String @id @default(cuid())
   organizationId String
@@ -1232,6 +1340,7 @@ model AiInteraction {                             // trace des appels IA (coût,
 | `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés           | M02                                                  |
 | `Customer.phone` normalisé E.164                                                                                                    | `core/phone`                                         |
 | Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
+| `Site.code` non modifiable dès qu'une `DocumentSequence` existe pour ce site (il figure dans les numéros déjà émis)                 | M15 (RG-M15-05)                                      |
 
 ## 4. Variables de modèles de messages
 

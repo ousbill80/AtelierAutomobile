@@ -2,86 +2,99 @@ import { describe, expect, it } from "vitest";
 import { computeNextServiceDue } from "./serviceDue";
 
 describe("computeNextServiceDue — RG-M02-13", () => {
-  it("exemple du PRD : le km gagne (25/11/2026) malgré une date plus lointaine (15/04/2027)", () => {
+  it("exemple du PRD : le kilométrage l'emporte sur la date (25/11/2026 avant le 15/04/2027)", () => {
     const result = computeNextServiceDue({
-      lastServiceDate: new Date("2026-04-15"),
+      lastServiceDate: new Date("2026-04-15T00:00:00.000Z"),
       lastServiceMileage: 40000,
       serviceIntervalKm: 10000,
       serviceIntervalMonths: 12,
       currentMileage: 48200,
-      currentMileageAt: new Date("2026-10-18"),
+      currentMileageAt: new Date("2026-10-18T00:00:00.000Z"),
       avgKmPerDay: 47.5,
-      today: new Date("2026-10-18"),
+      today: new Date("2026-10-18T00:00:00.000Z"),
     });
     expect(result.trigger).toBe("MILEAGE");
     expect(result.nextServiceDueMileage).toBe(50000);
     expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2026-11-25");
-    expect(result.overdue).toBe(false);
   });
 
-  it("date seule connue", () => {
+  it("date seule connue (pas de kilométrage) → trigger DATE", () => {
     const result = computeNextServiceDue({
-      lastServiceDate: new Date("2026-01-15"),
-      serviceIntervalMonths: 6,
-      today: new Date("2026-10-18"),
+      lastServiceDate: new Date("2026-01-01T00:00:00.000Z"),
+      serviceIntervalMonths: 12,
+      today: new Date("2026-06-01T00:00:00.000Z"),
     });
     expect(result.trigger).toBe("DATE");
-    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2026-07-15");
+    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2027-01-01");
     expect(result.nextServiceDueMileage).toBeNull();
-    expect(result.overdue).toBe(true);
   });
 
-  it("date et km connus : la date gagne quand elle est la plus proche", () => {
+  it("kilométrage seul connu (pas de dernière date de révision) → trigger MILEAGE", () => {
     const result = computeNextServiceDue({
-      lastServiceDate: new Date("2026-10-01"),
-      serviceIntervalMonths: 1,
       lastServiceMileage: 40000,
-      serviceIntervalKm: 100000,
-      currentMileage: 41000,
-      currentMileageAt: new Date("2026-10-18"),
-      avgKmPerDay: 10,
-      today: new Date("2026-10-18"),
-    });
-    expect(result.trigger).toBe("DATE");
-    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2026-11-01");
-  });
-
-  it("dépassée : le kilométrage estimé du jour a déjà atteint le seuil", () => {
-    const result = computeNextServiceDue({
-      lastServiceMileage: 10000,
-      serviceIntervalKm: 5000,
-      currentMileage: 16000,
-      currentMileageAt: new Date("2026-10-01"),
-      avgKmPerDay: 20,
-      today: new Date("2026-10-18"),
+      serviceIntervalKm: 10000,
+      currentMileage: 45000,
+      currentMileageAt: new Date("2026-06-01T00:00:00.000Z"),
+      avgKmPerDay: 50,
+      today: new Date("2026-06-01T00:00:00.000Z"),
     });
     expect(result.trigger).toBe("MILEAGE");
-    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2026-10-18");
-    expect(result.overdue).toBe(true);
+    expect(result.nextServiceDueMileage).toBe(50000);
+    // (50000-45000)/50 = 100 jours
+    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2026-09-09");
   });
 
-  it("données manquantes → tout null", () => {
-    const result = computeNextServiceDue({ today: new Date("2026-10-18") });
+  it("la date gagne quand elle est atteinte avant le km", () => {
+    const result = computeNextServiceDue({
+      lastServiceDate: new Date("2026-01-01T00:00:00.000Z"),
+      lastServiceMileage: 10000,
+      serviceIntervalMonths: 1,
+      serviceIntervalKm: 100000,
+      currentMileage: 10500,
+      currentMileageAt: new Date("2026-01-01T00:00:00.000Z"),
+      avgKmPerDay: 10,
+      today: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    expect(result.trigger).toBe("DATE");
+    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2026-02-01");
+  });
+
+  it("révision dépassée en kilométrage → due aujourd'hui", () => {
+    const today = new Date("2026-06-01T00:00:00.000Z");
+    const result = computeNextServiceDue({
+      lastServiceMileage: 10000,
+      serviceIntervalKm: 10000,
+      currentMileage: 21000,
+      currentMileageAt: today,
+      avgKmPerDay: 50,
+      today,
+    });
+    expect(result.trigger).toBe("MILEAGE");
+    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2026-06-01");
+  });
+
+  it("données manquantes → tout est null", () => {
+    const result = computeNextServiceDue({ today: new Date("2026-06-01T00:00:00.000Z") });
     expect(result).toEqual({
       nextServiceDueDate: null,
       nextServiceDueMileage: null,
       trigger: null,
-      overdue: false,
     });
   });
 
-  it("avgKmPerDay = 0 : le critère km est ignoré (pas de division par zéro)", () => {
+  it("avgKmPerDay = 0 désactive le critère kilométrique (pas de division par zéro)", () => {
     const result = computeNextServiceDue({
-      lastServiceMileage: 10000,
-      serviceIntervalKm: 5000,
-      currentMileage: 12000,
-      currentMileageAt: new Date("2026-10-01"),
+      lastServiceMileage: 40000,
+      serviceIntervalKm: 10000,
+      currentMileage: 45000,
+      currentMileageAt: new Date("2026-06-01T00:00:00.000Z"),
       avgKmPerDay: 0,
-      lastServiceDate: new Date("2026-01-01"),
-      serviceIntervalMonths: 12,
-      today: new Date("2026-10-18"),
+      today: new Date("2026-06-01T00:00:00.000Z"),
     });
-    expect(result.trigger).toBe("DATE");
-    expect(result.nextServiceDueDate?.toISOString().slice(0, 10)).toBe("2027-01-01");
+    expect(result).toEqual({
+      nextServiceDueDate: null,
+      nextServiceDueMileage: 50000,
+      trigger: null,
+    });
   });
 });

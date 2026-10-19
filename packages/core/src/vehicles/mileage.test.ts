@@ -1,120 +1,162 @@
 import { describe, expect, it } from "vitest";
-import { computeAvgKmPerDay, DEFAULT_AVG_KM_PER_DAY, estimateMileage } from "./mileage";
+import {
+  computeAvgKmPerDay,
+  computeEstimatedMileage,
+  DEFAULT_AVG_KM_PER_DAY,
+  type VehicleUsage,
+} from "./mileage";
+
+const day = (n: number, from = new Date("2026-01-01T00:00:00.000Z")) =>
+  new Date(from.getTime() + n * 24 * 60 * 60 * 1000);
 
 describe("computeAvgKmPerDay — RG-M02-10", () => {
-  it("renvoie la valeur par défaut avec moins de 2 relevés", () => {
-    const result = computeAvgKmPerDay(
-      [{ mileage: 10000, readAt: new Date("2026-10-01") }],
-      "PRIVATE",
-      new Date("2026-10-18"),
+  it("moins de 2 relevés → valeur par défaut selon l'usage", () => {
+    const now = day(400);
+    expect(
+      computeAvgKmPerDay({
+        readings: [{ mileage: 10000, readAt: day(390) }],
+        usage: "PRIVATE",
+        now,
+      }),
+    ).toEqual({ avgKmPerDay: DEFAULT_AVG_KM_PER_DAY.PRIVATE, source: "DEFAULT" });
+
+    expect(computeAvgKmPerDay({ readings: [], usage: "TAXI", now })).toEqual({
+      avgKmPerDay: DEFAULT_AVG_KM_PER_DAY.TAXI,
+      source: "DEFAULT",
+    });
+  });
+
+  it("2 relevés espacés de moins de 14 jours → pas de régression, valeur par défaut", () => {
+    const now = day(20);
+    const readings = [
+      { mileage: 10000, readAt: day(10) },
+      { mileage: 10500, readAt: day(15) },
+    ];
+    expect(computeAvgKmPerDay({ readings, usage: "UTILITY", now })).toEqual({
+      avgKmPerDay: DEFAULT_AVG_KM_PER_DAY.UTILITY,
+      source: "DEFAULT",
+    });
+  });
+
+  it("exemple RG-M02-13 : 42 500 km (20/06/2026) puis 48 200 km (18/10/2026) → 47,5 km/j", () => {
+    const now = new Date("2026-10-18T00:00:00.000Z");
+    const readings = [
+      { mileage: 42500, readAt: new Date("2026-06-20T00:00:00.000Z") },
+      { mileage: 48200, readAt: now },
+    ];
+    const result = computeAvgKmPerDay({ readings, usage: "PRIVATE", now });
+    expect(result.source).toBe("REGRESSION");
+    expect(result.avgKmPerDay).toBeCloseTo(47.5, 5);
+  });
+
+  it("pondération ×2 des relevés des 6 derniers mois", () => {
+    const now = day(380);
+    const readings = [
+      { mileage: 0, readAt: day(0) }, // > 6 mois : poids 1
+      { mileage: 20000, readAt: day(200) }, // ≤ 6 mois : poids 2
+      { mileage: 58000, readAt: day(380) }, // ≤ 6 mois : poids 2
+    ];
+    const result = computeAvgKmPerDay({ readings, usage: "PRIVATE", now });
+    expect(result.source).toBe("REGRESSION");
+    // Pente pondérée attendue (calcul manuel du système d'équations normales) : ≈ 159,39 km/j,
+    // plus proche de la pente récente (211,1 km/j) que de la pente ancienne (100 km/j).
+    expect(result.avgKmPerDay).toBeCloseTo(159.39, 1);
+  });
+
+  it("résultat borné à [0 ; 800] km/j", () => {
+    const now = day(20);
+    const extreme = [
+      { mileage: 0, readAt: day(0) },
+      { mileage: 50000, readAt: day(20) },
+    ];
+    expect(computeAvgKmPerDay({ readings: extreme, usage: "TRANSPORT", now }).avgKmPerDay).toBe(
+      800,
     );
+
+    const reversed = [
+      { mileage: 50000, readAt: day(0) },
+      { mileage: 0, readAt: day(20) },
+    ];
+    expect(computeAvgKmPerDay({ readings: reversed, usage: "TRANSPORT", now }).avgKmPerDay).toBe(0);
+  });
+
+  it.each<[VehicleUsage, number]>([
+    ["PRIVATE", 35],
+    ["TAXI", 220],
+    ["TRANSPORT", 250],
+    ["UTILITY", 90],
+    ["RENTAL", 120],
+  ])("valeur par défaut pour %s : %d km/j", (usage, expected) => {
+    expect(computeAvgKmPerDay({ readings: [], usage, now: day(0) }).avgKmPerDay).toBe(expected);
+  });
+
+  it("un seul relevé + mise en circulation connue (≥ 180 j) → km / jours écoulés", () => {
+    const now = day(400);
+    const result = computeAvgKmPerDay({
+      readings: [{ mileage: 36500, readAt: now }],
+      usage: "PRIVATE",
+      now,
+      firstRegistrationDate: day(0),
+    });
+    expect(result).toEqual({ avgKmPerDay: 36500 / 400, source: "SINGLE_READING" });
+  });
+
+  it("un seul relevé mais véhicule trop récent (< 180 j) → valeur par défaut", () => {
+    const now = day(100);
+    const result = computeAvgKmPerDay({
+      readings: [{ mileage: 5000, readAt: now }],
+      usage: "PRIVATE",
+      now,
+      firstRegistrationDate: day(0),
+    });
     expect(result).toEqual({ avgKmPerDay: DEFAULT_AVG_KM_PER_DAY.PRIVATE, source: "DEFAULT" });
   });
 
-  it("renvoie la valeur par défaut si les relevés sont espacés de moins de 14 jours", () => {
-    const result = computeAvgKmPerDay(
-      [
-        { mileage: 10000, readAt: new Date("2026-10-10") },
-        { mileage: 10100, readAt: new Date("2026-10-18") },
-      ],
-      "TAXI",
-      new Date("2026-10-18"),
-    );
-    expect(result).toEqual({ avgKmPerDay: DEFAULT_AVG_KM_PER_DAY.TAXI, source: "DEFAULT" });
-  });
-
-  it("calcule le taux exact pour 2 relevés (exemple RG-M02-13 : 5 700 km / 120 j = 47,5)", () => {
-    const result = computeAvgKmPerDay(
-      [
-        { mileage: 42500, readAt: new Date("2026-06-20") },
-        { mileage: 48200, readAt: new Date("2026-10-18") },
-      ],
-      "PRIVATE",
-      new Date("2026-10-18"),
-    );
+  it("exclut les relevés marqués aberrants (isOutlier)", () => {
+    const now = day(40);
+    const readings = [
+      { mileage: 1000, readAt: day(0) },
+      { mileage: 999999, readAt: day(20), isOutlier: true },
+      { mileage: 2200, readAt: day(40) },
+    ];
+    const result = computeAvgKmPerDay({ readings, usage: "PRIVATE", now });
     expect(result.source).toBe("REGRESSION");
-    expect(result.avgKmPerDay).toBeCloseTo(47.5, 1);
+    expect(result.avgKmPerDay).toBeCloseTo(30, 5); // (2200-1000)/40
   });
 
-  it("pondère ×2 les relevés des 6 derniers mois, tirant la pente vers le segment récent", () => {
-    const MS_PER_DAY = 24 * 60 * 60 * 1000;
-    const today = new Date("2026-10-18");
-    // A : 300 j avant aujourd'hui (hors fenêtre récente, poids 1) ; B : 100 j avant (poids 2) ;
-    // C : aujourd'hui (poids 2). Segment récent B→C quasi plat (1 km/j) contre 50 km/j sur A→B.
-    const result = computeAvgKmPerDay(
-      [
-        { mileage: 0, readAt: new Date(today.getTime() - 300 * MS_PER_DAY) },
-        { mileage: 10000, readAt: new Date(today.getTime() - 100 * MS_PER_DAY) },
-        { mileage: 10100, readAt: today },
-      ],
-      "PRIVATE",
-      today,
-    );
-    expect(result.source).toBe("REGRESSION");
-    // pente pondérée (B,C en poids 2) : 33,67 km/j, contre 36,0 km/j à poids égal — tirée vers le bas.
-    expect(result.avgKmPerDay).toBeCloseTo(33.67, 1);
+  it("compteur remplacé : l'appelant doit fournir le kilométrage vie entière (mileage + odometerOffset)", () => {
+    // Après un odometer_replaced, odometerOffset absorbe le saut (ancien dernier relevé − nouveau
+    // départ). Les relevés passés ici sont déjà « vie entière » : la régression reste cohérente
+    // (pente positive stable) au lieu de chuter artificiellement comme le ferait le compteur brut.
+    const now = day(60);
+    const lifetimeReadings = [
+      { mileage: 50000, readAt: day(0) },
+      { mileage: 51500, readAt: day(30) },
+      { mileage: 53000, readAt: day(60) },
+    ];
+    const result = computeAvgKmPerDay({ readings: lifetimeReadings, usage: "PRIVATE", now });
+    expect(result).toEqual({ avgKmPerDay: 50, source: "REGRESSION" });
   });
-
-  it("borne le résultat à [0 ; 800]", () => {
-    const result = computeAvgKmPerDay(
-      [
-        { mileage: 0, readAt: new Date("2026-10-01") },
-        { mileage: 50000, readAt: new Date("2026-10-15") },
-      ],
-      "TAXI",
-      new Date("2026-10-15"),
-    );
-    expect(result.avgKmPerDay).toBe(800);
-  });
-
-  it("écarte les relevés marqués aberrants", () => {
-    const result = computeAvgKmPerDay(
-      [
-        { mileage: 10000, readAt: new Date("2026-09-01") },
-        { mileage: 999999, readAt: new Date("2026-09-15"), isOutlier: true },
-        { mileage: 10700, readAt: new Date("2026-10-15") },
-      ],
-      "PRIVATE",
-      new Date("2026-10-15"),
-    );
-    expect(result.source).toBe("REGRESSION");
-    expect(result.avgKmPerDay).toBeCloseTo(700 / 44, 1);
-  });
-
-  it("utilise km / âge pour un relevé unique si le véhicule a ≥ 180 j", () => {
-    const result = computeAvgKmPerDay(
-      [{ mileage: 36500, readAt: new Date("2026-10-18") }],
-      "PRIVATE",
-      new Date("2026-10-18"),
-      new Date("2025-10-19"), // 364 jours
-    );
-    expect(result.source).toBe("SINGLE_READING");
-    expect(result.avgKmPerDay).toBeCloseTo(100, 0);
-  });
-
-  it.each(["PRIVATE", "TAXI", "TRANSPORT", "UTILITY", "RENTAL"] as const)(
-    "valeur par défaut pour usage %s sans aucun relevé",
-    (usage) => {
-      const result = computeAvgKmPerDay([], usage, new Date("2026-10-18"));
-      expect(result).toEqual({ avgKmPerDay: DEFAULT_AVG_KM_PER_DAY[usage], source: "DEFAULT" });
-    },
-  );
 });
 
-describe("estimateMileage — RG-M02-11", () => {
-  it("ajoute le kilométrage moyen écoulé depuis le dernier relevé", () => {
-    const estimated = estimateMileage(48200, 47.5, new Date("2026-10-18"), new Date("2026-11-07"));
-    expect(estimated).toBe(48200 + Math.round(47.5 * 20));
+describe("computeEstimatedMileage — RG-M02-11", () => {
+  it("ajoute l'avance estimée depuis le dernier relevé", () => {
+    const estimated = computeEstimatedMileage({
+      currentMileage: 48200,
+      currentMileageAt: new Date("2026-10-18T00:00:00.000Z"),
+      avgKmPerDay: 47.5,
+      at: new Date("2026-10-28T00:00:00.000Z"),
+    });
+    expect(estimated).toBe(48200 + Math.round(47.5 * 10));
   });
 
-  it("intègre l'offset du compteur remplacé (RG-M02-09)", () => {
-    const estimated = estimateMileage(
-      1000,
-      10,
-      new Date("2026-10-18"),
-      new Date("2026-10-18"),
-      50000,
-    );
-    expect(estimated).toBe(51000);
+  it("ne recule jamais si la date demandée précède le relevé", () => {
+    const estimated = computeEstimatedMileage({
+      currentMileage: 48200,
+      currentMileageAt: new Date("2026-10-18T00:00:00.000Z"),
+      avgKmPerDay: 47.5,
+      at: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    expect(estimated).toBe(48200);
   });
 });

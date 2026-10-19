@@ -1,7 +1,17 @@
 import { randomBytes } from "node:crypto";
 import { test, expect, type BrowserContext } from "@playwright/test";
-import { computeSessionAbsoluteExpiry } from "@atelieros/core";
+import { computeSessionAbsoluteExpiry, normalizePlate } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
+
+// RG-M02-05 : plate/plateCompact/plateType sont dérivés de la saisie (cf. packages/db/prisma/seed.ts).
+function plateFields(input: string) {
+  const normalized = normalizePlate(input);
+  return {
+    plate: normalized.plate,
+    plateCompact: normalized.plateCompact,
+    plateType: normalized.plateType,
+  };
+}
 
 // §12 — parcours principal M10 (file du jour) : une relance « à valider » apparaît dans
 // /relances, peut être envoyée immédiatement, et une autre peut être ignorée avec un motif.
@@ -73,7 +83,7 @@ test("parcours file du jour : envoyer une relance, en ignorer une autre avec mot
     data: {
       organizationId: organization.id,
       customerId: customer.id,
-      plate: "2547 GH 01",
+      ...plateFields("2547 GH 01"),
       make: "Toyota",
       model: "Corolla",
       inspectionExpiryDate: new Date(Date.now() + 30 * 86_400_000),

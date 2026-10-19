@@ -8,6 +8,7 @@ import {
   defaultReminderRules,
   defaultSiteBays,
   defaultSiteOpeningHours,
+  normalizePlate,
 } from "@atelieros/core";
 import { adminDb, db, type Prisma } from "@atelieros/db";
 import { createConsoleMessagingProvider, type MessageChannel } from "@atelieros/integrations";
@@ -112,11 +113,13 @@ async function loadDemoDataFor(organizationId: string) {
       data: { organizationId, displayName: demo.displayName, phone: demo.phone, source: "demo" },
     });
     customers += 1;
+    const normalizedPlate = normalizePlate(demo.plate);
     await tenantDb.vehicle.create({
       data: {
         organizationId,
         customerId: customer.id,
-        plate: demo.plate,
+        plate: normalizedPlate.plate,
+        plateCompact: normalizedPlate.plateCompact,
         make: demo.make,
         model: demo.model,
       },

@@ -25,8 +25,13 @@ export {
   setActiveSiteInputSchema,
 } from "./session";
 
-export type { UpdateOrgInput } from "./org";
-export { operatingModeSchema, taxRegimeSchema, updateOrgInputSchema } from "./org";
+export type { SetOperatingModeInput, UpdateOrgInput } from "./org";
+export {
+  operatingModeSchema,
+  setOperatingModeInputSchema,
+  taxRegimeSchema,
+  updateOrgInputSchema,
+} from "./org";
 
 export type {
   CreateBayInput,
@@ -235,3 +240,151 @@ export {
   reminderUpdateInputSchema,
   REMINDER_SKIP_REASONS,
 } from "./reminders";
+
+export type {
+  AddNoteInput,
+  CheckDuplicatesInput,
+  CustomerAnonymizeInput,
+  CustomerCreateInput,
+  CustomerDeleteInput,
+  CustomerExportDataInput,
+  CustomerGetInput,
+  CustomerInput,
+  CustomerListInput,
+  CustomerMergeInput,
+  CustomerTimelineInput,
+  CustomerUpdateInput,
+  DuplicatesDismissInput,
+  DuplicatesListInput,
+  MergePreviewInput,
+  ReactivateRemindersInput,
+  SetConsentInput,
+  SetCreditInput,
+} from "./customer";
+export {
+  addNoteInputSchema,
+  checkDuplicatesInputSchema,
+  civilitySchema,
+  consentSourceSchema,
+  customerAnonymizeInputSchema,
+  customerCreateInputSchema,
+  customerDeleteInputSchema,
+  customerExportDataInputSchema,
+  customerGetInputSchema,
+  customerInputSchema,
+  customerListInputSchema,
+  customerMergeInputSchema,
+  customerTimelineInputSchema,
+  customerTypeSchema,
+  customerUpdateInputSchema,
+  duplicatesDismissInputSchema,
+  duplicatesListInputSchema,
+  mergeFieldChoiceSchema,
+  mergePreviewInputSchema,
+  reactivateRemindersInputSchema,
+  setConsentInputSchema,
+  setCreditInputSchema,
+  timelineTypeSchema,
+} from "./customer";
+
+export type {
+  RecordInspectionInput,
+  RecordMileageInput,
+  RecordServiceInput,
+  ReplacePlateInput,
+  TransferOwnerInput,
+  VehicleBulkCreateInput,
+  VehicleCreateInput,
+  VehicleDeleteInput,
+  VehicleGetInput,
+  VehicleInput,
+  VehicleListInput,
+  VehicleMergeInput,
+  VehicleUpdateInput,
+} from "./vehicle";
+export {
+  fuelTypeSchema,
+  mileageSourceSchema,
+  plateTypeSchema,
+  recordInspectionInputSchema,
+  recordMileageInputSchema,
+  recordServiceInputSchema,
+  replacePlateInputSchema,
+  transferOwnerInputSchema,
+  transmissionSchema,
+  vehicleBulkCreateInputSchema,
+  vehicleCreateInputSchema,
+  vehicleDeleteInputSchema,
+  vehicleGetInputSchema,
+  vehicleInputSchema,
+  vehicleListInputSchema,
+  vehicleMergeInputSchema,
+  vehicleUpdateInputSchema,
+  vehicleUsageSchema,
+} from "./vehicle";
+
+export type { CreateContactInput, DeleteContactInput, UpdateContactInput } from "./contact";
+export {
+  createContactInputSchema,
+  deleteContactInputSchema,
+  updateContactInputSchema,
+} from "./contact";
+
+export type {
+  CreateSegmentInput,
+  DeleteSegmentInput,
+  PreviewSegmentInput,
+  SegmentFilters,
+  UpdateSegmentInput,
+} from "./segment";
+export {
+  createSegmentInputSchema,
+  deleteSegmentInputSchema,
+  previewSegmentInputSchema,
+  segmentFiltersSchema,
+  updateSegmentInputSchema,
+} from "./segment";
+
+export type { AddLocalModelInput, CatalogMakesInput, CatalogModelsInput } from "./catalog";
+export {
+  addLocalModelInputSchema,
+  catalogMakesInputSchema,
+  catalogModelsInputSchema,
+} from "./catalog";
+
+export type { SearchGlobalInput } from "./search";
+export { searchGlobalInputSchema } from "./search";
+
+export type {
+  CreateHolidayInput,
+  DeleteHolidayInput,
+  ListHolidaysInput,
+  SeedHolidayYearInput,
+  UpdateHolidayInput,
+} from "./holiday";
+export {
+  createHolidayInputSchema,
+  deleteHolidayInputSchema,
+  holidayKindSchema,
+  listHolidaysInputSchema,
+  seedHolidayYearInputSchema,
+  updateHolidayInputSchema,
+} from "./holiday";
+
+export type { UpdateNumberingInput } from "./numbering";
+export { documentTypeSchema, updateNumberingInputSchema } from "./numbering";
+
+export type {
+  GetSettingsInput,
+  SettingsSection,
+  TaxSettings,
+  UpdateSettingsInput,
+} from "./settings";
+export {
+  DEFAULT_TAX_SETTINGS,
+  getSettingsInputSchema,
+  settingsSectionSchema,
+  taxRoundingSchema,
+  taxSettingsSchema,
+  updateSettingsInputSchema,
+} from "./settings";

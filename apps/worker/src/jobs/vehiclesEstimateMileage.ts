@@ -1,11 +1,11 @@
 // RG-M10-08 — job quotidien (02:00) : kilométrage moyen, kilométrage estimé, prochaine
 // échéance de révision. Réutilise les fonctions pures de M02 (`computeAvgKmPerDay`,
-// `estimateMileage`) et M10 (`computeNextServiceDue`), sans dupliquer leur logique.
+// `computeEstimatedMileage`) et M10 (`computeNextServiceDue`), sans dupliquer leur logique.
 import { adminDb, db } from "@atelieros/db";
 import {
   computeAvgKmPerDay,
+  computeEstimatedMileage,
   computeNextServiceDue,
-  estimateMileage,
   type VehicleUsage,
 } from "@atelieros/core";
 import { DEFAULT_REMINDER_SETTINGS, reminderSettingsSchema } from "@atelieros/validators";
@@ -33,7 +33,6 @@ export async function processVehiclesEstimateMileageJob(): Promise<void> {
         firstRegistrationDate: true,
         currentMileage: true,
         currentMileageAt: true,
-        odometerOffset: true,
         lastServiceDate: true,
         lastServiceMileage: true,
         serviceIntervalKm: true,
@@ -49,23 +48,23 @@ export async function processVehiclesEstimateMileageJob(): Promise<void> {
           select: { mileage: true, readAt: true, isOutlier: true },
         });
 
-        const { avgKmPerDay } = computeAvgKmPerDay(
+        const { avgKmPerDay } = computeAvgKmPerDay({
           readings,
-          (vehicle.usage ?? "PRIVATE") as VehicleUsage,
-          today,
-          vehicle.firstRegistrationDate,
-        );
-        const effectiveAvgKmPerDay = avgKmPerDay > 0 ? avgKmPerDay : settings.defaultKmPerDay;
+          usage: (vehicle.usage ?? "PRIVATE") as VehicleUsage,
+          now: today,
+          firstRegistrationDate: vehicle.firstRegistrationDate,
+        });
+        const effectiveAvgKmPerDay =
+          avgKmPerDay != null && avgKmPerDay > 0 ? avgKmPerDay : settings.defaultKmPerDay;
 
         const estimatedMileage =
           vehicle.currentMileage != null && vehicle.currentMileageAt
-            ? estimateMileage(
-                vehicle.currentMileage,
-                effectiveAvgKmPerDay,
-                vehicle.currentMileageAt,
-                today,
-                vehicle.odometerOffset,
-              )
+            ? computeEstimatedMileage({
+                currentMileage: vehicle.currentMileage,
+                currentMileageAt: vehicle.currentMileageAt,
+                avgKmPerDay: effectiveAvgKmPerDay,
+                at: today,
+              })
             : null;
 
         const serviceIntervalMonths =

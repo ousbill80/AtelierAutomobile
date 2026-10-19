@@ -23,6 +23,7 @@ function ConnexionForm() {
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [needsOtp, setNeedsOtp] = useState(false);
+  const [devOtpCode, setDevOtpCode] = useState<string | null>(null);
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +35,7 @@ function ConnexionForm() {
       }
       if (result.status === "OTP_REQUIRED") {
         setNeedsOtp(true);
+        setDevOtpCode(result.devCode ?? null);
         setError(null);
         return;
       }
@@ -87,6 +89,9 @@ function ConnexionForm() {
           {needsOtp ? (
             <Field label={t("auth.verifyOtp.title")}>
               <OtpInput value={otpCode} onChange={setOtpCode} />
+              {devOtpCode ? (
+                <p className="hint">Code de test (dev uniquement) : {devOtpCode}</p>
+              ) : null}
             </Field>
           ) : null}
           {error ? <p className="error">{error}</p> : null}

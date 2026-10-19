@@ -1,6 +1,17 @@
+import { normalizePlate } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { processVehiclesEstimateMileageJob } from "./vehiclesEstimateMileage";
+
+// RG-M02-05 : plate/plateCompact/plateType sont dérivés de la saisie (cf. packages/db/prisma/seed.ts).
+function plateFields(input: string) {
+  const normalized = normalizePlate(input);
+  return {
+    plate: normalized.plate,
+    plateCompact: normalized.plateCompact,
+    plateType: normalized.plateType,
+  };
+}
 
 describe("vehicles.estimate_mileage — intégration (RG-M10-08)", () => {
   let org: { id: string };
@@ -16,7 +27,7 @@ describe("vehicles.estimate_mileage — intégration (RG-M10-08)", () => {
       data: {
         organizationId: org.id,
         customerId: customer.id,
-        plate: "8888 AB 01",
+        ...plateFields("8888 AB 01"),
         make: "Toyota",
         model: "Corolla",
         usage: "PRIVATE",

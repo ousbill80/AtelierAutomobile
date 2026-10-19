@@ -1,3 +1,4 @@
+import { normalizePlate } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { processRemindersPlanJob } from "./remindersPlan";
@@ -34,6 +35,16 @@ function daysFromNow(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
+// RG-M02-05 : plate/plateCompact/plateType sont dérivés de la saisie (cf. packages/db/prisma/seed.ts).
+function plateFields(input: string) {
+  const normalized = normalizePlate(input);
+  return {
+    plate: normalized.plate,
+    plateCompact: normalized.plateCompact,
+    plateType: normalized.plateType,
+  };
+}
+
 describe("reminders.plan / reminders.dispatch — intégration (M10)", () => {
   let orgA: { id: string };
   let orgB: { id: string };
@@ -57,7 +68,7 @@ describe("reminders.plan / reminders.dispatch — intégration (M10)", () => {
       data: {
         organizationId: orgA.id,
         customerId: customerA.id,
-        plate: "9999 AB 01",
+        ...plateFields("9999 AB 01"),
         make: "Toyota",
         model: "Corolla",
         inspectionExpiryDate: daysFromNow(30), // J-30 dû aujourd'hui

@@ -24,19 +24,116 @@ export {
   ttcToHt,
 } from "./money";
 
-export type { NormalizedPhone, PhoneLineType, PhoneStatus } from "./phone";
+export type {
+  NormalizedPhone,
+  PhoneLineType,
+  PhoneOperator,
+  PhoneStatus,
+  PhoneType,
+} from "./phone";
 export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } from "./phone";
 
 export type { NormalizedPlate, PlateType } from "./plate";
 export { normalizePlate } from "./plate";
 
-export type { DocumentSequenceKey, DocumentType, SequenceStore } from "./numbering";
+export type {
+  AvgKmPerDayResult,
+  AvgKmPerDaySource,
+  ComputeAvgKmPerDayInput,
+  MileageReadingLike,
+  VehicleUsage,
+} from "./vehicles/mileage";
 export {
+  computeAvgKmPerDay,
+  computeEstimatedMileage,
+  DEFAULT_AVG_KM_PER_DAY,
+} from "./vehicles/mileage";
+
+export type { InspectionStatus, ServiceStatus } from "./vehicles/status";
+export { computeInspectionStatus, computeServiceStatus } from "./vehicles/status";
+
+export type {
+  ComputeNextServiceDueInput,
+  NextServiceDueResult,
+  ServiceDueTrigger,
+} from "./reminders/serviceDue";
+export { computeNextServiceDue } from "./reminders/serviceDue";
+
+export type { ComputeDisplayNameInput, CustomerType } from "./customers/display-name";
+export { computeDisplayName } from "./customers/display-name";
+
+export type {
+  DuplicateLevel,
+  DuplicateScoreResult,
+  DuplicateSignals,
+} from "./customers/duplicates";
+export { computeDuplicateScore } from "./customers/duplicates";
+
+export type {
+  ConsentState,
+  MergeFieldInput,
+  MergePlanInput,
+  MergePlanResult,
+  MergeSide,
+} from "./customers/merge";
+export { mergePlan } from "./customers/merge";
+
+export type { ComputeReachabilityInput, ReachabilityStatus } from "./customers/reachability";
+export { computeReachability } from "./customers/reachability";
+
+export type {
+  DocumentSequenceKey,
+  DocumentType,
+  NumberingConfig,
+  NumberingRenderContext,
+  SequenceStore,
+} from "./numbering";
+export {
+  assertStartValueIncrease,
+  DEFAULT_NUMBERING_CONFIG,
   formatDocumentNumber,
   isFiscalDocumentType,
   nextDocumentNumber,
+  renderNumberingPattern,
   sequenceKey,
+  validateNumberingConfig,
 } from "./numbering";
+
+export type { CivilDate, GeneratedHoliday } from "./ci-holidays";
+export {
+  civilDateToUtcDate,
+  computeEasterSunday,
+  generateCiHolidays,
+  getEstimatedIslamicHolidays,
+  getFixedHolidays,
+} from "./ci-holidays";
+
+export type { OpeningHours, WeekdayKey } from "./organization/opening-hours";
+export { validateOpeningHours, WEEKDAY_KEYS } from "./organization/opening-hours";
+
+export type { OrganizationIdentityForInvoicing } from "./organization/identity";
+export {
+  assertCanIssueInvoice,
+  getMissingInvoiceFields,
+  isValidNccFormat,
+  isValidRccmFormat,
+  NCC_REGEX,
+  RCCM_REGEX,
+} from "./organization/identity";
+
+export type {
+  CanSwitchOperatingModeInput,
+  ModuleKey,
+  OperatingMode,
+  OperatingModeSwitchResult,
+} from "./organization/operating-mode";
+export {
+  assertModuleAllowed,
+  canSwitchOperatingMode,
+  isModuleVisible,
+  MODULE_KEYS,
+  REMINDERS_ONLY_VISIBLE_MODULES,
+} from "./organization/operating-mode";
 
 export type { Permission, ResolvePermissionsInput, Role } from "./auth/permissions";
 export {
@@ -128,21 +225,6 @@ export {
 } from "./onboarding/seed";
 
 export * from "./import";
-
-// Portés depuis le brouillon de l'Étape 1.1 (M02), en attendant la fusion de la
-// branche canonique etape-1.1-clients-vehicules : fonctions pures sans dépendance
-// schéma/router, nécessaires à M10 (vehicles.estimate_mileage, échéance révision).
-// À supprimer/réconcilier avec la copie réelle de M02 à ce moment-là.
-export type {
-  AvgKmPerDayResult,
-  AvgKmPerDaySource,
-  MileageReadingLike,
-  VehicleUsage,
-} from "./vehicles/mileage";
-export { computeAvgKmPerDay, DEFAULT_AVG_KM_PER_DAY, estimateMileage } from "./vehicles/mileage";
-
-export type { ServiceDueInput, ServiceDueResult, ServiceDueTrigger } from "./reminders/serviceDue";
-export { computeNextServiceDue } from "./reminders/serviceDue";
 
 export { addDays, diffDays, isoDateOnly } from "./reminders/dates";
 

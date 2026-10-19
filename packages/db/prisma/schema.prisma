@@ -10,7 +10,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [pg_trgm]
+  extensions = [pg_trgm, unaccent]
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -107,6 +107,11 @@ model Organization {
   invitations            Invitation[]
   rolePermissions        RolePermission[]
   trustedDevices         TrustedDevice[]
+  customerNotes          CustomerNote[]
+  duplicateDismissals    DuplicateDismissal[]
+  customerSegments       CustomerSegment[]
+  vehicleMakes           VehicleMake[]
+  vehicleModels          VehicleModel[]
 }
 
 enum TaxRegime {
@@ -264,6 +269,9 @@ model Membership {
   invoicesCreated             Invoice[]             @relation("InvoiceCreatedBy")
   portalTokensCreated         PortalToken[]         @relation("PortalTokenCreatedBy")
   quickRepliesCreated         QuickReply[]          @relation("QuickReplyCreatedBy")
+  customerNotesCreated        CustomerNote[]        @relation("CustomerNoteCreatedBy")
+  duplicateDismissalsCreated  DuplicateDismissal[]  @relation("DuplicateDismissalDismissedBy")
+  customerSegmentsCreated     CustomerSegment[]     @relation("CustomerSegmentCreatedBy")
 
   @@unique([organizationId, userId])
   @@index([organizationId])
@@ -314,6 +322,8 @@ model Customer {
   optedOutAt        DateTime? // a répondu STOP
   doNotRemind       Boolean      @default(false) // décision interne
   doNotRemindReason String?
+  consentUpdatedAt  DateTime? // RG-M02-15 : trace la dernière modification de consentement
+  consentSource     String? // counter | phone | whatsapp_reply | portal | import | staff
   paymentTermsDays  Int          @default(0) // 0 = comptant
   creditLimit       Int? // en FCFA
   priceListId       String?
@@ -323,6 +333,9 @@ model Customer {
   notes             String?
   source            String? // "import", "portail", "comptoir"
   origin            RecordOrigin @default(NATIVE)
+  mergedIntoId      String? // RG-M02-08 : client cible après fusion (ce client est alors deletedAt != null)
+  anonymizedAt      DateTime? // RG-M02-18 : export/anonymisation RGPD-like
+  lastVisitAt       DateTime? // dénormalisé (dernier OR livré ou facture), pour tri/filtre
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?
@@ -333,8 +346,11 @@ model Customer {
   phoneInvalidAt       DateTime? // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
+  mergedInto      Customer?         @relation("CustomerMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom      Customer[]        @relation("CustomerMerge")
   vehicles        Vehicle[]
   contacts        CustomerContact[]
+  notesLog        CustomerNote[]
   appointments    Appointment[]
   repairOrders    RepairOrder[]
   quotes          Quote[]
@@ -346,6 +362,8 @@ model Customer {
   messages        Message[]
   insuranceClaims InsuranceClaim[]
   portalTokens    PortalToken[]
+  // Index trigram (migration SQL) :
+  // CREATE INDEX customer_display_name_trgm ON "Customer" USING gin ("displayName" gin_trgm_ops);
 
   @@index([organizationId, displayName])
   @@index([organizationId, phone])
@@ -372,7 +390,7 @@ enum Channel {
 
 model CustomerContact {
   // interlocuteurs d'une entreprise
-  id                String  @id @default(cuid(2))
+  id                String    @id @default(cuid(2))
   organizationId    String
   customerId        String
   name              String
@@ -388,35 +406,42 @@ model CustomerContact {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  // Index trigram (migration SQL) :
+  // CREATE INDEX customer_contact_name_trgm ON "CustomerContact" USING gin ("name" gin_trgm_ops);
 
   @@index([organizationId, customerId])
 }
 
 model Vehicle {
-  id                        String        @id @default(cuid(2))
-  organizationId            String
-  customerId                String
-  plate                     String // normalisée : majuscules, sans espaces multiples
-  usage                     VehicleUsage  @default(PRIVATE)
-  vin                       String?
-  make                      String // Toyota
-  model                     String // Corolla
-  version                   String?
-  year                      Int?
-  firstRegistrationDate     DateTime?     @db.Date
-  fuel                      FuelType?
-  transmission              Transmission?
-  engineCode                String?
-  color                     String?
-  fleetNumber               String? // n° interne flotte client
-  driverName                String?
-  driverPhone               String?
+  id                    String        @id @default(cuid(2))
+  organizationId        String
+  customerId            String
+  plate                 String // affichée : "2547 GH 01", "WW 4512 01", "SANS PLAQUE"…
+  plateCompact          String // "2547GH01" — forme compacte pour l'unicité et la recherche
+  plateType             PlateType     @default(STANDARD)
+  usage                 VehicleUsage  @default(PRIVATE)
+  vin                   String?
+  make                  String // Toyota (texte affiché, source de vérité)
+  model                 String // Corolla
+  makeId                String? // lien catalogue (facultatif)
+  modelId               String?
+  version               String?
+  year                  Int?
+  firstRegistrationDate DateTime?     @db.Date
+  fuel                  FuelType?
+  transmission          Transmission?
+  engineCode            String?
+  color                 String?
+  fleetNumber           String? // n° interne flotte client
+  driverName            String?
+  driverPhone           String?
   // Kilométrage
-  currentMileage            Int?
-  currentMileageAt          DateTime?
-  avgKmPerDay               Float? // calculé à partir des relevés
-  estimatedMileage          Int? // estimé du jour (worker)
-  odometerOffset            Int           @default(0) // après remplacement de compteur (RG-M02-09)
+  currentMileage        Int?
+  currentMileageAt      DateTime?
+  odometerOffset        Int           @default(0) // cumulé après remplacement(s) de compteur
+  odometerInMiles       Boolean       @default(false)
+  avgKmPerDay           Float? // calculé à partir des relevés
+  estimatedMileage      Int? // estimé du jour (worker)
   // Visite technique
   inspectionLastDate        DateTime?     @db.Date
   inspectionExpiryDate      DateTime?     @db.Date
@@ -439,6 +464,7 @@ model Vehicle {
   insurancePolicyNumber     String?
   notes                     String?
   origin                    RecordOrigin  @default(NATIVE)
+  mergedIntoId              String? // RG-M02-08 : véhicule cible après fusion de doublon de plaque
   createdAt                 DateTime      @default(now())
   updatedAt                 DateTime      @updatedAt
   deletedAt                 DateTime?
@@ -446,6 +472,8 @@ model Vehicle {
   organization     Organization      @relation(fields: [organizationId], references: [id])
   customer         Customer          @relation(fields: [customerId], references: [id])
   insuranceCompany InsuranceCompany? @relation(fields: [insuranceCompanyId], references: [id])
+  mergedInto       Vehicle?          @relation("VehicleMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom       Vehicle[]         @relation("VehicleMerge")
   mileageReadings  MileageReading[]
   events           VehicleEvent[]
   appointments     Appointment[]
@@ -454,8 +482,16 @@ model Vehicle {
   invoices         Invoice[]
   reminders        Reminder[]
   insuranceClaims  InsuranceClaim[]
+  // Unicité partielle + index trigram (migration SQL) :
+  // CREATE UNIQUE INDEX vehicle_plate_unique ON "Vehicle" ("organizationId","plateCompact")
+  //   WHERE "deletedAt" IS NULL AND "plateType" <> 'NONE';
+  // CREATE INDEX vehicle_plate_trgm ON "Vehicle" USING gin ("plateCompact" gin_trgm_ops);
+  // CREATE INDEX vehicle_vin_trgm ON "Vehicle" USING gin ("vin" gin_trgm_ops);
+  customerNotes    CustomerNote[]
 
   @@index([organizationId, plate])
+  @@index([organizationId, plateCompact])
+  @@index([organizationId, vin])
   @@index([organizationId, inspectionExpiryDate])
   @@index([organizationId, nextServiceDueDate])
   @@index([organizationId, customerId])
@@ -484,6 +520,16 @@ enum Transmission {
   AUTOMATIC
 }
 
+enum PlateType {
+  STANDARD
+  TEMPORARY
+  DIPLOMATIC
+  GOVERNMENT
+  FOREIGN
+  NONE
+  OTHER
+}
+
 model MileageReading {
   id             String        @id @default(cuid(2))
   organizationId String
@@ -493,7 +539,7 @@ model MileageReading {
   source         MileageSource
   repairOrderId  String?
   createdById    String?
-  isOutlier      Boolean       @default(false) // RG-M10-08 : exclu du calcul de km/jour
+  isOutlier      Boolean       @default(false) // RG-M02-10 : exclu de computeAvgKmPerDay (consommé aussi par M10, RG-M10-08)
   createdAt      DateTime      @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
@@ -528,6 +574,95 @@ model VehicleEvent {
   createdBy    Membership?  @relation("VehicleEventCreatedBy", fields: [createdById], references: [id])
 
   @@index([organizationId, vehicleId])
+}
+
+model CustomerNote {
+  // notes internes datées (chronologie US-M02-10)
+  id             String    @id @default(cuid(2))
+  organizationId String
+  customerId     String
+  vehicleId      String?
+  body           String
+  pinned         Boolean   @default(false)
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle?     @relation(fields: [vehicleId], references: [id])
+  createdBy    Membership?  @relation("CustomerNoteCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, customerId])
+}
+
+model DuplicateDismissal {
+  // paires de doublons ignorées depuis /clients/doublons (RG-M02-07)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  entity         String // "customer" | "vehicle"
+  idA            String // plus petit des deux id (ordre lexical)
+  idB            String
+  dismissedById  String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  dismissedBy  Membership?  @relation("DuplicateDismissalDismissedBy", fields: [dismissedById], references: [id])
+
+  @@unique([organizationId, entity, idA, idB])
+}
+
+model CustomerSegment {
+  // segments enregistrés (filtres clients/véhicules réutilisables, M10/M12)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  name           String
+  filters        Json // mêmes clés que customer.list / vehicle.list
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    Membership?  @relation("CustomerSegmentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+}
+
+// RG-M02-20 — Catalogue marques/modèles : organizationId NULL = catalogue global
+// (fourni par la plateforme, seedé), non NULL = ajout propre à l'organisation.
+// Exception documentée à la règle « toute requête passe par db.forTenant » (CLAUDE.md) :
+// l'égalité stricte de db.forTenant() exclurait les lignes globales (organizationId NULL).
+// Ces deux modèles sont donc lus/écrits directement via adminDb, avec un filtre manuel
+// `organizationId IS NULL OR organizationId = :orgId` — même précédent que TrustedDevice
+// (packages/db/src/client.ts, packages/db/prisma/migrations/20261019000013_auth_roles_sites_m01).
+model VehicleMake {
+  id             String  @id @default(cuid(2))
+  organizationId String?
+  name           String // "Toyota"
+  isActive       Boolean @default(true)
+
+  organization Organization?  @relation(fields: [organizationId], references: [id])
+  models       VehicleModel[]
+
+  @@unique([organizationId, name])
+}
+
+model VehicleModel {
+  id                    String    @id @default(cuid(2))
+  organizationId        String?
+  makeId                String
+  name                  String // "Corolla"
+  yearFrom              Int?
+  yearTo                Int?
+  defaultFuel           FuelType?
+  serviceIntervalKm     Int? // 10000
+  serviceIntervalMonths Int? // 12
+  isActive              Boolean   @default(true)
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  make         VehicleMake   @relation(fields: [makeId], references: [id], onDelete: Cascade)
+
+  @@unique([makeId, organizationId, name])
 }
 
 // ═══════════════════════════════════════════════════════════════
