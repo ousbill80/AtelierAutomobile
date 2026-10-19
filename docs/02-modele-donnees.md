@@ -890,7 +890,27 @@ model MessageTemplate {
   whatsappLanguage   String? @default("fr")
   whatsappStatus     String?                     // APPROVED | PENDING | REJECTED
   isActive           Boolean @default(true)
+  // M11 §14
+  type                   ReminderType?           // classement dans l'éditeur
+  isTransactional        Boolean  @default(false)
+  whatsappCategory       String?                 // UTILITY | MARKETING | AUTHENTICATION (effective)
+  whatsappParamMap       Json?                   // ["client.salutation","vehicule.marque",…]
+  whatsappRejectedReason String?
+  whatsappVersion        Int      @default(1)
+  isDefault              Boolean  @default(true)  // modèle livré non modifié
+  updatedAt              DateTime @updatedAt
   @@unique([organizationId, key, channel])
+}
+
+model QuickReply {                               // M11 §14 — réponse rapide (RG-M11-22)
+  id             String @id @default(cuid())
+  organizationId String
+  title          String
+  shortcut       String                          // "/prix-vidange"
+  body           String
+  templateKey    String?                         // modèle approuvé équivalent (hors fenêtre 24 h)
+  createdById    String?
+  @@unique([organizationId, shortcut])
 }
 
 model Conversation {
@@ -904,6 +924,11 @@ model Conversation {
   lastMessageAt   DateTime
   unreadCount     Int @default(0)
   lastIntent      String?                       // classé par l'IA (M17)
+  // M11 §14
+  whatsappWindowExpiresAt DateTime?
+  lastInboundAt           DateTime?
+  candidateCustomerIds    String[]               // numéro partagé, à trancher
+  createdAt               DateTime @default(now())
   @@unique([organizationId, channel, externalAddress])
 }
 enum ConversationStatus { OPEN PENDING CLOSED }
@@ -928,15 +953,51 @@ model Message {
   errorMessage       String?
   cost               Int?                        // FCFA
   fallbackOfId       String?                     // message d'origine si repli (WhatsApp → SMS)
+  idempotencyKey     String?                     // unique par organisation/canal
   sentById           String?                     // null = automatique
+  // M11 §14
+  kind                 MessageKind @default(REMINDER)
+  templateKey          String?
+  whatsappTemplateName String?                   // modèle Meta réellement utilisé
+  intent               String?                   // classement M17 (entrants)
+  intentConfidence     Float?
+  attemptCount         Int      @default(0)
+  nextRetryAt          DateTime?
+  failedAt             DateTime?
   createdAt          DateTime @default(now())
   sentAt             DateTime?
   deliveredAt        DateTime?
   readAt             DateTime?
+  @@unique([organizationId, idempotencyKey, channel])
   @@index([organizationId, providerMessageId])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, status, createdAt])
 }
 enum Direction { OUTBOUND INBOUND }
 enum MessageStatus { QUEUED SENDING SENT DELIVERED READ FAILED RECEIVED }
+enum MessageKind { REMINDER TRANSACTIONAL CONVERSATION DIGEST SYSTEM }  // M11 §14
+
+model MessageStatusEvent {                       // M11 §14 — idempotence des webhooks de statut
+  id                String @id @default(cuid())
+  organizationId    String
+  messageId         String
+  providerMessageId String
+  status            MessageStatus
+  occurredAt        DateTime
+  @@unique([providerMessageId, status])
+}
+
+model MessageAttempt {                           // M11 §14 — une tentative d'envoi fournisseur
+  id             String @id @default(cuid())
+  organizationId String
+  messageId      String
+  attempt        Int
+  startedAt      DateTime
+  finishedAt     DateTime?
+  outcome        String                          // OK | TEMPORARY | PERMANENT_RECIPIENT | PERMANENT_TEMPLATE | PERMANENT_CONFIG | RATE_LIMIT
+  providerCode   String?
+  providerRaw    Json?
+}
 
 model ChannelConfig {
   id             String @id @default(cuid())
@@ -950,6 +1011,10 @@ model ChannelConfig {
   status         String?                         // OK | ERROR
   lastCheckedAt  DateTime?
   balance        Int?                            // crédit SMS restant si disponible
+  // M11 §14
+  webhookVerifyToken String?
+  messagingTier      String?                     // palier de messagerie WhatsApp
+  lastError          String?
   @@unique([organizationId, channel, provider])
 }
 
@@ -960,6 +1025,9 @@ model OptOut {
   channel        Channel?
   reason         String?
   createdAt      DateTime @default(now())
+  // M11 §14
+  source         String?                         // keyword | email_link | staff | complaint
+  messageId      String?
   @@unique([organizationId, address, channel])
 }
 

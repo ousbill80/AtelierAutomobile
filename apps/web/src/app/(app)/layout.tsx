@@ -38,6 +38,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           >
             Doublons
           </Link>
+          <Link
+            href="/messages"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            Messages
+          </Link>
+          <Link
+            href="/parametres/canaux"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            Canaux
+          </Link>
+          <Link
+            href="/parametres/modeles"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            Modèles
+          </Link>
         </nav>
       </aside>
       <main className="flex-1 bg-bg p-4 md:p-8">{children}</main>

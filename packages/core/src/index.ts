@@ -132,3 +132,48 @@ export { inspectionStatus, serviceStatus } from "./vehicles/status";
 
 export type { ServiceDueInput, ServiceDueResult, ServiceDueTrigger } from "./reminders/serviceDue";
 export { computeNextServiceDue } from "./reminders/serviceDue";
+
+export type { SmsSegmentsResult } from "./messaging/smsSegments";
+export { isGsm7, nonGsmChars, smsSegments, transliterate } from "./messaging/smsSegments";
+
+export { isStartKeyword, isStopKeyword } from "./messaging/keywords";
+
+export type { OutboundMessageStatus } from "./messaging/status";
+export { nextStatus } from "./messaging/status";
+
+export type {
+  Channel,
+  ChannelCandidate,
+  PickChannelInput,
+  PickChannelResult,
+} from "./messaging/channel";
+export { pickChannel } from "./messaging/channel";
+
+export type {
+  FallbackDecisionInput,
+  FallbackDecisionResult,
+  FallbackSituation,
+} from "./messaging/fallback";
+export { fallbackDecision, whatsappFallbackDelayMinutes } from "./messaging/fallback";
+
+export type { ToWhatsappParamsResult } from "./messaging/whatsapp";
+export { toWhatsappParams, whatsappTemplateName } from "./messaging/whatsapp";
+
+export type {
+  RenderChannel,
+  RenderTemplateInput,
+  RenderTemplateResult,
+} from "./messaging/template";
+export { renderTemplate } from "./messaging/template";
+
+export { buildWaLinkUrl } from "./messaging/waLink";
+
+export {
+  applyJitter,
+  MAX_RETRY_ATTEMPTS,
+  retryBackoffMs,
+  TEMPORARY_ERROR_BACKOFF_MS,
+} from "./messaging/retry";
+
+export type { SendWindow } from "./messaging/sendWindow";
+export { isWithinSendWindow, nextSendWindowStart } from "./messaging/sendWindow";

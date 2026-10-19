@@ -14,10 +14,19 @@ export default defineConfig({
       : undefined,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "pnpm start",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  // M11 (RG-M11-01) : l'envoi réel passe par la file BullMQ, traitée par apps/worker — sans
+  // lui, un message reste QUEUED pour toujours et n'apparaît jamais dans /dev/outbox.
+  webServer: [
+    {
+      command: "pnpm start",
+      url: "http://localhost:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: "pnpm --filter @atelieros/worker dev",
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+  ],
 });
