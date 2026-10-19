@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { computeBalanceChange, mergeFields, outcomeForHash } from "./policy";
 
 describe("mergeFields", () => {
+  it("compare les dates par instant : une date identique n'est pas une mise à jour (US-M13-03)", () => {
+    const existing = { dueDate: new Date("2026-10-03T00:00:00Z"), total: 185000 };
+    const result = mergeFields(
+      existing,
+      { dueDate: new Date("2026-10-03T00:00:00Z"), total: 185000 },
+      "UPSERT",
+    );
+    expect(result).toEqual({ outcome: "unchanged", patch: {} });
+    expect(
+      mergeFields(existing, { dueDate: new Date("2026-10-04T00:00:00Z") }, "UPSERT").outcome,
+    ).toBe("update");
+  });
+
   it("renvoie 'create' sans enregistrement existant", () => {
     const result = mergeFields(null, { displayName: "Kouassi" }, "UPSERT");
     expect(result).toEqual({ outcome: "create", patch: { displayName: "Kouassi" } });

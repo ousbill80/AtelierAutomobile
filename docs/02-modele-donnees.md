@@ -1187,8 +1187,30 @@ model DataSource {
   isActive       Boolean @default(true)
   lastRunAt      DateTime?
   lastStatus     String?
+  // M13 partie 2 (étape 6.4) — synchronisations planifiées (RG-M13-26/27)
+  lastSuccessAt       DateTime?                  // base de :since (− 1 jour de recouvrement)
+  consecutiveFailures Int @default(0)            // notification OWNER au 3e échec
+  lastError           String?                    // message traduit, jamais le message brut du pilote
+  createdAt           DateTime @default(now())
 }
 enum DataSourceType { FILE_UPLOAD WATCHED_FOLDER SQL_DATABASE REST_API WEBHOOK }
+
+model SyncAgent {                                 // M13 §14 — agent local (RG-M13-28), étape 6.4
+  id               String @id @default(cuid())
+  organizationId   String
+  dataSourceId     String?
+  name             String                        // "PC Comptabilité"
+  tokenHash        String? @unique               // sha256 du jeton sync:push (null avant appairage)
+  status           String @default("PAIRING")    // PAIRING | ONLINE | OFFLINE | REVOKED
+  version          String?
+  hostname         String?
+  lastSeenAt       DateTime?
+  lastError        String?
+  pairingCode      String? @unique
+  pairingExpiresAt DateTime?
+  createdAt        DateTime @default(now())
+  revokedAt        DateTime?
+}
 
 model ImportJob {
   id              String @id @default(cuid())

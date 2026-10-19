@@ -38,6 +38,15 @@ async function main(): Promise<void> {
   const { REPORTS_JOB_NAMES, REPORTS_QUEUE_NAME, scheduleReportJobs } =
     await import("./queues/reports");
   const { processDigestOwnerJob } = await import("./jobs/digestOwner");
+  const {
+    SYNC_JOB_NAMES,
+    SYNC_QUEUE_NAME,
+    SYNC_RETRY_DELAYS_MS,
+    enqueueSyncRun,
+    scheduleSyncJobs,
+  } = await import("./queues/sync");
+  type SyncRunJobData = import("./queues/sync").SyncRunJobData;
+  const { findDueSqlSources, processSyncRunJob } = await import("./jobs/syncWatch");
   const { processAlertsScanJob } = await import("./jobs/alertsScan");
 
   logger.info("AtelierOS worker démarré");
@@ -129,6 +138,38 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "reports : un job a échoué");
   });
 
+  // M13 §9 (partie 2, étape 6.4) : synchronisation planifiée des bases externes.
+  await scheduleSyncJobs();
+
+  const syncWorker = new Worker(
+    SYNC_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case SYNC_JOB_NAMES.WATCH: {
+          const due = await findDueSqlSources(new Date());
+          for (const { data, runKey } of due) await enqueueSyncRun(data, runKey);
+          return undefined;
+        }
+        case SYNC_JOB_NAMES.RUN:
+          return processSyncRunJob(job.data as SyncRunJobData);
+        default:
+          logger.warn({ jobName: job.name }, "sync : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    {
+      connection: createRedisConnection(),
+      concurrency: 1,
+      settings: {
+        backoffStrategy: (attemptsMade: number) =>
+          SYNC_RETRY_DELAYS_MS[Math.min(attemptsMade, SYNC_RETRY_DELAYS_MS.length) - 1] ?? 60_000,
+      },
+    },
+  );
+  syncWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "sync : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -136,6 +177,7 @@ async function main(): Promise<void> {
       messagesWorker.close(),
       remindersWorker.close(),
       reportsWorker.close(),
+      syncWorker.close(),
     ]);
     process.exit(0);
   }

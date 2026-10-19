@@ -77,3 +77,6 @@ export {
   IMPORT_QUEUE_NAME,
   IMPORT_RUN_JOB_NAME,
 } from "./queue";
+
+export type { RunSqlSyncInput, RunSqlSyncResult, SqlSourceConfig, SyncEntityResult } from "./sync";
+export { parseSqlSourceConfig, runSqlSync, serializeSqlSourceConfig } from "./sync";

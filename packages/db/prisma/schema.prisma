@@ -92,6 +92,7 @@ model Organization {
   paymentProviderConfigs PaymentProviderConfig[]
   fneConfig              FneConfig?
   dataSources            DataSource[]
+  syncAgents             SyncAgent[]
   importJobs             ImportJob[]
   importRowErrors        ImportRowError[]
   externalRefs           ExternalRef[]
@@ -2070,10 +2071,39 @@ model DataSource {
   isActive       Boolean        @default(true)
   lastRunAt      DateTime?
   lastStatus     String?
+  // M13 partie 2 (étape 6.4) — suivi des synchronisations planifiées (RG-M13-26/27)
+  lastSuccessAt       DateTime? // base du paramètre :since (− 1 jour de recouvrement)
+  consecutiveFailures Int       @default(0) // notification OWNER au 3e échec
+  lastError           String? // message traduit, jamais le message brut du pilote
+  createdAt           DateTime  @default(now())
 
   organization Organization  @relation(fields: [organizationId], references: [id])
   importJobs   ImportJob[]
   externalRefs ExternalRef[]
+  syncAgents   SyncAgent[]
+
+  @@index([organizationId])
+}
+
+model SyncAgent {
+  // M13 §14 — agent local installé sur le PC du garage (RG-M13-28)
+  id               String    @id @default(cuid(2))
+  organizationId   String
+  dataSourceId     String?
+  name             String // "PC Comptabilité"
+  tokenHash        String?   @unique // sha256 du jeton (scope sync:push), null tant que non appairé
+  status           String    @default("PAIRING") // PAIRING | ONLINE | OFFLINE | REVOKED
+  version          String?
+  hostname         String?
+  lastSeenAt       DateTime?
+  lastError        String?
+  pairingCode      String?   @unique
+  pairingExpiresAt DateTime?
+  createdAt        DateTime  @default(now())
+  revokedAt        DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  dataSource   DataSource?  @relation(fields: [dataSourceId], references: [id])
 
   @@index([organizationId])
 }
