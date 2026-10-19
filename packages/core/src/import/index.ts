@@ -85,3 +85,18 @@ export {
   validateRepairOrderRow,
   validateVehicleRow,
 } from "./validate";
+
+export type { SqlDialect, SyncEntity } from "./sync";
+export {
+  assertReadOnlySelect,
+  assertSyncSchedule,
+  bindSince,
+  DEFAULT_SYNC_SCHEDULE,
+  isSyncDue,
+  mapSyncColumns,
+  shouldNotifySyncFailure,
+  sinceFor,
+  SYNC_ENTITY_ORDER,
+  SYNC_QUERY_MAX_ROWS,
+  SYNC_QUERY_TIMEOUT_MS,
+} from "./sync";

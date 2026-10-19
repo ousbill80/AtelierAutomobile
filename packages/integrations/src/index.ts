@@ -57,3 +57,18 @@ export { resolveFneProvider } from "./registry/fne";
 
 export { assertUploadable, createS3ObjectStorage, S3ObjectStorage } from "./storage";
 export type { S3ObjectStorageConfig, UploadInput } from "./storage";
+
+export type {
+  ExternalDatabase,
+  ExternalDbConfig,
+  ExternalDbType,
+  ExternalQueryResult,
+  ExternalTestResult,
+  MemoryQueryHandler,
+} from "./externalDb";
+export {
+  cellToText,
+  createExternalDatabase,
+  createMemoryExternalDatabase,
+  friendlyExternalDbError,
+} from "./externalDb";
