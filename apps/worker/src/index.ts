@@ -35,6 +35,7 @@ async function main(): Promise<void> {
   const { processVehiclesEstimateMileageJob } = await import("./jobs/vehiclesEstimateMileage");
   const { processCollectionsPromisesJob, processReceivablesAgeJob } =
     await import("./jobs/receivablesAge");
+  const { processAppointmentsMarkNoShowJob } = await import("./jobs/appointmentsMarkNoShow");
   const { REPORTS_JOB_NAMES, REPORTS_QUEUE_NAME, scheduleReportJobs } =
     await import("./queues/reports");
   const { processDigestOwnerJob } = await import("./jobs/digestOwner");
@@ -96,6 +97,8 @@ async function main(): Promise<void> {
           return processReceivablesAgeJob();
         case REMINDERS_JOB_NAMES.COLLECTIONS_PROMISES:
           return processCollectionsPromisesJob();
+        case REMINDERS_JOB_NAMES.APPOINTMENTS_MARK_NO_SHOW:
+          return processAppointmentsMarkNoShowJob();
         default:
           logger.warn({ jobName: job.name }, "reminders : job inconnu, ignoré");
           return undefined;

@@ -13,6 +13,7 @@ export const REMINDERS_JOB_NAMES = {
   ESTIMATE_MILEAGE: "vehicles.estimate_mileage",
   RECEIVABLES_AGE: "receivables.age",
   COLLECTIONS_PROMISES: "collections.promises",
+  APPOINTMENTS_MARK_NO_SHOW: "appointments.mark_no_show",
 } as const;
 
 let queue: Queue | undefined;
@@ -72,5 +73,11 @@ export async function scheduleReminderJobs(): Promise<void> {
     REMINDERS_JOB_NAMES.COLLECTIONS_PROMISES,
     { pattern: "15 1 * * *" },
     { name: REMINDERS_JOB_NAMES.COLLECTIONS_PROMISES },
+  );
+  // M03 §9 : passage automatique en NO_SHOW (toutes les 15 min, cf. RG-M03-10).
+  await queue.upsertJobScheduler(
+    REMINDERS_JOB_NAMES.APPOINTMENTS_MARK_NO_SHOW,
+    { pattern: "*/15 * * * *" },
+    { name: REMINDERS_JOB_NAMES.APPOINTMENTS_MARK_NO_SHOW },
   );
 }

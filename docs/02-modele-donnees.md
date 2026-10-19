@@ -95,6 +95,8 @@ model Bay {                              // pont / poste de travail
   name           String                  // "Pont 1", "Carrosserie", "Diagnostic"
   type           BayType @default(LIFT)
   isActive       Boolean @default(true)
+  sortOrder      Int @default(0)         // M03 §14 : ordre des colonnes du planning
+  color          String?                 // M03 §14
 }
 enum BayType { LIFT DIAGNOSTIC BODYWORK PAINT WASH OTHER }
 
@@ -177,6 +179,8 @@ model Customer {
   creditHold         Boolean @default(false)   // RG-M09-10 : crédit suspendu
   creditHoldReason   String?
   riskComponents     Json?                     // { A, B, C, D, E } du riskScore (RG-M09-12)
+  // M03 §14
+  noShowCount12m     Int @default(0)           // absences sur 12 mois glissants (RG-M03-10)
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
@@ -357,27 +361,62 @@ model VehicleModel {                             // M02 §14
 // ───────────── Rendez-vous ─────────────
 
 model Appointment {
-  id             String @id @default(cuid())
-  organizationId String
-  siteId         String
-  customerId     String
-  vehicleId      String?
-  bayId          String?
-  advisorId      String?                       // Membership.id
-  startsAt       DateTime
-  endsAt         DateTime
-  type           AppointmentType
-  status         AppointmentStatus @default(BOOKED)
-  source         AppointmentSource @default(STAFF)
-  reminderId     String?                       // relance à l'origine du RDV (attribution M12)
-  notes          String?
-  repairOrderId  String?                       // OR créé à l'arrivée
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String @id @default(cuid())
+  organizationId    String
+  siteId            String
+  customerId        String
+  vehicleId         String?
+  bayId             String?
+  advisorId         String?                    // Membership.id
+  mechanicId        String?                    // M03 §14 : Membership.id du mécanicien prévu
+  startsAt          DateTime
+  endsAt            DateTime
+  type              AppointmentType
+  status            AppointmentStatus @default(BOOKED)
+  source            AppointmentSource @default(STAFF)
+  reminderId        String?                    // relance à l'origine du RDV (attribution M12)
+  notes             String?
+  complaint         String?                    // M03 §14 : motif / doléances (repris dans l'OR)
+  laborOperationIds String[] @default([])      // M03 §14 : opérations prévues (durée, devis)
+  quoteId           String?                    // M03 §14 : RDV planifié pour exécuter un devis accepté
+  confirmedAt       DateTime?
+  confirmedVia      String?                    // phone | whatsapp | sms | portal | in_person
+  arrivedAt         DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       String?                    // CUSTOMER | GARAGE
+  cancelReason      String?
+  noShowAt          DateTime?
+  groupId           String?                    // M03 §14 : RDV groupés (flotte, RG-M03-14)
+  overbooked        Boolean @default(false)    // surréservation volontaire (RG-M03-02)
+  outsideHours      Boolean @default(false)    // forçage hors horaires (RG-M03-01)
+  createdById       String?
+  repairOrderId     String?                    // OR créé à l'arrivée
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([organizationId, status, startsAt])
+  @@index([organizationId, groupId])
+  // Migration SQL (extension btree_gist, RG-M03-02) :
+  // ALTER TABLE "Appointment" ADD CONSTRAINT appointment_no_overlap
+  //   EXCLUDE USING gist ("bayId" WITH =, tsrange("startsAt","endsAt") WITH &&)
+  //   WHERE ("bayId" IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW') AND NOT overbooked);
 }
 enum AppointmentType { SERVICE INSPECTION_PREP REPAIR DIAGNOSTIC BODYWORK TIRES OTHER }
 enum AppointmentStatus { BOOKED CONFIRMED ARRIVED NO_SHOW CANCELLED COMPLETED }
 enum AppointmentSource { STAFF PHONE WHATSAPP PORTAL REMINDER }
+
+model ResourceBlock {                          // M03 §14 : indisponibilités pont/mécanicien/site
+  id             String   @id @default(cuid())
+  organizationId String
+  siteId         String
+  bayId          String?
+  membershipId   String?                       // mécanicien absent
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String                         // "Maintenance pont", "Congé", "Formation"
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, siteId, startsAt])
+}
 
 // ───────────── Ordres de réparation ─────────────
 

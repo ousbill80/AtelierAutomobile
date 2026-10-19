@@ -15,6 +15,7 @@
     "@atelieros/core": "workspace:*",
     "@atelieros/db": "workspace:*",
     "@atelieros/import": "workspace:*",
+    "date-fns-tz": "^3.2.0",
     "@atelieros/integrations": "workspace:*",
     "@atelieros/pdf": "workspace:*",
     "@atelieros/ui": "workspace:*",

@@ -49,6 +49,7 @@ model Organization {
   mileageReadings        MileageReading[]
   vehicleEvents          VehicleEvent[]
   appointments           Appointment[]
+  resourceBlocks         ResourceBlock[]
   repairOrders           RepairOrder[]
   repairOrderLines       RepairOrderLine[]
   inspections            Inspection[]
@@ -152,6 +153,7 @@ model Site {
   organization   Organization    @relation(fields: [organizationId], references: [id])
   bays           Bay[]
   appointments   Appointment[]
+  resourceBlocks ResourceBlock[]
   repairOrders   RepairOrder[]
   quotes         Quote[]
   stockLevels    StockLevel[]
@@ -175,12 +177,15 @@ model Bay {
   name           String // "Pont 1", "Carrosserie", "Diagnostic"
   type           BayType  @default(LIFT)
   isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0) // M03 §14 : ordre des colonnes du planning
+  color          String? // M03 §14
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  repairOrders RepairOrder[]
+  site           Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  repairOrders   RepairOrder[]
+  resourceBlocks ResourceBlock[]
 
   @@index([organizationId, siteId])
 }
@@ -245,6 +250,8 @@ model Membership {
   mileageReadingsCreated      MileageReading[]      @relation("MileageReadingCreatedBy")
   vehicleEventsCreated        VehicleEvent[]        @relation("VehicleEventCreatedBy")
   appointmentsAsAdvisor       Appointment[]         @relation("AppointmentAdvisor")
+  appointmentsAsMechanic      Appointment[]         @relation("AppointmentMechanic")
+  resourceBlocks              ResourceBlock[]
   repairOrdersAsAdvisor       RepairOrder[]         @relation("RepairOrderAdvisor")
   repairOrdersAsQc            RepairOrder[]         @relation("RepairOrderQc")
   repairOrderLinesAssigned    RepairOrderLine[]     @relation("RepairOrderLineAssignee")
@@ -352,6 +359,8 @@ model Customer {
   creditHold           Boolean      @default(false)
   creditHoldReason     String?
   riskComponents       Json? // { A, B, C, D, E } pour l'affichage (RG-M09-12)
+  // M03 §14
+  noShowCount12m       Int          @default(0) // absences sur 12 mois glissants (RG-M03-10)
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
   vehicles        Vehicle[]
@@ -668,23 +677,38 @@ model VehicleModel {
 // ═══════════════════════════════════════════════════════════════
 
 model Appointment {
-  id             String            @id @default(cuid(2))
-  organizationId String
-  siteId         String
-  customerId     String
-  vehicleId      String?
-  bayId          String?
-  advisorId      String? // Membership.id
-  startsAt       DateTime
-  endsAt         DateTime
-  type           AppointmentType
-  status         AppointmentStatus @default(BOOKED)
-  source         AppointmentSource @default(STAFF)
-  reminderId     String? // relance à l'origine du RDV (attribution M12)
-  notes          String?
-  repairOrderId  String? // OR créé à l'arrivée
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id               String            @id @default(cuid(2))
+  organizationId   String
+  siteId           String
+  customerId       String
+  vehicleId        String?
+  bayId            String?
+  advisorId        String? // Membership.id
+  mechanicId       String? // M03 §14 : Membership.id du mécanicien prévu
+  startsAt         DateTime
+  endsAt           DateTime
+  type             AppointmentType
+  status           AppointmentStatus @default(BOOKED)
+  source           AppointmentSource @default(STAFF)
+  reminderId       String? // relance à l'origine du RDV (attribution M12)
+  notes            String?
+  complaint        String? // M03 §14 : motif / doléances (repris dans l'OR)
+  laborOperationIds String[]        @default([]) // M03 §14 : opérations prévues (durée, devis)
+  quoteId          String? // M03 §14 : RDV planifié pour exécuter un devis accepté
+  confirmedAt      DateTime?
+  confirmedVia     String? // phone | whatsapp | sms | portal | in_person
+  arrivedAt        DateTime?
+  cancelledAt      DateTime?
+  cancelledBy      String? // CUSTOMER | GARAGE
+  cancelReason     String?
+  noShowAt         DateTime?
+  groupId          String? // M03 §14 : RDV groupés (flotte, RG-M03-14)
+  overbooked       Boolean           @default(false) // surréservation volontaire (RG-M03-02)
+  outsideHours     Boolean           @default(false) // forçage hors horaires (RG-M03-01)
+  createdById      String?
+  repairOrderId    String? // OR créé à l'arrivée
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   organization            Organization  @relation(fields: [organizationId], references: [id])
   site                    Site          @relation(fields: [siteId], references: [id])
@@ -692,6 +716,7 @@ model Appointment {
   vehicle                 Vehicle?      @relation(fields: [vehicleId], references: [id])
   bay                     Bay?          @relation(fields: [bayId], references: [id])
   advisor                 Membership?   @relation("AppointmentAdvisor", fields: [advisorId], references: [id])
+  mechanic                Membership?   @relation("AppointmentMechanic", fields: [mechanicId], references: [id])
   reminder                Reminder?     @relation("AppointmentReminder", fields: [reminderId], references: [id])
   repairOrder             RepairOrder?  @relation("AppointmentResultingOrder", fields: [repairOrderId], references: [id])
   originatingRepairOrders RepairOrder[] @relation("RepairOrderOrigin")
@@ -699,6 +724,31 @@ model Appointment {
 
   @@index([organizationId, siteId, startsAt])
   @@index([organizationId, customerId])
+  @@index([organizationId, status, startsAt])
+  @@index([organizationId, groupId])
+}
+
+model ResourceBlock {
+  // M03 §14 : indisponibilités — pont, mécanicien ou site entier (RG-M03-06, US-M03-10)
+  id             String    @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  bayId          String?
+  membershipId   String? // mécanicien absent
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String // "Maintenance pont", "Congé", "Formation"
+  createdById    String?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  site         Site         @relation(fields: [siteId], references: [id])
+  bay          Bay?         @relation(fields: [bayId], references: [id])
+  membership   Membership?  @relation(fields: [membershipId], references: [id])
+
+  @@index([organizationId, siteId, startsAt])
+  @@index([organizationId, bayId])
+  @@index([organizationId, membershipId])
 }
 
 enum AppointmentType {

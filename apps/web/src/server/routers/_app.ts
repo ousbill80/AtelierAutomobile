@@ -32,6 +32,10 @@ import { settingsRouter } from "./settings";
 import { siteRouter } from "./site";
 import { templateRouter } from "./template";
 import { vehicleRouter } from "./vehicle";
+import { appointmentRouter } from "./appointment";
+import { planningRouter } from "./planning";
+import { planningSettingsRouter } from "./planningSettings";
+import { resourceBlockRouter } from "./resourceBlock";
 
 export const appRouter = router({
   auth: authRouter,
@@ -69,6 +73,10 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   alerts: alertsRouter,
   digest: digestRouter,
+  appointment: appointmentRouter,
+  planning: planningRouter,
+  planningSettings: planningSettingsRouter,
+  resourceBlock: resourceBlockRouter,
 });
 
 export type AppRouter = typeof appRouter;

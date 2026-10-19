@@ -3,11 +3,11 @@
 // `apps/web/src/server/events/emit.ts`).
 //
 // Écarts documentés (cf. message de commit) :
-// - Seuls les producteurs déjà câblés émettent réellement ces événements aujourd'hui
-//   (`message.inbound_received`, M11). Les autres (appointment.*, payment.received,
-//   collection.*, quote.*, vehicle.*, repair_order.*) nécessitent M03/M04/M05/M08/M09, qui
-//   n'existent pas encore comme modules métier : ce consommateur est prêt à les traiter dès
-//   qu'ils émettront ces événements, mais n'est pas exercé en pratique avant cette étape.
+// - `appointment.*` (M03), `message.inbound_received` (M11) et les événements créances (M09)
+//   sont réellement produits. `quote.*`, `repair_order.*` (hors `.created`) et les événements
+//   M04/M05/M08 restants nécessitent des modules pas encore construits : ce consommateur est
+//   prêt à les traiter dès qu'ils émettront ces événements, mais n'est pas exercé en pratique
+//   avant leur étape.
 // - L'attribution PAID/PARTIALLY_PAID (RG-M10-27) n'est jamais posée ici : une seule règle
 //   d'attribution, possédée par M12 (`04-arbitrages-coherence.md` A10), via
 //   `core/receivables/attribution` + `PaymentAttribution` (pas encore construits).
@@ -101,6 +101,25 @@ async function handleEvent(event: EventRow, now: Date): Promise<void> {
     }
     case "appointment.cancelled":
     case "appointment.updated": {
+      const vehicleId = payload.vehicleId as string | undefined;
+      if (vehicleId) {
+        await tenantDb.reminderSuppression.deleteMany({
+          where: { vehicleId, source: "appointment" },
+        });
+      }
+      break;
+    }
+    case "appointment.arrived": {
+      // M03 §9 : le client est arrivé, plus besoin de rappel J-1/H-2 pour ce RDV.
+      const appointmentId = payload.appointmentId as string | undefined;
+      if (appointmentId) {
+        await cancelReminders(tenantDb, { appointmentId, type: "APPOINTMENT" }, "Client arrivé.");
+      }
+      break;
+    }
+    case "appointment.no_show": {
+      // RG-M03-10 : un no-show issu d'une relance relance la séquence d'origine (VT/révision)
+      // à partir du palier suivant — on retire la suppression posée à `appointment.created`.
       const vehicleId = payload.vehicleId as string | undefined;
       if (vehicleId) {
         await tenantDb.reminderSuppression.deleteMany({
