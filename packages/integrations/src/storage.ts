@@ -2,12 +2,17 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { DomainError } from "@atelieros/core";
 
-/** Types MIME acceptés en upload (photos d'atelier, pièces jointes de devis/factures). */
+/**
+ * Types MIME acceptés en upload (photos d'atelier, pièces jointes de devis/
+ * factures, et — M13 — rapports d'erreurs/modèles CSV générés par le
+ * serveur pour l'import fichier).
+ */
 const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "application/pdf",
+  "text/csv",
 ]);
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
@@ -62,4 +67,63 @@ export class S3ObjectStorage {
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
   }
+
+  /**
+   * URL signée pour un upload direct par le client (PUT), sans passer le
+   * fichier par le serveur applicatif. Le contrôle de type/taille (RG-M13-01)
+   * reste à la charge de l'appelant : cette méthode ne fait aucune hypothèse
+   * sur l'usage (photos, imports…).
+   */
+  async getSignedUploadUrl(
+    key: string,
+    contentType: string,
+    expiresInSeconds = 300,
+  ): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+    });
+    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+  }
+
+  async getObjectBytes(key: string): Promise<Uint8Array> {
+    const response = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
+    const body = response.Body;
+    if (!body) {
+      throw new DomainError("storage.object_not_found", `Objet introuvable : « ${key} ».`, { key });
+    }
+    const bytes = await (
+      body as { transformToByteArray: () => Promise<Uint8Array> }
+    ).transformToByteArray();
+    return bytes;
+  }
+}
+
+export interface S3ObjectStorageConfig {
+  endpoint: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  region?: string;
+  forcePathStyle?: boolean;
+}
+
+/**
+ * Construit un `S3ObjectStorage` à partir de la configuration (S3/MinIO en
+ * local). Évite que les apps/worker dépendent directement de `@aws-sdk/*`.
+ */
+export function createS3ObjectStorage(config: S3ObjectStorageConfig): S3ObjectStorage {
+  const client = new S3Client({
+    region: config.region ?? "us-east-1",
+    endpoint: config.endpoint,
+    forcePathStyle: config.forcePathStyle ?? true,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+  });
+  return new S3ObjectStorage(client, config.bucket);
 }

@@ -1,0 +1,7 @@
+{
+  "extends": "@atelieros/config/base.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

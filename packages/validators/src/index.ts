@@ -92,3 +92,39 @@ export { registerSharedDeviceInputSchema } from "./device";
 
 export type { AuditExportInput, AuditListInput } from "./audit";
 export { auditExportInputSchema, auditListInputSchema } from "./audit";
+
+export type {
+  AnalyzeInput,
+  ColumnMappingOptions,
+  ErrorReportInput,
+  ImportEntity,
+  ImportPolicyInput,
+  ListImportsInput,
+  PatchRowInput,
+  ProgressInput,
+  RollbackInput,
+  RunInput,
+  SetMappingInput,
+  SimulateInput,
+  TemplateInput,
+  UploadInput,
+  ValidateInput,
+} from "./import";
+export {
+  analyzeInputSchema,
+  columnMappingOptionsSchema,
+  errorReportInputSchema,
+  importEntitySchema,
+  importMappingSourceSchema,
+  importPolicySchema,
+  listImportsInputSchema,
+  patchRowInputSchema,
+  progressInputSchema,
+  rollbackInputSchema,
+  runInputSchema,
+  setMappingInputSchema,
+  simulateInputSchema,
+  templateInputSchema,
+  uploadInputSchema,
+  validateInputSchema,
+} from "./import";
