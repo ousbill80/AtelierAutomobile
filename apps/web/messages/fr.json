@@ -959,5 +959,27 @@
         "reason": "Issue / motif"
       }
     }
+  },
+  "search": {
+    "placeholder": "Rechercher un client, une plaque, un n° de document…",
+    "ariaLabel": "Recherche globale",
+    "resultsLabel": "Résultats de recherche",
+    "minLength": "Tapez au moins 2 caractères.",
+    "error": "La recherche a échoué. Réessayez.",
+    "empty": "Aucun résultat pour « {query} ».",
+    "viaContact": "Contact : {name}",
+    "groups": {
+      "customers": "Clients",
+      "vehicles": "Véhicules",
+      "documents": "Documents"
+    },
+    "documentTypes": {
+      "repair_order": "OR",
+      "quote": "Devis",
+      "invoice": "Facture",
+      "credit_note": "Avoir",
+      "receipt": "Reçu",
+      "purchase_order": "Bon de commande"
+    }
   }
 }

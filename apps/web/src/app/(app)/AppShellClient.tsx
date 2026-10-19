@@ -23,6 +23,7 @@ import type { AppRouter } from "@/server/routers/_app";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
+import { GlobalSearch } from "@/components/global-search";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
 
@@ -160,7 +161,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
               </DropdownMenu>
             </div>
           ) : null}
-          <SearchBox placeholder={t("common.search")} />
+          {has("customer:read") ? <GlobalSearch /> : <SearchBox placeholder={t("common.search")} />}
           <TopbarActions>
             <IconButton aria-label="Notifications" />
             <div className="dropdown-wrap">
