@@ -77,6 +77,14 @@ export {
 
 export { isTrivialPin, PIN_ELIGIBLE_ROLES, PIN_MAX_FAILED_ATTEMPTS } from "./auth/pin";
 
+export type { SecuritySettingsLike } from "./auth/new-device";
+export {
+  computeTrustedDeviceExpiry,
+  DEFAULT_OTP_ON_NEW_DEVICE_ROLES,
+  requiresNewDeviceOtp,
+  TRUSTED_DEVICE_APPROVAL_DAYS,
+} from "./auth/new-device";
+
 export type { PickActiveSiteInput, SiteOption } from "./auth/site";
 export { canUseAllSitesOption, pickActiveSite } from "./auth/site";
 

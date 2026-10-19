@@ -2,12 +2,15 @@ import { randomBytes } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import {
   computeSessionAbsoluteExpiry,
+  computeTrustedDeviceExpiry,
   hashPassword,
   INITIAL_LOCKOUT_STATE,
   isLocked,
   PIN_ELIGIBLE_ROLES,
   PIN_MAX_FAILED_ATTEMPTS,
   recordFailedLogin,
+  requiresNewDeviceOtp,
+  type SecuritySettingsLike,
   verifyPassword,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
@@ -37,25 +40,29 @@ async function findUserByIdentifier(identifier: ReturnType<typeof resolveIdentif
     : adminDb.user.findUnique({ where: { phone: identifier.value } });
 }
 
+async function resolveActiveMembership(user: {
+  id: string;
+  lastActiveOrganizationId: string | null;
+}) {
+  if (!user.lastActiveOrganizationId) return null;
+  const membership = await db
+    .forTenant({ organizationId: user.lastActiveOrganizationId })
+    .membership.findFirst({ where: { userId: user.id, isActive: true } });
+  if (!membership) return null;
+  return { organizationId: user.lastActiveOrganizationId, membership };
+}
+
 async function createSessionForUser(
   userId: string,
   deviceId: string,
   ip: string,
   userAgent: string,
   now: Date,
+  activeMembership: Awaited<ReturnType<typeof resolveActiveMembership>>,
 ) {
   const token = randomBytes(32).toString("hex");
   const user = await adminDb.user.findUniqueOrThrow({ where: { id: userId } });
-
-  let activeOrganizationId: string | null = null;
-  if (user.lastActiveOrganizationId) {
-    const membership = await db
-      .forTenant({ organizationId: user.lastActiveOrganizationId })
-      .membership.findFirst({ where: { userId, isActive: true } });
-    if (membership) {
-      activeOrganizationId = user.lastActiveOrganizationId;
-    }
-  }
+  const activeOrganizationId = activeMembership?.organizationId ?? null;
 
   const session = await adminDb.session.create({
     data: {
@@ -192,6 +199,8 @@ export const authRouter = router({
       return { status: "LOCKED" as const, lockedUntil: user.lockedUntil };
     }
 
+    const activeMembership = await resolveActiveMembership(user);
+
     const account = await adminDb.account.findUnique({
       where: { providerId_accountId: { providerId: "credential", accountId: user.id } },
     });
@@ -212,10 +221,83 @@ export const authRouter = router({
           lockedUntil: nextState.lockedUntil,
         },
       });
+      if (activeMembership) {
+        await writeAuditLog({
+          organizationId: activeMembership.organizationId,
+          userId: user.id,
+          membershipId: activeMembership.membership.id,
+          action: nextState.lockedUntil ? "auth.locked" : "auth.login.failed",
+          entity: "Membership",
+          entityId: activeMembership.membership.id,
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+        });
+      }
       if (nextState.lockedUntil) {
         return { status: "LOCKED" as const, lockedUntil: nextState.lockedUntil };
       }
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Identifiants invalides." });
+    }
+
+    if (activeMembership) {
+      const org = await adminDb.organization.findUniqueOrThrow({
+        where: { id: activeMembership.organizationId },
+      });
+      const security = (org.settings as { security?: SecuritySettingsLike } | null)?.security;
+
+      if (requiresNewDeviceOtp(security, activeMembership.membership.role)) {
+        const trustedDevice = await adminDb.trustedDevice.findFirst({
+          where: {
+            deviceId: input.deviceId,
+            userId: user.id,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          },
+        });
+
+        if (!trustedDevice) {
+          const otpChannel = resolved.kind === "PHONE" ? "WHATSAPP" : "EMAIL";
+
+          if (!input.otpCode) {
+            try {
+              await sendOtpCode(resolved.value, "NEW_DEVICE", otpChannel, now);
+            } catch {
+              // Un code a déjà été envoyé récemment : le client peut saisir le dernier reçu.
+            }
+            return { status: "OTP_REQUIRED" as const };
+          }
+
+          const outcome = await verifyOtpCode(resolved.value, input.otpCode, "NEW_DEVICE", now);
+          if (outcome !== "OK") {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Code incorrect ou expiré." });
+          }
+
+          const device = await adminDb.trustedDevice.upsert({
+            where: { deviceId: input.deviceId },
+            create: {
+              deviceId: input.deviceId,
+              userId: user.id,
+              organizationId: activeMembership.organizationId,
+              expiresAt: computeTrustedDeviceExpiry(now),
+            },
+            update: {
+              userId: user.id,
+              organizationId: activeMembership.organizationId,
+              expiresAt: computeTrustedDeviceExpiry(now),
+            },
+          });
+
+          await writeAuditLog({
+            organizationId: activeMembership.organizationId,
+            userId: user.id,
+            membershipId: activeMembership.membership.id,
+            action: "auth.otp_new_device",
+            entity: "TrustedDevice",
+            entityId: device.id,
+            ip: ctx.ip,
+            userAgent: ctx.userAgent,
+          });
+        }
+      }
     }
 
     await adminDb.user.update({
@@ -223,8 +305,28 @@ export const authRouter = router({
       data: { ...INITIAL_LOCKOUT_STATE, lastLoginAt: now },
     });
 
-    const session = await createSessionForUser(user.id, input.deviceId, ctx.ip, ctx.userAgent, now);
+    const session = await createSessionForUser(
+      user.id,
+      input.deviceId,
+      ctx.ip,
+      ctx.userAgent,
+      now,
+      activeMembership,
+    );
     ctx.resHeaders.append("set-cookie", buildSessionCookie(session.token, session.expiresAt));
+
+    if (activeMembership) {
+      await writeAuditLog({
+        organizationId: activeMembership.organizationId,
+        userId: user.id,
+        membershipId: activeMembership.membership.id,
+        action: "auth.login.success",
+        entity: "Membership",
+        entityId: activeMembership.membership.id,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+    }
 
     return { status: "OK" as const };
   }),
