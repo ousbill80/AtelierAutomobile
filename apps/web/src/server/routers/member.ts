@@ -169,10 +169,12 @@ export const memberRouter = router({
       const provider = createConsoleMessagingProvider(input.channel as MessageChannel);
       const to = input.channel === "EMAIL" ? email! : phone!;
       await provider.send({
+        organizationId: ctx.organizationId,
         to,
         channel: input.channel as MessageChannel,
         body: `Vous êtes invité(e) à rejoindre ${org.name} sur AtelierOS. Lien d'invitation : /invitation/${token}`,
         templateKey: "invitation.created",
+        idempotencyKey: `invitation:${invitation.id}:created`,
       });
 
       await writeAuditLog({
@@ -214,10 +216,12 @@ export const memberRouter = router({
       const provider = createConsoleMessagingProvider(channel);
       const to = channel === "EMAIL" ? invitation.email! : invitation.phone!;
       await provider.send({
+        organizationId: ctx.organizationId,
         to,
         channel,
         body: `Rappel : vous êtes invité(e) à rejoindre ${org.name} sur AtelierOS. Lien d'invitation : /invitation/${token}`,
         templateKey: "invitation.created",
+        idempotencyKey: `invitation:${invitation.id}:resent:${token}`,
       });
 
       return { ok: true as const };

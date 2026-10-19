@@ -4,6 +4,7 @@ export type {
   MessagingProvider,
   OutboundMessage,
   ProviderEvent,
+  ProviderMessageStatus,
   SendResult,
 } from "./types";
 export { createConsoleMessagingProvider, defaultOutbox, MessagingOutbox } from "./console";
