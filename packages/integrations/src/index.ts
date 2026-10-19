@@ -72,3 +72,6 @@ export {
   createMemoryExternalDatabase,
   friendlyExternalDbError,
 } from "./externalDb";
+
+export { LocalObjectStorage } from "./storage-local";
+export type { BinaryObjectStorage } from "./storage-local";

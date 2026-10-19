@@ -4,8 +4,8 @@
 // Écarts documentés (cf. message de commit) :
 // - `RECOMMENDED_WORK` (A8) : aucun candidat généré, `VehicleRecommendation` (M04) n'existe
 //   pas encore dans schema.prisma.
-// - `VEHICLE_READY` : l'ancre « passage en READY » est approximée par `RepairOrder.updatedAt`
-//   (aucun horodatage dédié dans le modèle actuel ; à corriger quand M04 ajoute `readyAt`).
+// - `VEHICLE_READY` : l'ancre « passage en READY » est `RepairOrder.readyAt` (M04) ; repli sur
+//   `updatedAt` pour les OR passés en READY avant M04 (données importées).
 // - RG-M10-08 (règle « dernière facture Entretien ») : seuls `Vehicle.lastServiceDate` /
 //   `lastServiceMileage` sont utilisés ; le repli sur la dernière facture de catégorie
 //   « Entretien » n'est pas implémenté (nécessiterait une convention de catégorie M08/M07
@@ -237,13 +237,13 @@ async function quoteFollowupCandidates(tenantDb: TenantDb): Promise<Candidate[]>
 async function vehicleReadyCandidates(tenantDb: TenantDb): Promise<Candidate[]> {
   const orders = await tenantDb.repairOrder.findMany({
     where: { status: "READY" },
-    select: { id: true, customerId: true, vehicleId: true, updatedAt: true },
+    select: { id: true, customerId: true, vehicleId: true, updatedAt: true, readyAt: true },
   });
   return orders.map((o) => ({
     entityId: o.id,
     customerId: o.customerId,
     vehicleId: o.vehicleId,
-    anchors: { default: o.updatedAt },
+    anchors: { default: o.readyAt ?? o.updatedAt },
   }));
 }
 

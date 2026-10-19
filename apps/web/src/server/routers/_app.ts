@@ -23,6 +23,10 @@ import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { paymentRouter } from "./payment";
 import { quickReplyRouter } from "./quickReply";
+import { inspectionRouter, inspectionTemplateRouter } from "./inspection";
+import { portalRepairOrderRouter } from "./portalRepairOrder";
+import { repairOrderRouter } from "./repairOrder";
+import { repairOrderLineRouter } from "./repairOrderLine";
 import { reminderRulesRouter } from "./reminderRules";
 import { remindersRouter } from "./reminders";
 import { reminderSettingsRouter } from "./reminderSettings";
@@ -73,6 +77,11 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   alerts: alertsRouter,
   digest: digestRouter,
+  repairOrder: repairOrderRouter,
+  repairOrderLine: repairOrderLineRouter,
+  inspection: inspectionRouter,
+  inspectionTemplate: inspectionTemplateRouter,
+  portal: router({ repairOrder: portalRepairOrderRouter }),
 });
 
 export type AppRouter = typeof appRouter;

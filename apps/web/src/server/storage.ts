@@ -1,4 +1,10 @@
-import { createS3ObjectStorage, type S3ObjectStorage } from "@atelieros/integrations";
+import path from "node:path";
+import {
+  createS3ObjectStorage,
+  LocalObjectStorage,
+  type BinaryObjectStorage,
+  type S3ObjectStorage,
+} from "@atelieros/integrations";
 
 /**
  * Stockage objet (S3/MinIO en local) partagé par les routeurs tRPC. Les
@@ -17,4 +23,25 @@ export function getObjectStorage(): S3ObjectStorage {
     });
   }
   return globalForStorage.atelierosObjectStorage;
+}
+
+const globalForAttachments = globalThis as unknown as {
+  atelierosAttachmentStorage?: BinaryObjectStorage;
+};
+
+/**
+ * Stockage des pièces jointes d'OR (photos, signatures — M04). `STORAGE_DRIVER=local` écrit
+ * sur disque (`LOCAL_STORAGE_DIR`, défaut `.data/uploads`) pour travailler sans MinIO ; sinon
+ * S3/MinIO comme le reste de l'application.
+ */
+export function getAttachmentStorage(): BinaryObjectStorage {
+  if (!globalForAttachments.atelierosAttachmentStorage) {
+    globalForAttachments.atelierosAttachmentStorage =
+      process.env.STORAGE_DRIVER === "local"
+        ? new LocalObjectStorage(
+            process.env.LOCAL_STORAGE_DIR ?? path.join(process.cwd(), ".data", "uploads"),
+          )
+        : getObjectStorage();
+  }
+  return globalForAttachments.atelierosAttachmentStorage;
 }
