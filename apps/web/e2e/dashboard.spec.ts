@@ -11,7 +11,10 @@ test.use({ viewport: { width: 390, height: 844 } });
 
 test("gérant mobile : créances, relances, changement de période", async ({ page, context }) => {
   const organization = await adminDb.organization.create({
-    data: { name: `E2E Garage Dashboard ${randomBytes(3).toString("hex")}` },
+    data: {
+      name: `E2E Garage Dashboard ${randomBytes(3).toString("hex")}`,
+      onboardingCompletedAt: new Date(),
+    },
   });
   const site = await adminDb.site.create({
     data: { organizationId: organization.id, name: "Yopougon", code: "YOP" },

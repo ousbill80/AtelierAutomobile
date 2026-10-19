@@ -9,7 +9,10 @@ import { adminDb } from "@atelieros/db";
 
 test("parcours créances : enregistrer un paiement ferme le dossier", async ({ page, context }) => {
   const organization = await adminDb.organization.create({
-    data: { name: `E2E Garage Créances ${randomBytes(3).toString("hex")}` },
+    data: {
+      name: `E2E Garage Créances ${randomBytes(3).toString("hex")}`,
+      onboardingCompletedAt: new Date(),
+    },
   });
   const user = await adminDb.user.create({
     data: {

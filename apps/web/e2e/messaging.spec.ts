@@ -9,7 +9,10 @@ import { adminDb } from "@atelieros/db";
 
 async function createSignedInContext(browserContext: BrowserContext) {
   const organization = await adminDb.organization.create({
-    data: { name: `E2E Garage Messaging ${randomBytes(3).toString("hex")}` },
+    data: {
+      name: `E2E Garage Messaging ${randomBytes(3).toString("hex")}`,
+      onboardingCompletedAt: new Date(),
+    },
   });
   const user = await adminDb.user.create({
     data: { name: "E2E Owner", email: `e2e-msg-${randomBytes(4).toString("hex")}@example.com` },
@@ -66,6 +69,8 @@ test("parcours messagerie : canaux console, envoi, repli NOT_ON_WHATSAPP, répon
 
   // 1. Configurer les canaux WhatsApp et SMS en « console ».
   await page.goto("/parametres/canaux");
+  // Attendre l'hydratation : un clic sur le HTML rendu côté serveur serait perdu.
+  await page.waitForLoadState("networkidle");
   await page.getByTestId("channel-WHATSAPP").getByRole("button", { name: "Configurer" }).click();
   await expect(page.getByTestId("channel-WHATSAPP").getByText("Connecté")).toBeVisible();
 
@@ -133,6 +138,7 @@ test("parcours messagerie : canaux console, envoi, repli NOT_ON_WHATSAPP, répon
   });
   await page.goto("/parametres/modeles");
   await page.getByRole("button", { name: /Modèle SMS E2E/ }).click();
-  await page.getByRole("textbox").first().fill("Règlement rêvé");
+  // `textarea` : la barre du haut (AppShell) porte aussi un champ de recherche.
+  await page.locator("textarea").first().fill("Règlement rêvé");
   await expect(page.getByText(/UCS2/)).toBeVisible();
 });

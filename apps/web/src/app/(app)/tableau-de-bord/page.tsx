@@ -81,17 +81,17 @@ function Dashboard() {
   const input = { period, siteId };
 
   return (
-    <div className="flex flex-col gap-4 pb-20">
+    <div className="flex min-w-0 flex-col gap-4 pb-20">
       <h1 className="text-2xl font-semibold">{L.title}</h1>
 
       <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-end gap-2 bg-background px-1 py-2">
-        <label className="flex flex-col text-xs text-muted">
+        <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
           {L.periodLabel}
           <select
             aria-label={L.periodLabel}
             value={period}
             onChange={(e) => update({ periode: PERIOD_URL[e.target.value as Period] })}
-            className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+            className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
           >
             {PERIODS.map((p) => (
               <option key={p} value={p}>
@@ -101,13 +101,13 @@ function Dashboard() {
           </select>
         </label>
         {sites.length > 1 || !restricted ? (
-          <label className="flex flex-col text-xs text-muted">
+          <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
             {L.siteLabel}
             <select
               aria-label={L.siteLabel}
               value={siteId ?? ""}
               onChange={(e) => update({ site: e.target.value || undefined })}
-              className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+              className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
             >
               {!restricted && <option value="">{L.allSites}</option>}
               {sites.map((s) => (
@@ -503,7 +503,8 @@ function KpiCard({
       {variation && <VariationText variation={variation} />}
     </>
   );
-  const className = "flex min-h-24 flex-col gap-1 rounded-lg border border-border bg-surface p-3";
+  const className =
+    "flex min-h-24 min-w-0 flex-col gap-1 break-words rounded-lg border border-border bg-surface p-3";
   return href ? (
     <Link href={href} className={`${className} hover:bg-surface-2`} data-testid="kpi-card">
       {content}

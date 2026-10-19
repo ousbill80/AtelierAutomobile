@@ -161,6 +161,8 @@ async function main() {
       city: "Abidjan",
       plan: "PRO",
       operatingMode: "FULL",
+      // Garage de démo déjà configuré : l'espace applicatif ne renvoie pas vers /bienvenue.
+      onboardingCompletedAt: new Date(),
     },
   });
 

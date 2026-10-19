@@ -43,6 +43,16 @@ button{font-family:inherit;}
 .nav-item.active .badge{background:var(--accent-fg);color:var(--accent);}
 .sidebar-foot{padding:12px 16px;border-top:1px solid oklch(100% 0 0 / 0.1);font-size:12px;opacity:.6;}
 .sidebar.collapsed .sidebar-foot{display:none;}
+/* 390 px : la barre latérale devient une bande de navigation horizontale défilante au-dessus du contenu. */
+@media (max-width:760px){
+  .app-shell{flex-direction:column;}
+  .sidebar{width:100%;height:auto;position:static;overflow-y:visible;}
+  .sidebar-head{padding:10px 12px;}
+  .sidebar-nav{flex-direction:row;overflow-x:auto;padding:6px 8px;gap:4px;}
+  .sidebar-section-label{display:none;}
+  .nav-item{width:auto;flex-shrink:0;padding:10px;}
+  .nav-item .label{overflow:visible;}
+}
 
 /* ===== Topbar ===== */
 .topbar{height:var(--topbar-h);display:flex;align-items:center;gap:14px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:20;}
@@ -57,6 +67,8 @@ button{font-family:inherit;}
 .icon-btn .dot{position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--status-bad);border:1.5px solid var(--surface);}
 .avatar{width:36px;height:36px;border-radius:50%;background:var(--primary-2);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;font-family:var(--font-display);cursor:pointer;}
 @media (min-width:1040px){.topbar-garage{display:block;}}
+/* 390 px : la recherche rétrécit au lieu de pousser la barre hors de l'écran. */
+@media (max-width:760px){.topbar{padding:0 12px;gap:8px;}.search-box{min-width:0;}.search-box input{min-width:0;width:100%;}.topbar-actions{flex-shrink:0;gap:4px;}}
 
 /* ===== Mobile bottom tabs ===== */
 .bottom-tabs{display:none;}
