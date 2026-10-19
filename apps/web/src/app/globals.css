@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@atelieros/ui/styles.css";
+@source "../../../../packages/ui/src";
 
 /*
  * Tokens de marque AtelierOS — repris de docs/design/autorappel-prototype
@@ -46,6 +48,11 @@
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-full: 999px;
+
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 76px;
+  --topbar-h: 64px;
+  --bottomtab-h: 64px;
 }
 
 .dark {

@@ -24,9 +24,8 @@ export const createSiteInputSchema = z.object({
   code: z
     .string()
     .trim()
-    .min(2)
-    .max(10)
-    .regex(/^[A-Z0-9]+$/, "Le code ne doit contenir que des lettres majuscules et des chiffres."),
+    // RG-M15-05 : 2 à 5 lettres majuscules (préfixe de numérotation, ex. "YOP").
+    .regex(/^[A-Z]{2,5}$/, "Le code doit contenir de 2 à 5 lettres majuscules (ex. YOP)."),
   address: z.string().trim().min(1).nullable().optional(),
   commune: z.string().trim().min(1).nullable().optional(),
   phone: z.string().trim().min(1).nullable().optional(),
@@ -42,9 +41,8 @@ export const updateSiteInputSchema = z.object({
   code: z
     .string()
     .trim()
-    .min(2)
-    .max(10)
-    .regex(/^[A-Z0-9]+$/, "Le code ne doit contenir que des lettres majuscules et des chiffres.")
+    // RG-M15-05 : 2 à 5 lettres majuscules (préfixe de numérotation, ex. "YOP").
+    .regex(/^[A-Z]{2,5}$/, "Le code doit contenir de 2 à 5 lettres majuscules (ex. YOP).")
     .optional(),
   address: z.string().trim().min(1).nullable().optional(),
   commune: z.string().trim().min(1).nullable().optional(),

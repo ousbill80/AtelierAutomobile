@@ -4,9 +4,9 @@ import {
   canInviteRole,
   hashPassword as hashSecret,
   isTrivialPin,
+  PIN_ELIGIBLE_ROLES,
   resolvePermissions,
   wouldRemoveLastOwner,
-  type Role,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
 import {
@@ -29,8 +29,6 @@ import {
   generateInvitationToken,
   hashInvitationToken,
 } from "../invitation-token";
-
-const PIN_ELIGIBLE_ROLES: readonly Role[] = ["MANAGER", "MECHANIC", "STOREKEEPER"];
 
 async function assertCanManageLastOwner(organizationId: string, membershipId: string) {
   const memberships = await db
@@ -83,6 +81,13 @@ export const memberRouter = router({
       ];
       return { ...membership, effectivePermissions };
     }),
+
+  listInvitations: requirePermission("member:invite").query(async ({ ctx }) => {
+    return adminDb.invitation.findMany({
+      where: { organizationId: ctx.organizationId, status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
 
   invite: requirePermission("member:invite")
     .input(inviteMemberInputSchema)
@@ -357,7 +362,21 @@ export const memberRouter = router({
   reactivate: requirePermission("member:deactivate")
     .input(reactivateMemberInputSchema)
     .mutation(async ({ ctx, input }) => {
+      const org = await adminDb.organization.findUniqueOrThrow({
+        where: { id: ctx.organizationId },
+      });
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const activeMemberCount = await tenantDb.membership.count({ where: { isActive: true } });
+      if (!canAddMember(org.plan, activeMemberCount)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            org.plan === "STARTER"
+              ? "Votre offre STARTER permet 5 utilisateurs actifs."
+              : "Limite d'utilisateurs atteinte pour votre offre actuelle.",
+        });
+      }
+
       const after = await tenantDb.membership.update({
         where: { id: input.membershipId },
         data: { isActive: true, deactivatedAt: null, deactivationReason: null },

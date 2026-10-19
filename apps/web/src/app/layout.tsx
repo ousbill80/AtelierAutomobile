@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Sora, Inter, JetBrains_Mono } from "next/font/google";
+import { TrpcProvider } from "@/trpc/Provider";
 import "./globals.css";
-import { Providers } from "./providers";
 
 const sora = Sora({
   variable: "--font-sora",
@@ -33,7 +33,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        <TrpcProvider>{children}</TrpcProvider>
       </body>
     </html>
   );

@@ -55,5 +55,5 @@ export { resolvePaymentProvider } from "./registry/payment";
 export type { PaymentRegistryDeps } from "./registry/payment";
 export { resolveFneProvider } from "./registry/fne";
 
-export { assertUploadable, S3ObjectStorage } from "./storage";
-export type { UploadInput } from "./storage";
+export { assertUploadable, createS3ObjectStorage, S3ObjectStorage } from "./storage";
+export type { S3ObjectStorageConfig, UploadInput } from "./storage";

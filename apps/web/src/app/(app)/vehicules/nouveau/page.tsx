@@ -34,12 +34,7 @@ function NewVehicleForm() {
         }}
         className="flex flex-col gap-4"
       >
-        <PlateInput
-          label="Plaque"
-          required
-          value={plate}
-          onChange={(e) => setPlate(e.target.value)}
-        />
+        <PlateInput label="Plaque" required value={plate} onChange={setPlate} />
         <Input label="Marque" required value={make} onChange={(e) => setMake(e.target.value)} />
         <Input label="Modèle" required value={model} onChange={(e) => setModel(e.target.value)} />
         {error && <p className="text-sm text-status-bad">{error}</p>}

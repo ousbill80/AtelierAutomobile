@@ -2,7 +2,8 @@ import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { adminDb, db } from "@atelieros/db";
 import { isSessionExpired, resolvePermissions, type Permission, type Role } from "@atelieros/core";
 
-export const SESSION_COOKIE_NAME = "atelieros_session";
+export { SESSION_COOKIE_NAME } from "./session-cookie-name";
+import { SESSION_COOKIE_NAME } from "./session-cookie-name";
 
 export interface CtxUser {
   id: string;
@@ -32,6 +33,8 @@ export interface Ctx {
   allowedSiteIds: string[] | "ALL";
   ip: string;
   userAgent: string;
+  /** En-tête x-org-id envoyé par le client, comparé à la session active (US-M01-10). */
+  orgHeaderId?: string | null;
 }
 
 function parseCookie(cookieHeader: string | null, name: string): string | null {
@@ -68,6 +71,7 @@ export async function createContext({
     allowedSiteIds: [],
     ip: clientIp(req),
     userAgent: req.headers.get("user-agent") ?? "",
+    orgHeaderId: req.headers.get("x-org-id"),
   };
 
   const token = parseCookie(req.headers.get("cookie"), SESSION_COOKIE_NAME);

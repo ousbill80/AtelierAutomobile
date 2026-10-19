@@ -8,9 +8,9 @@ import { appRouter } from "./_app";
 
 const callerFactory = createCallerFactory(appRouter);
 
-async function contextFor(token: string) {
+async function contextFor(token: string, extraHeaders?: Record<string, string>) {
   const req = new Request("http://localhost/api/trpc", {
-    headers: { cookie: `atelieros_session=${token}` },
+    headers: { cookie: `atelieros_session=${token}`, ...extraHeaders },
   });
   return createContext({ req, resHeaders: new Headers(), info: undefined as never });
 }
@@ -68,6 +68,7 @@ describe("session / me routers (M01)", () => {
 
   afterAll(async () => {
     await adminDb.session.deleteMany({ where: { userId: user.id } });
+    await adminDb.auditLog.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.membership.deleteMany({ where: { userId: user.id } });
     await adminDb.user.delete({ where: { id: user.id } });
     await adminDb.site.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
@@ -114,6 +115,18 @@ describe("session / me routers (M01)", () => {
     await callerFactory(await contextFor(token)).session.setActiveOrganization({
       organizationId: orgA.id,
     });
+
+    const log = await adminDb.auditLog.findFirst({
+      where: { organizationId: orgB.id, action: "org.switched" },
+    });
+    expect(log).not.toBeNull();
+  });
+
+  it("rejette un en-tête x-org-id ne correspondant pas à l'organisation active (US-M01-10)", async () => {
+    const ctx = await contextFor(token, { "x-org-id": "org-not-the-active-one" });
+    await expect(callerFactory(ctx).session.setActiveSite({ siteId: siteX.id })).rejects.toThrow(
+      "Le garage actif a changé.",
+    );
   });
 
   it("setActiveSite change de site puis autorise « Tous les sites » sur l'organisation A (2 sites)", async () => {

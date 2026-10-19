@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-test("la page d'accueil affiche AtelierOS", async ({ page }) => {
+test("visiteur non connecté redirigé vers la connexion", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "AtelierOS" })).toBeVisible();
+  await expect(page).toHaveURL(/\/connexion/);
+  await expect(page.getByRole("heading", { name: "Connexion" })).toBeVisible();
 });

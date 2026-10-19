@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { canAddSite } from "@atelieros/core";
+import { canAddSite, validateOpeningHours } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
 import {
   createSiteInputSchema,
@@ -8,6 +8,7 @@ import {
 } from "@atelieros/validators";
 import { requirePermission, router } from "../trpc";
 import { writeAuditLog } from "../audit";
+import { withDomainErrors } from "../domain-error";
 
 const OPEN_REPAIR_ORDER_STATUSES = [
   "DRAFT",
@@ -57,6 +58,10 @@ export const siteRouter = router({
         });
       }
 
+      if (input.openingHours) {
+        withDomainErrors(() => validateOpeningHours(input.openingHours!));
+      }
+
       const site = await tenantDb.site.create({
         data: {
           organizationId: ctx.organizationId,
@@ -104,6 +109,19 @@ export const siteRouter = router({
       });
 
       if (input.code && input.code !== before.code) {
+        // RG-M15-05 : le code n'est plus modifiable dès qu'il a servi à numéroter un document
+        // (DocumentSequence créée pour ce site).
+        const usedInNumbering = await tenantDb.documentSequence.count({
+          where: { siteId: input.siteId },
+        });
+        if (usedInNumbering > 0) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Le code du site ne peut plus être modifié : il est déjà utilisé dans la numérotation des documents.",
+          });
+        }
+
         const existingCode = await tenantDb.site.findFirst({ where: { code: input.code } });
         if (existingCode) {
           throw new TRPCError({
@@ -111,6 +129,10 @@ export const siteRouter = router({
             message: `Le code ${input.code} est déjà utilisé par un autre site.`,
           });
         }
+      }
+
+      if (input.openingHours) {
+        withDomainErrors(() => validateOpeningHours(input.openingHours!));
       }
 
       const newBays = (input.bays ?? []).filter((bay) => !bay.id);
@@ -173,6 +195,29 @@ export const siteRouter = router({
         throw new TRPCError({
           code: "CONFLICT",
           message: `Ce site a ${openCount} OR ouverts. Clôturez-les ou transférez-les avant de le désactiver.`,
+        });
+      }
+
+      // RG-M15-05 : refusé s'il reste du stock > 0 sur ce site.
+      const stockTotal = await tenantDb.stockLevel.aggregate({
+        where: { siteId: input.siteId },
+        _sum: { onHand: true },
+      });
+      if ((stockTotal._sum.onHand ?? 0) > 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `Ce site a du stock restant (${stockTotal._sum.onHand} unités). Transférez le stock avant de le désactiver.`,
+        });
+      }
+
+      // RG-M15-05 : refusé si une caisse est encore ouverte sur ce site.
+      const openCashSession = await tenantDb.cashSession.findFirst({
+        where: { siteId: input.siteId, closedAt: null },
+      });
+      if (openCashSession) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Une caisse est encore ouverte sur ce site. Clôturez-la avant de désactiver.",
         });
       }
 

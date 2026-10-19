@@ -25,8 +25,13 @@ export {
   setActiveSiteInputSchema,
 } from "./session";
 
-export type { UpdateOrgInput } from "./org";
-export { operatingModeSchema, taxRegimeSchema, updateOrgInputSchema } from "./org";
+export type { SetOperatingModeInput, UpdateOrgInput } from "./org";
+export {
+  operatingModeSchema,
+  setOperatingModeInputSchema,
+  taxRegimeSchema,
+  updateOrgInputSchema,
+} from "./org";
 
 export type {
   CreateBayInput,
@@ -87,6 +92,50 @@ export {
   updateRolePermissionsInputSchema,
 } from "./role";
 
+export type { RegisterSharedDeviceInput } from "./device";
+export { registerSharedDeviceInputSchema } from "./device";
+
+export type { AuditExportInput, AuditListInput } from "./audit";
+export { auditExportInputSchema, auditListInputSchema } from "./audit";
+
+export type { SaveOnboardingStepInput } from "./onboarding";
+export { saveOnboardingStepInputSchema } from "./onboarding";
+
+export type {
+  AnalyzeInput,
+  ColumnMappingOptions,
+  ErrorReportInput,
+  ImportEntity,
+  ImportPolicyInput,
+  ListImportsInput,
+  PatchRowInput,
+  ProgressInput,
+  RollbackInput,
+  RunInput,
+  SetMappingInput,
+  SimulateInput,
+  TemplateInput,
+  UploadInput,
+  ValidateInput,
+} from "./import";
+export {
+  analyzeInputSchema,
+  columnMappingOptionsSchema,
+  errorReportInputSchema,
+  importEntitySchema,
+  importMappingSourceSchema,
+  importPolicySchema,
+  listImportsInputSchema,
+  patchRowInputSchema,
+  progressInputSchema,
+  rollbackInputSchema,
+  runInputSchema,
+  setMappingInputSchema,
+  simulateInputSchema,
+  templateInputSchema,
+  uploadInputSchema,
+  validateInputSchema,
+} from "./import";
 export type {
   CheckDuplicatesInput,
   CreateContactInput,
@@ -278,3 +327,36 @@ export {
   digestUpdateSettingsInputSchema,
   dashboardPeriodSchema,
 } from "./dashboard";
+export type {
+  CreateHolidayInput,
+  DeleteHolidayInput,
+  ListHolidaysInput,
+  SeedHolidayYearInput,
+  UpdateHolidayInput,
+} from "./holiday";
+export {
+  createHolidayInputSchema,
+  deleteHolidayInputSchema,
+  holidayKindSchema,
+  listHolidaysInputSchema,
+  seedHolidayYearInputSchema,
+  updateHolidayInputSchema,
+} from "./holiday";
+
+export type { UpdateNumberingInput } from "./numbering";
+export { documentTypeSchema, updateNumberingInputSchema } from "./numbering";
+
+export type {
+  GetSettingsInput,
+  SettingsSection,
+  TaxSettings,
+  UpdateSettingsInput,
+} from "./settings";
+export {
+  DEFAULT_TAX_SETTINGS,
+  getSettingsInputSchema,
+  settingsSectionSchema,
+  taxRoundingSchema,
+  taxSettingsSchema,
+  updateSettingsInputSchema,
+} from "./settings";

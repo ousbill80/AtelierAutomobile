@@ -5,6 +5,14 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./import": "./src/import/index.ts",
+    "./src/money": "./src/money/index.ts",
+    "./src/phone": "./src/phone/index.ts",
+    "./src/plate": "./src/plate.ts",
+    "./src/auth/password-policy": "./src/auth/password-policy.ts"
+  },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

@@ -30,13 +30,59 @@ export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } 
 export type { NormalizedPlate, PlateType } from "./plate";
 export { normalizePlate } from "./plate";
 
-export type { DocumentSequenceKey, DocumentType, SequenceStore } from "./numbering";
+export type {
+  DocumentSequenceKey,
+  DocumentType,
+  NumberingConfig,
+  NumberingRenderContext,
+  SequenceStore,
+} from "./numbering";
 export {
+  assertStartValueIncrease,
+  DEFAULT_NUMBERING_CONFIG,
   formatDocumentNumber,
   isFiscalDocumentType,
   nextDocumentNumber,
+  renderNumberingPattern,
   sequenceKey,
+  validateNumberingConfig,
 } from "./numbering";
+
+export type { CivilDate, GeneratedHoliday } from "./ci-holidays";
+export {
+  civilDateToUtcDate,
+  computeEasterSunday,
+  generateCiHolidays,
+  getEstimatedIslamicHolidays,
+  getFixedHolidays,
+} from "./ci-holidays";
+
+export type { OpeningHours, WeekdayKey } from "./organization/opening-hours";
+export { validateOpeningHours, WEEKDAY_KEYS } from "./organization/opening-hours";
+
+export type { OrganizationIdentityForInvoicing } from "./organization/identity";
+export {
+  assertCanIssueInvoice,
+  getMissingInvoiceFields,
+  isValidNccFormat,
+  isValidRccmFormat,
+  NCC_REGEX,
+  RCCM_REGEX,
+} from "./organization/identity";
+
+export type {
+  CanSwitchOperatingModeInput,
+  ModuleKey,
+  OperatingMode,
+  OperatingModeSwitchResult,
+} from "./organization/operating-mode";
+export {
+  assertModuleAllowed,
+  canSwitchOperatingMode,
+  isModuleVisible,
+  MODULE_KEYS,
+  REMINDERS_ONLY_VISIBLE_MODULES,
+} from "./organization/operating-mode";
 
 export type { Permission, ResolvePermissionsInput, Role } from "./auth/permissions";
 export {
@@ -49,6 +95,9 @@ export {
 } from "./auth/permissions";
 
 export { hashPassword, verifyPassword } from "./auth/password";
+
+export type { PasswordPolicyContext, PasswordPolicyViolation } from "./auth/password-policy";
+export { checkPasswordPolicy, isPasswordPolicyCompliant } from "./auth/password-policy";
 
 export type { LockoutState } from "./auth/lockout";
 export {
@@ -76,7 +125,15 @@ export {
   OTP_RESEND_COOLDOWN_SECONDS,
 } from "./auth/otp";
 
-export { isTrivialPin } from "./auth/pin";
+export { isTrivialPin, PIN_ELIGIBLE_ROLES, PIN_MAX_FAILED_ATTEMPTS } from "./auth/pin";
+
+export type { SecuritySettingsLike } from "./auth/new-device";
+export {
+  computeTrustedDeviceExpiry,
+  DEFAULT_OTP_ON_NEW_DEVICE_ROLES,
+  requiresNewDeviceOtp,
+  TRUSTED_DEVICE_APPROVAL_DAYS,
+} from "./auth/new-device";
 
 export type { PickActiveSiteInput, SiteOption } from "./auth/site";
 export { canUseAllSitesOption, pickActiveSite } from "./auth/site";
@@ -96,6 +153,27 @@ export {
   SESSION_INACTIVITY_DAYS,
 } from "./auth/session";
 
+export type {
+  OnboardingBaySeed,
+  OnboardingBayType,
+  OnboardingChannelConfigSeed,
+  OnboardingInspectionItemSeed,
+  OnboardingLaborOperationSeed,
+  OnboardingMessageTemplateSeed,
+  OnboardingReminderRuleSeed,
+  OnboardingReminderStep,
+} from "./onboarding/seed";
+export {
+  defaultChannelConfigs,
+  defaultInspectionTemplate,
+  defaultLaborOperations,
+  defaultMessageTemplates,
+  defaultReminderRules,
+  defaultSiteBays,
+  defaultSiteOpeningHours,
+} from "./onboarding/seed";
+
+export * from "./import";
 export type { DisplayNameInput } from "./customers/display-name";
 export { computeDisplayName, titleCaseName } from "./customers/display-name";
 
