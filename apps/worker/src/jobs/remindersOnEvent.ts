@@ -14,6 +14,7 @@
 import { adminDb, db, type Prisma } from "@atelieros/db";
 import { strongerOutcome, type ReminderOutcomeLike } from "@atelieros/core";
 import { logger } from "../logger";
+import { handleAppointmentEvent } from "./appointments";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
 
@@ -278,6 +279,8 @@ export async function processRemindersOnEventJob(): Promise<void> {
   for (const event of events) {
     try {
       await handleEvent(event, new Date());
+      // M03 : même événement, consommateur RDV (OR livré → COMPLETED, réponses 1/2/3).
+      await handleAppointmentEvent(event, new Date());
     } catch (error) {
       logger.error(
         {

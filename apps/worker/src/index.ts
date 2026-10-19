@@ -39,6 +39,10 @@ async function main(): Promise<void> {
     await import("./queues/reports");
   const { processDigestOwnerJob } = await import("./jobs/digestOwner");
   const { processAlertsScanJob } = await import("./jobs/alertsScan");
+  const { APPOINTMENTS_JOB_NAMES, APPOINTMENTS_QUEUE_NAME, scheduleAppointmentJobs } =
+    await import("./queues/appointments");
+  const { processDailyAgendaJob, processMarkNoShowJob, processUnconfirmedCheckJob } =
+    await import("./jobs/appointments");
 
   logger.info("AtelierOS worker démarré");
 
@@ -129,6 +133,30 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "reports : un job a échoué");
   });
 
+  // M03 §9 : absences automatiques, agenda du jour, confirmations à obtenir.
+  await scheduleAppointmentJobs();
+
+  const appointmentsWorker = new Worker(
+    APPOINTMENTS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case APPOINTMENTS_JOB_NAMES.MARK_NO_SHOW:
+          return processMarkNoShowJob();
+        case APPOINTMENTS_JOB_NAMES.DAILY_AGENDA:
+          return processDailyAgendaJob();
+        case APPOINTMENTS_JOB_NAMES.UNCONFIRMED_CHECK:
+          return processUnconfirmedCheckJob();
+        default:
+          logger.warn({ jobName: job.name }, "appointments : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  appointmentsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "appointments : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -136,6 +164,7 @@ async function main(): Promise<void> {
       messagesWorker.close(),
       remindersWorker.close(),
       reportsWorker.close(),
+      appointmentsWorker.close(),
     ]);
     process.exit(0);
   }

@@ -217,7 +217,9 @@ async function revalidate(tenantDb: TenantDb, reminder: DueReminder): Promise<Re
     if (
       !appointment ||
       !["BOOKED", "CONFIRMED"].includes(appointment.status) ||
-      appointment.startsAt.getTime() !== reminder.dueDate.getTime()
+      // `dueDate` est un @db.Date (jour du RDV) : comparer le jour, pas l'instant (M03).
+      appointment.startsAt.toISOString().slice(0, 10) !==
+        reminder.dueDate.toISOString().slice(0, 10)
     ) {
       return { ok: false, reason: "Rendez-vous annulé ou replanifié." };
     }
