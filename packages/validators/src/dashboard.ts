@@ -18,3 +18,17 @@ export const alertsListInputSchema = z.object({
 export const alertsMarkReadInputSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(100),
 });
+
+// M12 §6 — `Organization.settings.digest` (US-M12-08, RG-M12-30). Destinataires vides = tous
+// les OWNER actifs.
+export const digestSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .default("07:30"),
+  channel: z.enum(["WHATSAPP", "SMS", "EMAIL"]).default("WHATSAPP"),
+  recipients: z.array(z.string().min(1)).default([]),
+});
+export type DigestSettings = z.infer<typeof digestSettingsSchema>;
+export const DEFAULT_DIGEST_SETTINGS: DigestSettings = digestSettingsSchema.parse({});

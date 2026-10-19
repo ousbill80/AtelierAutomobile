@@ -15,6 +15,9 @@ import { processRemindersDispatchJob } from "./jobs/remindersDispatch";
 import { processRemindersOnEventJob } from "./jobs/remindersOnEvent";
 import { processRemindersOutcomesJob } from "./jobs/remindersOutcomes";
 import { processVehiclesEstimateMileageJob } from "./jobs/vehiclesEstimateMileage";
+import { REPORTS_JOB_NAMES, REPORTS_QUEUE_NAME, scheduleReportJobs } from "./queues/reports";
+import { processDigestOwnerJob } from "./jobs/digestOwner";
+import { processAlertsScanJob } from "./jobs/alertsScan";
 
 logger.info("AtelierOS worker démarré");
 
@@ -81,7 +84,31 @@ remindersWorker.on("failed", (job, error) => {
   logger.error({ jobName: job?.name, error: error.message }, "reminders : un job a échoué");
 });
 
+// M12 §9 (partie 1, étape 2.4) : résumé quotidien gérant et alertes système.
+await scheduleReportJobs();
+
+const reportsWorker = new Worker(
+  REPORTS_QUEUE_NAME,
+  async (job: Job) => {
+    switch (job.name) {
+      case REPORTS_JOB_NAMES.DIGEST_OWNER:
+        return processDigestOwnerJob();
+      case REPORTS_JOB_NAMES.ALERTS_SCAN:
+        return processAlertsScanJob();
+      default:
+        logger.warn({ jobName: job.name }, "reports : job inconnu, ignoré");
+        return undefined;
+    }
+  },
+  { connection: createRedisConnection() },
+);
+
+reportsWorker.on("failed", (job, error) => {
+  logger.error({ jobName: job?.name, error: error.message }, "reports : un job a échoué");
+});
+
 process.on("SIGTERM", () => {
   void messagesWorker.close();
   void remindersWorker.close();
+  void reportsWorker.close();
 });

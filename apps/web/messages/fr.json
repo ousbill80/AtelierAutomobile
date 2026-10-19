@@ -1,0 +1,111 @@
+{
+  "dashboard": {
+    "title": "Tableau de bord",
+    "nav": "Tableau de bord",
+    "periodLabel": "Période",
+    "siteLabel": "Site",
+    "allSites": "Tous les sites",
+    "refresh": "Actualiser",
+    "periods": {
+      "today": "Aujourd'hui",
+      "7d": "7 jours",
+      "month": "Mois en cours",
+      "prev_month": "Mois précédent",
+      "30d": "30 jours"
+    },
+    "tabs": {
+      "summary": "Synthèse",
+      "reminders": "Relances",
+      "finances": "Finances"
+    },
+    "states": {
+      "empty": "Pas encore de données sur cette période",
+      "error": "Impossible de charger les chiffres.",
+      "retry": "Réessayer",
+      "noAccess": "Vous n'avez accès à aucun onglet du tableau de bord.",
+      "noInvoices": "Aucune facture pour le moment",
+      "noInvoicesHint": "Importez vos factures pour suivre vos créances ici."
+    },
+    "variation": {
+      "new": "nouveau",
+      "up": "hausse de {pct} % vs période précédente",
+      "down": "baisse de {pct} % vs période précédente",
+      "flat": "stable vs période précédente",
+      "none": "pas de comparaison"
+    },
+    "cards": {
+      "receivables": "Créances en cours",
+      "receivablesOver30": "dont {amount} à plus de 30 j",
+      "recovered": "Récupéré grâce aux relances",
+      "toHandleToday": "Relances à traiter aujourd'hui",
+      "inspectionsDue30": "VT expirant sous 30 j",
+      "servicesDueThisMonth": "Révisions dues ce mois",
+      "remindersSent": "Relances envoyées",
+      "returnedCustomers": "Clients revenus après rappel",
+      "notAttributable": "Non disponible pour un site (données non rattachées à un site)"
+    },
+    "help": {
+      "receivables": "Somme des soldes des factures émises non réglées (y compris en litige), à l'instant présent.",
+      "recovered": "Paiements reçus sur une facture dans les 14 jours suivant une relance de créance (dernier contact).",
+      "returnRate": "Véhicules revenus (RDV ou visite) entre la première relance et l'échéance + 30 j (VT) ou + 60 j (révision). Les échéances encore dans ce délai sont « en cours ».",
+      "dso": "Encours ÷ CA TTC des 90 derniers jours × 90."
+    },
+    "reminders": {
+      "funnel": "Envois sur la période",
+      "sent": "Envoyés",
+      "delivered": "Délivrés",
+      "read": "Lus",
+      "failed": "Échecs",
+      "toApprove": "À valider",
+      "recovered": "Montant récupéré",
+      "generatedRevenue": "CA généré par les retours (affiché à part)",
+      "returnRate": "Taux de retour",
+      "returnInspection": "Visite technique",
+      "returnService": "Révision",
+      "returnDetail": "{returned} / {eligible} revenus · {pending} en cours",
+      "weekly": "Envois par semaine",
+      "weekOf": "Semaine du {date}",
+      "types": {
+        "INSPECTION": "Visite technique",
+        "SERVICE": "Révision",
+        "RECEIVABLE": "Créance",
+        "APPOINTMENT": "Rendez-vous",
+        "QUOTE_FOLLOWUP": "Devis",
+        "VEHICLE_READY": "Véhicule prêt",
+        "INSURANCE_EXPIRY": "Assurance",
+        "SATISFACTION": "Satisfaction",
+        "RECOMMENDED_WORK": "Travaux recommandés",
+        "CUSTOM": "Autre"
+      }
+    },
+    "finances": {
+      "aged": "Balance âgée",
+      "buckets": {
+        "notDue": "Non échu",
+        "d1_30": "1 à 30 j",
+        "d31_60": "31 à 60 j",
+        "d61_90": "61 à 90 j",
+        "d90plus": "Plus de 90 j"
+      },
+      "overdue": "En retard",
+      "disputed": "En litige",
+      "dso": "Délai moyen d'encaissement",
+      "dsoValue": "{days} j",
+      "topUnpaid": "Principaux impayés",
+      "invoices": "{count} facture(s)",
+      "daysLate": "{days} j de retard",
+      "notDue": "non échu"
+    },
+    "alerts": {
+      "title": "Alertes",
+      "empty": "Aucune alerte non lue",
+      "markRead": "Marquer comme lu",
+      "severity": {
+        "critical": "Critique",
+        "warning": "Attention",
+        "info": "Info"
+      }
+    },
+    "dash": "—"
+  }
+}

@@ -268,10 +268,12 @@ export {
   REMINDER_SKIP_REASONS,
 } from "./reminders";
 
-export type { DashboardInput } from "./dashboard";
+export type { DashboardInput, DigestSettings } from "./dashboard";
 export {
   alertsListInputSchema,
   alertsMarkReadInputSchema,
   dashboardInputSchema,
+  DEFAULT_DIGEST_SETTINGS,
+  digestSettingsSchema,
   dashboardPeriodSchema,
 } from "./dashboard";

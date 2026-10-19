@@ -3,15 +3,6 @@
 // Les faits viennent de M10/M11 (`Reminder` + statut du `Message` porteur).
 import { inRange } from "./period";
 
-export const REMINDER_RESULT_TYPES = [
-  "INSPECTION",
-  "SERVICE",
-  "RECEIVABLE",
-  "APPOINTMENT",
-  "QUOTE_FOLLOWUP",
-  "OTHER",
-] as const;
-
 export interface ReminderFactLike {
   type: string;
   status: string;

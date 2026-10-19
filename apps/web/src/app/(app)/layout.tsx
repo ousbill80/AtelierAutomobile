@@ -21,6 +21,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         )}
         <nav className="flex flex-row gap-1 overflow-x-auto md:flex-col">
           <Link
+            href="/tableau-de-bord"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            Tableau de bord
+          </Link>
+          <Link
             href="/clients"
             className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
           >
