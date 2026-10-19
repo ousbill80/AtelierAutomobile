@@ -16,6 +16,7 @@
     "test:e2e": "turbo run test:e2e",
     "db:migrate": "pnpm --filter @atelieros/db migrate",
     "db:seed": "pnpm --filter @atelieros/db seed",
+    "dev:setup": "bash scripts/dev-setup.sh",
     "prepare": "husky"
   },
   "devDependencies": {

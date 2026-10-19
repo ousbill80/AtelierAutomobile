@@ -9,7 +9,8 @@ import {
   computeReturnRate,
   dso,
   localDay,
-  RECEIVABLE_STATUSES,
+  OPEN_INVOICE_STATUSES,
+  recoveredByReminders,
   resolvePeriod,
   shiftDay,
   sortAlerts,
@@ -76,13 +77,15 @@ async function loadReceivableInvoices(
     where: {
       ...invoiceSiteWhere(scope),
       type: "INVOICE",
-      status: { in: [...RECEIVABLE_STATUSES] },
+      billTo: "CUSTOMER",
+      status: { in: [...OPEN_INVOICE_STATUSES] },
       balance: { gt: 0 },
     },
     select: {
       id: true,
       type: true,
       status: true,
+      billTo: true,
       balance: true,
       dueDate: true,
       number: true,
@@ -91,6 +94,32 @@ async function loadReceivableInvoices(
     },
   });
   return rows.map((r) => ({ ...r, customerName: r.customer.displayName }));
+}
+
+/**
+ * RG-M12-22 (A10) : attributions M09 (`PaymentAttribution`) des paiements confirmés reçus dans
+ * `[from, to)`. Chaque allocation compte sur le site de sa facture (M12 §11).
+ */
+async function loadAttributions(tenantDb: TenantDb, scope: SiteScope, from: Date, to: Date) {
+  const rows = await tenantDb.paymentAttribution.findMany({
+    where: {
+      source: "reminder",
+      paymentAllocation: {
+        payment: { status: "CONFIRMED", receivedAt: { gte: from, lt: to } },
+        ...(scope.siteIds ? { invoice: { siteId: { in: scope.siteIds } } } : {}),
+      },
+    },
+    select: {
+      source: true,
+      amount: true,
+      paymentAllocation: { select: { payment: { select: { receivedAt: true } } } },
+    },
+  });
+  return rows.map((r) => ({
+    source: r.source,
+    amount: r.amount,
+    receivedAt: r.paymentAllocation.payment.receivedAt,
+  }));
 }
 
 async function loadReminderFacts(
@@ -157,42 +186,56 @@ export const dashboardRouter = router({
         Date.UTC(todayStart.getUTCFullYear(), todayStart.getUTCMonth() + 1, 1),
       );
 
-      const [invoices, invoiceCount, facts, toHandleToday, inspectionsDue30, servicesDueThisMonth] =
-        await Promise.all([
-          loadReceivableInvoices(tenantDb, scope),
-          tenantDb.invoice.count({ where: invoiceSiteWhere(scope) }),
-          loadReminderFacts(tenantDb, scope, period.previousFrom, period.to),
-          tenantDb.reminder.count({
-            where: {
-              ...reminderSiteWhere(scope),
-              OR: [
-                { status: "NEEDS_APPROVAL" },
-                { status: "PLANNED", scheduledFor: { gte: todayStart, lt: tomorrowStart } },
-              ],
-            },
-          }),
-          // VT / révisions : véhicules non rattachés à un site → non attribuables (« Tous » seulement).
-          scope.siteIds
-            ? Promise.resolve(null)
-            : tenantDb.vehicle.count({
-                where: {
-                  deletedAt: null,
-                  inspectionExpiryDate: {
-                    gte: todayStart,
-                    lt: startOfLocalDay(shiftDay(today, 30), org.timezone),
-                  },
+      const [
+        invoices,
+        invoiceCount,
+        facts,
+        attributions,
+        toHandleToday,
+        inspectionsDue30,
+        servicesDueThisMonth,
+      ] = await Promise.all([
+        loadReceivableInvoices(tenantDb, scope),
+        tenantDb.invoice.count({ where: invoiceSiteWhere(scope) }),
+        loadReminderFacts(tenantDb, scope, period.previousFrom, period.to),
+        loadAttributions(tenantDb, scope, period.previousFrom, period.to),
+        tenantDb.reminder.count({
+          where: {
+            ...reminderSiteWhere(scope),
+            OR: [
+              { status: "NEEDS_APPROVAL" },
+              { status: "PLANNED", scheduledFor: { gte: todayStart, lt: tomorrowStart } },
+            ],
+          },
+        }),
+        // VT / révisions : véhicules non rattachés à un site → non attribuables (« Tous » seulement).
+        scope.siteIds
+          ? Promise.resolve(null)
+          : tenantDb.vehicle.count({
+              where: {
+                deletedAt: null,
+                inspectionExpiryDate: {
+                  gte: todayStart,
+                  lt: startOfLocalDay(shiftDay(today, 30), org.timezone),
                 },
-              }),
-          scope.siteIds
-            ? Promise.resolve(null)
-            : tenantDb.vehicle.count({
-                where: { deletedAt: null, nextServiceDueDate: { gte: todayStart, lt: monthEnd } },
-              }),
-        ]);
+              },
+            }),
+        scope.siteIds
+          ? Promise.resolve(null)
+          : tenantDb.vehicle.count({
+              where: { deletedAt: null, nextServiceDueDate: { gte: todayStart, lt: monthEnd } },
+            }),
+      ]);
 
       const receivables = computeReceivables(invoices, today);
       const current = computeReminderResults(facts, period.from, period.to);
       const previous = computeReminderResults(facts, period.previousFrom, period.previousTo);
+      const recovered = recoveredByReminders(attributions, period.from, period.to);
+      const previousRecovered = recoveredByReminders(
+        attributions,
+        period.previousFrom,
+        period.previousTo,
+      );
 
       return {
         period: { preset: period.preset, fromDate: period.fromDate, toDate: period.toDate },
@@ -204,8 +247,8 @@ export const dashboardRouter = router({
           overdue: receivables.overdue,
         },
         recovered: {
-          value: current.recoveredAmount,
-          variation: variation(current.recoveredAmount, previous.recoveredAmount),
+          value: recovered,
+          variation: variation(recovered, previousRecovered),
         },
         remindersToHandleToday: toHandleToday,
         inspectionsDue30,
@@ -229,14 +272,21 @@ export const dashboardRouter = router({
       const org = await loadOrg(ctx.organizationId);
       const now = new Date();
       const period = resolvePeriod(input.period, now, org.timezone);
-      const [facts, toApprove] = await Promise.all([
+      const [facts, attributions, toApprove] = await Promise.all([
         loadReminderFacts(tenantDb, scope, period.previousFrom, period.to),
+        loadAttributions(tenantDb, scope, period.previousFrom, period.to),
         tenantDb.reminder.count({
           where: { ...reminderSiteWhere(scope), status: "NEEDS_APPROVAL" },
         }),
       ]);
       const current = computeReminderResults(facts, period.from, period.to);
       const previous = computeReminderResults(facts, period.previousFrom, period.previousTo);
+      const recovered = recoveredByReminders(attributions, period.from, period.to);
+      const previousRecovered = recoveredByReminders(
+        attributions,
+        period.previousFrom,
+        period.previousTo,
+      );
       return {
         period: { preset: period.preset, fromDate: period.fromDate, toDate: period.toDate },
         sent: current.sent,
@@ -247,8 +297,8 @@ export const dashboardRouter = router({
         sentByType: current.sentByType,
         sentVariation: variation(current.sent, previous.sent),
         returnedCustomers: current.returnedCustomers,
-        recoveredAmount: current.recoveredAmount,
-        recoveredVariation: variation(current.recoveredAmount, previous.recoveredAmount),
+        recoveredAmount: recovered,
+        recoveredVariation: variation(recovered, previousRecovered),
         generatedRevenue: current.generatedRevenue,
         returnRate: {
           inspection: computeReturnRate(facts, "INSPECTION", period.from, period.to, now),

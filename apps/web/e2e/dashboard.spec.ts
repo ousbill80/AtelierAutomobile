@@ -42,7 +42,8 @@ test("gérant mobile : créances, relances, changement de période", async ({ pa
       status: "OVERDUE",
       issuedAt: new Date(Date.now() - 50 * 86_400_000),
       dueDate: new Date(Date.now() - 40 * 86_400_000),
-      total: 1_240_000,
+      total: 1_425_000,
+      amountPaid: 185_000,
       balance: 1_240_000,
     },
   });
@@ -58,7 +59,7 @@ test("gérant mobile : créances, relances, changement de période", async ({ pa
       stopOn: [],
     },
   });
-  await adminDb.reminder.create({
+  const reminder = await adminDb.reminder.create({
     data: {
       organizationId: organization.id,
       ruleId: rule.id,
@@ -75,6 +76,35 @@ test("gérant mobile : créances, relances, changement de période", async ({ pa
       outcomeAt: new Date(),
       attributedAmount: 185_000,
       dedupeKey: `RECEIVABLE:${invoice.id}:J+15`,
+    },
+  });
+  // Paiement Wave alloué à la facture et attribué à la relance (RG-M12-22, PaymentAttribution M09).
+  const payment = await adminDb.payment.create({
+    data: {
+      organizationId: organization.id,
+      siteId: site.id,
+      customerId: customer.id,
+      number: "REC-2026-000310",
+      method: "WAVE",
+      amount: 185_000,
+      receivedAt: new Date(),
+    },
+  });
+  const allocation = await adminDb.paymentAllocation.create({
+    data: {
+      organizationId: organization.id,
+      paymentId: payment.id,
+      invoiceId: invoice.id,
+      amount: 185_000,
+    },
+  });
+  await adminDb.paymentAttribution.create({
+    data: {
+      organizationId: organization.id,
+      paymentAllocationId: allocation.id,
+      source: "reminder",
+      reminderId: reminder.id,
+      amount: 185_000,
     },
   });
   const token = randomBytes(32).toString("hex");

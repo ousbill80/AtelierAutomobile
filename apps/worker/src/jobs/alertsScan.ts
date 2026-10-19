@@ -6,7 +6,7 @@ import {
   evaluateAlerts,
   formatFCFA,
   localDay,
-  RECEIVABLE_STATUSES,
+  OPEN_INVOICE_STATUSES,
   shiftDay,
   startOfLocalDay,
   type AlertCandidate,
@@ -84,7 +84,8 @@ export async function scanOrganizationAlerts(organizationId: string, now: Date):
     tenantDb.invoice.findMany({
       where: {
         type: "INVOICE",
-        status: { in: [...RECEIVABLE_STATUSES] },
+        billTo: "CUSTOMER",
+        status: { in: [...OPEN_INVOICE_STATUSES] },
         balance: { gt: 0 },
         dueDate: { lt: overdueBefore },
       },
