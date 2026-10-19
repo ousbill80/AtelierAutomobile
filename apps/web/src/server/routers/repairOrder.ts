@@ -76,6 +76,10 @@ import {
   transitionFacts,
   type OrgRoContext,
 } from "../repairOrders/helpers";
+import {
+  completeAppointmentForRepairOrder,
+  linkRepairOrderToAppointment,
+} from "../appointments/service";
 import { buildLineData } from "../repairOrders/lines";
 import { getAttachmentStorage } from "../storage";
 import { orgProcedure, requirePermission, requireSite, router } from "../trpc";
@@ -1034,15 +1038,13 @@ export const repairOrderRouter = router({
         }
 
         if (input.appointmentId) {
-          const appointment = await tx.appointment.findFirst({
-            where: { id: input.appointmentId },
+          // M03 : lien RDV → OR, ARRIVED seulement si le RDV était encore attendu.
+          await linkRepairOrderToAppointment(tx as never, {
+            organizationId: ctx.organizationId,
+            appointmentId: input.appointmentId,
+            repairOrderId: order.id,
+            now,
           });
-          if (appointment) {
-            await tx.appointment.update({
-              where: { id: appointment.id },
-              data: { status: "ARRIVED", repairOrderId: order.id },
-            });
-          }
         }
 
         const link = await createTrackingToken(tx, {
@@ -1485,9 +1487,12 @@ export const repairOrderRouter = router({
           });
         }
         if (order.appointmentId) {
-          await tx.appointment.updateMany({
-            where: { id: order.appointmentId },
-            data: { status: "COMPLETED" },
+          // M03 §5 : OR livré → RDV COMPLETED (completedAt + appointment.completed).
+          await completeAppointmentForRepairOrder(tx as never, {
+            organizationId: ctx.organizationId,
+            appointmentId: order.appointmentId,
+            repairOrderId: order.id,
+            now,
           });
         }
         // Facture déjà émise → INVOICED immédiatement (§5 invoice_issued).

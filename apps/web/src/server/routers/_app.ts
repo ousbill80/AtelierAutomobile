@@ -1,4 +1,5 @@
 import { router } from "../trpc";
+import { appointmentRouter } from "./appointment";
 import { auditRouter } from "./audit";
 import { authRouter } from "./auth";
 import { deviceRouter } from "./device";
@@ -20,6 +21,8 @@ import { holidayRouter } from "./holiday";
 import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { paymentRouter } from "./payment";
+import { planningRouter, planningSettingsRouter, resourceBlockRouter } from "./planning";
+import { portalAppointmentRouter } from "./portal";
 import { quickReplyRouter } from "./quickReply";
 import { inspectionRouter, inspectionTemplateRouter } from "./inspection";
 import { portalRepairOrderRouter } from "./portalRepairOrder";
@@ -73,11 +76,15 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   alerts: alertsRouter,
   digest: digestRouter,
+  appointment: appointmentRouter,
+  planning: planningRouter,
+  resourceBlock: resourceBlockRouter,
+  planningSettings: planningSettingsRouter,
   repairOrder: repairOrderRouter,
   repairOrderLine: repairOrderLineRouter,
   inspection: inspectionRouter,
   inspectionTemplate: inspectionTemplateRouter,
-  portal: router({ repairOrder: portalRepairOrderRouter }),
+  portal: router({ appointment: portalAppointmentRouter, repairOrder: portalRepairOrderRouter }),
 });
 
 export type AppRouter = typeof appRouter;

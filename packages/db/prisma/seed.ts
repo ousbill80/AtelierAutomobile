@@ -998,6 +998,68 @@ async function main() {
     })),
   });
 
+  console.log("Seed — rendez-vous de démonstration (M03)...");
+  // Prochain jour ouvré (lun-sam) à au moins 1 jour, puis le suivant : planning non vide en démo.
+  const demoDays: Date[] = [];
+  for (let offset = 1; demoDays.length < 2; offset++) {
+    const d = daysFrom(offset);
+    if (d.getUTCDay() !== 0) demoDays.push(d);
+  }
+  const at = (day: Date, hours: number, minutes = 0) =>
+    new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hours, minutes));
+  const kouassiCar = await adminDb.vehicle.findFirstOrThrow({ where: { customerId: kouassi.id } });
+  const bambaCar = await adminDb.vehicle.findFirstOrThrow({ where: { customerId: bamba.id } });
+  const demoAppointments = [
+    {
+      customerId: kouassi.id,
+      vehicleId: kouassiCar.id,
+      bay: 0,
+      start: at(demoDays[0]!, 9),
+      minutes: 90,
+      type: "SERVICE",
+      status: "CONFIRMED",
+      source: "PHONE",
+    },
+    {
+      customerId: bamba.id,
+      vehicleId: bambaCar.id,
+      bay: 1,
+      start: at(demoDays[0]!, 11),
+      minutes: 60,
+      type: "INSPECTION_PREP",
+      status: "BOOKED",
+      source: "REMINDER",
+    },
+    {
+      customerId: kouassi.id,
+      vehicleId: null,
+      bay: null,
+      start: at(demoDays[1]!, 14),
+      minutes: 60,
+      type: "DIAGNOSTIC",
+      status: "BOOKED",
+      source: "WHATSAPP",
+    },
+  ] as const;
+  for (const a of demoAppointments) {
+    await adminDb.appointment.create({
+      data: {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        customerId: a.customerId,
+        vehicleId: a.vehicleId,
+        bayId: a.bay === null ? null : baysYopougon[a.bay]!.id,
+        advisorId: advisorMembershipId,
+        startsAt: a.start,
+        endsAt: new Date(a.start.getTime() + a.minutes * 60_000),
+        type: a.type,
+        status: a.status,
+        source: a.source,
+        ...(a.status === "CONFIRMED" ? { confirmedAt: new Date(), confirmedVia: "phone" } : {}),
+      },
+    });
+  }
+
   console.log("Seed — modèles d'inspection et OR en cours (M04)...");
   await adminDb.inspectionTemplate.create({
     data: {

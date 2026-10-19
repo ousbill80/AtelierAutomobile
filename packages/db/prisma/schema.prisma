@@ -10,7 +10,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [pg_trgm]
+  extensions = [pg_trgm, btree_gist]
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -109,6 +109,7 @@ model Organization {
   aiInteractions         AiInteraction[]
   holidays               Holiday[]
   portalTokens           PortalToken[]
+  resourceBlocks         ResourceBlock[]
   invitations            Invitation[]
   rolePermissions        RolePermission[]
   trustedDevices         TrustedDevice[]
@@ -164,6 +165,7 @@ model Site {
   cashSessions   CashSession[]
   expenses       Expense[]
   holidays       Holiday[]
+  resourceBlocks ResourceBlock[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -177,12 +179,16 @@ model Bay {
   name           String // "Pont 1", "Carrosserie", "Diagnostic"
   type           BayType  @default(LIFT)
   isActive       Boolean  @default(true)
+  // M03 §14
+  sortOrder      Int      @default(0) // ordre des colonnes du planning
+  color          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  repairOrders RepairOrder[]
+  site           Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  repairOrders   RepairOrder[]
+  resourceBlocks ResourceBlock[]
 
   @@index([organizationId, siteId])
 }
@@ -247,6 +253,10 @@ model Membership {
   mileageReadingsCreated      MileageReading[]      @relation("MileageReadingCreatedBy")
   vehicleEventsCreated        VehicleEvent[]        @relation("VehicleEventCreatedBy")
   appointmentsAsAdvisor       Appointment[]         @relation("AppointmentAdvisor")
+  appointmentsAsMechanic      Appointment[]         @relation("AppointmentMechanic")
+  appointmentsCreated         Appointment[]         @relation("AppointmentCreatedBy")
+  resourceBlocksFor           ResourceBlock[]       @relation("ResourceBlockMembership")
+  resourceBlocksCreated       ResourceBlock[]       @relation("ResourceBlockCreatedBy")
   repairOrdersAsAdvisor       RepairOrder[]         @relation("RepairOrderAdvisor")
   repairOrdersAsQc            RepairOrder[]         @relation("RepairOrderQc")
   repairOrderLinesAssigned    RepairOrderLine[]     @relation("RepairOrderLineAssignee")
@@ -670,23 +680,41 @@ model VehicleModel {
 // ═══════════════════════════════════════════════════════════════
 
 model Appointment {
-  id             String            @id @default(cuid(2))
-  organizationId String
-  siteId         String
-  customerId     String
-  vehicleId      String?
-  bayId          String?
-  advisorId      String? // Membership.id
-  startsAt       DateTime
-  endsAt         DateTime
-  type           AppointmentType
-  status         AppointmentStatus @default(BOOKED)
-  source         AppointmentSource @default(STAFF)
-  reminderId     String? // relance à l'origine du RDV (attribution M12)
-  notes          String?
-  repairOrderId  String? // OR créé à l'arrivée
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id                String            @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  customerId        String
+  vehicleId         String?
+  bayId             String?
+  advisorId         String? // Membership.id
+  startsAt          DateTime
+  endsAt            DateTime
+  type              AppointmentType
+  status            AppointmentStatus @default(BOOKED)
+  source            AppointmentSource @default(STAFF)
+  reminderId        String? // relance à l'origine du RDV (attribution M12)
+  notes             String?
+  repairOrderId     String? // OR créé à l'arrivée
+  // M03 §14
+  mechanicId        String? // Membership.id du mécanicien prévu
+  complaint         String? // motif / doléances (repris dans l'OR)
+  laborOperationIds String[] // opérations prévues (durée, devis)
+  quoteId           String? // RDV planifié pour exécuter un devis accepté (relation posée par M05)
+  confirmedAt       DateTime?
+  confirmedVia      String? // phone | whatsapp | sms | portal | in_person
+  arrivedAt         DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       String? // CUSTOMER | GARAGE
+  cancelReason      String?
+  noShowAt          DateTime?
+  completedAt       DateTime?
+  groupId           String? // RDV groupés (flotte)
+  overbooked        Boolean           @default(false) // surréservation volontaire
+  outsideHours      Boolean           @default(false)
+  publicToken       String?           @unique // hash du jeton PortalToken (A2), raccourci de recherche
+  createdById       String? // Membership.id
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   organization            Organization  @relation(fields: [organizationId], references: [id])
   site                    Site          @relation(fields: [siteId], references: [id])
@@ -694,13 +722,43 @@ model Appointment {
   vehicle                 Vehicle?      @relation(fields: [vehicleId], references: [id])
   bay                     Bay?          @relation(fields: [bayId], references: [id])
   advisor                 Membership?   @relation("AppointmentAdvisor", fields: [advisorId], references: [id])
+  mechanic                Membership?   @relation("AppointmentMechanic", fields: [mechanicId], references: [id])
+  createdBy               Membership?   @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
   reminder                Reminder?     @relation("AppointmentReminder", fields: [reminderId], references: [id])
   repairOrder             RepairOrder?  @relation("AppointmentResultingOrder", fields: [repairOrderId], references: [id])
   originatingRepairOrders RepairOrder[] @relation("RepairOrderOrigin")
   linkedReminders         Reminder[]    @relation("ReminderAppointment")
 
+  // Contrainte d'exclusion (migration SQL, extension btree_gist, RG-M03-02) :
+  // ALTER TABLE "Appointment" ADD CONSTRAINT appointment_no_overlap
+  //   EXCLUDE USING gist ("bayId" WITH =, tsrange("startsAt","endsAt",'[)') WITH &&)
+  //   WHERE ("bayId" IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW') AND NOT overbooked);
   @@index([organizationId, siteId, startsAt])
   @@index([organizationId, customerId])
+  @@index([organizationId, status, startsAt])
+  @@index([organizationId, groupId])
+}
+
+model ResourceBlock {
+  // M03 §14 — indisponibilités : pont, mécanicien ou site entier
+  id             String   @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  bayId          String?
+  membershipId   String? // mécanicien absent
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String // "Maintenance pont", "Congé", "Formation"
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  site         Site         @relation(fields: [siteId], references: [id])
+  bay          Bay?         @relation(fields: [bayId], references: [id])
+  membership   Membership?  @relation("ResourceBlockMembership", fields: [membershipId], references: [id])
+  createdBy    Membership?  @relation("ResourceBlockCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, siteId, startsAt])
 }
 
 enum AppointmentType {
