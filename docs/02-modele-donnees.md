@@ -1031,6 +1031,17 @@ model DocumentSequence {
   @@unique([organizationId, siteId, docType, year])
 }
 
+model Holiday {                                   // jours fériés — source unique (A1), M15 §14
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String?                         // null = tous les sites
+  date           DateTime @db.Date
+  name           String                          // "Fête de l'Indépendance"
+  kind           String @default("PUBLIC")       // PUBLIC | CLOSURE (fermeture exceptionnelle)
+  isEstimated    Boolean @default(false)         // fêtes religieuses à confirmer
+  @@unique([organizationId, siteId, date])
+}
+
 model AuditLog {
   id             String @id @default(cuid())
   organizationId String
@@ -1085,32 +1096,33 @@ model AiInteraction {                             // trace des appels IA (coût,
 
 ## 3. Règles d'intégrité
 
-| Règle | Où |
-|---|---|
-| `Invoice.number` attribué uniquement à l'émission, séquence sans trou par organisation et par année | `core/numbering` + `DocumentSequence` en transaction |
-| Une facture `ISSUED` n'est plus modifiable ; correction = **avoir** (`CREDIT_NOTE`) | M08 |
-| `Invoice.amountPaid` = somme des `PaymentAllocation.amount` ; `balance = total - amountPaid` ; statut recalculé à chaque allocation | `core/receivables` |
-| `StockLevel.onHand` = somme des `StockMovement.quantity` ; jamais modifié sans mouvement | M07 |
-| `StockLevel.reserved` ≤ `onHand` sauf autorisation de stock négatif | M07 |
-| `Reminder.dedupeKey` unique → impossible d'envoyer deux fois le même palier pour la même échéance | M10 |
-| `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés | M02 |
-| `Customer.phone` normalisé E.164 | `core/phone` |
-| Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt) | M11 |
+| Règle                                                                                                                               | Où                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `Invoice.number` attribué uniquement à l'émission, séquence sans trou par organisation et par année                                 | `core/numbering` + `DocumentSequence` en transaction |
+| Une facture `ISSUED` n'est plus modifiable ; correction = **avoir** (`CREDIT_NOTE`)                                                 | M08                                                  |
+| `Invoice.amountPaid` = somme des `PaymentAllocation.amount` ; `balance = total - amountPaid` ; statut recalculé à chaque allocation | `core/receivables`                                   |
+| `StockLevel.onHand` = somme des `StockMovement.quantity` ; jamais modifié sans mouvement                                            | M07                                                  |
+| `StockLevel.reserved` ≤ `onHand` sauf autorisation de stock négatif                                                                 | M07                                                  |
+| `Reminder.dedupeKey` unique → impossible d'envoyer deux fois le même palier pour la même échéance                                   | M10                                                  |
+| `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés           | M02                                                  |
+| `Customer.phone` normalisé E.164                                                                                                    | `core/phone`                                         |
+| Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
+| `Site.code` non modifiable dès qu'une `DocumentSequence` existe pour ce site (il figure dans les numéros déjà émis)                 | M15 (RG-M15-05)                                      |
 
 ## 4. Variables de modèles de messages
 
 Disponibles dans `MessageTemplate.body` (moteur **Handlebars**, sans exécution de code) :
 
-| Variable | Exemple |
-|---|---|
-| `{{client.civilite}}` `{{client.nom}}` `{{client.prenom}}` `{{client.nomComplet}}` | M. · Kouassi · Jean-Marc |
-| `{{vehicule.marque}}` `{{vehicule.modele}}` `{{vehicule.plaque}}` | Toyota · Corolla · 2547 GH 01 |
-| `{{vt.dateExpiration}}` `{{vt.joursRestants}}` | 02/11/2026 · 15 |
-| `{{revision.dateEcheance}}` `{{revision.kmEcheance}}` `{{vehicule.kmEstime}}` | 15/12/2026 · 25 000 · 24 200 |
+| Variable                                                                                                        | Exemple                            |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `{{client.civilite}}` `{{client.nom}}` `{{client.prenom}}` `{{client.nomComplet}}`                              | M. · Kouassi · Jean-Marc           |
+| `{{vehicule.marque}}` `{{vehicule.modele}}` `{{vehicule.plaque}}`                                               | Toyota · Corolla · 2547 GH 01      |
+| `{{vt.dateExpiration}}` `{{vt.joursRestants}}`                                                                  | 02/11/2026 · 15                    |
+| `{{revision.dateEcheance}}` `{{revision.kmEcheance}}` `{{vehicule.kmEstime}}`                                   | 15/12/2026 · 25 000 · 24 200       |
 | `{{facture.numero}}` `{{facture.montant}}` `{{facture.solde}}` `{{facture.echeance}}` `{{facture.joursRetard}}` | FAC-2026-000412 · 185 000 FCFA · … |
-| `{{client.soldeTotal}}` `{{client.nbFacturesOuvertes}}` | 1 240 000 FCFA · 3 |
-| `{{lien.paiement}}` `{{lien.devis}}` `{{lien.facture}}` `{{lien.rdv}}` | liens courts du portail |
-| `{{rdv.date}}` `{{rdv.heure}}` | 24/10/2026 · 09:00 |
-| `{{devis.numero}}` `{{devis.montant}}` `{{devis.validite}}` | |
-| `{{garage.nom}}` `{{garage.telephone}}` `{{garage.adresse}}` `{{garage.horaires}}` | |
-| `{{paiement.wave}}` `{{paiement.orangeMoney}}` `{{paiement.mtn}}` | numéros marchands |
+| `{{client.soldeTotal}}` `{{client.nbFacturesOuvertes}}`                                                         | 1 240 000 FCFA · 3                 |
+| `{{lien.paiement}}` `{{lien.devis}}` `{{lien.facture}}` `{{lien.rdv}}`                                          | liens courts du portail            |
+| `{{rdv.date}}` `{{rdv.heure}}`                                                                                  | 24/10/2026 · 09:00                 |
+| `{{devis.numero}}` `{{devis.montant}}` `{{devis.validite}}`                                                     |                                    |
+| `{{garage.nom}}` `{{garage.telephone}}` `{{garage.adresse}}` `{{garage.horaires}}`                              |                                    |
+| `{{paiement.wave}}` `{{paiement.orangeMoney}}` `{{paiement.mtn}}`                                               | numéros marchands                  |

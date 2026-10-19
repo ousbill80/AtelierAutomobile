@@ -1,4 +1,4 @@
-import { hashPassword } from "@atelieros/core";
+import { generateCiHolidays, hashPassword } from "@atelieros/core";
 import { adminDb } from "../src/client";
 import type { Prisma } from "@prisma/client";
 
@@ -126,6 +126,33 @@ async function main() {
     },
   });
 
+  // Horaires types d'un atelier ivoirien (M15 US-M15-03) : lun-ven 07:30-12:00 / 13:00-18:00,
+  // sam 08:00-14:00, fermé dimanche.
+  const standardOpeningHours = {
+    mon: [
+      ["07:30", "12:00"],
+      ["13:00", "18:00"],
+    ],
+    tue: [
+      ["07:30", "12:00"],
+      ["13:00", "18:00"],
+    ],
+    wed: [
+      ["07:30", "12:00"],
+      ["13:00", "18:00"],
+    ],
+    thu: [
+      ["07:30", "12:00"],
+      ["13:00", "18:00"],
+    ],
+    fri: [
+      ["07:30", "12:00"],
+      ["13:00", "18:00"],
+    ],
+    sat: [["08:00", "14:00"]],
+    sun: [],
+  };
+
   const siteYopougon = await adminDb.site.create({
     data: {
       organizationId: organization.id,
@@ -134,6 +161,7 @@ async function main() {
       commune: "Yopougon",
       phone: "+2252722000001",
       whatsappNumber: "+2252722000001",
+      openingHours: standardOpeningHours,
       isActive: true,
     },
   });
@@ -145,9 +173,24 @@ async function main() {
       commune: "Cocody",
       phone: "+2252722000002",
       whatsappNumber: "+2252722000002",
+      openingHours: standardOpeningHours,
       isActive: true,
     },
   });
+
+  console.log("Seed — jours fériés 2026 (M15 RG-M15-08)...");
+  for (const holiday of generateCiHolidays(2026)) {
+    await adminDb.holiday.create({
+      data: {
+        organizationId: organization.id,
+        siteId: null,
+        date: new Date(Date.UTC(holiday.date.year, holiday.date.month - 1, holiday.date.day)),
+        name: holiday.name,
+        kind: "PUBLIC",
+        isEstimated: holiday.isEstimated,
+      },
+    });
+  }
 
   const baysYopougon = await Promise.all(
     [1, 2, 3, 4].map((n) =>
