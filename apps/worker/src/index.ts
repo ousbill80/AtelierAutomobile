@@ -35,6 +35,10 @@ async function main(): Promise<void> {
   const { processVehiclesEstimateMileageJob } = await import("./jobs/vehiclesEstimateMileage");
   const { processCollectionsPromisesJob, processReceivablesAgeJob } =
     await import("./jobs/receivablesAge");
+  const { REPORTS_JOB_NAMES, REPORTS_QUEUE_NAME, scheduleReportJobs } =
+    await import("./queues/reports");
+  const { processDigestOwnerJob } = await import("./jobs/digestOwner");
+  const { processAlertsScanJob } = await import("./jobs/alertsScan");
 
   logger.info("AtelierOS worker démarré");
 
@@ -103,9 +107,36 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "reminders : un job a échoué");
   });
 
+  // M12 §9 (partie 1, étape 2.4) : résumé quotidien gérant et alertes système.
+  await scheduleReportJobs();
+
+  const reportsWorker = new Worker(
+    REPORTS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case REPORTS_JOB_NAMES.DIGEST_OWNER:
+          return processDigestOwnerJob();
+        case REPORTS_JOB_NAMES.ALERTS_SCAN:
+          return processAlertsScanJob();
+        default:
+          logger.warn({ jobName: job.name }, "reports : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  reportsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "reports : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
-    await Promise.all([importsWorker.close(), messagesWorker.close(), remindersWorker.close()]);
+    await Promise.all([
+      importsWorker.close(),
+      messagesWorker.close(),
+      remindersWorker.close(),
+      reportsWorker.close(),
+    ]);
     process.exit(0);
   }
 

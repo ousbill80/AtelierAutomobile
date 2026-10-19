@@ -1372,6 +1372,10 @@ model Notification {                              // notifications internes de l
   link           String?
   readAt         DateTime?
   createdAt      DateTime @default(now())
+  // M12 §14 (étape 2.4) — alertes
+  severity       String?                         // info | warning | critical
+  dedupeKey      String?                         // "alert.channel_error:cc_123:2026-10-18"
+  @@unique([organizationId, membershipId, dedupeKey])
 }
 
 model AiInteraction {                             // trace des appels IA (coût, qualité)

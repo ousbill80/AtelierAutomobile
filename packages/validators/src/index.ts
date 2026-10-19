@@ -350,3 +350,14 @@ export {
   updateSettingsInputSchema,
 } from "./settings";
 export * from "./receivables";
+
+export type { DashboardInput, DigestSettings } from "./dashboard";
+export {
+  alertsListInputSchema,
+  alertsMarkReadInputSchema,
+  dashboardInputSchema,
+  DEFAULT_DIGEST_SETTINGS,
+  digestSettingsSchema,
+  digestUpdateSettingsInputSchema,
+  dashboardPeriodSchema,
+} from "./dashboard";

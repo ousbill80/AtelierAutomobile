@@ -3,16 +3,17 @@ import { auditRouter } from "./audit";
 import { authRouter } from "./auth";
 import { deviceRouter } from "./device";
 import { importRouter } from "./import";
+import { catalogRouter } from "./catalog";
+import { channelRouter } from "./channel";
+import { contactRouter } from "./contact";
+import { customerRouter } from "./customer";
+import { alertsRouter, dashboardRouter, digestRouter } from "./dashboard";
+import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
 import { memberRouter } from "./member";
 import { onboardingRouter } from "./onboarding";
-import { catalogRouter } from "./catalog";
-import { channelRouter } from "./channel";
 import { collectionsRouter } from "./collections";
-import { contactRouter } from "./contact";
-import { customerRouter } from "./customer";
-import { devOutboxRouter } from "./devOutbox";
 import { messagingRouter } from "./messaging";
 import { optOutRouter } from "./optOut";
 import { holidayRouter } from "./holiday";
@@ -65,6 +66,9 @@ export const appRouter = router({
   reminderSettings: reminderSettingsRouter,
   collections: collectionsRouter,
   payment: paymentRouter,
+  dashboard: dashboardRouter,
+  alerts: alertsRouter,
+  digest: digestRouter,
 });
 
 export type AppRouter = typeof appRouter;

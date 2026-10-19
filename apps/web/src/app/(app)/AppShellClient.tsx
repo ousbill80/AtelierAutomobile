@@ -64,6 +64,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     me.allowedSites.length > 1 ? (activeSite?.name ?? t("common.allSites")) : activeSite?.name;
 
   const mainItems = [
+    { href: "/tableau-de-bord", label: t("nav.ownerDashboard"), permission: "dashboard:owner" },
     { href: "/clients", label: t("nav.customers"), permission: "customer:read" },
     { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
     { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },
