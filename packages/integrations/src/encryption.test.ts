@@ -9,7 +9,8 @@ describe("loadEncryptionKey", () => {
   });
 
   it("refuse une clé absente", () => {
-    expect(() => loadEncryptionKey(undefined)).toThrow(/requis/);
+    // Chaîne vide plutôt que `undefined`, qui retomberait sur process.env.ENCRYPTION_KEY (défini en CI).
+    expect(() => loadEncryptionKey("")).toThrow(/requis/);
   });
 
   it("refuse une clé d'une longueur incorrecte", () => {

@@ -1,0 +1,16 @@
+name: Setup
+description: Node 20 + pnpm (version de package.json), dépendances, client Prisma
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: pnpm
+    - name: Dépendances
+      shell: bash
+      run: pnpm install --frozen-lockfile
+    - name: Client Prisma
+      shell: bash
+      run: pnpm --filter @atelieros/db exec prisma generate
