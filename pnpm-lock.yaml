@@ -126,6 +126,12 @@ importers:
       '@atelieros/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@atelieros/import':
+        specifier: workspace:*
+        version: link:../../packages/import
+      '@atelieros/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
       bullmq:
         specifier: ^5.34.4
         version: 5.81.5
