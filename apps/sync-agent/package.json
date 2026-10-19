@@ -1,0 +1,27 @@
+{
+  "name": "@atelieros/sync-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "description": "Agent local AtelierOS : lit la base du logiciel du garage et pousse les lignes chang\u00e9es (M13 RG-M13-28).",
+  "scripts": {
+    "agent": "tsx src/main.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@atelieros/core": "workspace:*",
+    "@atelieros/integrations": "workspace:*"
+  },
+  "devDependencies": {
+    "@atelieros/config": "workspace:*",
+    "@types/node": "^20",
+    "eslint": "^9",
+    "tsx": "^4.19.2",
+    "typescript": "^5",
+    "vitest": "^2.1.8"
+  }
+}

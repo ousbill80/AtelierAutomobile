@@ -99,10 +99,15 @@ export async function handleConfig(req: Request): Promise<Response> {
         .dataSource.findFirst({ where: { id: agent.dataSourceId } })
     : null;
   const config = source ? parseSqlSourceConfig(source.config, loadEncryptionKey()) : null;
+  const org = await adminDb.organization.findUniqueOrThrow({
+    where: { id: agent.organizationId },
+    select: { timezone: true },
+  });
   return Response.json({
     agent_id: agent.id,
     active: source?.isActive ?? false,
     schedule: source?.schedule ?? "0 2 * * *",
+    timezone: org.timezone,
     policy: config?.policy ?? "UPSERT",
     queries: Object.fromEntries(
       SYNC_ENTITY_ORDER.map((e) => [e, config?.queries[e]?.trim() || null]),

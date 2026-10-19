@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@atelieros/config": "workspace:*",
+    "@atelieros/sync-agent": "workspace:*",
     "@playwright/test": "^1.49.1",
     "@tailwindcss/turbopack": "^4",
     "@testing-library/react": "^16.1.0",
