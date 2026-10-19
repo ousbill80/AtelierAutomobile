@@ -154,7 +154,8 @@ describe("site router (M01)", () => {
       data: {
         organizationId: proOrg.id,
         customerId: customer.id,
-        plate: "1234AB01",
+        plate: "1234 AB 01",
+        plateCompact: "1234AB01",
         make: "Toyota",
         model: "Corolla",
       },
