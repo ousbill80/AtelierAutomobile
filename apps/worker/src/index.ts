@@ -47,6 +47,12 @@ async function main(): Promise<void> {
     await import("./queues/repairOrders");
   const { processRepairOrdersLateCheckJob, processRepairOrdersReadyFollowupJob } =
     await import("./jobs/repairOrders");
+  const { STOCK_JOB_NAMES, STOCK_QUEUE_NAME, scheduleStockJobs } = await import("./queues/stock");
+  const {
+    processPurchaseLateAlertsJob,
+    processStockIntegrityCheckJob,
+    processStockReorderSuggestionsJob,
+  } = await import("./jobs/stockJobs");
 
   logger.info("AtelierOS worker démarré");
 
@@ -183,6 +189,30 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "repairOrders : un job a échoué");
   });
 
+  // M07 §9 : suggestions de réapprovisionnement, contrôle d'intégrité, commandes en retard.
+  await scheduleStockJobs();
+
+  const stockWorker = new Worker(
+    STOCK_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case STOCK_JOB_NAMES.REORDER_SUGGESTIONS:
+          return processStockReorderSuggestionsJob();
+        case STOCK_JOB_NAMES.INTEGRITY_CHECK:
+          return processStockIntegrityCheckJob();
+        case STOCK_JOB_NAMES.PURCHASE_LATE_ALERTS:
+          return processPurchaseLateAlertsJob();
+        default:
+          logger.warn({ jobName: job.name }, "stock : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  stockWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "stock : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -192,6 +222,7 @@ async function main(): Promise<void> {
       reportsWorker.close(),
       appointmentsWorker.close(),
       repairOrdersWorker.close(),
+      stockWorker.close(),
     ]);
     process.exit(0);
   }

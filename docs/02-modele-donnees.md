@@ -60,7 +60,7 @@ model Organization {
   invoiceFooter   String?
   plan            PlanTier @default(STARTER)
   operatingMode   OperatingMode @default(FULL)   // REMINDERS_ONLY si le garage garde son ancien logiciel
-  settings        Json     @default("{}")        // préférences diverses (voir M15)
+  settings        Json     @default("{}")        // préférences diverses (voir M15) ; `stock` : allowNegative, dormantDays, countApprovalThreshold, autoIssueOnInvoice, customerPartFee (M07)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   sites           Site[]
@@ -708,7 +708,12 @@ model Product {
   isActive        Boolean @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  quantityScale   Int @default(1)             // M07 §14 — 10 pour litre/kg : quantités de stock en dixièmes
+  packSize        Int @default(1)             // M07 §14 — conditionnement d'achat (unités d'affichage)
+  crossReferences String[]                    // M07 §14 — références équivalentes / anciennes
+  lastIssuedAt    DateTime?                   // M07 §14 — dénormalisé pour les dormantes
   @@unique([organizationId, sku])
+  @@index([organizationId, barcode])          // M07 §14 (+ index trigram name/sku/oemReference)
 }
 
 model StockLevel {
@@ -719,6 +724,8 @@ model StockLevel {
   onHand         Int @default(0)
   reserved       Int @default(0)              // réservé pour des OR
   binLocation    String?                      // "Étagère B3"
+  minStock       Int?                         // M07 §14 — surcharge par site (unités de base)
+  maxStock       Int?                         // M07 §14
   @@unique([siteId, productId])
 }
 
@@ -735,6 +742,13 @@ model StockMovement {
   reason          String?
   createdById     String?
   createdAt       DateTime @default(now())
+  costAfter         Int?                      // M07 §14 — CMP après le mouvement (valorisation à date)
+  repairOrderLineId String?                   // M07 §14
+  reservationId     String?                   // M07 §14
+  transferId        String?                   // M07 §14
+  countId           String?                   // M07 §14
+  reasonCode        String?                   // M07 §14 — casse | perte | vol | peremption | demonte | erreur | autre
+  @@index([organizationId, productId, createdAt])
 }
 enum StockMovementType { PURCHASE_RECEIPT ISSUE_TO_RO RETURN_FROM_RO ADJUSTMENT TRANSFER_OUT TRANSFER_IN COUNT_CORRECTION SUPPLIER_RETURN }
 
@@ -764,6 +778,7 @@ model PurchaseOrder {
   repairOrderId  String?                      // commande liée à un OR
   total          Int @default(0)
   notes          String?
+  createdAt      DateTime @default(now())     // M07 §14
   lines          PurchaseOrderLine[]
   @@unique([organizationId, number])
 }
@@ -776,6 +791,87 @@ model PurchaseOrderLine {
   quantity        Int
   receivedQty     Int @default(0)
   unitCost        Int
+  receivedCost    Int?                        // M07 §14 — dernier coût réel reçu (écart de prix)
+}
+
+// M07 §14 — réservations, inventaires, transferts. Quantités en unités de base (RG-M07-01).
+model StockReservation {
+  id                String @id @default(cuid())
+  organizationId    String
+  siteId            String
+  productId         String
+  repairOrderId     String?                   // OR (M04) ; sans relation tant que M04 n'est pas branché
+  repairOrderLineId String?
+  quantity          Int
+  status            StockReservationStatus @default(RESERVED)
+  purchaseOrderId   String?                   // commande attendue si BACKORDERED
+  note              String?
+  createdById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([organizationId, siteId, productId, status])
+}
+enum StockReservationStatus { RESERVED BACKORDERED ISSUED RELEASED }
+
+model StockCount {
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String
+  number         String                       // INV-YOP-2026-00003
+  scope          Json @default("{}")          // { categories?: [], bins?: [] } ; vide = complet
+  status         StockCountStatus @default(DRAFT)
+  startedAt      DateTime?
+  submittedAt    DateTime?
+  validatedAt    DateTime?
+  validatedById  String?
+  varianceValue  Int @default(0)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          StockCountLine[]
+  @@unique([organizationId, number])
+}
+enum StockCountStatus { DRAFT IN_PROGRESS SUBMITTED VALIDATED CANCELLED }
+
+model StockCountLine {
+  id              String @id @default(cuid())
+  organizationId  String                      // RLS (04 §3)
+  stockCountId    String
+  productId       String
+  expectedQty     Int                         // onHand figé au démarrage
+  countedQty      Int?
+  unitCost        Int                         // CMP au démarrage
+  movedAfterCount Boolean @default(false)     // RG-M07-10
+  countedById     String?
+  countedAt       DateTime?
+  @@unique([stockCountId, productId])
+}
+
+model StockTransfer {
+  id             String @id @default(cuid())
+  organizationId String
+  number         String                       // TR-YOP-2026-00012
+  fromSiteId     String
+  toSiteId       String
+  status         StockTransferStatus @default(DRAFT)
+  shippedAt      DateTime?
+  receivedAt     DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          StockTransferLine[]
+  @@unique([organizationId, number])
+}
+enum StockTransferStatus { DRAFT IN_TRANSIT RECEIVED CANCELLED }
+
+model StockTransferLine {
+  id              String @id @default(cuid())
+  organizationId  String                      // RLS (04 §3)
+  stockTransferId String
+  productId       String
+  quantity        Int
+  receivedQty     Int @default(0)
 }
 
 // ───────────── Facturation, paiements, caisse ─────────────
@@ -1439,7 +1535,7 @@ model DocumentSequence {
   id             String @id @default(cuid())
   organizationId String
   siteId         String?
-  docType        String                          // OR | DEV | FAC | AV | REC | BC
+  docType        String                          // OR | DEV | FAC | AV | REC | BC | INV | TR (M07)
   year           Int
   lastValue      Int @default(0)
   @@unique([organizationId, siteId, docType, year])

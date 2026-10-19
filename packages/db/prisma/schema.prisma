@@ -67,6 +67,11 @@ model Organization {
   suppliers              Supplier[]
   purchaseOrders         PurchaseOrder[]
   purchaseOrderLines     PurchaseOrderLine[]
+  stockReservations      StockReservation[]
+  stockCounts            StockCount[]
+  stockCountLines        StockCountLine[]
+  stockTransfers         StockTransfer[]
+  stockTransferLines     StockTransferLine[]
   invoices               Invoice[]
   invoiceLines           InvoiceLine[]
   payments               Payment[]
@@ -152,20 +157,24 @@ model Site {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  bays           Bay[]
-  appointments   Appointment[]
-  repairOrders   RepairOrder[]
-  quotes         Quote[]
-  stockLevels    StockLevel[]
-  stockMovements StockMovement[]
-  purchaseOrders PurchaseOrder[]
-  invoices       Invoice[]
-  payments       Payment[]
-  cashSessions   CashSession[]
-  expenses       Expense[]
-  holidays       Holiday[]
-  resourceBlocks ResourceBlock[]
+  organization      Organization       @relation(fields: [organizationId], references: [id])
+  bays              Bay[]
+  appointments      Appointment[]
+  repairOrders      RepairOrder[]
+  quotes            Quote[]
+  stockLevels       StockLevel[]
+  stockMovements    StockMovement[]
+  purchaseOrders    PurchaseOrder[]
+  stockReservations StockReservation[]
+  stockCounts       StockCount[]
+  transfersOut      StockTransfer[]    @relation("StockTransferFrom")
+  transfersIn       StockTransfer[]    @relation("StockTransferTo")
+  invoices          Invoice[]
+  payments          Payment[]
+  cashSessions      CashSession[]
+  expenses          Expense[]
+  holidays          Holiday[]
+  resourceBlocks    ResourceBlock[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -265,6 +274,11 @@ model Membership {
   attendances                 Attendance[]
   quotesCreated               Quote[]               @relation("QuoteCreatedBy")
   stockMovementsCreated       StockMovement[]       @relation("StockMovementCreatedBy")
+  stockReservationsCreated    StockReservation[]    @relation("StockReservationCreatedBy")
+  stockCountsValidated        StockCount[]          @relation("StockCountValidatedBy")
+  stockCountsCreated          StockCount[]          @relation("StockCountCreatedBy")
+  stockCountLinesCounted      StockCountLine[]      @relation("StockCountLineCountedBy")
+  stockTransfersCreated       StockTransfer[]       @relation("StockTransferCreatedBy")
   paymentsReceived            Payment[]             @relation("PaymentReceivedBy")
   cashSessionsOpened          CashSession[]         @relation("CashSessionOpenedBy")
   cashSessionsClosed          CashSession[]         @relation("CashSessionClosedBy")
@@ -1233,7 +1247,7 @@ model QuoteLine {
 // ═══════════════════════════════════════════════════════════════
 
 model Product {
-  id                String   @id @default(cuid(2))
+  id                String    @id @default(cuid(2))
   organizationId    String
   sku               String
   name              String
@@ -1241,20 +1255,25 @@ model Product {
   oemReference      String?
   barcode           String?
   category          String? // Filtration, Freinage, Lubrifiants…
-  unit              String   @default("pièce") // pièce, litre, kit
-  purchasePrice     Int      @default(0) // dernier prix d'achat
-  averageCost       Int      @default(0) // CMP
-  salePrice         Int      @default(0)
+  unit              String    @default("pièce") // pièce, litre, kit
+  purchasePrice     Int       @default(0) // dernier prix d'achat
+  averageCost       Int       @default(0) // CMP
+  salePrice         Int       @default(0)
   minSalePrice      Int?
-  vatRate           Int      @default(18)
-  minStock          Int      @default(0)
+  vatRate           Int       @default(18)
+  minStock          Int       @default(0)
   reorderQty        Int?
-  isStocked         Boolean  @default(true) // false = commandé à la demande
+  isStocked         Boolean   @default(true) // false = commandé à la demande
   compatibleWith    String[] // "Toyota Corolla 2014-2019"
   defaultSupplierId String?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  // M07 §14
+  quantityScale     Int       @default(1) // 10 pour litre/kg : quantités de stock en dixièmes (RG-M07-01)
+  packSize          Int       @default(1) // conditionnement d'achat (en unités d'affichage)
+  crossReferences   String[] // références équivalentes / anciennes
+  lastIssuedAt      DateTime? // dénormalisé pour les dormantes (RG-M07-11)
 
   organization       Organization        @relation(fields: [organizationId], references: [id])
   defaultSupplier    Supplier?           @relation(fields: [defaultSupplierId], references: [id])
@@ -1264,8 +1283,13 @@ model Product {
   repairOrderLines   RepairOrderLine[]
   quoteLines         QuoteLine[]
   invoiceLines       InvoiceLine[]
+  stockReservations  StockReservation[]
+  stockCountLines    StockCountLine[]
+  stockTransferLines StockTransferLine[]
 
   @@unique([organizationId, sku])
+  @@index([organizationId, barcode])
+  @@index([defaultSupplierId])
 }
 
 model StockLevel {
@@ -1276,6 +1300,9 @@ model StockLevel {
   onHand         Int     @default(0)
   reserved       Int     @default(0) // réservé pour des OR
   binLocation    String? // "Étagère B3"
+  // M07 §14 — surcharges par site (unités de base)
+  minStock       Int?
+  maxStock       Int?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
@@ -1283,30 +1310,48 @@ model StockLevel {
 
   @@unique([siteId, productId])
   @@index([organizationId])
+  @@index([productId])
 }
 
 model StockMovement {
-  id              String            @id @default(cuid(2))
-  organizationId  String
-  siteId          String
-  productId       String
-  type            StockMovementType
-  quantity        Int // positif entrée, négatif sortie
-  unitCost        Int?
-  repairOrderId   String?
-  purchaseOrderId String?
-  reason          String?
-  createdById     String?
-  createdAt       DateTime          @default(now())
+  id                String            @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  productId         String
+  type              StockMovementType
+  quantity          Int // positif entrée, négatif sortie
+  unitCost          Int?
+  repairOrderId     String?
+  purchaseOrderId   String?
+  reason            String?
+  createdById       String?
+  createdAt         DateTime          @default(now())
+  // M07 §14
+  costAfter         Int? // CMP après le mouvement (historique de valorisation, RG-M07-09)
+  repairOrderLineId String? // ligne d'OR (M04), sans relation : branchée par l'étape 3.2
+  reservationId     String?
+  transferId        String?
+  countId           String?
+  reasonCode        String? // casse | perte | vol | peremption | demonte | erreur | autre
 
-  organization  Organization   @relation(fields: [organizationId], references: [id])
-  site          Site           @relation(fields: [siteId], references: [id])
-  product       Product        @relation(fields: [productId], references: [id])
-  repairOrder   RepairOrder?   @relation(fields: [repairOrderId], references: [id])
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  createdBy     Membership?    @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
+  organization  Organization      @relation(fields: [organizationId], references: [id])
+  site          Site              @relation(fields: [siteId], references: [id])
+  product       Product           @relation(fields: [productId], references: [id])
+  repairOrder   RepairOrder?      @relation(fields: [repairOrderId], references: [id])
+  purchaseOrder PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
+  createdBy     Membership?       @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
+  reservation   StockReservation? @relation(fields: [reservationId], references: [id])
+  transfer      StockTransfer?    @relation(fields: [transferId], references: [id])
+  count         StockCount?       @relation(fields: [countId], references: [id])
 
   @@index([organizationId, siteId, productId])
+  @@index([organizationId, productId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([repairOrderId])
+  @@index([purchaseOrderId])
+  @@index([reservationId])
+  @@index([transferId])
+  @@index([countId])
 }
 
 enum StockMovementType {
@@ -1352,6 +1397,7 @@ model PurchaseOrder {
   repairOrderId  String? // commande liée à un OR
   total          Int                 @default(0)
   notes          String?
+  createdAt      DateTime            @default(now()) // M07 §14 (tri des listes)
 
   organization   Organization        @relation(fields: [organizationId], references: [id])
   site           Site                @relation(fields: [siteId], references: [id])
@@ -1359,8 +1405,11 @@ model PurchaseOrder {
   repairOrder    RepairOrder?        @relation(fields: [repairOrderId], references: [id])
   lines          PurchaseOrderLine[]
   stockMovements StockMovement[]
+  reservations   StockReservation[]
 
   @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([supplierId])
 }
 
 enum PurchaseOrderStatus {
@@ -1371,6 +1420,152 @@ enum PurchaseOrderStatus {
   CANCELLED
 }
 
+// M07 §14 — réservations de pièces pour un OR (RG-M07-04). `repairOrderId` /
+// `repairOrderLineId` sans relation : les OR (M04) sont branchés par l'étape 3.2.
+model StockReservation {
+  id                String                 @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  productId         String
+  repairOrderId     String?
+  repairOrderLineId String?
+  quantity          Int // unités de base
+  status            StockReservationStatus @default(RESERVED)
+  purchaseOrderId   String? // commande attendue si BACKORDERED
+  note              String?
+  createdById       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  site           Site            @relation(fields: [siteId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  purchaseOrder  PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  createdBy      Membership?     @relation("StockReservationCreatedBy", fields: [createdById], references: [id])
+  stockMovements StockMovement[]
+
+  @@index([organizationId, siteId, productId, status])
+  @@index([organizationId, repairOrderId])
+  @@index([productId])
+  @@index([purchaseOrderId])
+}
+
+enum StockReservationStatus {
+  RESERVED
+  BACKORDERED
+  ISSUED
+  RELEASED
+}
+
+// M07 §14 — inventaires (RG-M07-10), numérotés INV-{site}-{année}-{seq} (A4).
+model StockCount {
+  id             String           @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  number         String // INV-YOP-2026-00003
+  scope          Json             @default("{}") // { categories?: [], bins?: [] } ; vide = complet
+  status         StockCountStatus @default(DRAFT)
+  startedAt      DateTime?
+  submittedAt    DateTime?
+  validatedAt    DateTime?
+  validatedById  String?
+  varianceValue  Int              @default(0)
+  createdById    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  site           Site             @relation(fields: [siteId], references: [id])
+  validatedBy    Membership?      @relation("StockCountValidatedBy", fields: [validatedById], references: [id])
+  createdBy      Membership?      @relation("StockCountCreatedBy", fields: [createdById], references: [id])
+  lines          StockCountLine[]
+  stockMovements StockMovement[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, siteId, status])
+}
+
+enum StockCountStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  VALIDATED
+  CANCELLED
+}
+
+model StockCountLine {
+  id              String    @id @default(cuid(2))
+  organizationId  String
+  stockCountId    String
+  productId       String
+  expectedQty     Int // onHand figé au démarrage (+ mouvements avant comptage)
+  countedQty      Int?
+  unitCost        Int // CMP au démarrage
+  movedAfterCount Boolean   @default(false) // mouvement survenu après le comptage (RG-M07-10)
+  countedById     String?
+  countedAt       DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  stockCount   StockCount   @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id])
+  countedBy    Membership?  @relation("StockCountLineCountedBy", fields: [countedById], references: [id])
+
+  @@unique([stockCountId, productId])
+  @@index([organizationId, stockCountId])
+  @@index([productId])
+}
+
+// M07 §14 — transferts inter-sites (RG-M07-15), numérotés TR-{site}-{année}-{seq} (A4).
+model StockTransfer {
+  id             String              @id @default(cuid(2))
+  organizationId String
+  number         String // TR-YOP-2026-00012
+  fromSiteId     String
+  toSiteId       String
+  status         StockTransferStatus @default(DRAFT)
+  shippedAt      DateTime?
+  receivedAt     DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  fromSite       Site                @relation("StockTransferFrom", fields: [fromSiteId], references: [id])
+  toSite         Site                @relation("StockTransferTo", fields: [toSiteId], references: [id])
+  createdBy      Membership?         @relation("StockTransferCreatedBy", fields: [createdById], references: [id])
+  lines          StockTransferLine[]
+  stockMovements StockMovement[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([fromSiteId])
+  @@index([toSiteId])
+}
+
+enum StockTransferStatus {
+  DRAFT
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+model StockTransferLine {
+  id              String @id @default(cuid(2))
+  organizationId  String
+  stockTransferId String
+  productId       String
+  quantity        Int // unités de base
+  receivedQty     Int    @default(0)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@index([organizationId, stockTransferId])
+  @@index([productId])
+}
+
 model PurchaseOrderLine {
   id              String @id @default(cuid(2))
   organizationId  String
@@ -1379,12 +1574,14 @@ model PurchaseOrderLine {
   quantity        Int
   receivedQty     Int    @default(0)
   unitCost        Int
+  receivedCost    Int? // M07 §14 — dernier coût réel reçu (écart de prix)
 
   organization  Organization  @relation(fields: [organizationId], references: [id])
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product       Product       @relation(fields: [productId], references: [id])
 
   @@index([organizationId, purchaseOrderId])
+  @@index([productId])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2445,7 +2642,7 @@ model DocumentSequence {
   id             String  @id @default(cuid(2))
   organizationId String
   siteId         String?
-  docType        String // OR | DEV | FAC | AV | REC | BC
+  docType        String // OR | DEV | FAC | AV | REC | BC | INV | TR
   year           Int
   lastValue      Int     @default(0)
 

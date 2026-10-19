@@ -366,5 +366,6 @@ export {
   digestUpdateSettingsInputSchema,
   dashboardPeriodSchema,
 } from "./dashboard";
+export * from "./stock";
 export * from "./appointment";
 export * from "./repairOrder";

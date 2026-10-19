@@ -358,6 +358,7 @@ async function main() {
           organizationId: organization.id,
           name,
           phone: phoneFor(800 + i),
+          whatsappPhone: phoneFor(800 + i),
           paymentTermsDays: 30,
         },
       }),
@@ -435,16 +436,30 @@ async function main() {
     { prefix: "PNEU", name: "Pneu 14-17 pouces", category: "Pneumatiques", price: 55000 },
     { prefix: "AMPO", name: "Ampoule phare", category: "Électricité", price: 2500 },
   ];
+  // M07 : compatibilités normalisées "MARQUE|MODELE|ANNEES" (RG-M07-02) et codes-barres de démo.
+  const compatibilityByIndex: Record<number, string[]> = {
+    1: ["TOYOTA|COROLLA|2014-2019", "TOYOTA|YARIS|*"],
+    2: ["HYUNDAI|TUCSON|2016-2022", "KIA|SPORTAGE|2016-2022"],
+    3: ["PEUGEOT|301|*", "CITROEN|C-ELYSEE|*"],
+    4: ["TOYOTA|HILUX|2016-2024", "ISUZU|D-MAX|*"],
+    5: ["MITSUBISHI|L200|*"],
+    6: ["KIA|PICANTO|*", "SUZUKI|SWIFT|*"],
+  };
   const products: Prisma.ProductCreateManyInput[] = [];
-  for (const family of partFamilies) {
+  for (const [familyIndex, family] of partFamilies.entries()) {
     for (let i = 1; i <= 8; i++) {
+      const isLitre = family.name.includes("litre");
       products.push({
         organizationId: organization.id,
         sku: `${family.prefix}-${String(i).padStart(2, "0")}`,
         name: `${family.name} — réf. ${i}`,
         brand: ["Bosch", "Valeo", "Mann Filter", "Total", "Michelin"][i % 5],
         category: family.category,
-        unit: family.name.includes("litre") ? "litre" : "pièce",
+        unit: isLitre ? "litre" : "pièce",
+        quantityScale: isLitre ? 10 : 1, // RG-M07-01 : dixièmes de litre
+        packSize: family.category === "Filtration" ? 12 : 1,
+        compatibleWith: compatibilityByIndex[i] ?? [],
+        barcode: `2${String(familyIndex + 10).padStart(2, "0")}${String(i).padStart(9, "0")}`,
         purchasePrice: Math.round(family.price * 0.7),
         averageCost: Math.round(family.price * 0.7),
         salePrice: family.price,
@@ -460,23 +475,89 @@ async function main() {
     where: { organizationId: organization.id },
   });
 
-  console.log("Seed — stocks...");
+  console.log("Seed — stocks (niveaux + mouvements d'inventaire initial, RG-M07-17)...");
+  // onHand = Σ StockMovement.quantity : le stock de départ est porté par une correction
+  // d'inventaire datée d'il y a 13 mois, valorisée au CMP.
   const stockRows: Prisma.StockLevelCreateManyInput[] = [];
+  const openingRows: Prisma.StockMovementCreateManyInput[] = [];
+  const openingDate = daysFrom(-400);
   for (const product of createdProducts) {
-    stockRows.push({
-      organizationId: organization.id,
-      siteId: siteYopougon.id,
-      productId: product.id,
-      onHand: 25,
-    });
-    stockRows.push({
-      organizationId: organization.id,
-      siteId: siteCocody.id,
-      productId: product.id,
-      onHand: 10,
-    });
+    for (const [site, qty] of [
+      [siteYopougon, 25],
+      [siteCocody, 10],
+    ] as const) {
+      const onHand = qty * product.quantityScale;
+      stockRows.push({
+        organizationId: organization.id,
+        siteId: site.id,
+        productId: product.id,
+        onHand,
+        binLocation: `${product.category?.slice(0, 3).toUpperCase() ?? "DIV"}-${product.sku.slice(-2)}`,
+      });
+      openingRows.push({
+        organizationId: organization.id,
+        siteId: site.id,
+        productId: product.id,
+        type: "COUNT_CORRECTION",
+        quantity: onHand,
+        unitCost: product.averageCost,
+        costAfter: product.averageCost,
+        reason: "Inventaire initial (reprise du stock)",
+        createdAt: openingDate,
+      });
+    }
   }
   await adminDb.stockLevel.createMany({ data: stockRows });
+  await adminDb.stockMovement.createMany({ data: openingRows });
+  // RG-M07-11 : quelques références sans sortie depuis longtemps (onglet « Dormantes »).
+  await adminDb.product.updateMany({
+    where: { organizationId: organization.id, sku: { startsWith: "AMPO-" } },
+    data: { lastIssuedAt: daysFrom(-220), createdAt: openingDate },
+  });
+  await adminDb.product.updateMany({
+    where: { organizationId: organization.id, sku: { startsWith: "COUR-" } },
+    data: { lastIssuedAt: daysFrom(-400), createdAt: openingDate },
+  });
+  await adminDb.product.updateMany({
+    where: {
+      organizationId: organization.id,
+      NOT: [{ sku: { startsWith: "AMPO-" } }, { sku: { startsWith: "COUR-" } }],
+    },
+    data: { lastIssuedAt: daysFrom(-12), createdAt: openingDate },
+  });
+
+  console.log("Seed — bon de commande en cours (BC-YOP-2026-00001, en retard)...");
+  const oilFilter = createdProducts.find((p) => p.sku === "FLT-H-01")!;
+  const frontPads = createdProducts.find((p) => p.sku === "PLQ-AV-01")!;
+  await adminDb.purchaseOrder.create({
+    data: {
+      organizationId: organization.id,
+      siteId: siteYopougon.id,
+      supplierId: suppliers[1]!.id,
+      number: "BC-YOP-2026-00001",
+      status: "SENT",
+      orderedAt: daysFrom(-6),
+      expectedAt: daysFrom(-2),
+      total: 20 * oilFilter.purchasePrice + 10 * frontPads.purchasePrice,
+      createdAt: daysFrom(-6),
+      lines: {
+        create: [
+          {
+            organizationId: organization.id,
+            productId: oilFilter.id,
+            quantity: 20,
+            unitCost: oilFilter.purchasePrice,
+          },
+          {
+            organizationId: organization.id,
+            productId: frontPads.id,
+            quantity: 10,
+            unitCost: frontPads.purchasePrice,
+          },
+        ],
+      },
+    },
+  });
 
   console.log("Seed — clients et véhicules (scénarios de démonstration)...");
 
@@ -1298,6 +1379,13 @@ async function main() {
         docType: "OR",
         year: 2026,
         lastValue: orSeqBySite[siteCocody.id]! - 1,
+      },
+      {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        docType: "BC",
+        year: 2026,
+        lastValue: 1,
       },
     ],
   });

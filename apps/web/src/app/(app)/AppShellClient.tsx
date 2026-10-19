@@ -91,6 +91,8 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       permission: "reminder:read",
     },
     { href: "/creances", label: t("nav.receivables"), permission: "receivable:read" },
+    { href: "/stock", label: t("nav.stock"), permission: "stock:read" },
+    { href: "/achats", label: t("nav.purchases"), permission: "purchase:read" },
     { href: "/import", label: t("nav.import"), permission: "import:run" },
   ].filter((item) => has(item.permission) && !("hidden" in item && item.hidden));
 
