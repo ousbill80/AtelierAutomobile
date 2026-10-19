@@ -1,5 +1,6 @@
 import { router } from "../trpc";
 import { authRouter } from "./auth";
+import { deviceRouter } from "./device";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
 import { memberRouter } from "./member";
@@ -17,6 +18,7 @@ export const appRouter = router({
   member: memberRouter,
   invitation: invitationRouter,
   role: roleRouter,
+  device: deviceRouter,
 });
 
 export type AppRouter = typeof appRouter;

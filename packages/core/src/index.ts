@@ -75,7 +75,7 @@ export {
   OTP_RESEND_COOLDOWN_SECONDS,
 } from "./auth/otp";
 
-export { isTrivialPin } from "./auth/pin";
+export { isTrivialPin, PIN_ELIGIBLE_ROLES, PIN_MAX_FAILED_ATTEMPTS } from "./auth/pin";
 
 export type { PickActiveSiteInput, SiteOption } from "./auth/site";
 export { canUseAllSitesOption, pickActiveSite } from "./auth/site";

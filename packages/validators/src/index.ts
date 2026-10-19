@@ -86,3 +86,6 @@ export {
   resetRoleDefaultsInputSchema,
   updateRolePermissionsInputSchema,
 } from "./role";
+
+export type { RegisterSharedDeviceInput } from "./device";
+export { registerSharedDeviceInputSchema } from "./device";

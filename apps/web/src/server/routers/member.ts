@@ -4,9 +4,9 @@ import {
   canInviteRole,
   hashPassword as hashSecret,
   isTrivialPin,
+  PIN_ELIGIBLE_ROLES,
   resolvePermissions,
   wouldRemoveLastOwner,
-  type Role,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
 import {
@@ -29,8 +29,6 @@ import {
   generateInvitationToken,
   hashInvitationToken,
 } from "../invitation-token";
-
-const PIN_ELIGIBLE_ROLES: readonly Role[] = ["MANAGER", "MECHANIC", "STOREKEEPER"];
 
 async function assertCanManageLastOwner(organizationId: string, membershipId: string) {
   const memberships = await db

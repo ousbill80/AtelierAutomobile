@@ -5,11 +5,14 @@ import {
   hashPassword,
   INITIAL_LOCKOUT_STATE,
   isLocked,
+  PIN_ELIGIBLE_ROLES,
+  PIN_MAX_FAILED_ATTEMPTS,
   recordFailedLogin,
   verifyPassword,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
 import {
+  pinSignInInputSchema,
   resetPasswordInputSchema,
   sendOtpInputSchema,
   signInInputSchema,
@@ -24,6 +27,7 @@ import {
 } from "../auth/otp-service";
 import { buildSessionCookie, clearSessionCookie } from "../cookies";
 import { authedProcedure, publicProcedure, router } from "../trpc";
+import { writeAuditLog } from "../audit";
 
 const RESET_TOKEN_EXPIRY_MINUTES = 10;
 
@@ -223,6 +227,107 @@ export const authRouter = router({
     ctx.resHeaders.append("set-cookie", buildSessionCookie(session.token, session.expiresAt));
 
     return { status: "OK" as const };
+  }),
+
+  pinSignIn: publicProcedure.input(pinSignInInputSchema).mutation(async ({ input, ctx }) => {
+    const now = new Date();
+    const device = await adminDb.trustedDevice.findUnique({ where: { deviceId: input.deviceId } });
+    if (!device || !device.isSharedWorkshopDevice || (device.expiresAt && device.expiresAt < now)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Cet appareil n'est pas enregistré comme appareil partagé d'atelier.",
+      });
+    }
+
+    const membership = await adminDb.membership.findUnique({
+      where: { id: input.membershipId },
+    });
+    if (
+      !membership ||
+      !membership.isActive ||
+      membership.organizationId !== device.organizationId ||
+      !PIN_ELIGIBLE_ROLES.includes(membership.role)
+    ) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Connexion par code PIN non autorisée pour ce membre.",
+      });
+    }
+
+    if (!membership.pinHash) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Aucun code PIN n'est défini pour ce membre.",
+      });
+    }
+
+    if (membership.pinFailedCount >= PIN_MAX_FAILED_ATTEMPTS) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Code PIN bloqué après plusieurs échecs. Connectez-vous avec votre mot de passe.",
+      });
+    }
+
+    const pinIsValid = await verifyPassword(membership.pinHash, input.pin);
+    if (!pinIsValid) {
+      const failedCount = membership.pinFailedCount + 1;
+      await adminDb.membership.update({
+        where: { id: membership.id },
+        data: { pinFailedCount: failedCount },
+      });
+      await writeAuditLog({
+        organizationId: membership.organizationId,
+        userId: membership.userId,
+        membershipId: membership.id,
+        action: "auth.login.failed",
+        entity: "Membership",
+        entityId: membership.id,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+      if (failedCount >= PIN_MAX_FAILED_ATTEMPTS) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Code PIN bloqué après plusieurs échecs. Connectez-vous avec votre mot de passe.",
+        });
+      }
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Code PIN incorrect." });
+    }
+
+    await adminDb.membership.update({
+      where: { id: membership.id },
+      data: { pinFailedCount: 0 },
+    });
+
+    const session = await adminDb.session.create({
+      data: {
+        userId: membership.userId,
+        token: randomBytes(32).toString("hex"),
+        expiresAt: computeSessionAbsoluteExpiry(now, true),
+        ipAddress: ctx.ip,
+        userAgent: ctx.userAgent,
+        deviceId: input.deviceId,
+        activeOrganizationId: membership.organizationId,
+        activeSiteId: device.siteId ?? membership.siteIds[0] ?? null,
+        isPinSession: true,
+        lastActiveAt: now,
+      },
+    });
+    ctx.resHeaders.append("set-cookie", buildSessionCookie(session.token, session.expiresAt));
+
+    await writeAuditLog({
+      organizationId: membership.organizationId,
+      userId: membership.userId,
+      membershipId: membership.id,
+      action: "auth.login.success",
+      entity: "Membership",
+      entityId: membership.id,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return { ok: true as const };
   }),
 
   resetPassword: publicProcedure.input(resetPasswordInputSchema).mutation(async ({ input }) => {
