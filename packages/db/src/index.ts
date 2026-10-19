@@ -21,3 +21,4 @@ export {
   type CollectionSettings,
   type SyncResult,
 } from "./receivables";
+export * from "./stock";
