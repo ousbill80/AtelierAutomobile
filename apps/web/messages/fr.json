@@ -121,10 +121,13 @@
     "logout": "Se déconnecter",
     "receivables": "Créances",
     "ownerDashboard": "Pilotage",
-    "reminderResults": "Résultats des relances",
+    "appointments": "Rendez-vous",
+    "appointmentsToday": "Accueil du jour",
+    "settingsPlanning": "Planning",
     "repairOrders": "Ordres de réparation",
     "settingsRepairOrders": "Ordres de réparation",
     "settingsInspection": "Modèles d'inspection",
+    "reminderResults": "Résultats des relances",
     "quotes": "Devis",
     "settingsQuotes": "Devis",
     "settingsLaborCatalog": "Catalogue main-d'œuvre"
@@ -360,7 +363,6 @@
     "receivable:manage": "Gérer les créances",
     "receivable:writeoff": "Passer une créance en perte",
     "receivable:dispute": "Gérer un litige de créance",
-    "receivable:credit_override": "Accorder une dérogation de crédit",
     "reminder:read": "Consulter les relances",
     "reminder:approve": "Approuver les relances",
     "reminder:rules_manage": "Gérer les règles de relance",
@@ -375,15 +377,13 @@
     "insurance:read": "Consulter les assurances",
     "insurance:manage": "Gérer les assurances",
     "ai:use": "Utiliser les suggestions IA",
-    "ai:configure": "Configurer l'IA"
+    "ai:configure": "Configurer l'IA",
+    "receivable:credit_override": "Accorder une dérogation de crédit"
   },
   "auditActions": {
     "auth.login.failed": "Connexion échouée",
     "auth.login.success": "Connexion réussie",
     "auth.otp_new_device": "Vérification nouvel appareil",
-    "contact.created": "Contact client ajouté",
-    "contact.deleted": "Contact client supprimé",
-    "contact.updated": "Contact client modifié",
     "member.deactivated": "Membre désactivé",
     "member.invited": "Membre invité",
     "member.joined": "Membre a rejoint l'organisation",
@@ -398,7 +398,10 @@
     "session.revoked": "Session révoquée",
     "site.created": "Site créé",
     "site.deactivated": "Site désactivé",
-    "site.updated": "Site modifié"
+    "site.updated": "Site modifié",
+    "contact.created": "Contact client ajouté",
+    "contact.deleted": "Contact client supprimé",
+    "contact.updated": "Contact client modifié"
   },
   "import": {
     "list": {
@@ -872,121 +875,287 @@
     },
     "dash": "—"
   },
-  "customers": {
-    "contacts": {
-      "title": "Contacts",
-      "add": "Ajouter un contact",
-      "createTitle": "Nouveau contact",
-      "editTitle": "Modifier le contact",
-      "deleteTitle": "Supprimer le contact",
-      "deleteConfirm": "Supprimer « {name} » ? Les messages déjà envoyés restent dans l'historique.",
-      "loadError": "Impossible de charger les contacts.",
-      "retry": "Réessayer",
-      "empty": {
-        "title": "Aucun contact.",
-        "description": "Sans contact coché, les messages partent au téléphone principal du client."
-      },
-      "badges": {
-        "primary": "Contact principal",
-        "reminders": "Reçoit les relances",
-        "invoices": "Reçoit les factures"
-      },
-      "fields": {
-        "name": "Nom",
-        "role": "Fonction",
-        "rolePlaceholder": "Responsable flotte, Comptabilité…",
-        "phone": "Téléphone",
-        "phone2": "Téléphone 2",
-        "email": "Email",
-        "isPrimary": "Contact principal",
-        "receivesReminders": "Reçoit les relances (visite technique, révision)",
-        "receivesInvoices": "Reçoit les factures et relances de créances"
-      }
-    }
-  },
-  "reminders": {
-    "types": {
-      "INSPECTION": "Visite technique",
-      "SERVICE": "Révision",
-      "RECEIVABLE": "Créance",
-      "APPOINTMENT": "Rendez-vous",
-      "QUOTE_FOLLOWUP": "Suivi de devis",
-      "VEHICLE_READY": "Véhicule prêt",
-      "INSURANCE_EXPIRY": "Assurance",
-      "SATISFACTION": "Satisfaction",
-      "RECOMMENDED_WORK": "Travaux recommandés",
-      "CUSTOM": "Personnalisée"
+  "appointments": {
+    "title": "Planning",
+    "newAppointment": "Nouveau RDV",
+    "phoneAppointment": "RDV téléphone",
+    "findSlot": "Trouver un créneau",
+    "today": "Aujourd'hui",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "views": {
+      "bay": "Jour par pont",
+      "mechanic": "Jour par mécanicien",
+      "week": "Semaine",
+      "list": "Liste"
     },
-    "status": {
-      "SENT": "Envoyée",
-      "FAILED": "Échec",
-      "CANCELLED": "Annulée",
-      "SKIPPED": "Ignorée"
-    },
-    "outcomes": {
-      "APPOINTMENT_BOOKED": "RDV pris",
-      "PAID": "Payé",
-      "PARTIALLY_PAID": "Payé en partie",
-      "PROMISED": "Promesse de paiement",
-      "REPLIED": "A répondu",
-      "NO_RESPONSE": "Sans réponse",
-      "OPTED_OUT": "Désinscrit",
-      "VISITED": "Venu au garage",
-      "QUOTE_ACCEPTED": "Devis accepté",
-      "VEHICLE_PICKED_UP": "Véhicule récupéré"
-    },
-    "results": {
-      "title": "Résultats des relances",
-      "description": "Relances envoyées, en échec, annulées ou ignorées sur la période, et ce qu'elles ont produit.",
-      "fromLabel": "Du",
-      "toLabel": "Au",
-      "statusFilterLabel": "Statut",
-      "typeFilterLabel": "Type",
-      "allStatuses": "Tous les statuts",
+    "filters": {
       "allTypes": "Tous les types",
-      "invalidRange": "La date de début doit précéder la date de fin.",
-      "kpiLabel": "{label} : {count}",
-      "outcomesTitle": "Issues constatées",
-      "outcomesEmpty": "Aucune issue enregistrée sur la période.",
-      "error": "Impossible de charger les résultats des relances.",
-      "retry": "Réessayer",
-      "loadMore": "Charger plus",
-      "noReason": "—",
-      "empty": {
-        "title": "Aucune relance sur cette période.",
-        "description": "Élargissez la période ou retirez les filtres."
-      },
-      "table": {
-        "type": "Type",
-        "customer": "Client",
-        "vehicle": "Véhicule",
-        "channel": "Canal",
-        "status": "Statut",
-        "when": "Date",
-        "reason": "Issue / motif"
-      }
-    }
-  },
-  "search": {
-    "placeholder": "Rechercher un client, une plaque, un n° de document…",
-    "ariaLabel": "Recherche globale",
-    "resultsLabel": "Résultats de recherche",
-    "minLength": "Tapez au moins 2 caractères.",
-    "error": "La recherche a échoué. Réessayez.",
-    "empty": "Aucun résultat pour « {query} ».",
-    "viaContact": "Contact : {name}",
-    "groups": {
-      "customers": "Clients",
-      "vehicles": "Véhicules",
-      "documents": "Documents"
+      "allStatuses": "Tous les statuts",
+      "allSources": "Toutes les sources"
     },
-    "documentTypes": {
-      "repair_order": "OR",
-      "quote": "Devis",
-      "invoice": "Facture",
-      "credit_note": "Avoir",
-      "receipt": "Reçu",
-      "purchase_order": "Bon de commande"
+    "unassigned": "À affecter",
+    "empty": "Aucun RDV ce jour. Les relances VT et révision vont remplir votre agenda.",
+    "emptyWeek": "Aucun RDV cette semaine.",
+    "loadError": "Impossible de charger le planning.",
+    "retry": "Réessayer",
+    "capacity": "Capacité {half} : {load} / {capacity}",
+    "capacityUnknown": "Capacité {half} : {load} réservées (aucun mécanicien enregistré)",
+    "halfDay": {
+      "AM": "matin",
+      "PM": "après-midi"
+    },
+    "occupancy": "{percent} % d'occupation",
+    "appointmentsCount": "{count} RDV",
+    "blocked": "Indisponible",
+    "closed": "Fermé",
+    "repairOrderBlock": "OR en cours",
+    "walkIn": "Sans RDV",
+    "mechanicLoad": "{planned} planifiées / {available} disponibles",
+    "mechanicAbsent": "Absent",
+    "noMechanics": "Aucun mécanicien rattaché à ce site.",
+    "noBays": "Aucun pont actif. Ajoutez-en dans Paramètres › Sites.",
+    "moveRefused": "Déplacement refusé",
+    "moved": "RDV déplacé.",
+    "notifyOnMove": "Prévenir le client",
+    "altHint": "Maintenez Alt en déposant pour forcer une surréservation (chef d'atelier).",
+    "dragHint": "Glissez un RDV pour le déplacer ; étirez le bas pour changer sa durée.",
+    "types": {
+      "SERVICE": "Révision",
+      "INSPECTION_PREP": "Pré-VT",
+      "REPAIR": "Réparation",
+      "DIAGNOSTIC": "Diagnostic",
+      "BODYWORK": "Carrosserie",
+      "TIRES": "Pneus",
+      "OTHER": "Autre"
+    },
+    "statuses": {
+      "BOOKED": "Réservé",
+      "CONFIRMED": "Confirmé",
+      "ARRIVED": "Arrivé",
+      "COMPLETED": "Terminé",
+      "NO_SHOW": "Absent",
+      "CANCELLED": "Annulé"
+    },
+    "sources": {
+      "STAFF": "Comptoir",
+      "PHONE": "Téléphone",
+      "WHATSAPP": "WhatsApp",
+      "PORTAL": "Portail",
+      "REMINDER": "Relance"
+    },
+    "via": {
+      "phone": "Téléphone",
+      "whatsapp": "WhatsApp",
+      "sms": "SMS",
+      "portal": "Portail",
+      "in_person": "En personne",
+      "email": "E-mail"
+    },
+    "badges": {
+      "overbooked": "Surréservation",
+      "outsideHours": "Hors horaires",
+      "noShows": "{count} absences",
+      "inspectionSoon": "VT bientôt",
+      "vehicleToIdentify": "Véhicule à identifier",
+      "late": "En retard / absent ?",
+      "noChannel": "Sans WhatsApp ni SMS",
+      "mandatoryConfirmation": "Confirmation obligatoire"
+    },
+    "form": {
+      "title": "Nouveau rendez-vous",
+      "customer": "Client",
+      "customerSearch": "Nom, téléphone ou plaque",
+      "customerNone": "Aucun client trouvé.",
+      "quickCreate": "Créer le client",
+      "quickCreateTitle": "Nouveau client",
+      "lastName": "Nom",
+      "firstName": "Prénom",
+      "phone": "Téléphone",
+      "change": "Changer",
+      "vehicle": "Véhicule",
+      "noVehicle": "Véhicule à identifier",
+      "type": "Type",
+      "date": "Date",
+      "time": "Heure",
+      "duration": "Durée (min)",
+      "bay": "Pont",
+      "noBay": "À affecter",
+      "mechanic": "Mécanicien",
+      "noMechanic": "Non affecté",
+      "complaint": "Motif / doléances",
+      "complaintHint": "Repris dans l'OR à l'arrivée du véhicule.",
+      "source": "Source",
+      "notes": "Notes internes",
+      "notify": "Envoyer la confirmation au client",
+      "save": "Enregistrer",
+      "saveAndNotify": "Enregistrer et envoyer la confirmation",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler",
+      "inspectionPrep": "VT ou révision proche : ajouter une pré-visite technique (+30 min) ?",
+      "addInspectionPrep": "Ajouter",
+      "slotsTitle": "Prochains créneaux libres",
+      "slotsEmpty": "Aucun créneau libre compatible sur les 14 prochains jours.",
+      "slotsLoading": "Recherche des créneaux…",
+      "useSlot": "Choisir",
+      "suggestTitle": "Suggestion",
+      "suggestPlaceholder": "Intention du client (ex. « samedi matin »)",
+      "suggest": "Proposer",
+      "forceTitle": "Confirmer le forçage",
+      "forceConfirm": "Forcer",
+      "created": "RDV enregistré.",
+      "createdNoChannel": "RDV enregistré. Aucun canal écrit : confirmez par téléphone.",
+      "warnings": "Avertissements",
+      "required": "Choisissez un client."
+    },
+    "panel": {
+      "title": "Rendez-vous",
+      "close": "Fermer",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "openCustomer": "Fiche client",
+      "when": "Date",
+      "duration": "Durée",
+      "bay": "Pont",
+      "mechanic": "Mécanicien",
+      "advisor": "Conseiller",
+      "source": "Source",
+      "fromReminder": "Relance d'origine : {type} ({step})",
+      "complaint": "Motif",
+      "notes": "Notes",
+      "messages": "Messages liés",
+      "noMessages": "Aucun message envoyé.",
+      "inspection": "VT : {date}",
+      "service": "Révision : {date}",
+      "confirm": "Client a confirmé par téléphone",
+      "arrived": "Client arrivé",
+      "move": "Déplacer",
+      "cancel": "Annuler le RDV",
+      "noShow": "Marquer absent",
+      "revertNoShow": "Corriger : client arrivé",
+      "sendReminder": "Envoyer un rappel maintenant",
+      "sendNoShowMessage": "Proposer de reprogrammer",
+      "complete": "Terminer sans OR",
+      "openOrder": "Ouvrir l'OR {number}",
+      "cancelGroup": "Annuler tout le groupe",
+      "reminderSent": "Rappel envoyé.",
+      "noShowMessageSent": "Message de reprogrammation envoyé.",
+      "confirmed": "RDV confirmé.",
+      "loadError": "Impossible de charger ce rendez-vous."
+    },
+    "cancel": {
+      "title": "Annuler le rendez-vous",
+      "by": "Annulé par",
+      "byGarage": "Le garage",
+      "byCustomer": "Le client",
+      "reason": "Motif",
+      "reasons": {
+        "PART_UNAVAILABLE": "Pièce non disponible",
+        "WORKSHOP_OVERLOADED": "Atelier surchargé",
+        "MECHANIC_ABSENT": "Mécanicien absent",
+        "DUPLICATE": "Doublon",
+        "OTHER": "Autre"
+      },
+      "details": "Précisions",
+      "notify": "Prévenir le client (message avec lien pour reprogrammer)",
+      "submit": "Annuler le RDV",
+      "done": "RDV annulé."
+    },
+    "move": {
+      "title": "Déplacer le rendez-vous",
+      "submit": "Déplacer"
+    },
+    "reason": {
+      "title": "Motif",
+      "label": "Motif (obligatoire)",
+      "submit": "Valider"
+    },
+    "todayPage": {
+      "title": "Accueil du jour",
+      "summary": "{total} RDV · {confirmed} confirmés · {unanswered} sans réponse",
+      "upcoming": "À venir",
+      "late": "En retard",
+      "arrived": "Arrivés",
+      "noShow": "Absents",
+      "phoneConfirmations": "Confirmations à obtenir par téléphone",
+      "phoneConfirmationsHint": "RDV de demain non confirmés : clients sans canal écrit, avec absences antérieures, ou sans réponse après 18:00.",
+      "nothing": "Rien ici.",
+      "empty": "Aucun RDV aujourd'hui."
+    },
+    "settings": {
+      "title": "Planning",
+      "description": "Durées, capacité, portail de prise de RDV et indisponibilités.",
+      "durations": "Durées par type (minutes)",
+      "grid": "Grille et capacité",
+      "step": "Pas de la grille (min)",
+      "lateAfter": "Retard avant « absent ? » (min)",
+      "noShowTime": "Heure du passage automatique en absent",
+      "maxPerHalfDay": "RDV maximum par demi-journée",
+      "maxPerHalfDayHint": "Vide = nombre de ponts actifs × 2.",
+      "productivity": "Taux de productivité (%)",
+      "lunchBreak": "Pause de midi",
+      "lunchBreakEnabled": "Appliquer une pause aux créneaux",
+      "lunchFrom": "De",
+      "lunchTo": "À",
+      "portal": "Portail de prise de RDV",
+      "portalEnabled": "Réservation en ligne activée",
+      "portalTypes": "Types réservables en ligne",
+      "portalApproval": "Validation du garage requise (statut Réservé)",
+      "portalLead": "Délai minimum de réservation (h)",
+      "portalHorizon": "Horizon (jours)",
+      "autoAssignBay": "Affecter automatiquement un pont compatible",
+      "holidays": "Jours fériés",
+      "holidaysHint": "Les jours fériés et fermetures se gèrent dans Paramètres › Sites.",
+      "save": "Enregistrer",
+      "saved": "Paramètres enregistrés.",
+      "blocks": "Indisponibilités",
+      "blocksEmpty": "Aucune indisponibilité à venir.",
+      "blockTarget": "Concerne",
+      "blockSite": "Tout le site",
+      "blockBay": "Pont : {name}",
+      "blockMechanic": "Mécanicien : {name}",
+      "blockFrom": "Début",
+      "blockTo": "Fin",
+      "blockReason": "Motif",
+      "blockReasonPlaceholder": "Maintenance pont, congé, formation…",
+      "blockAdd": "Ajouter l'indisponibilité",
+      "blockForce": "Ajouter quand même (les RDV passent « À affecter »)",
+      "blockDelete": "Supprimer",
+      "blockCreated": "Indisponibilité ajoutée.",
+      "forbidden": "Seul le chef d'atelier ou le gérant peut modifier ces paramètres."
+    },
+    "portal": {
+      "title": "Prendre rendez-vous",
+      "manageTitle": "Votre rendez-vous",
+      "vehicle": "Véhicule : {vehicle}",
+      "type": "Motif",
+      "chooseDay": "Choisissez un jour",
+      "chooseSlot": "Choisissez une heure",
+      "morning": "Matin",
+      "afternoon": "Après-midi",
+      "noSlots": "Aucun créneau disponible ce jour-là.",
+      "comment": "Commentaire (facultatif)",
+      "book": "Réserver",
+      "booked": "C'est réservé ! Vous allez recevoir une confirmation par message.",
+      "bookedPending": "Demande envoyée. Le garage vous confirmera le rendez-vous par message.",
+      "summary": "{date}",
+      "status": "Statut : {status}",
+      "confirm": "Je confirme",
+      "confirmed": "Merci, votre rendez-vous est confirmé.",
+      "reschedule": "Déplacer",
+      "rescheduled": "Votre rendez-vous a été déplacé.",
+      "cancel": "Annuler",
+      "cancelConfirm": "Confirmer l'annulation",
+      "cancelled": "Votre rendez-vous est annulé.",
+      "expired": "Ce lien a expiré.",
+      "expiredHint": "Appelez le garage pour prendre rendez-vous.",
+      "notFound": "Lien introuvable.",
+      "callGarage": "Appeler le garage",
+      "loading": "Chargement…",
+      "error": "Une erreur est survenue. Réessayez."
+    },
+    "errors": {
+      "generic": "Action impossible. Réessayez."
     }
   },
   "repairOrders": {
@@ -1610,6 +1779,123 @@
       "offline": "Pas de réseau : la réception est conservée sur cet appareil."
     },
     "loadMore": "Afficher plus"
+  },
+  "customers": {
+    "contacts": {
+      "title": "Contacts",
+      "add": "Ajouter un contact",
+      "createTitle": "Nouveau contact",
+      "editTitle": "Modifier le contact",
+      "deleteTitle": "Supprimer le contact",
+      "deleteConfirm": "Supprimer « {name} » ? Les messages déjà envoyés restent dans l'historique.",
+      "loadError": "Impossible de charger les contacts.",
+      "retry": "Réessayer",
+      "empty": {
+        "title": "Aucun contact.",
+        "description": "Sans contact coché, les messages partent au téléphone principal du client."
+      },
+      "badges": {
+        "primary": "Contact principal",
+        "reminders": "Reçoit les relances",
+        "invoices": "Reçoit les factures"
+      },
+      "fields": {
+        "name": "Nom",
+        "role": "Fonction",
+        "rolePlaceholder": "Responsable flotte, Comptabilité…",
+        "phone": "Téléphone",
+        "phone2": "Téléphone 2",
+        "email": "Email",
+        "isPrimary": "Contact principal",
+        "receivesReminders": "Reçoit les relances (visite technique, révision)",
+        "receivesInvoices": "Reçoit les factures et relances de créances"
+      }
+    }
+  },
+  "reminders": {
+    "types": {
+      "INSPECTION": "Visite technique",
+      "SERVICE": "Révision",
+      "RECEIVABLE": "Créance",
+      "APPOINTMENT": "Rendez-vous",
+      "QUOTE_FOLLOWUP": "Suivi de devis",
+      "VEHICLE_READY": "Véhicule prêt",
+      "INSURANCE_EXPIRY": "Assurance",
+      "SATISFACTION": "Satisfaction",
+      "RECOMMENDED_WORK": "Travaux recommandés",
+      "CUSTOM": "Personnalisée"
+    },
+    "status": {
+      "SENT": "Envoyée",
+      "FAILED": "Échec",
+      "CANCELLED": "Annulée",
+      "SKIPPED": "Ignorée"
+    },
+    "outcomes": {
+      "APPOINTMENT_BOOKED": "RDV pris",
+      "PAID": "Payé",
+      "PARTIALLY_PAID": "Payé en partie",
+      "PROMISED": "Promesse de paiement",
+      "REPLIED": "A répondu",
+      "NO_RESPONSE": "Sans réponse",
+      "OPTED_OUT": "Désinscrit",
+      "VISITED": "Venu au garage",
+      "QUOTE_ACCEPTED": "Devis accepté",
+      "VEHICLE_PICKED_UP": "Véhicule récupéré"
+    },
+    "results": {
+      "title": "Résultats des relances",
+      "description": "Relances envoyées, en échec, annulées ou ignorées sur la période, et ce qu'elles ont produit.",
+      "fromLabel": "Du",
+      "toLabel": "Au",
+      "statusFilterLabel": "Statut",
+      "typeFilterLabel": "Type",
+      "allStatuses": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "invalidRange": "La date de début doit précéder la date de fin.",
+      "kpiLabel": "{label} : {count}",
+      "outcomesTitle": "Issues constatées",
+      "outcomesEmpty": "Aucune issue enregistrée sur la période.",
+      "error": "Impossible de charger les résultats des relances.",
+      "retry": "Réessayer",
+      "loadMore": "Charger plus",
+      "noReason": "—",
+      "empty": {
+        "title": "Aucune relance sur cette période.",
+        "description": "Élargissez la période ou retirez les filtres."
+      },
+      "table": {
+        "type": "Type",
+        "customer": "Client",
+        "vehicle": "Véhicule",
+        "channel": "Canal",
+        "status": "Statut",
+        "when": "Date",
+        "reason": "Issue / motif"
+      }
+    }
+  },
+  "search": {
+    "placeholder": "Rechercher un client, une plaque, un n° de document…",
+    "ariaLabel": "Recherche globale",
+    "resultsLabel": "Résultats de recherche",
+    "minLength": "Tapez au moins 2 caractères.",
+    "error": "La recherche a échoué. Réessayez.",
+    "empty": "Aucun résultat pour « {query} ».",
+    "viaContact": "Contact : {name}",
+    "groups": {
+      "customers": "Clients",
+      "vehicles": "Véhicules",
+      "documents": "Documents"
+    },
+    "documentTypes": {
+      "repair_order": "OR",
+      "quote": "Devis",
+      "invoice": "Facture",
+      "credit_note": "Avoir",
+      "receipt": "Reçu",
+      "purchase_order": "Bon de commande"
+    }
   },
   "quotes": {
     "title": "Devis",

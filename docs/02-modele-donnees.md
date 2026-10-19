@@ -96,6 +96,8 @@ model Bay {                              // pont / poste de travail
   name           String                  // "Pont 1", "Carrosserie", "Diagnostic"
   type           BayType @default(LIFT)
   isActive       Boolean @default(true)
+  sortOrder      Int     @default(0)     // M03 §14 : ordre des colonnes du planning
+  color          String?                 // M03 §14
 }
 enum BayType { LIFT DIAGNOSTIC BODYWORK PAINT WASH OTHER }
 
@@ -374,12 +376,54 @@ model Appointment {
   reminderId     String?                       // relance à l'origine du RDV (attribution M12)
   notes          String?
   repairOrderId  String?                       // OR créé à l'arrivée
+  // M03 §14
+  mechanicId        String?                    // Membership.id du mécanicien prévu
+  complaint         String?                    // motif / doléances (repris dans l'OR)
+  laborOperationIds String[]                   // opérations prévues (durée, devis)
+  quoteId           String?                    // RDV planifié pour exécuter un devis accepté (relation posée par M05)
+  confirmedAt       DateTime?
+  confirmedVia      String?                    // phone | whatsapp | sms | portal | in_person
+  arrivedAt         DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       String?                    // CUSTOMER | GARAGE
+  cancelReason      String?
+  noShowAt          DateTime?
+  completedAt       DateTime?                  // M03 : horodatage du passage COMPLETED (OR livré ou « Terminer sans OR »)
+  groupId           String?                    // RDV groupés (flotte, RG-M03-14)
+  overbooked        Boolean  @default(false)   // surréservation volontaire (planning:manage)
+  outsideHours      Boolean  @default(false)   // forcé hors horaires (badge « Hors horaires »)
+  publicToken       String?  @unique           // hash du PortalToken (A2) — raccourci de recherche
+  createdById       String?                    // Membership.id
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  @@index([organizationId, siteId, startsAt])
+  @@index([organizationId, customerId])
+  @@index([organizationId, status, startsAt])
+  @@index([organizationId, groupId])
+  // Contrainte d'exclusion (migration 20261019180000_m03_rendez_vous, extension btree_gist) :
+  //   EXCLUDE USING gist ("bayId" WITH =, tsrange("startsAt","endsAt",'[)') WITH &&)
+  //   WHERE ("bayId" IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW') AND NOT overbooked)
+  // (tsrange et non tstzrange : les colonnes DateTime Prisma sont des TIMESTAMP(3) en UTC.)
 }
 enum AppointmentType { SERVICE INSPECTION_PREP REPAIR DIAGNOSTIC BODYWORK TIRES OTHER }
 enum AppointmentStatus { BOOKED CONFIRMED ARRIVED NO_SHOW CANCELLED COMPLETED }
 enum AppointmentSource { STAFF PHONE WHATSAPP PORTAL REMINDER }
+
+model ResourceBlock {                            // M03 §14 — indisponibilités : pont, mécanicien ou site entier
+  id             String   @id @default(cuid())
+  organizationId String
+  siteId         String
+  bayId          String?                       // pont bloqué (maintenance, panne)
+  membershipId   String?                       // mécanicien absent (congé, formation)
+  startsAt       DateTime                      // bayId et membershipId null = site entier fermé
+  endsAt         DateTime
+  reason         String                        // "Maintenance pont", "Congé", "Formation"
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, siteId, startsAt])
+}
+// Paramètres M03 dans Organization.settings : appointments.* et planning.* (M03 §6) ;
+// les jours fériés restent dans Holiday (04 A1), pas de clé settings.holidays.
 
 // ───────────── Ordres de réparation ─────────────
 
