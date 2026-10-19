@@ -1,7 +1,10 @@
 import { router } from "../trpc";
 import { authRouter } from "./auth";
+import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
+import { memberRouter } from "./member";
 import { orgRouter } from "./org";
+import { roleRouter } from "./role";
 import { sessionRouter } from "./session";
 import { siteRouter } from "./site";
 
@@ -11,6 +14,9 @@ export const appRouter = router({
   session: sessionRouter,
   org: orgRouter,
   site: siteRouter,
+  member: memberRouter,
+  invitation: invitationRouter,
+  role: roleRouter,
 });
 
 export type AppRouter = typeof appRouter;

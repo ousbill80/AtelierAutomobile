@@ -83,6 +83,9 @@ export { canUseAllSitesOption, pickActiveSite } from "./auth/site";
 export type { PlanLimits, PlanTier } from "./auth/plan";
 export { canAddMember, canAddSite, PLAN_LIMITS, PLAN_TIERS } from "./auth/plan";
 
+export type { MembershipRoleState } from "./auth/ownership";
+export { wouldRemoveLastOwner } from "./auth/ownership";
+
 export type { SessionRecord } from "./auth/session";
 export {
   computeSessionAbsoluteExpiry,
