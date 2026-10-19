@@ -436,7 +436,18 @@ export const repairOrderRouter = router({
               },
             },
             statusHistory: { orderBy: { createdAt: "asc" } },
-            quotes: { select: { id: true, number: true, status: true, total: true, sentAt: true } },
+            quotes: {
+              where: { deletedAt: null },
+              orderBy: [{ number: "desc" }, { version: "desc" }],
+              select: {
+                id: true,
+                number: true,
+                version: true,
+                status: true,
+                total: true,
+                sentAt: true,
+              },
+            },
             invoices: {
               select: { id: true, number: true, status: true, total: true, balance: true },
             },

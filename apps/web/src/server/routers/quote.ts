@@ -392,6 +392,13 @@ async function quoteDetail(tx: Tx, ctx: OrgCtx, org: OrgQuoteContext, quote: Quo
       }),
     ]);
   const names = new Map(members.map((m) => [m.id, m.user.name]));
+  // US-M05-07 « Par WhatsApp » : messages entrants récents du client, liables comme preuve.
+  const inboundMessages = await tx.message.findMany({
+    where: { customerId: quote.customerId, direction: "INBOUND" },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { id: true, body: true, channel: true, createdAt: true },
+  });
   const totals = totalsFor(quote, lines, org.vatEnabled);
   const groups = groupQuoteLines(lines, totals.lines);
   const canSeeCost = ctx.permissions.has("product:view_cost");
@@ -511,6 +518,7 @@ async function quoteDetail(tx: Tx, ctx: OrgCtx, org: OrgQuoteContext, quote: Quo
     })),
     links: tokens,
     alreadyApproved,
+    inboundMessages,
     createdByName: quote.createdById ? (names.get(quote.createdById) ?? null) : null,
     recordedByName: quote.recordedById ? (names.get(quote.recordedById) ?? null) : null,
     timeZone: org.timeZone,
