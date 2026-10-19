@@ -21,7 +21,9 @@ export function middleware(request: NextRequest) {
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
   const isInvitationPath = pathname.startsWith("/invitation/");
-  const isPublicPath = isAuthPath || isInvitationPath;
+  // M04/M14 — portail client sans compte (suivi de réparation, signature à distance).
+  const isPortalPath = pathname.startsWith("/p/");
+  const isPublicPath = isAuthPath || isInvitationPath || isPortalPath;
 
   if (!hasSession && !isPublicPath) {
     const url = request.nextUrl.clone();

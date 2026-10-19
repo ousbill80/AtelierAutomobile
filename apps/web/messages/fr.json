@@ -1480,6 +1480,7 @@
     "errors": {
       "generic": "Une erreur est survenue. Réessayez.",
       "offline": "Pas de réseau : la réception est conservée sur cet appareil."
-    }
+    },
+    "loadMore": "Afficher plus"
   }
 }

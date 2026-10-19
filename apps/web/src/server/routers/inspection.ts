@@ -377,7 +377,7 @@ export const inspectionTemplateRouter = router({
         data: {
           organizationId: ctx.organizationId,
           name: `${existing.name} (copie)`,
-          items: existing.items as Prisma.InputJsonValue,
+          items: existing.items as unknown as Prisma.InputJsonValue,
         },
       });
     }),

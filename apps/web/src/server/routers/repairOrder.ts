@@ -375,6 +375,7 @@ export const repairOrderRouter = router({
         items,
         nextCursor: rows.length > input.limit ? rows[input.limit - 1]!.id : null,
         counters: { active, awaitingApproval: awaiting, waitingParts, ready, late },
+        timeZone: org.timeZone,
       };
     }),
 
@@ -397,6 +398,7 @@ export const repairOrderRouter = router({
           status,
           cards: cards.filter((c) => c.status === status),
         })),
+        timeZone: org.timeZone,
       };
     }),
 
@@ -522,6 +524,7 @@ export const repairOrderRouter = router({
           checkIn: parseCheckIn(order),
           totals,
           vatEnabled: org.vatEnabled,
+          timeZone: org.timeZone,
           late: isOverdueOrder(order, now),
           attachments,
           transitions: availableTransitions(order, order.lines, tctx),
@@ -926,7 +929,7 @@ export const repairOrderRouter = router({
           mileageIn: checkIn.odometerUnreadable ? null : (input.mileageIn ?? null),
           fuelLevel: input.fuelLevel,
           complaint: input.complaint,
-          checkIn: checkInJson as Prisma.InputJsonValue,
+          checkIn: checkInJson as unknown as Prisma.InputJsonValue,
           promisedAt:
             input.promisedAt ??
             suggestPromisedAt(
@@ -1280,7 +1283,7 @@ export const repairOrderRouter = router({
           items: input.checklist.map((c) => ({ ...c, label: labels.get(c.key) ?? c.key })),
           roadTest: input.roadTest ?? null,
           comment: input.comment ?? null,
-        } as Prisma.InputJsonValue;
+        } as unknown as Prisma.InputJsonValue;
 
         if (input.reject) {
           const to = assertTransition(order, lines, "qc_reject", {
@@ -1458,7 +1461,7 @@ export const repairOrderRouter = router({
                 signerName: input.signature?.signerName,
                 at: now.toISOString(),
               },
-            } as Prisma.InputJsonValue,
+            } as unknown as Prisma.InputJsonValue,
           },
         });
 
@@ -1691,7 +1694,7 @@ export const repairOrderRouter = router({
       };
       await adminDb.organization.update({
         where: { id: ctx.organizationId },
-        data: { settings: next as Prisma.InputJsonValue },
+        data: { settings: next as unknown as Prisma.InputJsonValue },
       });
       await writeAuditLog({
         organizationId: ctx.organizationId,

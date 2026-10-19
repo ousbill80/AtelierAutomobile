@@ -98,7 +98,9 @@ export async function buildLineData(
     type: line.type,
     productId,
     laborOperationId,
-    description: line.description,
+    description: line.supplierName
+      ? `${line.description} — ${line.supplierName}`
+      : line.description,
     quantity,
     unitPrice,
     discountRate: line.discountRate ?? customer.discountRate ?? 0,

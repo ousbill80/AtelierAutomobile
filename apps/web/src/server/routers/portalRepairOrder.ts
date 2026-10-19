@@ -176,7 +176,7 @@ export const portalRepairOrderRouter = router({
               ...checkIn,
               remoteSignaturePending: false,
               signerName: input.signerName,
-            } as Prisma.InputJsonValue,
+            } as unknown as Prisma.InputJsonValue,
           },
         });
         // RG-M04-08 : les travaux saisis à la réception sont approuvés par la signature.

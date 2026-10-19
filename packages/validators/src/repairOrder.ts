@@ -253,7 +253,8 @@ export const checkInInputSchema = z.object({
   vehicleId: id,
   appointmentId: id.optional(),
   mileageIn: z.number().int().min(0).max(5_000_000).nullable().optional(),
-  fuelLevel: z.number().int().min(0).max(8),
+  /** null = non renseigné (refus RG-M04-03 avec message explicite). */
+  fuelLevel: z.number().int().min(0).max(8).nullable(),
   checkIn: CheckInSchema,
   complaint: z.string().trim().max(4000),
   promisedAt: z.coerce.date().optional(),
