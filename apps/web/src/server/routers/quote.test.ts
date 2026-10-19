@@ -288,6 +288,9 @@ describe("quote routers (M05)", () => {
     await adminDb.vehicle.deleteMany({ where });
     await adminDb.customer.deleteMany({ where });
     await adminDb.session.deleteMany({ where: { userId: { in: users } } });
+    // Notifications may be created asynchronously (domain events) while this cleanup runs:
+    // purge them again right before memberships to avoid Notification_membershipId_fkey.
+    await adminDb.notification.deleteMany({ where });
     await adminDb.membership.deleteMany({ where });
     await adminDb.user.deleteMany({ where: { id: { in: users } } });
     await adminDb.site.deleteMany({ where });
