@@ -278,11 +278,13 @@ export default function PlanningPage() {
             </button>
           ))}
         </div>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Select
           aria-label={ta("filters.allTypes")}
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as AppointmentType | "")}
-          className="min-h-11 w-auto"
+          className="min-h-11"
         >
           <option value="">{ta("filters.allTypes")}</option>
           {TYPES.map((v) => (
@@ -295,7 +297,7 @@ export default function PlanningPage() {
           aria-label={ta("filters.allStatuses")}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as AppointmentStatus | "")}
-          className="min-h-11 w-auto"
+          className="min-h-11"
         >
           <option value="">{ta("filters.allStatuses")}</option>
           {STATUSES.map((v) => (
@@ -308,7 +310,7 @@ export default function PlanningPage() {
           aria-label={ta("filters.allSources")}
           value={sourceFilter}
           onChange={(e) => setSourceFilter(e.target.value as AppointmentSource | "")}
-          className="min-h-11 w-auto"
+          className="min-h-11"
         >
           <option value="">{ta("filters.allSources")}</option>
           {SOURCES.map((v) => (
