@@ -61,6 +61,7 @@ model Organization {
   plan            PlanTier @default(STARTER)
   operatingMode   OperatingMode @default(FULL)   // REMINDERS_ONLY si le garage garde son ancien logiciel
   settings        Json     @default("{}")        // préférences diverses (voir M15) ; `stock` : allowNegative, dormantDays, countApprovalThreshold, autoIssueOnInvoice, customerPartFee (M07)
+                                                 // M05 : settings.quotes = { validityDays 15, validityDaysCompany 30, requireSignature, discountCaps, depositRule, followupWhenVehicleOnSite, showLinePricesToCustomer, termsText }
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   sites           Site[]
@@ -179,6 +180,7 @@ model Customer {
   creditHold         Boolean @default(false)   // RG-M09-10 : crédit suspendu
   creditHoldReason   String?
   riskComponents     Json?                     // { A, B, C, D, E } du riskScore (RG-M09-12)
+  requiresPurchaseOrder Boolean @default(false) // M05 §14 : flotte, n° de bon de commande exigé
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
@@ -573,6 +575,14 @@ model LaborOperation {                         // catalogue de main-d'œuvre
   rateType       LaborRateType @default(STANDARD)
   fixedPrice     Int?                          // forfait éventuel
   isActive       Boolean @default(true)
+  // M05 §14
+  customerDescription String?                  // explication par défaut pour le client
+  defaultParts   Json @default("[]")           // kit : [{ productId?, category?, quantity }]
+  vehicleOverrides Json @default("[]")         // [{ make, model?, yearFrom?, yearTo?, standardHours }]
+  isServiceOperation Boolean @default(false)   // compte comme « révision » (M02 RG-M02-13)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([organizationId, code])
 }
 enum LaborRateType { STANDARD DIAGNOSTIC BODYWORK ELECTRICAL }
 
@@ -660,10 +670,40 @@ model Quote {
   createdById      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  // M05 §14
+  origin           QuoteOrigin @default(STANDALONE)
+  inspectionId     String?
+  insuranceClaimId String?
+  supersedesId     String?                    // version précédente
+  supersededAt     DateTime?                  // une version plus récente existe (lecture seule)
+  globalDiscountRate   Int?                   // %
+  globalDiscountAmount Int?                   // FCFA (exclusif avec le taux)
+  discountReason   String?
+  discountApprovalStatus String?              // NONE | PENDING | APPROVED | REJECTED
+  discountApprovedById String?
+  sentVia          String?                    // WHATSAPP | SMS | EMAIL | WA_LINK | LINK_ONLY
+  sentTo           String?
+  recipientContactId String?
+  decisionHash     String?                    // SHA-256 du contenu signé
+  decisionIp       String?
+  decisionUserAgent String?
+  decisionMessageId String?                   // message WhatsApp servant de preuve
+  recordedById     String?                    // membre ayant saisi une décision hors portail
+  decisionCounterpart String?                 // interlocuteur au téléphone
+  acceptedTotal    Int @default(0)            // TTC des lignes acceptées (dénormalisé)
+  depositAmount    Int?
+  depositInvoiceId String?
+  customerPoNumber String?                    // bon de commande du client entreprise
+  convertedAt      DateTime?
+  deletedAt        DateTime?
   lines            QuoteLine[]
   @@unique([organizationId, number, version])
+  @@index([organizationId, status, sentAt])
+  @@index([organizationId, repairOrderId])
+  @@index([organizationId, customerId])
 }
 enum QuoteStatus { DRAFT SENT VIEWED ACCEPTED PARTIALLY_ACCEPTED DECLINED EXPIRED CONVERTED }
+enum QuoteOrigin { REPAIR_ORDER INSPECTION STANDALONE APPOINTMENT INSURANCE }   // M05 §14
 
 model QuoteLine {
   id              String @id @default(cuid())
@@ -681,6 +721,20 @@ model QuoteLine {
   accepted        Boolean?                   // null = pas encore décidé
   payer           Payer @default(CUSTOMER)
   sortOrder       Int @default(0)
+  // M05 §14 (organizationId : A3 §3, déjà présent)
+  groupKey        String?                    // regroupe MO + pièces d'un même travail
+  groupLabel      String?                    // "Plaquettes avant"
+  requiresGroupKey String?                   // dépendance (disques nécessite plaquettes)
+  customerExplanation String?                // texte simple affiché au client
+  inspectionItemId String?
+  photoAttachmentIds String[]
+  costPrice       Int?                       // coût unitaire estimé (marge)
+  isCustomerSupplied Boolean @default(false)
+  declineReason   String?
+  lineSubtotal    Int @default(0)            // HT après remises (calculé)
+  lineVat         Int @default(0)
+  lineTotal       Int @default(0)
+  @@index([quoteId])
 }
 
 // ───────────── Stock et achats ─────────────

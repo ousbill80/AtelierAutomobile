@@ -1,6 +1,6 @@
 import { adminDb } from "@atelieros/db";
 import { encryptSecret, loadEncryptionKey } from "@atelieros/integrations";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Job } from "bullmq";
 import { processMessagesSendJob } from "./messagesSend";
 import { getMessagesQueue, type MessagesSendJobData } from "../queues/messages";
@@ -70,6 +70,14 @@ describe("processMessagesSendJob — NOT_ON_WHATSAPP (US-M11-01, RG-M11-05, RG-M
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    // RG-M11-02 (4) : hors fenêtre d'envoi (après 21:00 à Abidjan), le job est reporté au
+    // lendemain ; on fige l'horloge à 10:00 pour que le test ne dépende pas de l'heure.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-20T10:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("repli immédiat vers SMS et Customer.hasWhatsapp = false sur erreur Meta 131026", async () => {

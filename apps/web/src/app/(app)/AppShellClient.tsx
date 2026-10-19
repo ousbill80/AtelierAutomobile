@@ -79,6 +79,13 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       // M15 RG-M15-23 : masqué en mode « Relances seules ».
       hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
     },
+    {
+      href: "/devis",
+      label: t("nav.quotes"),
+      permission: "quote:read",
+      // RG-M05-17 : module devis masqué en mode « Relances seules ».
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
     { href: "/clients", label: t("nav.customers"), permission: "customer:read" },
     { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
     { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },
@@ -130,6 +137,12 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       href: "/parametres/inspection",
       label: t("nav.settingsInspection"),
       permission: "inspection:template_manage",
+    },
+    { href: "/parametres/devis", label: t("nav.settingsQuotes"), permission: "settings:update" },
+    {
+      href: "/parametres/catalogue-mo",
+      label: t("nav.settingsLaborCatalog"),
+      permission: "labor_catalog:manage",
     },
   ].filter((item) => has(item.permission));
 

@@ -39,6 +39,7 @@ import {
 } from "@/components/repair-orders/i18n";
 import { LineForm } from "@/components/repair-orders/line-form";
 import type { RepairOrderDetail, RepairOrderLineDetail } from "@/components/repair-orders/types";
+import { QuoteStatusBadge } from "@/components/quotes/badges";
 
 const TAB_KEYS = [
   "work",
@@ -124,7 +125,7 @@ export function RepairOrderView({ id }: { id: string }) {
           onError={onError}
         />
       )}
-      {tab === "quotes" && <QuotesTab order={order} />}
+      {tab === "quotes" && <QuotesTab order={order} perms={perms} />}
       {tab === "parts" && <PartsTab order={order} />}
       {tab === "time" && <TimeTab order={order} />}
       {tab === "documents" && <DocumentsTab order={order} />}
@@ -1076,6 +1077,11 @@ function InspectionTab({
     onSuccess: (r) => onDone(t("inspection.added", { count: r.created })),
     onError,
   });
+  // M05 US-M05-01 : devis depuis l'inspection (un groupe par point urgent / à surveiller).
+  const createQuote = trpc.quote.createFromInspection.useMutation({
+    onSuccess: (r) => router.push(`/devis/${r.id}`),
+    onError,
+  });
   const canPerform =
     perms.has("inspection:perform") && !LOCKED.has(order.status) && order.status !== "DRAFT";
   if (order.inspections.length === 0) {
@@ -1153,15 +1159,17 @@ function InspectionTab({
                   >
                     {t("inspection.addToOrder")}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="min-h-11"
-                    disabled
-                    title={t("inspection.quoteSoon")}
-                  >
-                    {t("inspection.createQuote")}
-                  </Button>
+                  {perms.has("quote:create") && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="min-h-11"
+                      loading={createQuote.isPending}
+                      onClick={() => createQuote.mutate({ inspectionId: inspection.id })}
+                    >
+                      {t("inspection.createQuote")}
+                    </Button>
+                  )}
                 </div>
               )}
           </div>
@@ -1192,18 +1200,74 @@ function LineStockBadge({
   );
 }
 
-function QuotesTab({ order }: { order: RepairOrderDetail }) {
-  if (order.quotes.length === 0) return <EmptyState title={t("quotes.none")} />;
+function QuotesTab({ order, perms }: { order: RepairOrderDetail; perms: Set<string> }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  // M05 : devis reprenant les lignes en attente d'accord (« accord tracé » M04 → devis).
+  const fromPending = trpc.quote.createFromRepairOrderPending.useMutation({
+    onSuccess: (r) => router.push(`/devis/${r.id}`),
+    onError: (e) => setError(e.message),
+  });
+  const create = trpc.quote.create.useMutation({
+    onSuccess: (r) => router.push(`/devis/${r.id}`),
+    onError: (e) => setError(e.message),
+  });
+  const pending = order.lines.some(
+    (l) => l.approval === "PENDING" && l.status !== "CANCELLED" && !l.quoteLineId,
+  );
+  const canCreate = perms.has("quote:create") && !LOCKED.has(order.status);
   return (
-    <ul className="flex flex-col gap-2 text-sm">
-      {order.quotes.map((q) => (
-        <li key={q.id} className="flex justify-between rounded-md bg-surface p-3">
-          <span className="font-mono">{q.number}</span>
-          <span>{q.status}</span>
-          <span>{formatFCFA(q.total)}</span>
-        </li>
-      ))}
-    </ul>
+    <section className="flex flex-col gap-2 text-sm">
+      {canCreate && (
+        <div className="flex flex-wrap gap-2">
+          {pending && (
+            <Button
+              size="sm"
+              className="min-h-11"
+              loading={fromPending.isPending}
+              onClick={() => fromPending.mutate({ repairOrderId: order.id })}
+            >
+              {t("quotes.fromPending")}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="secondary"
+            className="min-h-11"
+            loading={create.isPending}
+            onClick={() => create.mutate({ repairOrderId: order.id, origin: "REPAIR_ORDER" })}
+          >
+            {t("quotes.new")}
+          </Button>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="text-status-bad">
+          ⚠ {error}
+        </p>
+      )}
+      {order.quotes.length === 0 ? (
+        <EmptyState title={t("quotes.none")} />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {order.quotes.map((q) => (
+            <li key={q.id}>
+              <Link
+                href={`/devis/${q.id}`}
+                className="flex flex-wrap justify-between gap-2 rounded-md bg-surface p-3 hover:text-accent"
+              >
+                <span className="font-mono">
+                  {q.number}
+                  {q.version > 1 ? ` v${q.version}` : ""}
+                </span>
+                <QuoteStatusBadge status={q.status} />
+                <span>{formatFCFA(q.total)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

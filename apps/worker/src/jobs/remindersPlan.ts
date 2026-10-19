@@ -220,7 +220,7 @@ async function appointmentCandidates(tenantDb: TenantDb, today: Date): Promise<C
 
 async function quoteFollowupCandidates(tenantDb: TenantDb): Promise<Candidate[]> {
   const quotes = await tenantDb.quote.findMany({
-    where: { status: { in: ["SENT", "VIEWED"] } },
+    where: { status: { in: ["SENT", "VIEWED"] }, supersededAt: null, deletedAt: null },
     select: { id: true, customerId: true, vehicleId: true, sentAt: true, validUntil: true },
   });
   return quotes

@@ -129,9 +129,17 @@ export async function preAuthorizedTotal(
   return lines.reduce((s, l) => s + lineAmounts(l, vatEnabled).total, 0);
 }
 
+/**
+ * Contexte minimal d'un enchaînement automatique (aussi utilisé par le portail devis, M05) :
+ * sans membre (décision du client), les mouvements de stock sont tracés comme automatiques.
+ */
+export type SystemCtx = Pick<OrgCtx, "organizationId" | "permissions"> & {
+  membership?: { id: string } | null;
+};
+
 async function trySystemTransition(
   tx: Tx,
-  ctx: OrgCtx,
+  ctx: SystemCtx,
   org: OrgRoContext,
   repairOrderId: string,
   transition: RepairOrderTransition,
@@ -164,14 +172,14 @@ async function trySystemTransition(
  */
 export async function afterLineChange(
   tx: Tx,
-  ctx: OrgCtx,
+  ctx: SystemCtx,
   org: OrgRoContext,
   repairOrderId: string,
   now: Date,
 ): Promise<void> {
   const order = await tx.repairOrder.findFirstOrThrow({ where: { id: repairOrderId } });
   // M07 : réservations ajustées aux lignes (ajout, quantité, refus, annulation).
-  await syncOrderStock(tx, order, now, ctx.membership.id);
+  await syncOrderStock(tx, order, now, ctx.membership?.id ?? null);
   const lines = await tx.repairOrderLine.findMany({ where: { repairOrderId } });
   const live = lines.filter((l) => l.status !== "CANCELLED");
   if (order.status === "APPROVED" && live.some((l) => l.status !== "PENDING")) {

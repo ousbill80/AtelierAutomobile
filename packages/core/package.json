@@ -15,7 +15,8 @@
     "./money": "./src/money/index.ts",
     "./inventory": "./src/inventory/index.ts",
     "./planning": "./src/planning/index.ts",
-    "./repairOrders": "./src/repairOrders/index.ts"
+    "./repairOrders": "./src/repairOrders/index.ts",
+    "./quotes": "./src/quotes/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

@@ -369,3 +369,4 @@ export {
 export * from "./stock";
 export * from "./appointment";
 export * from "./repairOrder";
+export * from "./quote";

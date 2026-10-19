@@ -129,7 +129,10 @@
     "settingsInspection": "Modèles d'inspection",
     "reminderResults": "Résultats des relances",
     "stock": "Stock",
-    "purchases": "Achats"
+    "purchases": "Achats",
+    "quotes": "Devis",
+    "settingsQuotes": "Devis",
+    "settingsLaborCatalog": "Catalogue main-d'œuvre"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -1709,7 +1712,9 @@
       "standard": "Barème : {hours} h"
     },
     "quotes": {
-      "none": "Aucun devis lié (M05)."
+      "none": "Aucun devis lié à cet OR.",
+      "fromPending": "Devis des travaux en attente",
+      "new": "Nouveau devis pour cet OR"
     },
     "notes": {
       "label": "Notes internes (jamais montrées au client)",
@@ -2372,6 +2377,412 @@
     "label": {
       "print": "Imprimer",
       "title": "Étiquette — {sku}"
+    }
+  },
+  "quotes": {
+    "title": "Devis",
+    "new": "Nouveau devis",
+    "newTitle": "Nouveau devis libre",
+    "back": "Retour aux devis",
+    "search": "N° de devis, client ou plaque",
+    "notFound": "Devis introuvable.",
+    "versionShort": "v{version}",
+    "validUntil": "Valable jusqu'au {date}",
+    "advisor": "Conseiller : {name}",
+    "viewedAt": "Vu par le client le {date}",
+    "alreadyApproved": "Déjà accepté",
+    "tabs": {
+      "todo": "À traiter",
+      "waiting": "En attente",
+      "decided": "Décidés",
+      "expired": "Expirés",
+      "stats": "Statistiques",
+      "timeline": "Frise",
+      "versions": "Versions",
+      "reminders": "Relances"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "SENT": "Envoyé",
+      "VIEWED": "Vu par le client",
+      "ACCEPTED": "Accepté",
+      "PARTIALLY_ACCEPTED": "Partiellement accepté",
+      "DECLINED": "Refusé",
+      "EXPIRED": "Expiré",
+      "CONVERTED": "Converti"
+    },
+    "origin": {
+      "REPAIR_ORDER": "Complément d'OR",
+      "INSPECTION": "Inspection",
+      "STANDALONE": "Libre / comptoir",
+      "APPOINTMENT": "Avant RDV",
+      "INSURANCE": "Sinistre"
+    },
+    "priority": {
+      "URGENT": "Urgent",
+      "WATCH": "À surveiller",
+      "OTHER": "Travaux et entretien"
+    },
+    "filters": {
+      "allOrigins": "Toutes origines"
+    },
+    "empty": {
+      "title": "Aucun devis en attente.",
+      "description": "Les inspections terminées apparaîtront ici. Créez un devis depuis un OR ou un devis libre."
+    },
+    "list": {
+      "accepted": "Accepté : {amount}",
+      "viewed": "Vu",
+      "notViewed": "Non vu",
+      "followups": "{count} relance(s)",
+      "expiresIn": "Expire dans {days} j"
+    },
+    "fields": {
+      "origin": "Origine",
+      "vehicle": "Véhicule",
+      "priority": "Priorité",
+      "explanation": "Explication pour le client",
+      "explanationPlaceholder": "Explication simple, en français courant (affichée au client)",
+      "hours": "Heures",
+      "quantity": "Quantité",
+      "unitPrice": "PU HT",
+      "discountRate": "Remise %",
+      "payer": "Payeur",
+      "type": "Type",
+      "description": "Désignation",
+      "group": "Travail (groupe)",
+      "groupPlaceholder": "Ex. Plaquettes avant — regroupe MO et pièces",
+      "globalDiscountRate": "Remise globale %",
+      "globalDiscountAmount": "Remise globale (FCFA)",
+      "discountReason": "Motif de la remise",
+      "validUntil": "Validité",
+      "customerPoNumber": "N° de bon de commande client",
+      "reason": "Motif"
+    },
+    "create": {
+      "searchCustomer": "Client",
+      "searchPlaceholder": "Nom ou téléphone (2 caractères minimum)",
+      "change": "Changer",
+      "noVehicle": "Sans véhicule (vente de pièces)",
+      "prospect": "Nouveau client (nom + téléphone)",
+      "prospectName": "Nom du client",
+      "prospectPhone": "Téléphone",
+      "existing": "Choisir un client existant",
+      "submit": "Créer le devis"
+    },
+    "banner": {
+      "superseded": "Version remplacée par la v{version} : lecture seule.",
+      "openCurrent": "Ouvrir la version courante",
+      "pastValidity": "Validité dépassée : le client ne peut plus valider en ligne. Réactivez le devis ou enregistrez la décision avec un motif.",
+      "decided": "Décision du {date} ({channel})",
+      "signer": "signé par {name}",
+      "hash": "empreinte {hash}…"
+    },
+    "discount": {
+      "pending": "Remise au-delà du plafond : validation du chef d'atelier requise avant l'envoi.",
+      "pendingShort": "Remise à valider",
+      "review": "Valider la remise",
+      "rejected": "Remise refusée : ramenez-la dans votre plafond.",
+      "overCap": "Au-delà de votre plafond ({cap} %) — validation du chef d'atelier requise",
+      "modalTitle": "Valider la remise",
+      "approve": "Approuver",
+      "approveAt": "Approuver à {rate} %",
+      "reject": "Refuser",
+      "requested": "Remise demandée : jusqu'à {rate} %",
+      "reason": "Motif : {reason}",
+      "margin": "Marge après remise : {amount}",
+      "maxRate": "Taux accordé (%)"
+    },
+    "actions": {
+      "send": "Envoyer",
+      "recordDecision": "Enregistrer la décision",
+      "resend": "Renvoyer",
+      "followUpNow": "Relancer maintenant",
+      "regenerateLink": "Régénérer le lien",
+      "edit": "Modifier (nouvelle version)",
+      "reactivate": "Réactiver",
+      "amend": "Décision complémentaire",
+      "convertToOrder": "Créer l'OR",
+      "convertToInvoice": "Facturer",
+      "requestDeposit": "Demander l'acompte ({amount})",
+      "insurerPdf": "PDF expertise",
+      "delete": "Supprimer le brouillon",
+      "confirmDelete": "Supprimer"
+    },
+    "flash": {
+      "sent": "Devis envoyé ({channel}).",
+      "resent": "Devis renvoyé.",
+      "followedUp": "Relance envoyée.",
+      "linkRegenerated": "Nouveau lien créé ; l'ancien ne fonctionne plus.",
+      "invoiced": "Facture brouillon créée.",
+      "depositRequested": "Facture d'acompte brouillon créée.",
+      "decided": "Décision enregistrée : {status}."
+    },
+    "lines": {
+      "title": "Travaux et pièces",
+      "empty": "Aucune ligne : ajoutez une opération, une pièce ou un kit.",
+      "optional": "optionnel",
+      "accepted": "Accepté",
+      "declined": "Refusé",
+      "coveredByGarage": "Pris en charge par le garage",
+      "inStock": "En stock : {count}",
+      "toOrder": "À commander : délai {days} j",
+      "cost": "Coût : {amount}",
+      "remove": "Retirer « {label} »",
+      "removeShort": "Retirer",
+      "search": "Catalogue (MO, pièces, kits)",
+      "searchPlaceholder": "Tapez « distrib », « plaquettes »…",
+      "add": "Ajouter",
+      "addKit": "Ajouter le kit",
+      "fixed": "forfait",
+      "freeLine": "Ligne libre (hors catalogue)",
+      "addLine": "Ajouter la ligne"
+    },
+    "lineTypes": {
+      "LABOR": "Main-d'œuvre",
+      "PART": "Pièce",
+      "SUBCONTRACT": "Sous-traitance",
+      "FEE": "Frais",
+      "CONSUMABLE": "Consommable"
+    },
+    "payers": {
+      "CUSTOMER": "Client",
+      "INSURANCE": "Assurance",
+      "WARRANTY": "Garantie",
+      "INTERNAL": "Interne"
+    },
+    "totals": {
+      "subtotal": "Total HT avant remise",
+      "discounts": "Remises",
+      "vat": "TVA",
+      "total": "Total TTC",
+      "insurance": "Part assurance",
+      "customer": "Part client",
+      "accepted": "Total accepté TTC",
+      "margin": "Marge prévisionnelle",
+      "deposit": "Acompte suggéré"
+    },
+    "discountReasons": {
+      "loyal": "Client fidèle",
+      "fleet": "Flotte",
+      "goodwill": "Geste commercial",
+      "competition": "Alignement concurrence",
+      "other": "Autre"
+    },
+    "declineReasons": {
+      "too_expensive": "Trop cher",
+      "later": "Je le ferai plus tard",
+      "elsewhere": "Je fais faire ailleurs",
+      "other": "Autre"
+    },
+    "channels": {
+      "portal": "en ligne",
+      "phone": "Par téléphone",
+      "in_person": "En personne",
+      "whatsapp": "Par WhatsApp",
+      "insurer": "Assureur"
+    },
+    "sendChannels": {
+      "WHATSAPP": "WhatsApp",
+      "WA_LINK": "Ouvrir dans WhatsApp (wa.me)",
+      "SMS": "SMS",
+      "EMAIL": "Email (PDF joint)",
+      "LINK_ONLY": "Copier le lien"
+    },
+    "send": {
+      "title": "Envoyer le devis",
+      "channel": "Canal",
+      "recipient": "Destinataire",
+      "insurer": "Assureur / expert (email)",
+      "custom": "Autre destinataire",
+      "address": "Téléphone ou email",
+      "message": "Message",
+      "messagePlaceholder": "Laisser vide pour le message pré-rédigé (le lien est ajouté automatiquement)",
+      "submit": "Envoyer",
+      "openWhatsapp": "Ouvrir dans WhatsApp",
+      "copyLink": "Créer le lien",
+      "linkReady": "Lien du devis prêt :",
+      "link": "Lien du devis",
+      "copy": "Copier le lien",
+      "done": "Terminé"
+    },
+    "decision": {
+      "title": "Enregistrer la décision du client",
+      "amendTitle": "Décision complémentaire (travaux refusés acceptés)",
+      "channel": "Canal",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "counterpart": "Interlocuteur / signataire",
+      "time": "Heure de l'appel",
+      "sendConfirmation": "Envoyer la confirmation écrite au client",
+      "signHere": "Signature du client",
+      "clear": "Effacer",
+      "proofMessage": "Message WhatsApp servant de preuve",
+      "approvedAmount": "Montant approuvé par l'assureur",
+      "overrideExpired": "Motif (devis expiré)",
+      "submit": "Valider"
+    },
+    "timeline": {
+      "created": "Devis créé",
+      "sent": "Envoyé ({channel})",
+      "viewed": "Vu par le client",
+      "followup": "Relance {step} envoyée",
+      "decided": "{status} ({channel})",
+      "converted": "Converti"
+    },
+    "versions": {
+      "diffTitle": "Écarts avec la v{version}",
+      "totalDelta": "Total : {before} → {after}"
+    },
+    "reminders": {
+      "none": "Aucune relance planifiée pour ce devis.",
+      "status": {
+        "PLANNED": "Planifiée",
+        "NEEDS_APPROVAL": "À valider",
+        "QUEUED": "En file",
+        "SENT": "Envoyée",
+        "FAILED": "Échec",
+        "SKIPPED": "Ignorée",
+        "SNOOZED": "Reportée",
+        "CANCELLED": "Annulée"
+      }
+    },
+    "auditActions": {
+      "created_from_inspection": "Créé depuis l'inspection",
+      "discount_approved": "Remise validée",
+      "discount_rejected": "Remise refusée",
+      "decision_forced_after_expiry": "Décision après expiration",
+      "decision_recorded": "Décision enregistrée",
+      "decision_amended": "Décision complémentaire",
+      "version_created": "Nouvelle version créée",
+      "reactivated": "Devis réactivé",
+      "converted": "Converti en OR",
+      "converted_to_invoice": "Facture brouillon créée",
+      "deposit_requested": "Acompte demandé",
+      "deleted": "Brouillon supprimé",
+      "link_regenerated": "Lien régénéré",
+      "resent": "Renvoyé",
+      "followed_up": "Relancé",
+      "price_below_min": "Prix sous le minimum",
+      "sent": "Envoyé"
+    },
+    "stats": {
+      "from": "Du",
+      "to": "Au",
+      "sent": "Devis envoyés",
+      "closed": "Devis clos",
+      "rateCount": "Taux d'acceptation (nombre)",
+      "rateValue": "Taux d'acceptation (valeur)",
+      "median": "Délai médian de décision",
+      "hours": "{hours} h",
+      "proposed": "Montant proposé",
+      "acceptedAmount": "Montant accepté",
+      "recovered": "Récupéré grâce aux relances",
+      "byAdvisor": "Par conseiller",
+      "byPriority": "Par priorité (lignes acceptées / proposées)",
+      "declineReasons": "Motifs de refus"
+    },
+    "settings": {
+      "title": "Devis",
+      "description": "Validité, signature, plafonds de remise, acompte et conditions imprimées.",
+      "validityDays": "Validité (jours)",
+      "validityDaysCompany": "Validité entreprises et sinistres (jours)",
+      "requireSignature": "Signature obligatoire pour valider en ligne",
+      "showLinePrices": "Afficher le prix de chaque ligne au client",
+      "caps": "Plafonds de remise par rôle (%)",
+      "capLine": "Par ligne",
+      "capGlobal": "Globale",
+      "deposit": "Acompte",
+      "depositEnabled": "Demander un acompte au-delà d'un seuil",
+      "depositThreshold": "Seuil TTC",
+      "depositRate": "Taux (%)",
+      "followupOnSite": "Premier rappel si le véhicule est à l'atelier",
+      "followupHint": "Ex. H+4 (heures ouvrées)",
+      "reminderRules": "Paliers de relance des devis (règles de relance)",
+      "terms": "Conditions imprimées sur le devis",
+      "save": "Enregistrer",
+      "saved": "Paramètres enregistrés."
+    },
+    "roles": {
+      "OWNER": "Gérant",
+      "MANAGER": "Chef d'atelier",
+      "ADVISOR": "Réceptionnaire",
+      "CASHIER": "Caissier"
+    },
+    "rateTypes": {
+      "STANDARD": "Taux standard",
+      "DIAGNOSTIC": "Diagnostic",
+      "BODYWORK": "Carrosserie",
+      "ELECTRICAL": "Électricité"
+    },
+    "catalog": {
+      "title": "Catalogue de main-d'œuvre",
+      "description": "Opérations, temps barème, forfaits, kits et explications client.",
+      "search": "Rechercher une opération",
+      "new": "Nouvelle opération",
+      "edit": "Modifier",
+      "archive": "Archiver",
+      "restore": "Réactiver",
+      "archived": "archivée",
+      "showArchived": "Afficher les opérations archivées",
+      "empty": "Aucune opération.",
+      "fixed": "Forfait {amount}",
+      "code": "Code",
+      "name": "Nom",
+      "category": "Catégorie",
+      "hours": "Temps barème (h)",
+      "rateType": "Type de taux",
+      "fixedPrice": "Forfait HT (facultatif)",
+      "customerDescription": "Explication par défaut pour le client",
+      "overrides": "Durées par modèle (une par ligne : « Marque Modèle heures »)",
+      "save": "Enregistrer",
+      "import": "Importer (CSV)",
+      "importHint": "Colonnes : code ; nom ; catégorie ; heures ; type de taux ; forfait",
+      "importSubmit": "Importer",
+      "importResult": "{created} créée(s), {updated} mise(s) à jour, {errors} erreur(s)."
+    },
+    "portal": {
+      "title": "Devis {number}",
+      "validUntil": "Valable jusqu'au {date}",
+      "recommended": "{count} travaux recommandés",
+      "updated": "Ce devis a été mis à jour. Vérifiez les nouveaux montants.",
+      "pendingUpdate": "Ce devis est en cours de mise à jour par le garage. Vous recevrez la nouvelle version.",
+      "expired": "Ce devis a expiré le {date}. Contactez-nous pour l'actualiser.",
+      "decidedOn": "Ce devis a été validé le {date}.",
+      "thanks": "Merci, l'atelier commence les travaux acceptés.",
+      "linkExpired": "Ce lien a expiré. Contactez le garage pour recevoir un nouveau lien.",
+      "invalid": "Lien invalide ou expiré.",
+      "priority": {
+        "URGENT": "À faire rapidement",
+        "WATCH": "À surveiller"
+      },
+      "zoom": "Agrandir la photo",
+      "closeZoom": "Fermer la photo",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "accepted": "Accepté",
+      "declined": "Refusé",
+      "requires": "Nécessite : {label}",
+      "signTitle": "Signature",
+      "signSummary": "Vous acceptez les travaux sélectionnés pour {amount} TTC.",
+      "yourName": "Votre nom",
+      "signHere": "Signez avec le doigt",
+      "iAccept": "J'accepte les travaux sélectionnés pour {amount} TTC",
+      "declineReason": "Motif du refus (facultatif)",
+      "back": "Modifier mes choix",
+      "confirm": "Valider mon choix",
+      "deposit": "Acompte demandé : {amount}. Le garage vous enverra le lien de paiement.",
+      "ask": "Poser une question",
+      "callback": "Être rappelé",
+      "requestRefresh": "Demander l'actualisation",
+      "pdf": "Télécharger le PDF",
+      "askSent": "Message envoyé au garage.",
+      "question": "Votre question",
+      "sendQuestion": "Envoyer ma question",
+      "acceptedTotal": "Total accepté",
+      "chooseAll": "Choisissez pour chaque travail.",
+      "validate": "Valider mon choix",
+      "declineAll": "Je refuse ce devis"
     }
   }
 }

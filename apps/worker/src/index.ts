@@ -53,6 +53,9 @@ async function main(): Promise<void> {
     processStockIntegrityCheckJob,
     processStockReorderSuggestionsJob,
   } = await import("./jobs/stockJobs");
+  const { QUOTES_JOB_NAMES, QUOTES_QUEUE_NAME, scheduleQuoteJobs } =
+    await import("./queues/quotes");
+  const { processQuotesExpireJob } = await import("./jobs/quotes");
 
   logger.info("AtelierOS worker démarré");
 
@@ -213,6 +216,22 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "stock : un job a échoué");
   });
 
+  // M05 §9 : expiration des devis (RG-M05-08).
+  await scheduleQuoteJobs();
+
+  const quotesWorker = new Worker(
+    QUOTES_QUEUE_NAME,
+    async (job: Job) => {
+      if (job.name === QUOTES_JOB_NAMES.EXPIRE) return processQuotesExpireJob();
+      logger.warn({ jobName: job.name }, "quotes : job inconnu, ignoré");
+      return undefined;
+    },
+    { connection: createRedisConnection() },
+  );
+  quotesWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "quotes : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -223,6 +242,7 @@ async function main(): Promise<void> {
       appointmentsWorker.close(),
       repairOrdersWorker.close(),
       stockWorker.close(),
+      quotesWorker.close(),
     ]);
     process.exit(0);
   }
