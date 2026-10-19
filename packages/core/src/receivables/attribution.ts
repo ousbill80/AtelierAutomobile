@@ -18,7 +18,8 @@ export function attributePayment(input: {
   calls: AttributionTouch[];
   attributionDays?: number;
 }): AttributionResult {
-  const windowMs = (input.attributionDays ?? 7) * MS_PER_DAY;
+  // A10 : une seule règle, celle de M12 (fenêtre de 14 jours par défaut).
+  const windowMs = (input.attributionDays ?? 14) * MS_PER_DAY;
   const t = input.receivedAt.getTime();
   const latest = (touches: AttributionTouch[]) =>
     touches

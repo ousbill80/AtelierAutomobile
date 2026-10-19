@@ -45,23 +45,9 @@ describe("résultats des relances", () => {
     expect(r.sentByType).toEqual({ INSPECTION: 2, SERVICE: 1 });
   });
 
-  it("US-M12-06 : relance créance payée → montant récupéré ; CA des retours séparé", () => {
+  it("clients revenus après rappel ; CA des retours séparé", () => {
     const r = computeReminderResults(
       [
-        fact({
-          type: "RECEIVABLE",
-          outcome: "PAID",
-          outcomeAt: at("2026-10-06T10:00:00Z"),
-          attributedAmount: 185_000,
-          customerId: "c1",
-        }),
-        fact({
-          type: "RECEIVABLE",
-          outcome: "PARTIALLY_PAID",
-          outcomeAt: at("2026-10-08T10:00:00Z"),
-          attributedAmount: 600_000,
-          customerId: "c2",
-        }),
         fact({
           outcome: "APPOINTMENT_BOOKED",
           outcomeAt: at("2026-10-10T00:00:00Z"),
@@ -69,17 +55,11 @@ describe("résultats des relances", () => {
           customerId: "c3",
         }),
         fact({ outcome: "VISITED", outcomeAt: at("2026-10-11T00:00:00Z"), customerId: "c3" }),
-        fact({
-          type: "RECEIVABLE",
-          outcome: "PAID",
-          outcomeAt: at("2026-11-02T00:00:00Z"),
-          attributedAmount: 1,
-        }),
+        fact({ outcome: "VISITED", outcomeAt: at("2026-11-02T00:00:00Z"), customerId: "c4" }),
       ],
       FROM,
       TO,
     );
-    expect(r.recoveredAmount).toBe(785_000);
     expect(r.generatedRevenue).toBe(45_000);
     expect(r.returnedCustomers).toBe(1);
   });

@@ -7,10 +7,10 @@
 
 ## Mode d'emploi
 
-1. Une étape = une branche Git = une session d'agent. Jamais de commit direct sur `main`, jamais deux sessions sur la même étape en même temps.
+1. Une étape = une branche Git = une session d'agent. Jamais de commit direct sur `main`, jamais deux sessions sur la même étape en même temps. **Réserver l'étape dans `docs/etapes-en-cours.md` avant de coder.**
 2. Coller le prompt de l'étape. L'agent lit les PRD cités, propose un plan, puis code.
 3. L'étape est terminée quand **tous** ses critères de sortie passent (`pnpm check` vert : lint + types + tests).
-4. Relire le code, fusionner la branche dans `main`, passer à l'étape suivante.
+4. Ouvrir une Pull Request vers `main` ; la session d'intégration la relit et la fusionne une fois la CI verte (arbitrages A14 et A15). Passer à l'étape suivante.
 5. À chaque module, l'agent applique la section §14 « Évolutions du modèle de données » du PRD (voir `04-arbitrages-coherence.md` §1) : mise à jour de `docs/02-modele-donnees.md` **et** de `schema.prisma` dans le même commit.
 
 **Livraisons intermédiaires :**
@@ -142,6 +142,15 @@ PaymentAllocation, recalcul du solde). Balance âgée, dossiers, promesses, liti
 ```
 Implémente dans docs/modules/M12-tableau-de-bord-rapports.md : tableau de bord gérant (indicateurs relances
 et créances), résultats des relances, résumé quotidien digest.owner, alertes système.
+```
+
+### Étape 2.5 — CI et préparation de la démo (Jalon A)
+
+```
+Branche la CI GitHub Actions (pnpm check + E2E avec Postgres, Redis et un S3 de test) sur
+chaque push et chaque PR ; crée le bucket de stockage à l'installation (docker compose) et un
+script `pnpm dev:setup` (install, migrations, seed, bucket) ; documente la répétition de démo
+avec un export réel du client pilote. Une fois la CI verte, l'arbitrage A14 (pas de PR) est levé.
 ```
 
 ✅ **Jalon A** : démo au client pilote avec ses propres données importées.
