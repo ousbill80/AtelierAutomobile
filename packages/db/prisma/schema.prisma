@@ -18,27 +18,28 @@ datasource db {
 // ═══════════════════════════════════════════════════════════════
 
 model Organization {
-  id            String        @id @default(cuid(2))
-  name          String
-  legalName     String?
-  rccm          String?
-  ncc           String? // numéro de compte contribuable
-  taxRegime     TaxRegime     @default(RSI)
-  vatRate       Int           @default(18) // en %
-  vatEnabled    Boolean       @default(true)
-  currency      String        @default("XOF")
-  timezone      String        @default("Africa/Abidjan")
-  phone         String?
-  email         String?
-  address       String?
-  city          String?       @default("Abidjan")
-  logoUrl       String?
-  invoiceFooter String?
-  plan          PlanTier      @default(STARTER)
-  operatingMode OperatingMode @default(FULL) // REMINDERS_ONLY si le garage garde son ancien logiciel
-  settings      Json          @default("{}") // préférences diverses (voir M15)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                    String        @id @default(cuid(2))
+  name                  String
+  legalName             String?
+  rccm                  String?
+  ncc                   String? // numéro de compte contribuable
+  taxRegime             TaxRegime     @default(RSI)
+  vatRate               Int           @default(18) // en %
+  vatEnabled            Boolean       @default(true)
+  currency              String        @default("XOF")
+  timezone              String        @default("Africa/Abidjan")
+  phone                 String?
+  email                 String?
+  address               String?
+  city                  String?       @default("Abidjan")
+  logoUrl               String?
+  invoiceFooter         String?
+  plan                  PlanTier      @default(STARTER)
+  operatingMode         OperatingMode @default(FULL) // REMINDERS_ONLY si le garage garde son ancien logiciel
+  settings              Json          @default("{}") // préférences diverses (voir M15) : onboarding { step, skipped[] }, security { otpOnNewDevice: Role[] }
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   sites                  Site[]
   memberships            Membership[]
@@ -101,6 +102,9 @@ model Organization {
   aiInteractions         AiInteraction[]
   holidays               Holiday[]
   portalTokens           PortalToken[]
+  invitations            Invitation[]
+  rolePermissions        RolePermission[]
+  trustedDevices         TrustedDevice[]
 }
 
 enum TaxRegime {
@@ -181,35 +185,49 @@ enum BayType {
 }
 
 model User {
-  id           String    @id @default(cuid(2))
-  name         String
-  email        String?   @unique
-  phone        String?   @unique // E.164
-  passwordHash String?
-  avatarUrl    String?
-  locale       String    @default("fr")
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                       String    @id @default(cuid(2))
+  name                     String
+  email                    String?   @unique
+  phone                    String?   @unique // E.164
+  // Mot de passe NON stocké ici : Better Auth le garde dans Account.password
+  // (providerId "credential"), cf. 04-arbitrages-coherence.md A6.
+  emailVerifiedAt          DateTime?
+  phoneVerifiedAt          DateTime?
+  avatarUrl                String?
+  locale                   String    @default("fr")
+  isActive                 Boolean   @default(true)
+  failedLoginCount         Int       @default(0)
+  lockedUntil              DateTime?
+  lockCount                Int       @default(0) // récidives depuis le dernier succès (RG-M01-05)
+  lastLoginAt              DateTime?
+  lastActiveOrganizationId String?
+  lastActiveSiteId         String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   memberships Membership[]
   auditLogs   AuditLog[]
+  sessions    Session[]
+  accounts    Account[]
 }
 
 model Membership {
-  id             String   @id @default(cuid(2))
-  organizationId String
-  userId         String
-  role           Role
-  permissions    String[] // surcharges explicites "module:action"
-  siteIds        String[] // vide = tous les sites
-  hourlyCost     Int? // coût horaire interne (mécaniciens)
-  skills         String[] // "moteur", "électricité", "climatisation", "carrosserie"
-  pinHash        String? // M01/M06 : code PIN atelier (connexion tablette)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String    @id @default(cuid(2))
+  organizationId     String
+  userId             String
+  role               Role
+  permissions        String[] // surcharges explicites "module:action"
+  siteIds            String[] // vide = tous les sites
+  hourlyCost         Int? // coût horaire interne (mécaniciens)
+  skills             String[] // "moteur", "électricité", "climatisation", "carrosserie"
+  pinHash            String? // M01/M06 : code PIN atelier (connexion tablette)
+  pinFailedCount     Int       @default(0)
+  invitedById        String? // Membership.id de l'invitant
+  isActive           Boolean   @default(true)
+  deactivatedAt      DateTime?
+  deactivationReason String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   user         User         @relation(fields: [userId], references: [id])
@@ -1923,6 +1941,8 @@ model AuditLog {
   id             String   @id @default(cuid(2))
   organizationId String
   userId         String?
+  membershipId   String?
+  siteId         String?
   action         String // invoice.void, stock.adjust…
   entity         String
   entityId       String
@@ -1930,12 +1950,127 @@ model AuditLog {
   after          Json?
   reason         String?
   ip             String?
+  userAgent      String?
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   user         User?        @relation(fields: [userId], references: [id])
 
   @@index([organizationId, entity, entityId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Authentification (Better Auth), invitations, permissions par rôle
+// ═══════════════════════════════════════════════════════════════
+
+model Session {
+  id                   String   @id @default(cuid(2))
+  userId               String
+  token                String   @unique
+  expiresAt            DateTime
+  ipAddress            String?
+  userAgent            String?
+  activeOrganizationId String?
+  activeSiteId         String? // null = « Tous les sites »
+  isPinSession         Boolean  @default(false)
+  deviceId             String?
+  lastActiveAt         DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  // identifiants Better Auth (credential = mot de passe argon2id)
+  id         String   @id @default(cuid(2))
+  userId     String
+  providerId String // "credential"
+  accountId  String
+  password   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  // OTP et jetons de réinitialisation (Better Auth)
+  id         String   @id @default(cuid(2))
+  identifier String // "+2250708123456:RESET"
+  value      String // code haché
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([identifier])
+}
+
+model TrustedDevice {
+  id                     String    @id @default(cuid(2))
+  organizationId         String?
+  userId                 String? // null si appareil partagé d'atelier
+  deviceId               String // identifiant aléatoire stocké en cookie httpOnly
+  label                  String? // "Tablette atelier 1"
+  isSharedWorkshopDevice Boolean   @default(false)
+  siteId                 String?
+  expiresAt              DateTime?
+  createdAt              DateTime  @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@unique([deviceId])
+}
+
+model Invitation {
+  id             String           @id @default(cuid(2))
+  organizationId String
+  name           String
+  email          String?
+  phone          String? // E.164
+  role           Role
+  siteIds        String[]
+  permissions    String[]
+  tokenHash      String           @unique
+  channel        Channel?
+  status         InvitationStatus @default(PENDING)
+  invitedById    String // Membership.id
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedUserId String?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, status])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+model RolePermission {
+  // Permissions par défaut d'un rôle, surchargées par l'organisation
+  id             String   @id @default(cuid(2))
+  organizationId String
+  role           Role
+  permissions    String[]
+  updatedById    String?
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, role])
 }
 
 model DomainEvent {
