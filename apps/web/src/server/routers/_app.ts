@@ -22,8 +22,12 @@ import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { paymentRouter } from "./payment";
 import { planningRouter, planningSettingsRouter, resourceBlockRouter } from "./planning";
-import { portalRouter } from "./portal";
+import { portalAppointmentRouter } from "./portal";
 import { quickReplyRouter } from "./quickReply";
+import { inspectionRouter, inspectionTemplateRouter } from "./inspection";
+import { portalRepairOrderRouter } from "./portalRepairOrder";
+import { repairOrderRouter } from "./repairOrder";
+import { repairOrderLineRouter } from "./repairOrderLine";
 import { reminderRulesRouter } from "./reminderRules";
 import { remindersRouter } from "./reminders";
 import { reminderSettingsRouter } from "./reminderSettings";
@@ -76,7 +80,11 @@ export const appRouter = router({
   planning: planningRouter,
   resourceBlock: resourceBlockRouter,
   planningSettings: planningSettingsRouter,
-  portal: portalRouter,
+  repairOrder: repairOrderRouter,
+  repairOrderLine: repairOrderLineRouter,
+  inspection: inspectionRouter,
+  inspectionTemplate: inspectionTemplateRouter,
+  portal: router({ appointment: portalAppointmentRouter, repairOrder: portalRepairOrderRouter }),
 });
 
 export type AppRouter = typeof appRouter;

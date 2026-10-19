@@ -11,7 +11,7 @@ interface PendingLike {
 }
 
 /** « En retard / absent ? » : début + seuil dépassé sans arrivée. */
-export function isLate(appt: PendingLike, now: Date, lateAfterMinutes: number): boolean {
+export function isAppointmentLate(appt: PendingLike, now: Date, lateAfterMinutes: number): boolean {
   return (
     PENDING_STATUSES.includes(appt.status) &&
     now.getTime() >= appt.startsAt.getTime() + lateAfterMinutes * 60_000

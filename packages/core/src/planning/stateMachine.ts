@@ -43,7 +43,10 @@ const MESSAGES: Record<AppointmentAction, string> = {
   edit: "Ce RDV est clos : seules les notes restent modifiables.",
 };
 
-export function canTransition(status: AppointmentStatusKey, action: AppointmentAction): boolean {
+export function canAppointmentTransition(
+  status: AppointmentStatusKey,
+  action: AppointmentAction,
+): boolean {
   return ALLOWED[action].includes(status);
 }
 
@@ -52,7 +55,7 @@ export function assertTransition(
   status: AppointmentStatusKey,
   action: AppointmentAction,
 ): AppointmentStatusKey {
-  if (!canTransition(status, action)) {
+  if (!canAppointmentTransition(status, action)) {
     throw new DomainError("appointment.invalid_transition", MESSAGES[action], { status, action });
   }
   return TARGET[action] ?? status;

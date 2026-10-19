@@ -456,9 +456,28 @@ model RepairOrder {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
+  // M04 §14
+  publicToken            String?  @unique        // hash du jeton portail (A2) : suivi / signature à distance
+  isComeback             Boolean  @default(false)
+  comebackOfId           String?                 // OR d'origine (retour sur travaux)
+  warrantyDecision       WarrantyDecision?
+  warrantyDecisionReason String?
+  waitingPartsSince      DateTime?
+  qcChecklist            Json?                   // [{ key, label, result: OK|NOK|NA }] + roadTest
+  deliverySignatureUrl   String?
+  cancelledAt            DateTime?
+  cancelReason           String?
+  invoicedAt             DateTime?
+  createdById            String?                 // Membership.id
+  readyAt                DateTime?               // M04 (hors §14) : passage en READY — ancre VEHICLE_READY (M10), gardiennage
+  clientRequestId        String?                 // M04 (hors §14) : idempotence de la réception hors-ligne
   @@unique([organizationId, number])
+  @@unique([organizationId, clientRequestId])
   @@index([organizationId, status])
+  @@index([organizationId, vehicleId])
+  @@index([organizationId, siteId, status])
 }
+enum WarrantyDecision { COVERED NOT_COVERED PARTIAL }   // M04 §14
 enum RepairOrderStatus {
   DRAFT CHECKED_IN DIAGNOSING AWAITING_APPROVAL APPROVED IN_PROGRESS
   WAITING_PARTS QUALITY_CHECK READY DELIVERED INVOICED CANCELLED
@@ -483,6 +502,24 @@ model RepairOrderLine {
   quoteLineId     String?
   payer           Payer @default(CUSTOMER)
   sortOrder       Int @default(0)
+  // M04 §14
+  isCustomerSupplied    Boolean  @default(false)  // pièce fournie par le client (unitPrice 0, non garantie)
+  costPrice             Int?                      // coût unitaire (sous-traitance, pièce hors stock)
+  supplierId            String?                   // sous-traitant / fournisseur ponctuel
+  subcontractStatus     String?                   // TO_SEND | SENT | RETURNED
+  subcontractExpectedAt DateTime?
+  approvalSource        String?                   // CHECK_IN | PRE_AUTHORIZED | QUOTE | PHONE | IN_PERSON
+  inspectionItemId      String?
+  warrantyMonths        Int?
+  warrantyKm            Int?
+  warrantyUntilDate     DateTime? @db.Date        // figé à la livraison
+  warrantyUntilMileage  Int?
+  completedAt           DateTime?
+  completedById         String?                   // Membership.id
+  cancelReason          String?                   // M04 (hors §14) : motif d'annulation / refus client
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt       // verrou optimiste (M04 §11)
+  @@index([repairOrderId])
 }
 enum LineType { LABOR PART SUBCONTRACT FEE CONSUMABLE }
 enum LineStatus { PENDING IN_PROGRESS DONE CANCELLED }
@@ -496,6 +533,8 @@ model Inspection {                               // inspection multipoints
   templateId     String?
   performedById  String?
   completedAt    DateTime?
+  createdAt      DateTime @default(now())      // M04 §14
+  summary        Json?                         // M04 §14 : { urgent, watch, ok, notChecked }
   items          InspectionItem[]
 }
 model InspectionItem {
@@ -510,6 +549,8 @@ model InspectionItem {
   recommendedProductIds String[]
   recommendedLaborIds   String[]
   addedToQuote   Boolean @default(false)
+  shareWithCustomer Boolean @default(true)     // M04 §14
+  sortOrder      Int @default(0)               // M04 §14
 }
 enum InspectionResult { OK WATCH URGENT NOT_CHECKED }
 
@@ -517,7 +558,9 @@ model InspectionTemplate {
   id             String @id @default(cuid())
   organizationId String
   name           String
-  items          Json                          // [{category,label}]
+  items          Json                          // [{ category, label, measurementUnit?, recommendedLaborCode?, recommendedProductCategory? }]
+  isDefault      Boolean @default(false)       // M04 §14
+  isActive       Boolean @default(true)        // M04 §14
 }
 
 model LaborOperation {                         // catalogue de main-d'œuvre
@@ -532,6 +575,37 @@ model LaborOperation {                         // catalogue de main-d'œuvre
   isActive       Boolean @default(true)
 }
 enum LaborRateType { STANDARD DIAGNOSTIC BODYWORK ELECTRICAL }
+
+model RepairOrderStatusHistory {               // M04 §14 — une ligne par transition
+  id             String   @id @default(cuid())
+  organizationId String
+  repairOrderId  String
+  fromStatus     RepairOrderStatus?
+  toStatus       RepairOrderStatus
+  transition     String
+  reason         String?
+  membershipId   String?                        // null = automatique
+  createdAt      DateTime @default(now())
+  @@index([repairOrderId, createdAt])
+}
+
+model VehicleRecommendation {                   // M04 §14 — travaux conseillés non réalisés (relance M10, A8)
+  id               String   @id @default(cuid())
+  organizationId   String
+  vehicleId        String
+  customerId       String
+  repairOrderId    String?
+  inspectionItemId String?
+  quoteLineId      String?
+  label            String                       // "Amortisseurs arrière"
+  severity         InspectionResult             // WATCH | URGENT
+  estimatedAmount  Int?                         // TTC
+  remindAt         DateTime? @db.Date           // défaut : +90 jours
+  status           String   @default("OPEN")    // OPEN | DONE | DISMISSED
+  createdAt        DateTime @default(now())
+  resolvedAt       DateTime?
+  @@index([organizationId, vehicleId, status])
+}
 
 model TimeEntry {                              // pointage mécanicien sur une tâche
   id               String @id @default(cuid())

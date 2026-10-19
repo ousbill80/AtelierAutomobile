@@ -13,7 +13,7 @@ import {
   detectConflicts,
   formatMinutesFr,
   halfDayLoad,
-  isLate,
+  isAppointmentLate,
   isWithinOpeningHours,
   noShowCount12m,
   noShowEligibility,
@@ -394,9 +394,11 @@ describe("attributeReminder (RG-M03-12)", () => {
 describe("no-show (RG-M03-10)", () => {
   const booked = { status: "BOOKED" as const, startsAt: at("2026-10-24T09:00:00Z") };
   it("en retard après 60 min", () => {
-    expect(isLate(booked, at("2026-10-24T09:59:00Z"), 60)).toBe(false);
-    expect(isLate(booked, at("2026-10-24T10:00:00Z"), 60)).toBe(true);
-    expect(isLate({ ...booked, status: "ARRIVED" }, at("2026-10-24T11:00:00Z"), 60)).toBe(false);
+    expect(isAppointmentLate(booked, at("2026-10-24T09:59:00Z"), 60)).toBe(false);
+    expect(isAppointmentLate(booked, at("2026-10-24T10:00:00Z"), 60)).toBe(true);
+    expect(
+      isAppointmentLate({ ...booked, status: "ARRIVED" }, at("2026-10-24T11:00:00Z"), 60),
+    ).toBe(false);
   });
   it("job de 20:00 en heure locale, jours précédents rattrapés", () => {
     expect(noShowEligibility(booked, at("2026-10-24T19:59:00Z"), TZ, "20:00")).toBe(false);

@@ -17,7 +17,7 @@ import {
   defaultDuration,
   halfDayBoundary,
   isBayCompatible,
-  isLate,
+  isAppointmentLate,
   isLateCancellation,
   isDomainError,
   localDateKey,
@@ -218,7 +218,7 @@ function enrich(
     mechanicName: a.mechanic?.user.name ?? null,
     advisorName: a.advisor?.user.name ?? null,
     flags: {
-      late: isLate(
+      late: isAppointmentLate(
         { status: a.status as AppointmentStatusKey, startsAt: a.startsAt },
         ctx.now,
         ctx.lateAfterMinutes,
@@ -272,26 +272,6 @@ async function cancelAppointmentReminders(tx: Tx, appointmentId: string, reason:
       status: { in: [...CANCELLABLE_REMINDER_STATUSES] },
     },
     data: { status: "CANCELLED", skippedReason: reason },
-  });
-}
-
-/**
- * US-M03-08 / §5 — passage ARRIVED et lien avec l'OR. Exportée pour M04 : la réception
- * appelle `linkRepairOrderToAppointment` dans sa transaction quand elle crée l'OR depuis un RDV.
- */
-export async function linkRepairOrderToAppointment(
-  tx: Tx,
-  input: { appointmentId: string; repairOrderId: string; now: Date },
-): Promise<void> {
-  const appointment = await tx.appointment.findFirst({ where: { id: input.appointmentId } });
-  if (!appointment) return;
-  const pending = appointment.status === "BOOKED" || appointment.status === "CONFIRMED";
-  await tx.appointment.update({
-    where: { id: appointment.id },
-    data: {
-      repairOrderId: input.repairOrderId,
-      ...(pending ? { status: "ARRIVED", arrivedAt: input.now } : {}),
-    },
   });
 }
 

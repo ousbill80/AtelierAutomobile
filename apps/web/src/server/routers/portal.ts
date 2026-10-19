@@ -29,7 +29,7 @@ import {
   portalBookInputSchema,
   portalRescheduleInputSchema,
   portalSlotsInputSchema,
-  portalTokenInputSchema,
+  portalAppointmentTokenInputSchema,
 } from "@atelieros/validators";
 import { emitDomainEvent } from "../events/emit";
 import { publicProcedure, router } from "../trpc";
@@ -188,7 +188,7 @@ async function portalSlots(
 
 export const portalAppointmentRouter = router({
   /** Page `/p/[token]/rdv` : garage, véhicule pré-identifié, RDV existant éventuel. */
-  get: publicProcedure.input(portalTokenInputSchema).query(async ({ input }) => {
+  get: publicProcedure.input(portalAppointmentTokenInputSchema).query(async ({ input }) => {
     const now = new Date();
     const token = await requireToken(input.token, now);
     const tx = db.forTenant({ organizationId: token.organizationId }) as unknown as Tx;
@@ -403,7 +403,7 @@ export const portalAppointmentRouter = router({
     return { status };
   }),
 
-  confirm: publicProcedure.input(portalTokenInputSchema).mutation(async ({ input }) => {
+  confirm: publicProcedure.input(portalAppointmentTokenInputSchema).mutation(async ({ input }) => {
     const now = new Date();
     const token = await requireToken(input.token, now);
     if (token.scope !== "APPOINTMENT")
@@ -428,7 +428,7 @@ export const portalAppointmentRouter = router({
     return { ok: true } as const;
   }),
 
-  cancel: publicProcedure.input(portalTokenInputSchema).mutation(async ({ input }) => {
+  cancel: publicProcedure.input(portalAppointmentTokenInputSchema).mutation(async ({ input }) => {
     const now = new Date();
     const token = await requireToken(input.token, now);
     if (token.scope !== "APPOINTMENT")

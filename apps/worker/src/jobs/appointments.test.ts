@@ -111,11 +111,25 @@ describe("appointments jobs (M03)", () => {
         appointmentId: a.id,
       },
     });
+    // OR brouillon préparé depuis le RDV : lien posé, mais pas d'arrivée.
+    await handleAppointmentEvent(
+      {
+        id: "e0",
+        organizationId: org.id,
+        type: "repair_order.created",
+        payload: { repairOrderId: order.id, appointmentId: a.id, status: "DRAFT" },
+      },
+      at("09:00", "2031-03-17"),
+    );
+    expect(await adminDb.appointment.findUniqueOrThrow({ where: { id: a.id } })).toMatchObject({
+      status: "BOOKED",
+      repairOrderId: order.id,
+    });
     const event = {
       id: "e1",
       organizationId: org.id,
       type: "repair_order.created",
-      payload: { repairOrderId: order.id, appointmentId: a.id },
+      payload: { repairOrderId: order.id, appointmentId: a.id, status: "CHECKED_IN" },
     };
     await handleAppointmentEvent(event, at("10:05", "2031-03-17"));
     expect(await adminDb.appointment.findUniqueOrThrow({ where: { id: a.id } })).toMatchObject({

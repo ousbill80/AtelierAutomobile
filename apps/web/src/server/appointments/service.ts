@@ -44,6 +44,7 @@ import {
 } from "@atelieros/db";
 import { messagingEnqueue, type EnqueueRequest } from "../messaging/enqueue";
 import { enqueueMessageSendJob } from "../messaging/queue";
+import { emitDomainEvent } from "../events/emit";
 
 export type TenantDb = ReturnType<typeof db.forTenant>;
 /** Client utilisable hors et dans `tenantDb.transaction()` (mêmes délégués typés). */
@@ -686,4 +687,59 @@ export async function notifyStaff(
       },
     });
   }
+}
+
+// ─────────────── Attaches M03 ↔ M04 (réception et livraison de l'OR) ───────────────
+
+/**
+ * US-M03-08 — la réception M04 crée un OR depuis un RDV : lien `repairOrderId` et passage
+ * ARRIVED (avec `arrivedAt`) si le RDV était encore attendu. Sans effet sur un RDV annulé,
+ * absent ou terminé (le lien est tout de même posé pour la traçabilité).
+ */
+export async function linkRepairOrderToAppointment(
+  tx: Tx,
+  input: { organizationId: string; appointmentId: string; repairOrderId: string; now: Date },
+): Promise<void> {
+  const appointment = await tx.appointment.findFirst({ where: { id: input.appointmentId } });
+  if (!appointment) return;
+  const pending = appointment.status === "BOOKED" || appointment.status === "CONFIRMED";
+  await tx.appointment.update({
+    where: { id: appointment.id },
+    data: {
+      repairOrderId: input.repairOrderId,
+      ...(pending ? { status: "ARRIVED", arrivedAt: input.now } : {}),
+    },
+  });
+  if (pending) {
+    await emitDomainEvent(tx as never, input.organizationId, "appointment.arrived", {
+      appointmentId: appointment.id,
+      customerId: appointment.customerId,
+      vehicleId: appointment.vehicleId,
+      repairOrderId: input.repairOrderId,
+    });
+  }
+}
+
+/** §5 — OR livré (DELIVERED/INVOICED) → RDV COMPLETED. Idempotent. */
+export async function completeAppointmentForRepairOrder(
+  tx: Tx,
+  input: { organizationId: string; appointmentId: string; repairOrderId: string; now: Date },
+): Promise<void> {
+  const appointment = await tx.appointment.findFirst({
+    where: { id: input.appointmentId, status: { in: ["ARRIVED", "BOOKED", "CONFIRMED"] } },
+  });
+  if (!appointment) return;
+  await tx.appointment.update({
+    where: { id: appointment.id },
+    data: {
+      status: "COMPLETED",
+      completedAt: input.now,
+      repairOrderId: input.repairOrderId,
+      arrivedAt: appointment.arrivedAt ?? input.now,
+    },
+  });
+  await emitDomainEvent(tx as never, input.organizationId, "appointment.completed", {
+    appointmentId: appointment.id,
+    repairOrderId: input.repairOrderId,
+  });
 }

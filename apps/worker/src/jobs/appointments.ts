@@ -249,7 +249,9 @@ export async function handleAppointmentEvent(event: EventRow, now: Date): Promis
       if (!appointmentId || !repairOrderId) return;
       const appt = await tenantDb.appointment.findFirst({ where: { id: appointmentId } });
       if (!appt) return;
-      const pending = appt.status === "BOOKED" || appt.status === "CONFIRMED";
+      // Un OR brouillon (préparation à partir du RDV, M04 RG-M04-02) ne vaut pas arrivée.
+      const pending =
+        payload.status !== "DRAFT" && (appt.status === "BOOKED" || appt.status === "CONFIRMED");
       await tenantDb.appointment.update({
         where: { id: appt.id },
         data: { repairOrderId, ...(pending ? { status: "ARRIVED", arrivedAt: now } : {}) },

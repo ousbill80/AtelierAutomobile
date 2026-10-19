@@ -230,18 +230,20 @@ export const planningSettingsSchema = z.object({
 });
 export type PlanningSettingsInput = z.infer<typeof planningSettingsSchema>;
 
-export const portalTokenInputSchema = z.object({ token: z.string().trim().min(16).max(200) });
+export const portalAppointmentTokenInputSchema = z.object({
+  token: z.string().trim().min(16).max(200),
+});
 
-export const portalSlotsInputSchema = portalTokenInputSchema.extend({
+export const portalSlotsInputSchema = portalAppointmentTokenInputSchema.extend({
   type: appointmentTypeSchema.optional(),
 });
 
-export const portalBookInputSchema = portalTokenInputSchema.extend({
+export const portalBookInputSchema = portalAppointmentTokenInputSchema.extend({
   startsAt: z.coerce.date(),
   type: appointmentTypeSchema,
   comment: z.string().trim().max(500).optional(),
 });
 
-export const portalRescheduleInputSchema = portalTokenInputSchema.extend({
+export const portalRescheduleInputSchema = portalAppointmentTokenInputSchema.extend({
   startsAt: z.coerce.date(),
 });

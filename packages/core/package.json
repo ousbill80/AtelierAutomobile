@@ -13,7 +13,8 @@
     "./src/plate": "./src/plate.ts",
     "./src/auth/password-policy": "./src/auth/password-policy.ts",
     "./money": "./src/money/index.ts",
-    "./planning": "./src/planning/index.ts"
+    "./planning": "./src/planning/index.ts",
+    "./repairOrders": "./src/repairOrders/index.ts"
   },
   "scripts": {
     "lint": "eslint .",
