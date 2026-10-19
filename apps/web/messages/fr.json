@@ -121,6 +121,7 @@
     "logout": "Se déconnecter",
     "receivables": "Créances",
     "ownerDashboard": "Pilotage",
+    "reminderResults": "Résultats des relances",
     "repairOrders": "Ordres de réparation",
     "settingsRepairOrders": "Ordres de réparation",
     "settingsInspection": "Modèles d'inspection",
@@ -380,6 +381,9 @@
     "auth.login.failed": "Connexion échouée",
     "auth.login.success": "Connexion réussie",
     "auth.otp_new_device": "Vérification nouvel appareil",
+    "contact.created": "Contact client ajouté",
+    "contact.deleted": "Contact client supprimé",
+    "contact.updated": "Contact client modifié",
     "member.deactivated": "Membre désactivé",
     "member.invited": "Membre invité",
     "member.joined": "Membre a rejoint l'organisation",
@@ -867,6 +871,123 @@
       }
     },
     "dash": "—"
+  },
+  "customers": {
+    "contacts": {
+      "title": "Contacts",
+      "add": "Ajouter un contact",
+      "createTitle": "Nouveau contact",
+      "editTitle": "Modifier le contact",
+      "deleteTitle": "Supprimer le contact",
+      "deleteConfirm": "Supprimer « {name} » ? Les messages déjà envoyés restent dans l'historique.",
+      "loadError": "Impossible de charger les contacts.",
+      "retry": "Réessayer",
+      "empty": {
+        "title": "Aucun contact.",
+        "description": "Sans contact coché, les messages partent au téléphone principal du client."
+      },
+      "badges": {
+        "primary": "Contact principal",
+        "reminders": "Reçoit les relances",
+        "invoices": "Reçoit les factures"
+      },
+      "fields": {
+        "name": "Nom",
+        "role": "Fonction",
+        "rolePlaceholder": "Responsable flotte, Comptabilité…",
+        "phone": "Téléphone",
+        "phone2": "Téléphone 2",
+        "email": "Email",
+        "isPrimary": "Contact principal",
+        "receivesReminders": "Reçoit les relances (visite technique, révision)",
+        "receivesInvoices": "Reçoit les factures et relances de créances"
+      }
+    }
+  },
+  "reminders": {
+    "types": {
+      "INSPECTION": "Visite technique",
+      "SERVICE": "Révision",
+      "RECEIVABLE": "Créance",
+      "APPOINTMENT": "Rendez-vous",
+      "QUOTE_FOLLOWUP": "Suivi de devis",
+      "VEHICLE_READY": "Véhicule prêt",
+      "INSURANCE_EXPIRY": "Assurance",
+      "SATISFACTION": "Satisfaction",
+      "RECOMMENDED_WORK": "Travaux recommandés",
+      "CUSTOM": "Personnalisée"
+    },
+    "status": {
+      "SENT": "Envoyée",
+      "FAILED": "Échec",
+      "CANCELLED": "Annulée",
+      "SKIPPED": "Ignorée"
+    },
+    "outcomes": {
+      "APPOINTMENT_BOOKED": "RDV pris",
+      "PAID": "Payé",
+      "PARTIALLY_PAID": "Payé en partie",
+      "PROMISED": "Promesse de paiement",
+      "REPLIED": "A répondu",
+      "NO_RESPONSE": "Sans réponse",
+      "OPTED_OUT": "Désinscrit",
+      "VISITED": "Venu au garage",
+      "QUOTE_ACCEPTED": "Devis accepté",
+      "VEHICLE_PICKED_UP": "Véhicule récupéré"
+    },
+    "results": {
+      "title": "Résultats des relances",
+      "description": "Relances envoyées, en échec, annulées ou ignorées sur la période, et ce qu'elles ont produit.",
+      "fromLabel": "Du",
+      "toLabel": "Au",
+      "statusFilterLabel": "Statut",
+      "typeFilterLabel": "Type",
+      "allStatuses": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "invalidRange": "La date de début doit précéder la date de fin.",
+      "kpiLabel": "{label} : {count}",
+      "outcomesTitle": "Issues constatées",
+      "outcomesEmpty": "Aucune issue enregistrée sur la période.",
+      "error": "Impossible de charger les résultats des relances.",
+      "retry": "Réessayer",
+      "loadMore": "Charger plus",
+      "noReason": "—",
+      "empty": {
+        "title": "Aucune relance sur cette période.",
+        "description": "Élargissez la période ou retirez les filtres."
+      },
+      "table": {
+        "type": "Type",
+        "customer": "Client",
+        "vehicle": "Véhicule",
+        "channel": "Canal",
+        "status": "Statut",
+        "when": "Date",
+        "reason": "Issue / motif"
+      }
+    }
+  },
+  "search": {
+    "placeholder": "Rechercher un client, une plaque, un n° de document…",
+    "ariaLabel": "Recherche globale",
+    "resultsLabel": "Résultats de recherche",
+    "minLength": "Tapez au moins 2 caractères.",
+    "error": "La recherche a échoué. Réessayez.",
+    "empty": "Aucun résultat pour « {query} ».",
+    "viaContact": "Contact : {name}",
+    "groups": {
+      "customers": "Clients",
+      "vehicles": "Véhicules",
+      "documents": "Documents"
+    },
+    "documentTypes": {
+      "repair_order": "OR",
+      "quote": "Devis",
+      "invoice": "Facture",
+      "credit_note": "Avoir",
+      "receipt": "Reçu",
+      "purchase_order": "Bon de commande"
+    }
   },
   "repairOrders": {
     "title": "Ordres de réparation",
