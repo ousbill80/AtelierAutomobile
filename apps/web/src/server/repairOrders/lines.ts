@@ -19,6 +19,7 @@ import {
   badRequest,
   membersWithRoles,
   notify,
+  syncOrderStock,
   transitionFacts,
   type OrgRoContext,
 } from "./helpers";
@@ -169,6 +170,8 @@ export async function afterLineChange(
   now: Date,
 ): Promise<void> {
   const order = await tx.repairOrder.findFirstOrThrow({ where: { id: repairOrderId } });
+  // M07 : réservations ajustées aux lignes (ajout, quantité, refus, annulation).
+  await syncOrderStock(tx, order, now, ctx.membership.id);
   const lines = await tx.repairOrderLine.findMany({ where: { repairOrderId } });
   const live = lines.filter((l) => l.status !== "CANCELLED");
   if (order.status === "APPROVED" && live.some((l) => l.status !== "PENDING")) {

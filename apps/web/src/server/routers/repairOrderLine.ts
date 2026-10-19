@@ -2,7 +2,15 @@
 // statut (utilisé par M06), affectation, suivi de sous-traitance.
 import { TRPCError } from "@trpc/server";
 import { decideLineApproval, isLockedStatus, isWorkableLine, lineAmounts } from "@atelieros/core";
-import { db, type RepairOrder, type RepairOrderLine, type ScopedTenantClient } from "@atelieros/db";
+import {
+  db,
+  issueReservedForLine,
+  loadStockContext,
+  syncRepairOrderStock,
+  type RepairOrder,
+  type RepairOrderLine,
+  type ScopedTenantClient,
+} from "@atelieros/db";
 import {
   addLineInputSchema,
   assignLineInputSchema,
@@ -22,6 +30,7 @@ import {
   notFound,
   recomputeTotals,
   roNow,
+  syncOrderStock,
 } from "../repairOrders/helpers";
 import {
   afterLineChange,
@@ -122,6 +131,8 @@ export const repairOrderLineRouter = router({
           approval: created.approval,
         });
         const totals = await recomputeTotals(tx, order.id, org.vatEnabled);
+        // M07 : une pièce ajoutée à un OR déjà approuvé est réservée aussitôt.
+        await syncOrderStock(tx, order, roNow(), ctx.membership.id);
         return { line: created, totals };
       });
     }),
@@ -282,6 +293,12 @@ export const repairOrderLineRouter = router({
           completedById: input.status === "DONE" ? ctx.membership.id : null,
         },
       });
+      if (input.status === "DONE" && line.status !== "DONE") {
+        // RG-M04-09 : ligne validée → sortie des pièces réservées pour elle (ISSUE_TO_RO).
+        const stock = await loadStockContext(ctx.organizationId);
+        await syncRepairOrderStock(tx, stock, order.id, now, ctx.membership.id);
+        await issueReservedForLine(tx, stock, line.id, now, ctx.membership.id);
+      }
       await afterLineChange(tx, ctx, org, order.id, now);
       return updated;
     });
