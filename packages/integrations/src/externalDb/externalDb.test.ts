@@ -1,4 +1,6 @@
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -51,8 +53,18 @@ describe("createMemoryExternalDatabase", () => {
   });
 });
 
-// Base PostgreSQL locale jouant « l'ancien logiciel » (même serveur que DATABASE_URL).
-const adminUrl = process.env.DATABASE_URL;
+// Base PostgreSQL locale jouant « l'ancien logiciel » (même serveur que DATABASE_URL). Seule
+// cette variable est lue dans le .env du monorepo : charger tout le fichier exposerait
+// ENCRYPTION_KEY aux autres tests du paquet (qui vérifient justement son absence).
+function databaseUrlFromEnvFile(): string | undefined {
+  const envPath = path.resolve(__dirname, "../../../../.env");
+  if (!existsSync(envPath)) return undefined;
+  const line = readFileSync(envPath, "utf8")
+    .split("\n")
+    .find((l) => l.startsWith("DATABASE_URL="));
+  return line?.slice("DATABASE_URL=".length).trim().replace(/^"|"$/g, "") || undefined;
+}
+const adminUrl = process.env.DATABASE_URL ?? databaseUrlFromEnvFile();
 describe.skipIf(!adminUrl)("connexion PostgreSQL réelle (RG-M13-25/26)", () => {
   const dbName = `legacy_${randomBytes(3).toString("hex")}`;
   const roUser = `ro_${randomBytes(3).toString("hex")}`;

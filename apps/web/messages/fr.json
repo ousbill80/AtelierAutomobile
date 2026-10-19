@@ -426,7 +426,10 @@
         "FAILED": "Échoué",
         "CANCELLED": "Annulé",
         "ROLLED_BACK": "Annulé (retour arrière)"
-      }
+      },
+      "syncCardTitle": "Synchronisation automatique",
+      "syncCardDescription": "Connectez AtelierOS à la base de votre logiciel actuel : clients, véhicules et factures se mettent à jour tout seuls, sans ressaisie.",
+      "syncCardCta": "Gérer les sources"
     },
     "wizard": {
       "title": "Importer un fichier",
@@ -544,6 +547,96 @@
         "errors": "Erreurs",
         "downloadErrorReport": "Télécharger le rapport d'erreurs",
         "backToList": "Retour aux imports"
+      }
+    },
+    "sources": {
+      "title": "Sources de synchronisation",
+      "description": "Connexion directe, en lecture seule, à la base de votre logiciel de gestion.",
+      "new": "Nouvelle source",
+      "back": "Retour aux sources",
+      "emptyTitle": "Aucune source de synchronisation",
+      "emptyDescription": "Ajoutez la connexion à la base de votre logiciel pour importer automatiquement vos données chaque jour.",
+      "error": "Impossible de charger les sources.",
+      "retry": "Réessayer",
+      "columns": {
+        "name": "Nom",
+        "type": "Base",
+        "schedule": "Planning",
+        "lastRun": "Dernière exécution",
+        "status": "Statut"
+      },
+      "never": "Jamais",
+      "status": {
+        "SUCCESS": "Réussie",
+        "FAILED": "En échec",
+        "NONE": "Jamais lancée",
+        "INACTIVE": "Désactivée"
+      },
+      "dbTypes": {
+        "postgres": "PostgreSQL",
+        "mysql": "MySQL / MariaDB",
+        "mssql": "SQL Server",
+        "memory": "Démonstration"
+      },
+      "schedules": {
+        "0 2 * * *": "Tous les jours à 02:00",
+        "0 * * * *": "Toutes les heures",
+        "*/15 * * * *": "Toutes les 15 minutes",
+        "custom": "Personnalisé (cron)"
+      },
+      "form": {
+        "titleNew": "Nouvelle source",
+        "titleEdit": "Source « {name} »",
+        "sectionConnection": "Connexion",
+        "sectionQueries": "Requêtes par type de donnée",
+        "sectionSchedule": "Planning",
+        "name": "Nom de la source",
+        "namePlaceholder": "Logiciel de l'atelier",
+        "dbType": "Type de base",
+        "host": "Hôte",
+        "port": "Port",
+        "database": "Base",
+        "user": "Utilisateur",
+        "password": "Mot de passe",
+        "passwordSaved": "•••• enregistré (laisser vide pour le conserver)",
+        "ssl": "Connexion chiffrée (SSL)",
+        "readOnlyHint": "Utilisez un compte en lecture seule : AtelierOS n'écrit jamais dans votre base.",
+        "queriesHint": "Une seule requête SELECT par type. Utilisez :since pour ne lire que les lignes modifiées depuis la dernière synchronisation. Nommez les colonnes comme les champs AtelierOS (displayName, phone, plate, externalNumber, total…).",
+        "queryPlaceholder": "SELECT … FROM … WHERE DateModif >= :since",
+        "schedule": "Fréquence",
+        "cron": "Expression cron",
+        "active": "Synchronisation active",
+        "policy": "Mise à jour des fiches existantes",
+        "policies": {
+          "UPSERT": "Compléter sans effacer (recommandé)",
+          "UPSERT_OVERWRITE": "Écraser avec les valeurs de la base",
+          "CREATE_ONLY": "Créer seulement, ne jamais modifier"
+        },
+        "save": "Enregistrer",
+        "saved": "Source enregistrée.",
+        "test": "Tester la connexion",
+        "testOk": "Connexion réussie — {tables} tables visibles",
+        "testCanWrite": "Ce compte a des droits d'écriture : créez un compte en lecture seule.",
+        "preview": "Prévisualiser 20 lignes",
+        "previewEmpty": "La requête ne renvoie aucune ligne.",
+        "runNow": "Synchroniser maintenant",
+        "runQueued": "Synchronisation lancée.",
+        "runDone": "Synchronisation terminée.",
+        "deactivate": "Désactiver la source",
+        "deactivated": "Source désactivée.",
+        "lastError": "Dernière erreur",
+        "failures": "{count} échec(s) consécutif(s)"
+      },
+      "runs": {
+        "title": "Journal des 30 dernières exécutions",
+        "empty": "Aucune exécution pour le moment.",
+        "date": "Date",
+        "entity": "Type",
+        "created": "Créés",
+        "updated": "Mis à jour",
+        "unchanged": "Inchangés",
+        "errors": "Erreurs",
+        "status": "Statut"
       }
     }
   },
