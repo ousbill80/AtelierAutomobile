@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { renderInvoicePdf, renderReceiptPdf, type InvoicePdfData } from "./invoice";
+import {
+  fneBlockLines,
+  fneQrImage,
+  renderInvoicePdf,
+  renderReceiptPdf,
+  type InvoicePdfData,
+} from "./invoice";
 
 const invoice: InvoicePdfData = {
   kind: "INVOICE",
@@ -47,6 +53,32 @@ describe("invoice and receipt PDFs", () => {
       const pdf = await renderInvoicePdf(data);
       expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
     }
+  });
+
+  it("FNE block: certified number + QR image, or pending mention (RG-M08-04)", async () => {
+    expect(
+      fneBlockLines({
+        status: "CERTIFIED",
+        number: "SIM-FAC-2026-000415",
+        certifiedAt: "2026-10-19T10:05:00Z",
+      }),
+    ).toEqual([
+      "Facture normalisée électronique (FNE)",
+      "N° fiscal : SIM-FAC-2026-000415",
+      "Certifiée le 19/10/2026",
+    ]);
+    expect(fneBlockLines({ status: "FAILED", number: null })).toEqual([
+      "Facture normalisée électronique (FNE)",
+      "FNE en attente de certification",
+    ]);
+    expect(await fneQrImage("https://dgi.example/verif/1")).toMatch(/^data:image\/png;base64,/);
+    expect(await fneQrImage("data:image/png;base64,AAAA")).toBe("data:image/png;base64,AAAA");
+    expect(await fneQrImage(null)).toBeNull();
+    const pdf = await renderInvoicePdf({
+      ...invoice,
+      fne: { status: "MANUAL", number: "FNE-123", qrCode: "https://dgi.example/verif/1" },
+    });
+    expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
   });
 
   it("renders a receipt", async () => {

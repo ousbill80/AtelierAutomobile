@@ -22,6 +22,7 @@ import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { paymentRouter } from "./payment";
 import { invoiceRouter } from "./invoice";
+import { fneRouter } from "./fne";
 import { cashRouter, refundRouter } from "./cash";
 import { accountingRouter } from "./accounting";
 import { planningRouter, planningSettingsRouter, resourceBlockRouter } from "./planning";
@@ -55,6 +56,7 @@ import { supplierRouter } from "./supplier";
 
 export const appRouter = router({
   invoice: invoiceRouter,
+  fne: fneRouter,
   cash: cashRouter,
   refund: refundRouter,
   accounting: accountingRouter,

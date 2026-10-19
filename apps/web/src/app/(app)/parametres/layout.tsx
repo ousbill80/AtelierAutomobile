@@ -57,6 +57,13 @@ const NAV = [
     label: "nav.settingsLaborCatalog",
     permission: "labor_catalog:manage",
   },
+  // M08 / M15 RG-M15-18 — facture normalisée électronique.
+  {
+    key: "fne",
+    href: "/parametres/fne",
+    label: "nav.settingsFne",
+    permission: "settings:fne",
+  },
 ] as const;
 
 export default function ParametresLayout({ children }: { children: ReactNode }) {

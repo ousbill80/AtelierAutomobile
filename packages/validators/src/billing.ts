@@ -1,5 +1,5 @@
 // M08 §8 — entrées des routeurs `invoice`, `payment` (encaissement comptoir), `refund`, `cash`
-// et `accounting` (étape 4.1 : hors FNE et liens de paiement).
+// et `accounting` (étape 4.1 ; FNE : `./fne`, liens de paiement : 4.3).
 import { z } from "zod";
 import { paymentMethodSchema } from "./receivables";
 import { lineTypeSchema } from "./repairOrder";

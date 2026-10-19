@@ -1734,6 +1734,7 @@ model Invoice {
   @@unique([organizationId, number])
   @@index([organizationId, status, dueDate])
   @@index([organizationId, customerId, status])
+  @@index([fneStatus, fneNextRetryAt]) // fne.retry (RG-M08-15)
 }
 
 enum InvoiceType {
@@ -2595,6 +2596,12 @@ model FneConfig {
   establishmentId String?
   pointOfSale     String?
   isActive        Boolean @default(false)
+  // M08 étape 4.2 (hors §14) : adaptateur du mode api et résultat du dernier test (RG-M15-18).
+  provider        String    @default("dgi_api") // dgi_api | fake (simulateur, hors production)
+  lastTestedAt    DateTime?
+  lastTestOk      Boolean?
+  lastError       String?
+  updatedAt       DateTime  @default(now()) @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 }

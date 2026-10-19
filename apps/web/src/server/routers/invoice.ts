@@ -1,5 +1,5 @@
 // M08 §8 — factures : brouillons (OR, devis, vente comptoir, acompte), émission sans trou,
-// avoirs, échéance, liste et détail. FNE (4.2) et liens de paiement (4.3) hors périmètre.
+// avoirs, échéance, liste et détail. FNE : routeur `fne` ; liens de paiement (4.3) hors périmètre.
 import { TRPCError } from "@trpc/server";
 import {
   buildDepositLine,
@@ -40,6 +40,7 @@ import {
   syncReceivables,
   type Tx,
 } from "../billing/service";
+import { enqueueFneCertifyJob } from "../billing/fneQueue";
 import { requirePermission, requireSite, router } from "../trpc";
 
 const OPEN = ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"] as const;
@@ -384,13 +385,18 @@ export const invoiceRouter = router({
       const org = await loadOrgBillingContext(ctx.organizationId);
       assertBillingModule(org);
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      return tenantDb.transaction(
+      const issued = await tenantDb.transaction(
         async (tx) => {
           await loadInvoice(tx, ctx, input.id);
           return issueInvoice(tx, actorOf(ctx), org, input.id, input.applyDepositIds ?? []);
         },
         { timeout: 20_000, maxWait: 20_000 },
       );
+      // US-M08-05 : certification FNE démarrée après commit (mode api).
+      if (issued.fneNextRetryAt) {
+        await enqueueFneCertifyJob(ctx.organizationId, issued.id, issued.fneAttempts);
+      }
+      return issued;
     }),
 
   /** Seuls les brouillons se suppriment (01 §7) ; une facture émise se corrige par avoir. */
@@ -440,7 +446,7 @@ export const invoiceRouter = router({
       const org = await loadOrgBillingContext(ctx.organizationId);
       assertBillingModule(org);
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      return tenantDb.transaction(
+      const result = await tenantDb.transaction(
         async (tx) => {
           await loadInvoice(tx, ctx, input.invoiceId);
           return createCreditNote(tx, actorOf(ctx), org, {
@@ -451,6 +457,11 @@ export const invoiceRouter = router({
         },
         { timeout: 20_000, maxWait: 20_000 },
       );
+      // RG-M08-12 : l'avoir est toujours soumis à la FNE.
+      if (result.creditNote.fneNextRetryAt) {
+        await enqueueFneCertifyJob(ctx.organizationId, result.creditNote.id, 0);
+      }
+      return result;
     }),
 
   /** RG-M08-02 — l'échéance reste modifiable après émission (audit, `invoice:edit_due`). */
@@ -649,6 +660,7 @@ export const invoiceRouter = router({
           customerCredits,
           timeZone: org.timeZone,
           vatEnabled: org.vatEnabled,
+          fneMode: org.fneMode ?? "manual",
           missingIdentity: [
             !org.rccm ? "RCCM" : null,
             !org.ncc ? "NCC" : null,

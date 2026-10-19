@@ -10,6 +10,7 @@ export function InvoiceStatusBadge({ status }: { status: string }) {
 
 export function FneBadge({ status }: { status: string }) {
   if (status === "NOT_REQUIRED") return null;
-  const icon = status === "CERTIFIED" || status === "MANUAL" ? "✓ " : "⚠ ";
+  const icon =
+    status === "CERTIFIED" || status === "MANUAL" ? "✓ " : status === "FAILED" ? "✕ " : "⚠ ";
   return <StatusBadge tone={FNE_TONE[status] ?? "off"} label={`${icon}${t(`fne.${status}`)}`} />;
 }
