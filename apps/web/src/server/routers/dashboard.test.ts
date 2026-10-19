@@ -127,11 +127,80 @@ describe("dashboard / alerts routers (M12 partie 1)", () => {
       overdue: 1_240_000,
       over30: 1_240_000,
     });
-    expect(result.receivables.buckets.d31_60).toBe(1_240_000);
+    expect(result.receivables.buckets.b31_60).toBe(1_240_000);
     expect(result.topUnpaid[0]).toMatchObject({
       customerName: "SOTRA Logistique",
       balance: 1_425_000,
     });
+  });
+
+  it("une seule définition avec M09 : facture assurance exclue, récupéré lu sur PaymentAttribution", async () => {
+    const customer = await adminDb.customer.findFirstOrThrow({
+      where: { organizationId: orgA.id, displayName: "SOTRA Logistique" },
+    });
+    await adminDb.invoice.create({
+      data: {
+        organizationId: orgA.id,
+        siteId: siteA1.id,
+        customerId: customer.id,
+        billTo: "INSURANCE",
+        number: `FAC-T-${randomBytes(3).toString("hex")}`,
+        status: "OVERDUE",
+        issuedAt: new Date(Date.now() - 60 * DAY),
+        dueDate: new Date(Date.now() - 50 * DAY),
+        total: 900_000,
+        balance: 900_000,
+      },
+    });
+    const paid = await adminDb.invoice.create({
+      data: {
+        organizationId: orgA.id,
+        siteId: siteA1.id,
+        customerId: customer.id,
+        number: `FAC-T-${randomBytes(3).toString("hex")}`,
+        status: "PAID",
+        issuedAt: new Date(Date.now() - 30 * DAY),
+        dueDate: new Date(Date.now() - 15 * DAY),
+        total: 185_000,
+        amountPaid: 185_000,
+        balance: 0,
+      },
+    });
+    const payment = await adminDb.payment.create({
+      data: {
+        organizationId: orgA.id,
+        siteId: siteA1.id,
+        customerId: customer.id,
+        number: `REC-T-${randomBytes(3).toString("hex")}`,
+        method: "WAVE",
+        amount: 185_000,
+        receivedAt: new Date(),
+      },
+    });
+    const allocation = await adminDb.paymentAllocation.create({
+      data: { organizationId: orgA.id, paymentId: payment.id, invoiceId: paid.id, amount: 185_000 },
+    });
+    await adminDb.paymentAttribution.create({
+      data: {
+        organizationId: orgA.id,
+        paymentAllocationId: allocation.id,
+        source: "reminder",
+        amount: 185_000,
+      },
+    });
+
+    const finances = await ownerA.caller.dashboard.finances({ period: "month" });
+    expect(finances.receivables.total).toBe(1_425_000);
+    const overview = await ownerA.caller.dashboard.overview({ period: "month" });
+    expect(overview.recovered.value).toBe(185_000);
+    const tab = await ownerA.caller.dashboard.reminders({ period: "month" });
+    expect(tab.recoveredAmount).toBe(185_000);
+
+    const restricted = await callerFor(orgA.id, "OWNER", [siteA2.id]);
+    expect((await restricted.caller.dashboard.overview({ period: "month" })).recovered.value).toBe(
+      0,
+    );
+    expect((await ownerB.caller.dashboard.overview({ period: "month" })).recovered.value).toBe(0);
   });
 
   it("isolation multi-locataire : l'organisation B ne voit rien de A", async () => {

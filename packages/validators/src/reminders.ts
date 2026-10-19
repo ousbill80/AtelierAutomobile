@@ -190,7 +190,8 @@ export const reminderSettingsSchema = z.object({
       RECEIVABLE: z.number().int().min(1),
       QUOTE_FOLLOWUP: z.number().int().min(1),
     })
-    .default({ INSPECTION: 30, SERVICE: 30, RECEIVABLE: 7, QUOTE_FOLLOWUP: 7 }),
+    // A10 : la fenêtre RECEIVABLE suit la règle M12 (14 j).
+    .default({ INSPECTION: 30, SERVICE: 30, RECEIVABLE: 14, QUOTE_FOLLOWUP: 7 }),
 });
 export type ReminderSettingsInput = z.infer<typeof reminderSettingsSchema>;
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettingsInput = reminderSettingsSchema.parse({});
