@@ -23,6 +23,7 @@ import type { AppRouter } from "@/server/routers/_app";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
+import { GlobalSearch } from "@/components/global-search";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
 
@@ -84,6 +85,11 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     { href: "/messages", label: t("nav.messages"), permission: "message:read" },
     { href: "/relances", label: t("nav.reminders"), permission: "reminder:read" },
     { href: "/relances/echeances", label: t("nav.dueDates"), permission: "reminder:read" },
+    {
+      href: "/relances/resultats",
+      label: t("nav.reminderResults"),
+      permission: "reminder:read",
+    },
     { href: "/creances", label: t("nav.receivables"), permission: "receivable:read" },
     { href: "/import", label: t("nav.import"), permission: "import:run" },
   ].filter((item) => has(item.permission) && !("hidden" in item && item.hidden));
@@ -183,7 +189,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
               </DropdownMenu>
             </div>
           ) : null}
-          <SearchBox placeholder={t("common.search")} />
+          {has("customer:read") ? <GlobalSearch /> : <SearchBox placeholder={t("common.search")} />}
           <TopbarActions>
             <IconButton aria-label="Notifications" />
             <div className="dropdown-wrap">

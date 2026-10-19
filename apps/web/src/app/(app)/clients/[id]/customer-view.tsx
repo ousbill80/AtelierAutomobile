@@ -6,6 +6,7 @@ import { CreditAlert } from "@/components/credit-alert";
 import { LinkButton } from "@/components/link-button";
 import { trpc } from "@/trpc/react";
 import { ReminderMiniBlock } from "../../relances/reminder-mini-block";
+import { ContactsSection } from "./contacts-section";
 
 export function CustomerView({ id }: { id: string }) {
   const { data: customer, isLoading, isError } = trpc.customer.get.useQuery({ id });
@@ -89,6 +90,8 @@ export function CustomerView({ id }: { id: string }) {
           </ul>
         )}
       </section>
+
+      <ContactsSection customerId={id} />
 
       <ReminderMiniBlock customerId={id} />
 
