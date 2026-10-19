@@ -39,6 +39,10 @@ async function main(): Promise<void> {
     await import("./queues/reports");
   const { processDigestOwnerJob } = await import("./jobs/digestOwner");
   const { processAlertsScanJob } = await import("./jobs/alertsScan");
+  const { REPAIR_ORDERS_JOB_NAMES, REPAIR_ORDERS_QUEUE_NAME, scheduleRepairOrderJobs } =
+    await import("./queues/repairOrders");
+  const { processRepairOrdersLateCheckJob, processRepairOrdersReadyFollowupJob } =
+    await import("./jobs/repairOrders");
 
   logger.info("AtelierOS worker démarré");
 
@@ -129,6 +133,28 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "reports : un job a échoué");
   });
 
+  // M04 §9 : OR en retard sur la promesse, véhicules prêts non récupérés, gardiennage.
+  await scheduleRepairOrderJobs();
+
+  const repairOrdersWorker = new Worker(
+    REPAIR_ORDERS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case REPAIR_ORDERS_JOB_NAMES.LATE_CHECK:
+          return processRepairOrdersLateCheckJob();
+        case REPAIR_ORDERS_JOB_NAMES.READY_FOLLOWUP:
+          return processRepairOrdersReadyFollowupJob();
+        default:
+          logger.warn({ jobName: job.name }, "repairOrders : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  repairOrdersWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "repairOrders : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -136,6 +162,7 @@ async function main(): Promise<void> {
       messagesWorker.close(),
       remindersWorker.close(),
       reportsWorker.close(),
+      repairOrdersWorker.close(),
     ]);
     process.exit(0);
   }

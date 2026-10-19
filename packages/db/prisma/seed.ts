@@ -1,4 +1,11 @@
-import { generateCiHolidays, hashPassword, normalizePlate } from "@atelieros/core";
+import {
+  defaultInspectionTemplate,
+  extraInspectionTemplates,
+  generateCiHolidays,
+  hashPassword,
+  lineAmounts,
+  normalizePlate,
+} from "@atelieros/core";
 import { adminDb } from "../src/client";
 import { Prisma } from "@prisma/client";
 
@@ -2016,6 +2023,214 @@ async function main() {
       stopOn: [], // RG-M10-02 : "—" (aucun événement d'arrêt listé)
     },
   });
+
+  console.log("Seed — modèles d'inspection et OR en cours (M04)...");
+  await adminDb.inspectionTemplate.create({
+    data: {
+      organizationId: organization.id,
+      name: defaultInspectionTemplate().name,
+      items: defaultInspectionTemplate().items as unknown as Prisma.InputJsonValue,
+      isDefault: true,
+    },
+  });
+  for (const template of extraInspectionTemplates()) {
+    await adminDb.inspectionTemplate.create({
+      data: {
+        organizationId: organization.id,
+        name: template.name,
+        items: template.items as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
+  const mechanicMembershipId = memberships.MECHANIC!.membershipId;
+  const managerMembershipId = memberships.MANAGER!.membershipId;
+  const activeScenarios: Array<{
+    status: "CHECKED_IN" | "IN_PROGRESS" | "AWAITING_APPROVAL" | "READY";
+    complaint: string;
+    promisedInHours: number;
+    path: Array<
+      | "CHECKED_IN"
+      | "DIAGNOSING"
+      | "AWAITING_APPROVAL"
+      | "APPROVED"
+      | "IN_PROGRESS"
+      | "QUALITY_CHECK"
+      | "READY"
+    >;
+    lines: Array<{
+      type: "LABOR" | "PART";
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      approval: "APPROVED" | "PENDING";
+      status: "PENDING" | "IN_PROGRESS" | "DONE";
+    }>;
+  }> = [
+    {
+      status: "CHECKED_IN",
+      complaint: "Bruit moteur à froid + voyant moteur allumé",
+      promisedInHours: 6,
+      path: ["CHECKED_IN"],
+      lines: [],
+    },
+    {
+      status: "IN_PROGRESS",
+      complaint: "Vidange + bruit au freinage à l'avant",
+      promisedInHours: -3,
+      path: ["CHECKED_IN", "APPROVED", "IN_PROGRESS"],
+      lines: [
+        {
+          type: "LABOR",
+          description: "Vidange moteur + filtre",
+          quantity: 0.5,
+          unitPrice: 15_000,
+          approval: "APPROVED",
+          status: "DONE",
+        },
+        {
+          type: "PART",
+          description: "Huile moteur 5W30 (le litre)",
+          quantity: 4,
+          unitPrice: 4_800,
+          approval: "APPROVED",
+          status: "DONE",
+        },
+        {
+          type: "LABOR",
+          description: "Remplacement plaquettes AV",
+          quantity: 1,
+          unitPrice: 15_000,
+          approval: "APPROVED",
+          status: "IN_PROGRESS",
+        },
+      ],
+    },
+    {
+      status: "AWAITING_APPROVAL",
+      complaint: "Claquements dans les bosses",
+      promisedInHours: 24,
+      path: ["CHECKED_IN", "DIAGNOSING", "AWAITING_APPROVAL"],
+      lines: [
+        {
+          type: "LABOR",
+          description: "Diagnostic trains roulants",
+          quantity: 1,
+          unitPrice: 20_000,
+          approval: "APPROVED",
+          status: "DONE",
+        },
+        {
+          type: "PART",
+          description: "Amortisseurs arrière (paire)",
+          quantity: 1,
+          unitPrice: 85_000,
+          approval: "PENDING",
+          status: "PENDING",
+        },
+        {
+          type: "LABOR",
+          description: "Remplacement amortisseurs AR",
+          quantity: 2,
+          unitPrice: 15_000,
+          approval: "PENDING",
+          status: "PENDING",
+        },
+      ],
+    },
+    {
+      status: "READY",
+      complaint: "Climatisation ne refroidit plus",
+      promisedInHours: -26,
+      path: ["CHECKED_IN", "APPROVED", "IN_PROGRESS", "QUALITY_CHECK", "READY"],
+      lines: [
+        {
+          type: "LABOR",
+          description: "Recharge climatisation",
+          quantity: 1,
+          unitPrice: 25_000,
+          approval: "APPROVED",
+          status: "DONE",
+        },
+      ],
+    },
+  ];
+  for (const [index, scenario] of activeScenarios.entries()) {
+    const customer = fillerCustomers[(index * 5 + 3) % fillerCustomers.length]!;
+    const vehicle = await adminDb.vehicle.findFirst({ where: { customerId: customer.id } });
+    if (!vehicle) continue;
+    const receivedAt = new Date(TODAY.getTime() - (index + 1) * 3 * 3_600_000);
+    const totalEstimate = scenario.lines
+      .filter((l) => l.approval === "APPROVED")
+      .reduce(
+        (sum, l) =>
+          sum + lineAmounts({ ...l, discountRate: 0, vatRate: 18, payer: "CUSTOMER" }).total,
+        0,
+      );
+    const order = await adminDb.repairOrder.create({
+      data: {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        number: `OR-${siteYopougon.code}-2026-${String(orSeqBySite[siteYopougon.id]!++).padStart(5, "0")}`,
+        customerId: customer.id,
+        vehicleId: vehicle.id,
+        advisorId: advisorMembershipId,
+        createdById: advisorMembershipId,
+        status: scenario.status,
+        mileageIn: vehicle.currentMileage ?? 50_000,
+        fuelLevel: 4,
+        complaint: scenario.complaint,
+        checkIn: {
+          bodyType: "SEDAN",
+          noDamage: true,
+          damages: [],
+          items: [{ key: "spare_wheel", present: true }],
+          keysCount: 1,
+          belongings: "",
+          warningLights: [],
+          authorizationCeiling: 25_000,
+          returnOldParts: false,
+          dropOff: { by: "OWNER" },
+          photoAttachmentIds: [],
+        },
+        signedAt: receivedAt,
+        promisedAt: new Date(TODAY.getTime() + scenario.promisedInHours * 3_600_000),
+        startedAt: scenario.path.includes("IN_PROGRESS") ? receivedAt : null,
+        readyAt: scenario.status === "READY" ? new Date(TODAY.getTime() - 2 * 86_400_000) : null,
+        qcById: scenario.status === "READY" ? managerMembershipId : null,
+        qcAt: scenario.status === "READY" ? receivedAt : null,
+        totalEstimate,
+        createdAt: receivedAt,
+      },
+    });
+    let from: (typeof scenario.path)[number] | "DRAFT" = "DRAFT";
+    for (const to of scenario.path) {
+      await adminDb.repairOrderStatusHistory.create({
+        data: {
+          organizationId: organization.id,
+          repairOrderId: order.id,
+          fromStatus: from,
+          toStatus: to,
+          transition: to === "CHECKED_IN" ? "check_in" : "seed",
+          membershipId: advisorMembershipId,
+          createdAt: receivedAt,
+        },
+      });
+      from = to;
+    }
+    for (const [sortOrder, line] of scenario.lines.entries()) {
+      await adminDb.repairOrderLine.create({
+        data: {
+          organizationId: organization.id,
+          repairOrderId: order.id,
+          ...line,
+          vatRate: 18,
+          approvalSource: line.approval === "APPROVED" ? "CHECK_IN" : null,
+          assignedToId: line.type === "LABOR" ? mechanicMembershipId : null,
+          sortOrder,
+        },
+      });
+    }
+  }
 
   console.log("Seed — compteurs de numérotation (DocumentSequence)...");
   await adminDb.documentSequence.createMany({

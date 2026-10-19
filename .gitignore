@@ -17,3 +17,6 @@ prisma/generated/
 !.vscode/extensions.json
 
 .claude/
+
+# M04 — stockage local des pièces jointes (STORAGE_DRIVER=local)
+.data/

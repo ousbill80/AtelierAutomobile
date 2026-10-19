@@ -112,6 +112,7 @@ export const PERMISSIONS = [
   "receivable:writeoff",
   "receivable:dispute",
   "receivable:formal_notice",
+  "receivable:credit_override",
   // Relances / messages (M10, M11)
   "reminder:read",
   "reminder:approve",
@@ -221,6 +222,8 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["receivable:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["receivable:manage", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["receivable:dispute", ["MANAGER", "ACCOUNTANT"]],
+  // RG-M09-10 : dérogation de crédit à l'ouverture d'un OR (OWNER, MANAGER) — ajoutée par M04.
+  ["receivable:credit_override", ["MANAGER"]],
   ["reminder:read", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["reminder:approve", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["reminder:rules_manage", ["MANAGER"]],
