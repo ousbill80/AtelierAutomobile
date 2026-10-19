@@ -21,3 +21,5 @@ export {
   type CollectionSettings,
   type SyncResult,
 } from "./receivables";
+export { hashPortalToken, issuePortalToken, resolvePortalToken } from "./portal";
+export type { IssuePortalTokenInput, ResolvedPortalToken } from "./portal";

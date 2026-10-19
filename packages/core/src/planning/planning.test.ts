@@ -515,3 +515,32 @@ describe("resolvePlanningConfig (§6)", () => {
     ]);
   });
 });
+
+describe("parsePreferredSlotText / transactionalSendTime", () => {
+  const monday = at("2026-10-19T10:00:00Z");
+  it("« oui samedi matin » → samedi 24/10, matin", async () => {
+    const { parsePreferredSlotText } = await import("./index");
+    expect(parsePreferredSlotText("oui samedi matin", monday, TZ)).toEqual({
+      date: "2026-10-24",
+      halfDay: "AM",
+      label: "samedi matin",
+    });
+    expect(parsePreferredSlotText("Demain après-midi", monday, TZ)).toMatchObject({
+      date: "2026-10-20",
+      halfDay: "PM",
+    });
+    expect(parsePreferredSlotText("après la paie", monday, TZ)).toEqual({ label: "" });
+  });
+  it("hors fenêtre 22:00-07:00 → envoi à 07:00", async () => {
+    const { transactionalSendTime } = await import("./index");
+    expect(transactionalSendTime(at("2026-10-19T10:00:00Z"), TZ)).toEqual(
+      at("2026-10-19T10:00:00Z"),
+    );
+    expect(transactionalSendTime(at("2026-10-19T22:30:00Z"), TZ)).toEqual(
+      at("2026-10-20T07:00:00Z"),
+    );
+    expect(transactionalSendTime(at("2026-10-20T05:00:00Z"), TZ)).toEqual(
+      at("2026-10-20T07:00:00Z"),
+    );
+  });
+});

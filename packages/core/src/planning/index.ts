@@ -12,3 +12,4 @@ export * from "./stateMachine";
 export * from "./batch";
 export * from "./messages";
 export * from "./replies";
+export * from "./preferences";
