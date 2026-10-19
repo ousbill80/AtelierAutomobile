@@ -1,23 +1,19 @@
-// RG-M12-17 (créances en cours), RG-M12-18 (balance âgée), RG-M12-19 (DSO).
-// Calcul isolé ici, à partir des seuls soldes `Invoice.balance` : quand l'étape 2.3 (M09 +
-// paiements) aura fusionné, seule l'alimentation des `ReceivableInvoiceLike` change côté
-// routeur (ex. solde reconstitué à une date passée), pas ces formules.
+// RG-M12-17 (créances en cours), RG-M12-18 (balance âgée), RG-M12-19 (DSO) — vue tableau de
+// bord. Une seule définition des créances : périmètre (`isOpenReceivable`, assurance exclue),
+// retard (`daysOverdue`) et tranches (`ageBucket`) viennent de `core/receivables` (M09), pour
+// que le tableau de bord, le module créances et le résumé quotidien affichent les mêmes chiffres.
+import {
+  ageBucket,
+  daysOverdue,
+  isOpenReceivable,
+  type AgeBucket,
+  type AgingInvoice,
+} from "../receivables/aging";
 
-export const RECEIVABLE_STATUSES = ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"] as const;
-
-export interface ReceivableInvoiceLike {
-  id: string;
-  type: string;
-  status: string;
-  balance: number;
-  /** Échéance (date métier `@db.Date`, minuit UTC). */
-  dueDate: Date | null;
-  customerId: string;
+export interface ReceivableInvoiceLike extends AgingInvoice {
   customerName?: string;
   number?: string | null;
 }
-
-export type AgingBucket = "notDue" | "d1_30" | "d31_60" | "d61_90" | "d90plus";
 
 export interface ReceivablesSummary {
   total: number;
@@ -25,59 +21,41 @@ export interface ReceivablesSummary {
   overdue: number;
   over30: number;
   disputed: number;
-  buckets: Record<AgingBucket, number>;
+  buckets: Record<AgeBucket, number>;
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-/** Jours de retard `T − dueDate` (dates civiles). Sans échéance → 0 (non échu). */
-export function daysLate(dueDate: Date | null, today: string): number {
-  if (!dueDate) return 0;
-  const t = new Date(`${today}T00:00:00.000Z`).getTime();
-  const d = Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate());
-  return Math.round((t - d) / MS_PER_DAY);
+/** Jour local `yyyy-MM-dd` → date métier (minuit UTC), convention des `@db.Date`. */
+export function asOfDate(today: string): Date {
+  return new Date(`${today}T00:00:00.000Z`);
 }
 
-/** RG-M12-18 : Non échu (d ≤ 0), 1–30, 31–60, 61–90, > 90. */
-export function agingBucket(days: number): AgingBucket {
-  if (days <= 0) return "notDue";
-  if (days <= 30) return "d1_30";
-  if (days <= 60) return "d31_60";
-  if (days <= 90) return "d61_90";
-  return "d90plus";
-}
-
-function isOpenReceivable(
-  invoice: Pick<ReceivableInvoiceLike, "type" | "status" | "balance">,
-): boolean {
-  return (
-    invoice.type === "INVOICE" &&
-    (RECEIVABLE_STATUSES as readonly string[]).includes(invoice.status) &&
-    invoice.balance > 0
-  );
+/** RG-M12-17 : factures `INVOICE` client ouvertes ; acomptes et avoirs hors encours. */
+function countsAsReceivable(invoice: ReceivableInvoiceLike): boolean {
+  return invoice.type === "INVOICE" && isOpenReceivable(invoice);
 }
 
 export function computeReceivables(
   invoices: readonly ReceivableInvoiceLike[],
   today: string,
 ): ReceivablesSummary {
+  const asOf = asOfDate(today);
   const summary: ReceivablesSummary = {
     total: 0,
     count: 0,
     overdue: 0,
     over30: 0,
     disputed: 0,
-    buckets: { notDue: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90plus: 0 },
+    buckets: { notDue: 0, b0_30: 0, b31_60: 0, b61_90: 0, b90p: 0 },
   };
   for (const invoice of invoices) {
-    if (!isOpenReceivable(invoice)) continue;
-    const days = daysLate(invoice.dueDate, today);
+    if (!countsAsReceivable(invoice)) continue;
+    const days = daysOverdue(invoice.dueDate, asOf);
     summary.total += invoice.balance;
     summary.count += 1;
     if (days > 0) summary.overdue += invoice.balance;
     if (days > 30) summary.over30 += invoice.balance;
     if (invoice.status === "DISPUTED") summary.disputed += invoice.balance;
-    summary.buckets[agingBucket(days)] += invoice.balance;
+    summary.buckets[ageBucket(days)] += invoice.balance;
   }
   return summary;
 }
@@ -96,9 +74,10 @@ export function topUnpaid(
   today: string,
   limit = 5,
 ): TopUnpaidEntry[] {
+  const asOf = asOfDate(today);
   const byCustomer = new Map<string, TopUnpaidEntry>();
   for (const invoice of invoices) {
-    if (!isOpenReceivable(invoice)) continue;
+    if (!countsAsReceivable(invoice)) continue;
     const entry = byCustomer.get(invoice.customerId) ?? {
       customerId: invoice.customerId,
       customerName: invoice.customerName ?? "",
@@ -108,7 +87,7 @@ export function topUnpaid(
     };
     entry.balance += invoice.balance;
     entry.invoiceCount += 1;
-    entry.maxDaysLate = Math.max(entry.maxDaysLate, daysLate(invoice.dueDate, today));
+    entry.maxDaysLate = Math.max(entry.maxDaysLate, daysOverdue(invoice.dueDate, asOf));
     byCustomer.set(invoice.customerId, entry);
   }
   return [...byCustomer.values()]
@@ -120,4 +99,31 @@ export function topUnpaid(
 export function dso(outstanding: number, revenueTtc90d: number): number | null {
   if (revenueTtc90d <= 0) return null;
   return Math.round((outstanding / revenueTtc90d) * 90);
+}
+
+export interface AttributionFactLike {
+  /** `PaymentAttribution.source` : reminder | call | spontaneous. */
+  source: string;
+  amount: number;
+  /** `Payment.receivedAt` du paiement alloué. */
+  receivedAt: Date;
+}
+
+/**
+ * RG-M12-21/22 (A10) : montant récupéré grâce aux relances = Σ `PaymentAttribution.amount`
+ * de source `reminder` dont le paiement est reçu dans `[from, to)`. L'attribution elle-même
+ * (fenêtre 14 j, dernier contact) est faite une fois, à l'encaissement, par
+ * `core/receivables/attribution` (M09).
+ */
+export function recoveredByReminders(
+  attributions: readonly AttributionFactLike[],
+  from: Date,
+  to: Date,
+): number {
+  let sum = 0;
+  for (const a of attributions) {
+    const t = a.receivedAt.getTime();
+    if (a.source === "reminder" && t >= from.getTime() && t < to.getTime()) sum += a.amount;
+  }
+  return sum;
 }
