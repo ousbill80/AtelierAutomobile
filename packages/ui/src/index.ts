@@ -23,6 +23,7 @@ export { PhoneInput, type PhoneInputProps } from "./PhoneInput";
 export { MoneyInput, type MoneyInputProps } from "./MoneyInput";
 export { PlateInput, type PlateInputProps } from "./PlateInput";
 export { StatusBadge, TypeBadge, type StatusTone, type StatusBadgeProps } from "./StatusBadge";
+export { DueBadge, type DueBadgeProps } from "./DueBadge";
 export { Card, type CardProps } from "./Card";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { DataTable, type DataTableColumn, type DataTableProps } from "./DataTable";

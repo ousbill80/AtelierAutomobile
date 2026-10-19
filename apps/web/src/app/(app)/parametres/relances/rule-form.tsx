@@ -7,13 +7,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
-import { Button, Input } from "@atelieros/ui";
+import { Button, Field, Input } from "@atelieros/ui";
 import {
   reminderStopEventSchema,
   type ReminderRuleUpsertInput,
   type ReminderStepInput,
 } from "@atelieros/validators";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 import {
   REMINDER_CHANNEL_LABELS,
   REMINDER_STOP_EVENT_LABELS,
@@ -136,12 +136,13 @@ export function RuleForm({ initial }: { initial?: ReminderRuleUpsertInput }) {
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
         <h2 className="font-semibold">Général</h2>
-        <Input
-          label="Nom de la règle"
-          value={rule.name}
-          onChange={(e) => setRule((r) => ({ ...r, name: e.target.value }))}
-          required
-        />
+        <Field label="Nom de la règle">
+          <Input
+            value={rule.name}
+            onChange={(e) => setRule((r) => ({ ...r, name: e.target.value }))}
+            required
+          />
+        </Field>
         <label className="flex flex-col gap-1 text-sm font-medium">
           Type
           <select
@@ -319,32 +320,36 @@ export function RuleForm({ initial }: { initial?: ReminderRuleUpsertInput }) {
                 </Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Input
-                  label="Clé"
-                  value={step.key}
-                  onChange={(e) => updateStep(index, { key: e.target.value.toUpperCase() })}
-                />
-                <Input
-                  label="Libellé"
-                  value={step.label}
-                  onChange={(e) => updateStep(index, { label: e.target.value })}
-                />
-                <Input
-                  label="Décalage (jours)"
-                  type="number"
-                  value={step.offsetDays}
-                  onChange={(e) => updateStep(index, { offsetDays: Number(e.target.value) })}
-                />
-                <Input
-                  label="Décalage (heures, facultatif)"
-                  type="number"
-                  value={step.offsetHours ?? ""}
-                  onChange={(e) =>
-                    updateStep(index, {
-                      offsetHours: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                />
+                <Field label="Clé">
+                  <Input
+                    value={step.key}
+                    onChange={(e) => updateStep(index, { key: e.target.value.toUpperCase() })}
+                  />
+                </Field>
+                <Field label="Libellé">
+                  <Input
+                    value={step.label}
+                    onChange={(e) => updateStep(index, { label: e.target.value })}
+                  />
+                </Field>
+                <Field label="Décalage (jours)">
+                  <Input
+                    type="number"
+                    value={step.offsetDays}
+                    onChange={(e) => updateStep(index, { offsetDays: Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Décalage (heures, facultatif)">
+                  <Input
+                    type="number"
+                    value={step.offsetHours ?? ""}
+                    onChange={(e) =>
+                      updateStep(index, {
+                        offsetHours: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                  />
+                </Field>
                 <label className="flex flex-col gap-1 text-sm font-medium">
                   Ancre
                   <select
@@ -361,34 +366,38 @@ export function RuleForm({ initial }: { initial?: ReminderRuleUpsertInput }) {
                     ))}
                   </select>
                 </label>
-                <Input
-                  label="Modèle (templateKey)"
-                  value={step.templateKey}
-                  onChange={(e) => updateStep(index, { templateKey: e.target.value })}
-                />
-                <Input
-                  label="Permission requise (facultatif)"
-                  value={step.requiresPermission ?? ""}
-                  onChange={(e) =>
-                    updateStep(index, { requiresPermission: e.target.value || undefined })
-                  }
-                />
-                <Input
-                  label="Rattrapage (jours, facultatif)"
-                  type="number"
-                  value={step.catchUpDays ?? ""}
-                  onChange={(e) =>
-                    updateStep(index, {
-                      catchUpDays: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                />
-                <Input
-                  label="Heure d'envoi imposée (HH:mm, facultatif)"
-                  placeholder="09:00"
-                  value={step.sendAt ?? ""}
-                  onChange={(e) => updateStep(index, { sendAt: e.target.value || undefined })}
-                />
+                <Field label="Modèle (templateKey)">
+                  <Input
+                    value={step.templateKey}
+                    onChange={(e) => updateStep(index, { templateKey: e.target.value })}
+                  />
+                </Field>
+                <Field label="Permission requise (facultatif)">
+                  <Input
+                    value={step.requiresPermission ?? ""}
+                    onChange={(e) =>
+                      updateStep(index, { requiresPermission: e.target.value || undefined })
+                    }
+                  />
+                </Field>
+                <Field label="Rattrapage (jours, facultatif)">
+                  <Input
+                    type="number"
+                    value={step.catchUpDays ?? ""}
+                    onChange={(e) =>
+                      updateStep(index, {
+                        catchUpDays: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                  />
+                </Field>
+                <Field label="Heure d'envoi imposée (HH:mm, facultatif)">
+                  <Input
+                    placeholder="09:00"
+                    value={step.sendAt ?? ""}
+                    onChange={(e) => updateStep(index, { sendAt: e.target.value || undefined })}
+                  />
+                </Field>
               </div>
               <div className="flex flex-wrap items-center gap-4">
                 <label className="flex min-h-11 items-center gap-2 text-sm">

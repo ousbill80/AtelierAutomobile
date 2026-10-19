@@ -8,7 +8,7 @@ import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
 import { Button, EmptyState, StatusBadge } from "@atelieros/ui";
 import { REMINDER_SKIP_REASONS, type ReminderTypeInput } from "@atelieros/validators";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 import type { AppRouter } from "@/server/routers/_app";
 import {
   REMINDER_CHANNEL_LABELS,
@@ -239,9 +239,10 @@ function ReminderRow({
               >
                 {reminder.customer.displayName}
               </Link>
-              <StatusBadge tone={reminder.customer.type === "COMPANY" ? "off" : "ok"}>
-                {reminder.customer.type === "COMPANY" ? "Entreprise" : "Particulier"}
-              </StatusBadge>
+              <StatusBadge
+                tone={reminder.customer.type === "COMPANY" ? "off" : "ok"}
+                label={reminder.customer.type === "COMPANY" ? "Entreprise" : "Particulier"}
+              />
               {reminder.vehicle && (
                 <span className="rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-xs">
                   {reminder.vehicle.plate}
@@ -283,10 +284,8 @@ function ReminderRow({
                       {preview.data.sms.encoding}
                     </p>
                   )}
-                  {preview.data.warnings.map((warning, index) => (
-                    <StatusBadge key={index} tone="warn">
-                      {warning}
-                    </StatusBadge>
+                  {preview.data.warnings.map((warning: string, index: number) => (
+                    <StatusBadge key={index} tone="warn" label={warning} />
                   ))}
                 </>
               )}

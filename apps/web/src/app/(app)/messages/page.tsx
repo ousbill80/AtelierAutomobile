@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button, EmptyState, StatusBadge } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 
 const CHANNEL_LABEL: Record<string, string> = { WHATSAPP: "WhatsApp", SMS: "SMS", EMAIL: "Email" };
 
@@ -150,11 +150,12 @@ export default function MessagesPage() {
             </div>
             <div className="flex items-center gap-2">
               {conversation.unreadCount > 0 && (
-                <StatusBadge tone="bad">{conversation.unreadCount} non lu(s)</StatusBadge>
+                <StatusBadge tone="bad" label={`${conversation.unreadCount} non lu(s)`} />
               )}
-              <StatusBadge tone={conversation.status === "OPEN" ? "warn" : "off"}>
-                {CHANNEL_LABEL[conversation.channel] ?? conversation.channel}
-              </StatusBadge>
+              <StatusBadge
+                tone={conversation.status === "OPEN" ? "warn" : "off"}
+                label={CHANNEL_LABEL[conversation.channel] ?? conversation.channel}
+              />
             </div>
           </Link>
         ))}

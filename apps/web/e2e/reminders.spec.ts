@@ -70,7 +70,6 @@ test("parcours file du jour : envoyer une relance, en ignorer une autre avec mot
       organizationId: organization.id,
       customerId: customer.id,
       plate: "2547 GH 01",
-      plateCompact: "2547GH01",
       make: "Toyota",
       model: "Corolla",
       inspectionExpiryDate: new Date(Date.now() + 30 * 86_400_000),

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 import { RuleForm } from "../rule-form";
 import { toRuleInput } from "../rule-shape";
 

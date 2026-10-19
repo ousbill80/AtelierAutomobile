@@ -9,7 +9,7 @@
 // serveur web — seule la base Postgres est commune).
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 
 interface OutboxEntry {
   id: string;

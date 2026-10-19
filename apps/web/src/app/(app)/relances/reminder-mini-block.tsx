@@ -7,7 +7,7 @@
 // l'écran complet /relances pour le reste.
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 import type { AppRouter } from "@/server/routers/_app";
 import { REMINDER_TYPE_LABELS, formatDateTime } from "./reminder-labels";
 

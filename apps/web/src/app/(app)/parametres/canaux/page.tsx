@@ -3,7 +3,7 @@
 // RG-M11 §7.4 : canaux WhatsApp/SMS/Email (version minimale — pas d'assistant d'identifiants).
 import { useState } from "react";
 import { Button, StatusBadge } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 
 const CHANNELS = ["WHATSAPP", "SMS", "EMAIL"] as const;
 const PROVIDERS_BY_CHANNEL: Record<string, string[]> = {
@@ -48,13 +48,14 @@ export default function ChannelsPage() {
                     <span className="font-medium">{config.provider}</span>
                     <StatusBadge
                       tone={config.status === "ERROR" ? "bad" : config.isActive ? "ok" : "off"}
-                    >
-                      {config.status === "ERROR"
-                        ? "Erreur"
-                        : config.isActive
-                          ? "Connecté"
-                          : "Non configuré"}
-                    </StatusBadge>
+                      label={
+                        config.status === "ERROR"
+                          ? "Erreur"
+                          : config.isActive
+                            ? "Connecté"
+                            : "Non configuré"
+                      }
+                    />
                   </div>
                   {config.lastError && (
                     <p className="text-xs text-status-bad">{config.lastError}</p>

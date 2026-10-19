@@ -3,9 +3,9 @@
 // PRD M10 §7.3 — règles de relance. Simplification documentée (déjà actée ailleurs dans cette
 // session pour M10) : liste éditable plutôt que la frise chronologique glisser-déposer du PRD.
 import { useState } from "react";
+import Link from "next/link";
 import { Button, EmptyState } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
-import { LinkButton } from "@/components/link-button";
+import { trpc } from "@/trpc/client";
 import { REMINDER_TYPE_LABELS } from "../../relances/reminder-labels";
 import { stepCount, toRuleInput } from "./rule-shape";
 
@@ -21,7 +21,9 @@ export default function ReminderRulesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Règles de relance</h1>
-        <LinkButton href="/parametres/relances/nouveau">Nouvelle règle</LinkButton>
+        <Link href="/parametres/relances/nouveau" className="btn btn-primary">
+          Nouvelle règle
+        </Link>
       </div>
 
       {isLoading && (
@@ -48,7 +50,11 @@ export default function ReminderRulesPage() {
         <EmptyState
           title="Aucune règle de relance."
           description="Créez votre première règle pour démarrer les relances automatiques."
-          action={<LinkButton href="/parametres/relances/nouveau">Nouvelle règle</LinkButton>}
+          action={
+            <Link href="/parametres/relances/nouveau" className="btn btn-primary">
+              Nouvelle règle
+            </Link>
+          }
         />
       )}
 
@@ -75,9 +81,9 @@ export default function ReminderRulesPage() {
                   />
                   Active
                 </label>
-                <LinkButton href={`/parametres/relances/${rule.id}`} variant="secondary">
+                <Link href={`/parametres/relances/${rule.id}`} className="btn btn-secondary">
                   Modifier
-                </LinkButton>
+                </Link>
                 <Button
                   variant="ghost"
                   onClick={() => setSimulatingId((v) => (v === rule.id ? null : rule.id))}

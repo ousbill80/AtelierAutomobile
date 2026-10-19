@@ -183,9 +183,11 @@ model CustomerContact {                         // interlocuteurs d'une entrepri
   name           String
   role           String?                        // "Responsable flotte", "Comptabilité"
   phone          String?
+  phone2         String?                        // M10 §14, RG-M10-11
   email          String?
   receivesInvoices  Boolean @default(false)
   receivesReminders Boolean @default(false)
+  isPrimary         Boolean @default(false)      // M10 §14, RG-M10-11 : contact prioritaire
 }
 
 model Vehicle {
@@ -222,6 +224,7 @@ model Vehicle {
   lastServiceMileage        Int?
   nextServiceDueDate        DateTime? @db.Date       // calculé (M10)
   nextServiceDueMileage     Int?                     // calculé
+  nextServiceTrigger        String?                  // "DATE" | "MILEAGE" — critère ayant déterminé nextServiceDue*
   // M10 §14
   serviceDueBasis           String?                  // "date" | "km" (laquelle a déterminé l'échéance)
   inspectionExpiryEstimated Boolean  @default(false) // déduite de la dernière VT (RG-M10-30)

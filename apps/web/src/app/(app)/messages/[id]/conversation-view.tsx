@@ -3,7 +3,7 @@
 // RG-M11 §7.1 : fil de discussion (version minimale) — bulles, statuts, zone de saisie.
 import { useEffect, useState } from "react";
 import { Button, StatusBadge } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 
 const STATUS_LABEL: Record<string, string> = {
   QUEUED: "En attente",
@@ -90,7 +90,7 @@ export function ConversationView({ conversationId }: { conversationId: string })
       </div>
 
       {data.conversation.lastIntent && (
-        <StatusBadge tone="warn">Intention : {data.conversation.lastIntent}</StatusBadge>
+        <StatusBadge tone="warn" label={`Intention : ${data.conversation.lastIntent}`} />
       )}
     </div>
   );

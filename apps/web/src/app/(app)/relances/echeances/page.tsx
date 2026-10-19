@@ -5,8 +5,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
-import { Button, DueBadge, EmptyState, PlateBadge } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
+import { Button, DueBadge, EmptyState } from "@atelieros/ui";
+import { trpc } from "@/trpc/client";
 import type { AppRouter } from "@/server/routers/_app";
 import { DUE_DATES_FILTER_LABELS, computeDueStatus, formatDate } from "../reminder-labels";
 
@@ -156,7 +156,9 @@ function VehicleDueRow({
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <PlateBadge plate={vehicle.plate} plateType={vehicle.plateType} />
+          <span className="rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-xs">
+            {vehicle.plate}
+          </span>
           <div>
             <p className="font-medium">
               {vehicle.make} {vehicle.model}

@@ -17,7 +17,6 @@ describe("vehicles.estimate_mileage — intégration (RG-M10-08)", () => {
         organizationId: org.id,
         customerId: customer.id,
         plate: "8888 AB 01",
-        plateCompact: "8888AB01",
         make: "Toyota",
         model: "Corolla",
         usage: "PRIVATE",

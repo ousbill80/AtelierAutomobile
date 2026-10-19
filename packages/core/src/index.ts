@@ -24,8 +24,8 @@ export {
   ttcToHt,
 } from "./money";
 
-export type { NormalizedPhone, PhoneStatus } from "./phone";
-export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./phone";
+export type { NormalizedPhone, PhoneLineType, PhoneStatus } from "./phone";
+export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } from "./phone";
 
 export type { NormalizedPlate, PlateType } from "./plate";
 export { normalizePlate } from "./plate";

@@ -64,3 +64,23 @@ export function normalizePhoneCI(input: string): NormalizedPhone {
 export function isValidPhoneCI(e164: string): boolean {
   return new RegExp(`^\\+${COUNTRY_CODE}\\d{10}$`).test(e164);
 }
+
+export type PhoneLineType = "MOBILE" | "FIXED" | "FOREIGN";
+
+const CI_FIXED_PREFIXES = ["21", "25", "27"];
+
+/**
+ * RG-M02-03 — classe un numéro E.164 pour les règles de canal (un numéro FIXED ne reçoit
+ * jamais de WhatsApp ni de SMS). Les numéros hors +225 sont `FOREIGN` (diaspora).
+ */
+export function phoneLineType(e164: string): PhoneLineType {
+  if (!e164.startsWith(`+${COUNTRY_CODE}`)) {
+    return "FOREIGN";
+  }
+  const nationalNumber = e164.slice(`+${COUNTRY_CODE}`.length);
+  const prefix = nationalNumber.slice(0, 2);
+  if (CI_FIXED_PREFIXES.includes(prefix)) {
+    return "FIXED";
+  }
+  return "MOBILE";
+}

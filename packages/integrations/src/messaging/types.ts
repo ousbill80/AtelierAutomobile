@@ -10,6 +10,10 @@ export interface OutboundMessage {
   channel: MessageChannel;
   body: string;
   templateKey?: string;
+  // organizationId est optionnel : les OTP d'authentification (M01) n'ont pas d'organisation.
+  organizationId?: string;
+  // RG-M11-01 : idempotence côté fournisseur quand il la supporte.
+  idempotencyKey?: string;
 }
 
 export interface SendResult {
@@ -17,13 +21,15 @@ export interface SendResult {
   cost?: number;
 }
 
+export type ProviderMessageStatus = "SENT" | "DELIVERED" | "READ" | "FAILED";
+
 export interface ProviderEvent {
-  type: "status" | "inbound";
+  kind: "status" | "inbound";
   providerMessageId?: string;
-  status?: "sent" | "delivered" | "read" | "failed";
+  status?: ProviderMessageStatus;
   from?: string;
   body?: string;
-  receivedAt: Date;
+  occurredAt: Date;
 }
 
 export interface HealthStatus {

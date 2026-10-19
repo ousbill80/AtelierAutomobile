@@ -7,6 +7,7 @@ export type {
   OutboxEntry,
   ProviderErrorCategory,
   ProviderEvent,
+  ProviderMessageStatus,
   SendResult,
 } from "./messaging";
 export { createConsoleMessagingProvider, defaultOutbox, MessagingOutbox } from "./messaging";

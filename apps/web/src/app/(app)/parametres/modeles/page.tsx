@@ -3,7 +3,7 @@
 // RG-M11 §7.3 : éditeur de modèles avec aperçu et compteur SMS (version minimale).
 import { useState } from "react";
 import { Button, StatusBadge } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/trpc/client";
 
 export default function TemplatesPage() {
   const utils = trpc.useUtils();
@@ -63,10 +63,8 @@ export default function TemplatesPage() {
               {preview.data.sms.encoding}
             </p>
           )}
-          {preview.data?.warnings.map((warning, index) => (
-            <StatusBadge key={index} tone="warn">
-              {warning}
-            </StatusBadge>
+          {preview.data?.warnings.map((warning: string, index: number) => (
+            <StatusBadge key={index} tone="warn" label={warning} />
           ))}
           {preview.data?.rendered && (
             <div className="rounded-md bg-surface-2 p-3 text-sm">{preview.data.rendered}</div>

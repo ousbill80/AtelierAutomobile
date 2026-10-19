@@ -58,7 +58,6 @@ describe("reminders.plan / reminders.dispatch — intégration (M10)", () => {
         organizationId: orgA.id,
         customerId: customerA.id,
         plate: "9999 AB 01",
-        plateCompact: "9999AB01",
         make: "Toyota",
         model: "Corolla",
         inspectionExpiryDate: daysFromNow(30), // J-30 dû aujourd'hui
