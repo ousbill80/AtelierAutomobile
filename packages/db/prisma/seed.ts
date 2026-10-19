@@ -217,7 +217,9 @@ async function main() {
       data: {
         userId: user.id,
         providerId: "credential",
-        accountId: email,
+        // accountId = User.id : un seul mot de passe par utilisateur, indépendant de
+        // l'identifiant (email ou téléphone) utilisé pour se connecter.
+        accountId: user.id,
         password: demoPasswordHash,
       },
     });

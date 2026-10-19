@@ -79,3 +79,12 @@ export { isTrivialPin } from "./auth/pin";
 
 export type { PickActiveSiteInput, SiteOption } from "./auth/site";
 export { canUseAllSitesOption, pickActiveSite } from "./auth/site";
+
+export type { SessionRecord } from "./auth/session";
+export {
+  computeSessionAbsoluteExpiry,
+  isSessionExpired,
+  PIN_SESSION_DURATION_HOURS,
+  SESSION_ABSOLUTE_DAYS,
+  SESSION_INACTIVITY_DAYS,
+} from "./auth/session";
