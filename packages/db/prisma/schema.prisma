@@ -2330,10 +2330,14 @@ model Notification {
   link           String?
   readAt         DateTime?
   createdAt      DateTime  @default(now())
+  // M12 §14 — alertes (RG-M12-27/28)
+  severity       String? // info | warning | critical
+  dedupeKey      String? // "alert.channel_error:cc_123:2026-10-18" (une fois par objet et par jour)
 
   organization Organization @relation(fields: [organizationId], references: [id])
   membership   Membership   @relation(fields: [membershipId], references: [id])
 
+  @@unique([organizationId, membershipId, dedupeKey])
   @@index([organizationId, membershipId, readAt])
 }
 
