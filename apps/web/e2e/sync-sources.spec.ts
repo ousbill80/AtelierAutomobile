@@ -90,3 +90,60 @@ test("gérant : nouvelle source SQL, test, aperçu, synchronisation", async ({ p
   );
   expect(overflow).toBe(false);
 });
+
+test("gérant : appairer un agent local, le voir en ligne puis le révoquer", async ({
+  page,
+  context,
+  request,
+}) => {
+  const organization = await adminDb.organization.create({
+    data: {
+      name: `E2E Garage Agent ${randomBytes(3).toString("hex")}`,
+      onboardingCompletedAt: new Date(),
+    },
+  });
+  const user = await adminDb.user.create({
+    data: { name: "E2E Gérant", email: `e2e-agent-${randomBytes(4).toString("hex")}@example.com` },
+  });
+  await adminDb.membership.create({
+    data: { organizationId: organization.id, userId: user.id, role: "OWNER", siteIds: [] },
+  });
+  const token = randomBytes(32).toString("hex");
+  await adminDb.session.create({
+    data: {
+      userId: user.id,
+      token,
+      expiresAt: computeSessionAbsoluteExpiry(new Date(), false),
+      activeOrganizationId: organization.id,
+      isPinSession: false,
+    },
+  });
+  await context.addCookies([
+    { name: "atelieros_session", value: token, domain: "localhost", path: "/" },
+  ]);
+
+  await page.goto("/import/sources");
+  await page.getByRole("link", { name: "Agent local" }).click();
+  await expect(page.getByText("Aucun agent appairé.")).toBeVisible();
+  await page.getByLabel("Nom du PC").fill("PC Comptabilité");
+  await page.getByRole("button", { name: "Générer un code" }).click();
+  const code = (await page.getByTestId("pairing-code").textContent())!.trim();
+  expect(code).toMatch(/^[A-Z2-9]{8}$/);
+  await expect(page.getByText("En attente d'appairage")).toBeVisible();
+
+  // L'agent installé au garage échange le code contre un jeton (API réelle).
+  const paired = await request.post("/api/v1/sync/pair", {
+    data: { code, hostname: "PC-COMPTA", version: "0.1.0" },
+  });
+  expect(paired.ok()).toBe(true);
+
+  await page.reload();
+  await expect(page.getByText("En ligne")).toBeVisible();
+  await expect(page.getByText("PC Comptabilité · PC-COMPTA")).toBeVisible();
+  await page.getByRole("button", { name: "Révoquer" }).click();
+  await expect(page.getByText("Révoqué")).toBeVisible();
+  const config = await request.get("/api/v1/sync/config", {
+    headers: { authorization: `Bearer ${(await paired.json()).token}` },
+  });
+  expect(config.status()).toBe(401);
+});

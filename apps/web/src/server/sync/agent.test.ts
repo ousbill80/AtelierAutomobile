@@ -185,8 +185,23 @@ describe("API de l'agent local (RG-M13-28)", () => {
     expect(listed!.lastError).toContain("Horloge");
   });
 
-  it("une source d'agent ne se synchronise pas depuis le serveur", async () => {
+  it("une source d'agent ne se synchronise pas depuis le serveur et garde son type", async () => {
     await expect(owner.dataSources.runNow({ id: dataSourceId })).rejects.toThrow("agent local");
+    await owner.dataSources.update({
+      id: dataSourceId,
+      dbType: "mssql",
+      host: "evil.example",
+      database: "x",
+      user: "sa",
+      schedule: "0 3 * * *",
+    });
+    const res = await handleConfig(new Request(`${BASE}/config`, { headers: auth() }));
+    expect(await res.json()).toMatchObject({
+      schedule: "0 3 * * *",
+      queries: { customers: expect.any(String) },
+    });
+    const [listed] = (await owner.dataSources.list()).filter((s) => s.id === dataSourceId);
+    expect(listed!.connection.dbType).toBe("agent");
   });
 
   it("révocation : 401 immédiat et source désactivée ; autre organisation sans accès", async () => {

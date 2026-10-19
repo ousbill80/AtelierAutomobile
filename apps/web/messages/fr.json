@@ -576,7 +576,8 @@
         "postgres": "PostgreSQL",
         "mysql": "MySQL / MariaDB",
         "mssql": "SQL Server",
-        "memory": "Démonstration"
+        "memory": "Démonstration",
+        "agent": "Agent local"
       },
       "schedules": {
         "0 2 * * *": "Tous les jours à 02:00",
@@ -625,7 +626,8 @@
         "deactivate": "Désactiver la source",
         "deactivated": "Source désactivée.",
         "lastError": "Dernière erreur",
-        "failures": "{count} échec(s) consécutif(s)"
+        "failures": "{count} échec(s) consécutif(s)",
+        "agentSourceHint": "Cette source est alimentée par l'agent local installé au garage : la connexion à la base reste sur ce PC. Réglez ici les requêtes et le planning."
       },
       "runs": {
         "title": "Journal des 30 dernières exécutions",
@@ -637,7 +639,38 @@
         "unchanged": "Inchangés",
         "errors": "Erreurs",
         "status": "Statut"
-      }
+      },
+      "agentLink": "Agent local"
+    },
+    "agent": {
+      "title": "Agent local",
+      "description": "Pour une base qui n'est pas accessible depuis internet : un petit programme installé sur le PC du garage lit la base et envoie les changements à AtelierOS (connexion sortante uniquement).",
+      "back": "Retour aux sources",
+      "pairTitle": "Appairer un nouvel agent",
+      "pairDescription": "Donnez un nom au PC, générez un code puis saisissez-le dans l'agent (commande « pair »). Le code est valable 15 minutes.",
+      "name": "Nom du PC",
+      "namePlaceholder": "PC Comptabilité",
+      "generate": "Générer un code",
+      "codeLabel": "Code d'appairage",
+      "codeExpires": "Valable jusqu'à {time}",
+      "configureQueries": "Régler les requêtes",
+      "listTitle": "Agents",
+      "empty": "Aucun agent appairé.",
+      "error": "Impossible de charger les agents.",
+      "retry": "Réessayer",
+      "status": {
+        "ONLINE": "En ligne",
+        "OFFLINE": "Hors ligne",
+        "PAIRING": "En attente d'appairage",
+        "REVOKED": "Révoqué",
+        "EXPIRED": "Code expiré"
+      },
+      "lastSeen": "Vu le {date}",
+      "neverSeen": "Jamais vu",
+      "lastSync": "Dernière synchro : {date}",
+      "version": "Version {version}",
+      "revoke": "Révoquer",
+      "revoked": "Agent révoqué : il ne peut plus envoyer de données."
     }
   },
   "receivables": {

@@ -148,6 +148,7 @@ function SourceEditor({
     () =>
       Boolean(source) && !(SCHEDULE_PRESETS as readonly string[]).includes(source?.schedule ?? ""),
   );
+  const isAgent = source?.connection.dbType === "agent";
   const [message, setMessage] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [preview, setPreview] = useState<{
     entity: Entity;
@@ -167,12 +168,22 @@ function SourceEditor({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function payload() {
+  function commonPayload() {
     const queries = Object.fromEntries(
       ENTITIES.map((e) => [e, form.queries[e].trim() || undefined]),
     ) as Partial<Record<Entity, string>>;
     return {
       name: form.name,
+      schedule: form.schedule,
+      isActive: form.isActive,
+      policy: form.policy,
+      queries,
+    };
+  }
+
+  function payload() {
+    return {
+      ...commonPayload(),
       dbType: form.dbType,
       host: form.host,
       port: form.port ? Number(form.port) : DEFAULT_PORTS[form.dbType],
@@ -180,10 +191,6 @@ function SourceEditor({
       user: form.user,
       password: form.password || undefined,
       ssl: form.ssl,
-      schedule: form.schedule,
-      isActive: form.isActive,
-      policy: form.policy,
-      queries,
     };
   }
 
@@ -193,7 +200,8 @@ function SourceEditor({
       const created = await create.mutateAsync(payload());
       router.replace(`/import/sources/${created.id}`);
     } else {
-      await update.mutateAsync({ id, ...payload() });
+      // Source d'un agent local : la connexion à la base reste sur le PC du garage.
+      await update.mutateAsync({ id, ...(isAgent ? commonPayload() : payload()) });
       await utils.dataSources.get.invalidate({ id });
     }
     setMessage({ tone: "ok", text: t("import.sources.form.saved") });
@@ -267,81 +275,87 @@ function SourceEditor({
         </p>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("import.sources.form.sectionConnection")}</CardTitle>
-          <CardDescription>{t("import.sources.form.readOnlyHint")}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t("import.sources.form.name")}>
-            <Input
-              value={form.name}
-              placeholder={t("import.sources.form.namePlaceholder")}
-              onChange={(e) => set("name", e.target.value)}
-            />
-          </Field>
-          <Field label={t("import.sources.form.dbType")}>
-            <select
-              className={SELECT_CLASS}
-              value={form.dbType}
-              onChange={(e) => set("dbType", e.target.value as FormState["dbType"])}
-            >
-              {DB_TYPES.map((d) => (
-                <option key={d} value={d}>
-                  {t(`import.sources.dbTypes.${d}`)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t("import.sources.form.host")}>
-            <Input value={form.host} onChange={(e) => set("host", e.target.value)} />
-          </Field>
-          <Field label={t("import.sources.form.port")}>
-            <Input
-              inputMode="numeric"
-              value={form.port}
-              placeholder={String(DEFAULT_PORTS[form.dbType])}
-              onChange={(e) => set("port", e.target.value.replace(/\D/g, ""))}
-            />
-          </Field>
-          <Field label={t("import.sources.form.database")}>
-            <Input value={form.database} onChange={(e) => set("database", e.target.value)} />
-          </Field>
-          <Field label={t("import.sources.form.user")}>
-            <Input
-              autoComplete="off"
-              value={form.user}
-              onChange={(e) => set("user", e.target.value)}
-            />
-          </Field>
-          <Field label={t("import.sources.form.password")}>
-            <Input
-              type="password"
-              autoComplete="new-password"
-              value={form.password}
-              placeholder={
-                source?.connection.hasPassword ? t("import.sources.form.passwordSaved") : ""
-              }
-              onChange={(e) => set("password", e.target.value)}
-            />
-          </Field>
-          <label className="flex min-h-11 items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
-              className="size-5"
-              checked={form.ssl}
-              onChange={(e) => set("ssl", e.target.checked)}
-            />
-            {t("import.sources.form.ssl")}
-          </label>
-          <div className="flex flex-wrap gap-2 sm:col-span-2">
-            <Button variant="outline" onClick={runTest} disabled={test.isPending}>
-              {test.isPending && <Loader2 className="size-4 animate-spin" />}
-              {t("import.sources.form.test")}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {isAgent ? (
+        <p className="rounded-md border border-border bg-surface p-3 text-sm text-muted">
+          {t("import.sources.form.agentSourceHint")}
+        </p>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("import.sources.form.sectionConnection")}</CardTitle>
+            <CardDescription>{t("import.sources.form.readOnlyHint")}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label={t("import.sources.form.name")}>
+              <Input
+                value={form.name}
+                placeholder={t("import.sources.form.namePlaceholder")}
+                onChange={(e) => set("name", e.target.value)}
+              />
+            </Field>
+            <Field label={t("import.sources.form.dbType")}>
+              <select
+                className={SELECT_CLASS}
+                value={form.dbType}
+                onChange={(e) => set("dbType", e.target.value as FormState["dbType"])}
+              >
+                {DB_TYPES.map((d) => (
+                  <option key={d} value={d}>
+                    {t(`import.sources.dbTypes.${d}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t("import.sources.form.host")}>
+              <Input value={form.host} onChange={(e) => set("host", e.target.value)} />
+            </Field>
+            <Field label={t("import.sources.form.port")}>
+              <Input
+                inputMode="numeric"
+                value={form.port}
+                placeholder={String(DEFAULT_PORTS[form.dbType])}
+                onChange={(e) => set("port", e.target.value.replace(/\D/g, ""))}
+              />
+            </Field>
+            <Field label={t("import.sources.form.database")}>
+              <Input value={form.database} onChange={(e) => set("database", e.target.value)} />
+            </Field>
+            <Field label={t("import.sources.form.user")}>
+              <Input
+                autoComplete="off"
+                value={form.user}
+                onChange={(e) => set("user", e.target.value)}
+              />
+            </Field>
+            <Field label={t("import.sources.form.password")}>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                value={form.password}
+                placeholder={
+                  source?.connection.hasPassword ? t("import.sources.form.passwordSaved") : ""
+                }
+                onChange={(e) => set("password", e.target.value)}
+              />
+            </Field>
+            <label className="flex min-h-11 items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                className="size-5"
+                checked={form.ssl}
+                onChange={(e) => set("ssl", e.target.checked)}
+              />
+              {t("import.sources.form.ssl")}
+            </label>
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
+              <Button variant="outline" onClick={runTest} disabled={test.isPending}>
+                {test.isPending && <Loader2 className="size-4 animate-spin" />}
+                {t("import.sources.form.test")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -470,10 +484,12 @@ function SourceEditor({
         </Button>
         {!isNew && (
           <>
-            <Button variant="outline" onClick={syncNow} disabled={runNow.isPending}>
-              {runNow.isPending && <Loader2 className="size-4 animate-spin" />}
-              {t("import.sources.form.runNow")}
-            </Button>
+            {!isAgent && (
+              <Button variant="outline" onClick={syncNow} disabled={runNow.isPending}>
+                {runNow.isPending && <Loader2 className="size-4 animate-spin" />}
+                {t("import.sources.form.runNow")}
+              </Button>
+            )}
             {source?.isActive && (
               <Button
                 variant="ghost"

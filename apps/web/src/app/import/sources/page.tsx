@@ -26,12 +26,17 @@ export default function SourcesPage() {
           <h1 className="text-2xl font-semibold text-foreground">{t("import.sources.title")}</h1>
           <p className="text-sm text-muted">{t("import.sources.description")}</p>
         </div>
-        <Button asChild>
-          <Link href="/import/sources/nouvelle">
-            <Plus className="size-4" />
-            {t("import.sources.new")}
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/import/agent">{t("import.sources.agentLink")}</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/import/sources/nouvelle">
+              <Plus className="size-4" />
+              {t("import.sources.new")}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

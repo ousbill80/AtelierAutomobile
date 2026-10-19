@@ -190,12 +190,23 @@ export const dataSourcesRouter = router({
       const key = loadEncryptionKey();
       const current = parseSqlSourceConfig(existing.config, key);
       const { id, name, schedule, isActive, password, ...rest } = input;
-      const next: SqlSourceConfig = {
-        ...current,
-        ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)),
-        // Mot de passe vide ou absent : on garde celui enregistré.
-        password: password ? password : current.password,
-      };
+      const changes = Object.fromEntries(
+        Object.entries(rest).filter(([, v]) => v !== undefined),
+      ) as Partial<SqlSourceConfig>;
+      const next: SqlSourceConfig =
+        current.dbType === "agent"
+          ? // Source d'un agent local : seules les requêtes et la politique se règlent ici.
+            {
+              ...current,
+              queries: changes.queries ?? current.queries,
+              policy: changes.policy ?? current.policy,
+            }
+          : {
+              ...current,
+              ...changes,
+              // Mot de passe vide ou absent : on garde celui enregistré.
+              password: password ? password : current.password,
+            };
       await tenantDb.dataSource.update({
         where: { id },
         data: {
