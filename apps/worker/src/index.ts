@@ -33,6 +33,8 @@ async function main(): Promise<void> {
   const { processRemindersOnEventJob } = await import("./jobs/remindersOnEvent");
   const { processRemindersOutcomesJob } = await import("./jobs/remindersOutcomes");
   const { processVehiclesEstimateMileageJob } = await import("./jobs/vehiclesEstimateMileage");
+  const { processCollectionsPromisesJob, processReceivablesAgeJob } =
+    await import("./jobs/receivablesAge");
 
   logger.info("AtelierOS worker démarré");
 
@@ -86,6 +88,10 @@ async function main(): Promise<void> {
           return processRemindersOnEventJob();
         case REMINDERS_JOB_NAMES.ESTIMATE_MILEAGE:
           return processVehiclesEstimateMileageJob();
+        case REMINDERS_JOB_NAMES.RECEIVABLES_AGE:
+          return processReceivablesAgeJob();
+        case REMINDERS_JOB_NAMES.COLLECTIONS_PROMISES:
+          return processCollectionsPromisesJob();
         default:
           logger.warn({ jobName: job.name }, "reminders : job inconnu, ignoré");
           return undefined;

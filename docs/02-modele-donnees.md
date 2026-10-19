@@ -173,6 +173,10 @@ model Customer {
   lastVisitAt        DateTime?                 // dénormalisé (dernier OR livré ou facture), pour tri/filtre
   // M10 §14
   phoneInvalidAt     DateTime?                 // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
+  // M09 §14
+  creditHold         Boolean @default(false)   // RG-M09-10 : crédit suspendu
+  creditHoldReason   String?
+  riskComponents     Json?                     // { A, B, C, D, E } du riskScore (RG-M09-12)
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
@@ -390,6 +394,7 @@ model RepairOrder {
   priority           Priority @default(NORMAL)
   mileageIn          Int?
   fuelLevel          Int?                      // 0-8 (huitièmes)
+  cashOnly           Boolean @default(false)   // M09 §14 : OR ouvert sous blocage crédit sans dérogation
   complaint          String?                   // doléances du client
   diagnosis          String?
   checkIn            Json @default("{}")       // état des lieux : rayures, objets, accessoires (voir M04)
@@ -693,6 +698,13 @@ model Invoice {
   voidReason       String?
   origin           RecordOrigin @default(NATIVE)
   externalNumber   String?                    // RG-M13-20 : n° dans le logiciel source (import), utilisé dans {{facture.numero}}
+  // M09 §14
+  writtenOffAmount Int?                        // RG-M09-13 : passage en perte
+  writtenOffAt     DateTime?
+  writtenOffById   String?
+  writeOffReason   String?
+  disputedAt       DateTime?                   // RG-M09-08
+  collectionCaseId String?                     // dossier de recouvrement de rattachement
   createdById      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -811,8 +823,26 @@ model CollectionCase {                           // un dossier par client ayant 
   closeReason      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  // M09 §14
+  anchorDate       DateTime? @db.Date          // plus ancienne échéance en retard à l'ouverture (ancre M10)
+  overdueDue       Int @default(0)             // part échue de totalDue
+  maxDaysOverdue   Int @default(0)
+  escalatedAt      DateTime?
+  disputeOpenedAt  DateTime?
+  disputeReason    String?
+  disputedAmount   Int?
+  formalNoticeAt   DateTime?
+  formalNoticeDeliveredAt DateTime?
+  formalNoticeMethod String?                   // email | whatsapp | hand | bailiff
+  lastContactAt    DateTime?
+  brokenPromiseCount Int @default(0)
+  unreachableCount Int @default(0)             // appels « pas de réponse » consécutifs
+  previousStatus   CollectionStatus?           // restauré à la fin d'une pause
   promises         PaymentPromise[]
   notes            CollectionNote[]
+  invoices         Invoice[]
+  @@index([organizationId, status])
+  @@index([organizationId, customerId])
 }
 enum CollectionStatus { OPEN PROMISED PAUSED DISPUTED ESCALATED CLOSED_PAID CLOSED_WRITTEN_OFF }
 
@@ -825,16 +855,62 @@ model PaymentPromise {
   status           PromiseStatus @default(PENDING)
   createdById      String?
   createdAt        DateTime @default(now())
+  // M09 §14 (organizationId : voir 04 §3)
+  paidAmount       Int @default(0)
+  evaluatedAt      DateTime?
+  reminderId       String?                    // relance à l'origine de la promesse (attribution)
+  cancelledReason  String?
 }
-enum PromiseStatus { PENDING KEPT PARTIALLY_KEPT BROKEN }
+enum PromiseStatus { PENDING KEPT PARTIALLY_KEPT BROKEN CANCELLED }
 
 model CollectionNote {
   id               String @id @default(cuid())
   collectionCaseId String
   body             String
   type             String @default("note")   // note | call | visit
+  callOutcome      CallOutcome?               // M09 §14
+  callbackAt       DateTime?                  // M09 §14
   createdById      String?
   createdAt        DateTime @default(now())
+}
+enum CallOutcome { REACHED NO_ANSWER WRONG_NUMBER CALLBACK }   // M09 §14
+
+model CreditOverride {                         // M09 §14, RG-M09-10 : dérogation de crédit pour un OR
+  id              String @id @default(cuid())
+  organizationId  String
+  customerId      String
+  repairOrderId   String?
+  requestedById   String
+  decidedById     String?
+  status          String @default("PENDING")  // PENDING | GRANTED | REFUSED
+  reason          String
+  decisionReason  String?
+  createdAt       DateTime @default(now())
+  decidedAt       DateTime?
+}
+
+model PaymentAttribution {                     // M09 §14, RG-M09-14 / 04 A10
+  id                  String @id @default(cuid())
+  organizationId      String
+  paymentAllocationId String @unique
+  source              String                  // reminder | call | spontaneous
+  reminderId          String?
+  collectionNoteId    String?
+  amount              Int
+  createdAt           DateTime @default(now())
+}
+
+model ReceivableSnapshot {                     // M09 §14 : photo quotidienne de la balance âgée (courbes M12)
+  id              String @id @default(cuid())
+  organizationId  String
+  siteId          String?
+  date            DateTime @db.Date
+  notDue          Int
+  b0_30           Int
+  b31_60          Int
+  b61_90          Int
+  b90p            Int
+  @@unique([organizationId, siteId, date])
 }
 
 // ───────────── Relances et messages ─────────────

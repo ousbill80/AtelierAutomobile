@@ -16,6 +16,7 @@
     "@atelieros/db": "workspace:*",
     "@atelieros/import": "workspace:*",
     "@atelieros/integrations": "workspace:*",
+    "@atelieros/pdf": "workspace:*",
     "@atelieros/ui": "workspace:*",
     "@atelieros/validators": "workspace:*",
     "@radix-ui/react-progress": "^1.2.1",

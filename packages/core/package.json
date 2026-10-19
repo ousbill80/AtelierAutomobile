@@ -11,7 +11,8 @@
     "./src/money": "./src/money/index.ts",
     "./src/phone": "./src/phone/index.ts",
     "./src/plate": "./src/plate.ts",
-    "./src/auth/password-policy": "./src/auth/password-policy.ts"
+    "./src/auth/password-policy": "./src/auth/password-policy.ts",
+    "./money": "./src/money/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

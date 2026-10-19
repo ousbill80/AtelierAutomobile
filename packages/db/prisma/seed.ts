@@ -790,6 +790,10 @@ async function main() {
       stage: 1,
       totalDue: 1_240_000,
       oldestDueDate: daysFrom(-38),
+      // M09 §14 : ancre figée de la séquence, part échue, retard max.
+      anchorDate: daysFrom(-38),
+      overdueDue: 1_240_000,
+      maxDaysOverdue: 38,
       nextActionAt: daysFrom(1),
     },
   });
@@ -847,6 +851,10 @@ async function main() {
       stage: 2,
       totalDue: koneAmount,
       oldestDueDate: daysFrom(-12),
+      anchorDate: daysFrom(-12),
+      overdueDue: koneAmount,
+      maxDaysOverdue: 12,
+      brokenPromiseCount: 1,
       nextActionAt: daysFrom(1),
     },
   });
@@ -870,6 +878,7 @@ async function main() {
         daysFrom(-5).toISOString().slice(0, 10) +
         " : a promis un règlement sous 48h. Promesse non tenue.",
       type: "call",
+      callOutcome: "REACHED",
       createdById: advisorMembershipId,
     },
   });

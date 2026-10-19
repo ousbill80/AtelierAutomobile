@@ -9,6 +9,7 @@ import { memberRouter } from "./member";
 import { onboardingRouter } from "./onboarding";
 import { catalogRouter } from "./catalog";
 import { channelRouter } from "./channel";
+import { collectionsRouter } from "./collections";
 import { contactRouter } from "./contact";
 import { customerRouter } from "./customer";
 import { devOutboxRouter } from "./devOutbox";
@@ -17,6 +18,7 @@ import { optOutRouter } from "./optOut";
 import { holidayRouter } from "./holiday";
 import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
+import { paymentRouter } from "./payment";
 import { quickReplyRouter } from "./quickReply";
 import { reminderRulesRouter } from "./reminderRules";
 import { remindersRouter } from "./reminders";
@@ -61,6 +63,8 @@ export const appRouter = router({
   reminders: remindersRouter,
   reminderRules: reminderRulesRouter,
   reminderSettings: reminderSettingsRouter,
+  collections: collectionsRouter,
+  payment: paymentRouter,
 });
 
 export type AppRouter = typeof appRouter;

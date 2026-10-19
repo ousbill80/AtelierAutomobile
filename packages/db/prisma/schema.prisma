@@ -75,6 +75,9 @@ model Organization {
   collectionCases        CollectionCase[]
   paymentPromises        PaymentPromise[]
   collectionNotes        CollectionNote[]
+  creditOverrides        CreditOverride[]
+  paymentAttributions    PaymentAttribution[]
+  receivableSnapshots    ReceivableSnapshot[]
   reminderRules          ReminderRule[]
   reminders              Reminder[]
   reminderSuppressions   ReminderSuppression[]
@@ -345,6 +348,10 @@ model Customer {
   emailInvalidAt       DateTime?
   // M10 §14
   phoneInvalidAt       DateTime? // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
+  // M09 §14
+  creditHold           Boolean      @default(false)
+  creditHoldReason     String?
+  riskComponents       Json? // { A, B, C, D, E } pour l'affichage (RG-M09-12)
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
   vehicles        Vehicle[]
@@ -355,6 +362,7 @@ model Customer {
   invoices        Invoice[]
   payments        Payment[]
   collectionCases CollectionCase[]
+  creditOverrides CreditOverride[]
   reminders       Reminder[]
   conversations   Conversation[]
   messages        Message[]
@@ -734,6 +742,7 @@ model RepairOrder {
   appointmentId        String?
   advisorId            String?
   bayId                String?
+  cashOnly             Boolean           @default(false) // M09 §14 : OR ouvert sous blocage crédit sans dérogation
   status               RepairOrderStatus @default(DRAFT)
   priority             Priority          @default(NORMAL)
   mileageIn            Int?
@@ -1269,9 +1278,17 @@ model Invoice {
   createdById       String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+  // M09 §14
+  writtenOffAmount  Int?
+  writtenOffAt      DateTime?
+  writtenOffById    String?
+  writeOffReason    String?
+  disputedAt        DateTime?
+  collectionCaseId  String?
 
   organization    Organization        @relation(fields: [organizationId], references: [id])
   site            Site                @relation(fields: [siteId], references: [id])
+  collectionCase  CollectionCase?     @relation(fields: [collectionCaseId], references: [id])
   customer        Customer            @relation(fields: [customerId], references: [id])
   vehicle         Vehicle?            @relation(fields: [vehicleId], references: [id])
   repairOrder     RepairOrder?        @relation(fields: [repairOrderId], references: [id])
@@ -1287,6 +1304,7 @@ model Invoice {
 
   @@unique([organizationId, number])
   @@index([organizationId, status, dueDate])
+  @@index([organizationId, customerId, status])
 }
 
 enum InvoiceType {
@@ -1398,9 +1416,10 @@ model PaymentAllocation {
   invoiceId      String
   amount         Int
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  payment      Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  invoice      Invoice      @relation(fields: [invoiceId], references: [id])
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  payment      Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice      Invoice             @relation(fields: [invoiceId], references: [id])
+  attribution  PaymentAttribution?
 
   @@index([organizationId, paymentId])
   @@index([organizationId, invoiceId])
@@ -1477,28 +1496,45 @@ model Expense {
 
 model CollectionCase {
   // un dossier par client ayant un solde en retard
-  id             String           @id @default(cuid(2))
-  organizationId String
-  customerId     String
-  status         CollectionStatus @default(OPEN)
-  stage          Int              @default(0) // palier atteint dans la séquence
-  assignedToId   String?
-  totalDue       Int              @default(0)
-  oldestDueDate  DateTime?        @db.Date
-  nextActionAt   DateTime?
-  pausedUntil    DateTime?
-  closedAt       DateTime?
-  closeReason    String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id                      String            @id @default(cuid(2))
+  organizationId          String
+  customerId              String
+  status                  CollectionStatus  @default(OPEN)
+  stage                   Int               @default(0) // palier atteint dans la séquence
+  assignedToId            String?
+  totalDue                Int               @default(0)
+  oldestDueDate           DateTime?         @db.Date
+  nextActionAt            DateTime?
+  pausedUntil             DateTime?
+  closedAt                DateTime?
+  closeReason             String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  // M09 §14
+  anchorDate              DateTime?         @db.Date // plus ancienne échéance en retard à l'ouverture (ancre M10)
+  overdueDue              Int               @default(0) // part échue de totalDue
+  maxDaysOverdue          Int               @default(0)
+  escalatedAt             DateTime?
+  disputeOpenedAt         DateTime?
+  disputeReason           String?
+  disputedAmount          Int?
+  formalNoticeAt          DateTime?
+  formalNoticeDeliveredAt DateTime?
+  formalNoticeMethod      String? // email | whatsapp | hand | bailiff
+  lastContactAt           DateTime?
+  brokenPromiseCount      Int               @default(0)
+  unreachableCount        Int               @default(0) // appels « pas de réponse » consécutifs
+  previousStatus          CollectionStatus? // restauré à la fin d'une pause
 
   organization Organization     @relation(fields: [organizationId], references: [id])
   customer     Customer         @relation(fields: [customerId], references: [id])
   assignedTo   Membership?      @relation("CollectionCaseAssignee", fields: [assignedToId], references: [id])
   promises     PaymentPromise[]
   notes        CollectionNote[]
+  invoices     Invoice[]
 
   @@index([organizationId, status])
+  @@index([organizationId, customerId])
 }
 
 enum CollectionStatus {
@@ -1521,6 +1557,11 @@ model PaymentPromise {
   status           PromiseStatus @default(PENDING)
   createdById      String?
   createdAt        DateTime      @default(now())
+  // M09 §14 (organizationId déjà présent, A §3)
+  paidAmount       Int           @default(0)
+  evaluatedAt      DateTime?
+  reminderId       String? // relance à l'origine de la promesse (attribution)
+  cancelledReason  String?
 
   organization   Organization   @relation(fields: [organizationId], references: [id])
   collectionCase CollectionCase @relation(fields: [collectionCaseId], references: [id], onDelete: Cascade)
@@ -1534,22 +1575,86 @@ enum PromiseStatus {
   KEPT
   PARTIALLY_KEPT
   BROKEN
+  CANCELLED
 }
 
 model CollectionNote {
-  id               String   @id @default(cuid(2))
+  id               String       @id @default(cuid(2))
   organizationId   String
   collectionCaseId String
   body             String
-  type             String   @default("note") // note | call | visit
+  type             String       @default("note") // note | call | visit
+  callOutcome      CallOutcome? // M09 §14
+  callbackAt       DateTime? // M09 §14
   createdById      String?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime     @default(now())
 
   organization   Organization   @relation(fields: [organizationId], references: [id])
   collectionCase CollectionCase @relation(fields: [collectionCaseId], references: [id], onDelete: Cascade)
   createdBy      Membership?    @relation("CollectionNoteCreatedBy", fields: [createdById], references: [id])
 
   @@index([organizationId, collectionCaseId])
+}
+
+enum CallOutcome {
+  REACHED
+  NO_ANSWER
+  WRONG_NUMBER
+  CALLBACK
+}
+
+model CreditOverride {
+  // M09 §14, RG-M09-10 : dérogation de crédit pour un OR
+  id             String    @id @default(cuid(2))
+  organizationId String
+  customerId     String
+  repairOrderId  String?
+  requestedById  String
+  decidedById    String?
+  status         String    @default("PENDING") // PENDING | GRANTED | REFUSED
+  reason         String
+  decisionReason String?
+  createdAt      DateTime  @default(now())
+  decidedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+
+  @@index([organizationId, customerId])
+}
+
+model PaymentAttribution {
+  // M09 §14, RG-M09-14 / A10
+  id                  String   @id @default(cuid(2))
+  organizationId      String
+  paymentAllocationId String   @unique
+  source              String // reminder | call | spontaneous
+  reminderId          String?
+  collectionNoteId    String?
+  amount              Int
+  createdAt           DateTime @default(now())
+
+  organization      Organization      @relation(fields: [organizationId], references: [id])
+  paymentAllocation PaymentAllocation @relation(fields: [paymentAllocationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+}
+
+model ReceivableSnapshot {
+  // M09 §14 : photo quotidienne de la balance âgée pour les courbes M12
+  id             String   @id @default(cuid(2))
+  organizationId String
+  siteId         String?
+  date           DateTime @db.Date
+  notDue         Int
+  b0_30          Int
+  b31_60         Int
+  b61_90         Int
+  b90p           Int
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, siteId, date])
 }
 
 // ═══════════════════════════════════════════════════════════════

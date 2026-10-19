@@ -19,6 +19,7 @@ import {
   pickChannel,
   renderTemplate,
   resolveGroupTemplateKey,
+  stageEffectForStep,
   templateKeyCandidates,
   vehicleNamespace,
   type Channel,
@@ -181,7 +182,7 @@ async function revalidate(tenantDb: TenantDb, reminder: DueReminder): Promise<Re
   if (reminder.type === "RECEIVABLE") {
     if (reminder.invoice) {
       if (
-        !["ISSUED", "PARTIALLY_PAID"].includes(reminder.invoice.status) ||
+        !["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(reminder.invoice.status) ||
         reminder.invoice.balance <= 0
       ) {
         return { ok: false, reason: "Facture déjà réglée ou annulée." };
@@ -191,6 +192,21 @@ async function revalidate(tenantDb: TenantDb, reminder: DueReminder): Promise<Re
         where: { customerId: reminder.customerId, status: { in: ["OPEN", "ESCALATED"] } },
       });
       if (!kase) return { ok: false, reason: "Dossier de recouvrement clos." };
+      // M09 RG-M09-09 / CLAUDE.md : revérifier « toujours impayée » juste avant l'envoi,
+      // depuis les factures elles-mêmes (un paiement a pu arriver depuis la planification).
+      const stillDue = await tenantDb.invoice.aggregate({
+        where: {
+          customerId: reminder.customerId,
+          billTo: "CUSTOMER",
+          status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] },
+          balance: { gt: 0 },
+          dueDate: { lt: reminder.scheduledFor },
+        },
+        _sum: { balance: true },
+      });
+      if ((stillDue._sum.balance ?? 0) <= 0) {
+        return { ok: false, reason: "Facture déjà réglée." };
+      }
     }
   }
   if (reminder.type === "APPOINTMENT" && reminder.appointmentId) {
@@ -366,7 +382,12 @@ async function dispatchGroup(
 
   const rule = valid[0]!.rule;
   const steps = z.array(reminderStepSchema).parse(rule.steps);
-  const step = steps.find((s) => s.key === valid[0]!.stepKey);
+  // M09 RG-M09-06 : la relance « promesse rompue » est hors séquence (pas de palier dans la règle).
+  const step =
+    steps.find((s) => s.key === valid[0]!.stepKey) ??
+    (valid[0]!.stepKey === "PROMISE_BROKEN" && steps[0]
+      ? { ...steps[0], key: "PROMISE_BROKEN", templateKey: "cr_promesse_rompue" }
+      : undefined);
   if (!step) return;
 
   const stepTemplateKey = group.isCombo ? "vt_rev_combo" : step.templateKey;
@@ -548,7 +569,40 @@ async function dispatchGroup(
     where: { id: { in: valid.map((r) => r.id) } },
     data: { status: "QUEUED", messageId, groupKey, channel },
   });
+  await applyReceivableStageEffects(tenantDb, valid, new Date());
   await enqueueMessageSendJob(messageId);
+}
+
+/** RG-M09-04 : palier envoyé → `stage`, `lastContactAt`, crédit suspendu (J+30), escalade (J+45). */
+async function applyReceivableStageEffects(
+  tenantDb: TenantDb,
+  reminders: { type: string; stepKey: string; customerId: string }[],
+  now: Date,
+): Promise<void> {
+  for (const reminder of reminders) {
+    if (reminder.type !== "RECEIVABLE") continue;
+    const effect = stageEffectForStep(reminder.stepKey);
+    const kase = await tenantDb.collectionCase.findFirst({
+      where: { customerId: reminder.customerId, status: { in: ["OPEN", "ESCALATED"] } },
+    });
+    if (!kase) continue;
+    await tenantDb.collectionCase.update({
+      where: { id: kase.id },
+      data: {
+        lastContactAt: now,
+        ...(effect && effect.stage > kase.stage ? { stage: effect.stage } : {}),
+        ...(effect?.escalate && kase.status !== "ESCALATED"
+          ? { status: "ESCALATED", escalatedAt: now }
+          : {}),
+      },
+    });
+    if (effect?.creditHold) {
+      await tenantDb.customer.update({
+        where: { id: reminder.customerId },
+        data: { creditHold: true, creditHoldReason: "Relance ferme J+30 envoyée" },
+      });
+    }
+  }
 }
 
 async function dispatchForOrganization(organizationId: string, timeZone: string): Promise<void> {
