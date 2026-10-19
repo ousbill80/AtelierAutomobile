@@ -269,6 +269,9 @@ describe("quote routers (M05)", () => {
     await adminDb.invoiceLine.deleteMany({ where });
     await adminDb.invoice.deleteMany({ where });
     await adminDb.repairOrderStatusHistory.deleteMany({ where });
+    // M07 (PR #10) : l'accord sur les lignes d'OR réserve le stock.
+    await adminDb.stockMovement.deleteMany({ where });
+    await adminDb.stockReservation.deleteMany({ where });
     await adminDb.repairOrderLine.deleteMany({ where });
     await adminDb.quoteLine.deleteMany({ where });
     await adminDb.quote.deleteMany({ where });
