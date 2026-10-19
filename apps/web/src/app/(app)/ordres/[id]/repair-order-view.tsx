@@ -741,6 +741,7 @@ function LineRow({
         </span>
         <LineApprovalBadge approval={line.approval} />
         {line.approvalSource && <span>({t(`approvalSource.${line.approvalSource}`)})</span>}
+        <LineStockBadge state={line.stockState} />
         <StatusBadge
           tone={line.status === "DONE" ? "ok" : line.status === "IN_PROGRESS" ? "warn" : "off"}
           label={t(`lineStatus.${line.status}`)}
@@ -1170,6 +1171,27 @@ function InspectionTab({
   );
 }
 
+/** M07 : « Pièce manquante » tant qu'une réservation attend une réception (RG-M07-04). */
+function LineStockBadge({
+  state,
+  showAll = false,
+}: {
+  state: "none" | "reserved" | "partial" | "missing" | "issued" | null;
+  showAll?: boolean;
+}) {
+  if (!state) return null;
+  if (state === "missing" || state === "partial") {
+    return <StatusBadge tone="bad" label={t(`parts.stock.${state}`)} />;
+  }
+  if (!showAll) return null;
+  return (
+    <StatusBadge
+      tone={state === "reserved" || state === "issued" ? "ok" : "off"}
+      label={t(`parts.stock.${state}`)}
+    />
+  );
+}
+
 function QuotesTab({ order }: { order: RepairOrderDetail }) {
   if (order.quotes.length === 0) return <EmptyState title={t("quotes.none")} />;
   return (
@@ -1204,7 +1226,10 @@ function PartsTab({ order }: { order: RepairOrderDetail }) {
             {l.isCustomerSupplied ? (
               <StatusBadge tone="off" label={t("parts.customerSupplied")} />
             ) : l.productId ? (
-              <LineApprovalBadge approval={l.approval} />
+              <span className="flex flex-wrap gap-1">
+                <LineApprovalBadge approval={l.approval} />
+                <LineStockBadge state={l.stockState} showAll />
+              </span>
             ) : (
               <StatusBadge tone="warn" label={t("parts.toOrder")} />
             )}

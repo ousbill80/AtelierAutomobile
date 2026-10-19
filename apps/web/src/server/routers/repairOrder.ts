@@ -31,7 +31,14 @@ import {
   type SignatureMode,
   type TransitionContext,
 } from "@atelieros/core";
-import { adminDb, db, type Prisma, type RepairOrder, type ScopedTenantClient } from "@atelieros/db";
+import {
+  adminDb,
+  db,
+  repairOrderLineStock,
+  type Prisma,
+  type RepairOrder,
+  type ScopedTenantClient,
+} from "@atelieros/db";
 import {
   boardInputSchema,
   checkInInputSchema,
@@ -484,6 +491,8 @@ export const repairOrderRouter = router({
             select: { id: true, productId: true, type: true, quantity: true, createdAt: true },
           }),
         ]);
+        // M07 : état stock de chaque ligne de pièce (réservée, manquante, sortie).
+        const lineStock = await repairOrderLineStock(tx, order.id);
         const names = new Map(members.map((m) => [m.id, m.user.name]));
         const totals = repairOrderTotals(order.lines, org.vatEnabled);
         const tctx = { ...transitionCtx(ctx, org), ...facts };
@@ -524,6 +533,7 @@ export const repairOrderRouter = router({
             ...l,
             costPrice: canSeeCost ? l.costPrice : null,
             amounts: lineAmounts(l, org.vatEnabled),
+            stockState: lineStock.find((st) => st.lineId === l.id)?.state ?? null,
           })),
           checkIn: parseCheckIn(order),
           totals,
