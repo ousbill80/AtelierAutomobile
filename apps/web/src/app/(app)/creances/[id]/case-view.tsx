@@ -5,7 +5,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
-import { formatFCFA } from "@atelieros/core";
+import { formatFCFA } from "@atelieros/core/money";
 import { Button, StatusBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import type { AppRouter } from "@/server/routers/_app";

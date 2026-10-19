@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   // @react-pdf/renderer (relevé de compte M09) : chargé côté Node, pas bundlé.
-  serverExternalPackages: ["@react-pdf/renderer"],
+  serverExternalPackages: ["@react-pdf/renderer", "@node-rs/argon2"],
   partialPrefetching: true,
   turbopack: {
     rules: {

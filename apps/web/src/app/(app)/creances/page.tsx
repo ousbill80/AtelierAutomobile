@@ -4,7 +4,7 @@
 // Écarts documentés : pas de DSO ni d'export Excel, pas de filtres site/assigné/score.
 import { useState } from "react";
 import Link from "next/link";
-import { formatFCFA } from "@atelieros/core";
+import { formatFCFA } from "@atelieros/core/money";
 import { Button, EmptyState, StatusBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { ErrorBox } from "./error-box";
