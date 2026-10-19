@@ -149,3 +149,17 @@ export {
 
 export type { ReminderSettings } from "./settings";
 export { DEFAULT_REMINDER_SETTINGS, parseReminderSettings } from "./settings";
+
+export type {
+  Civility,
+  SalutationInput,
+  ReceivableSummaryInput,
+  VehicleDueLine,
+} from "./variables";
+export {
+  customerSalutation,
+  describeDueCountdown,
+  lateDays,
+  receivablesSummary,
+  formatVehicleDueList,
+} from "./variables";
