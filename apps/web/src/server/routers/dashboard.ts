@@ -118,7 +118,8 @@ async function loadAttributions(tenantDb: TenantDb, scope: SiteScope, from: Date
   return rows.map((r) => ({
     source: r.source,
     amount: r.amount,
-    receivedAt: r.paymentAllocation.payment.receivedAt,
+    // Filtré sur `payment` ci-dessus : une attribution vient toujours d'un paiement (jamais d'un crédit).
+    receivedAt: r.paymentAllocation.payment!.receivedAt,
   }));
 }
 
@@ -344,7 +345,9 @@ export const dashboardRouter = router({
       ]);
       // RG-M12-03 : avoirs soustraits du CA TTC.
       const revenueTtc90d = revenue90.reduce(
-        (sum, g) => sum + (g.type === "CREDIT_NOTE" ? -1 : 1) * (g._sum.total ?? 0),
+        // M08 : un avoir porte des montants négatifs (RG-M08-12) ; abs() garde les deux conventions.
+        (sum, g) =>
+          sum + (g.type === "CREDIT_NOTE" ? -Math.abs(g._sum.total ?? 0) : (g._sum.total ?? 0)),
         0,
       );
       const receivables = computeReceivables(invoices, today);

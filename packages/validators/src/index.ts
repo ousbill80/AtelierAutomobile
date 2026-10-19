@@ -370,3 +370,35 @@ export * from "./stock";
 export * from "./appointment";
 export * from "./repairOrder";
 export * from "./quote";
+
+export type { AccountingExportInput, InvoiceLineFormInput } from "./billing";
+export {
+  accountingExportInputSchema,
+  allocatePaymentInputSchema,
+  cashDropInputSchema,
+  cashExpenseInputSchema,
+  cashSessionsInputSchema,
+  cashSiteInputSchema,
+  closeCashInputSchema,
+  createDepositInputSchema,
+  createDirectInvoiceInputSchema,
+  createFromQuoteInputSchema,
+  createFromRepairOrderInputSchema,
+  createPaymentInputSchema,
+  createRefundInputSchema,
+  creditNoteInputSchema,
+  invoiceIdInputSchema,
+  invoiceLineInputSchema,
+  invoiceListInputSchema,
+  invoiceStatusSchema,
+  issueInvoiceInputSchema,
+  openCashInputSchema,
+  paymentIdInputSchema,
+  paymentListInputSchema,
+  paymentReasonInputSchema,
+  previewInvoiceInputSchema,
+  reviewCashInputSchema,
+  suggestAllocationInputSchema,
+  updateDueDateInputSchema,
+  updateInvoiceInputSchema,
+} from "./billing";

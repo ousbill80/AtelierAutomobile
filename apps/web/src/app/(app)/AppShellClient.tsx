@@ -86,6 +86,14 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       // RG-M05-17 : module devis masqué en mode « Relances seules ».
       hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
     },
+    { href: "/factures", label: t("nav.invoices"), permission: "invoice:read" },
+    {
+      href: "/caisse",
+      label: t("nav.cash"),
+      permission: "payment:read",
+      // M08 : la caisse n'existe qu'en gestion complète.
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
     { href: "/clients", label: t("nav.customers"), permission: "customer:read" },
     { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
     { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },

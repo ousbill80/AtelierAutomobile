@@ -48,6 +48,8 @@ import {
   updateQuoteInputSchema,
 } from "@atelieros/validators";
 import { writeAuditLog } from "../audit";
+import { createDraftFromQuote } from "../billing/fromQuote";
+import { loadOrgBillingContext } from "../billing/service";
 import { emitDomainEvent } from "../events/emit";
 import { messagingEnqueue, type EnqueueAttachment } from "../messaging/enqueue";
 import { enqueueMessageSendJob } from "../messaging/queue";
@@ -1712,68 +1714,13 @@ export const quoteRouter = router({
   convertToInvoice: requirePermission("quote:update")
     .input(quoteIdInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const org = await loadOrgQuoteContext(ctx.organizationId);
+      const org = await loadOrgBillingContext(ctx.organizationId);
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      const now = roNow();
       return tenantDb.transaction(async (tx) => {
         const quote = await loadQuote(tx, ctx, input.id);
         assertTransitionOk(quote, "convert");
-        if (quote.repairOrderId) bad("Ce devis est lié à un OR : la facture se fait depuis l'OR.");
-        const lines = await tx.quoteLine.findMany({
-          where: { quoteId: quote.id, accepted: true },
-          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-        });
-        if (lines.length === 0) bad("Aucune ligne acceptée à facturer.");
-        const billable = lines.filter((l) => l.payer === "CUSTOMER" || l.payer === "INSURANCE");
-        const invoice = await tx.invoice.create({
-          data: {
-            organizationId: ctx.organizationId,
-            siteId: quote.siteId,
-            type: "INVOICE",
-            status: "DRAFT",
-            customerId: quote.customerId,
-            vehicleId: quote.vehicleId,
-            quoteId: quote.id,
-            subtotal: billable.reduce((s, l) => s + l.lineSubtotal, 0),
-            discountTotal: 0,
-            vatTotal: billable.reduce((s, l) => s + l.lineVat, 0),
-            total: billable.reduce((s, l) => s + l.lineTotal, 0),
-            balance: billable.reduce((s, l) => s + l.lineTotal, 0),
-            notes: quote.customerPoNumber
-              ? `Bon de commande client : ${quote.customerPoNumber}`
-              : null,
-            createdById: ctx.membership.id,
-            lines: {
-              create: billable.map((l, i) => ({
-                organizationId: ctx.organizationId,
-                type: l.type,
-                productId: l.productId,
-                laborOperationId: l.laborOperationId,
-                description: l.description,
-                quantity: l.quantity,
-                unitPrice: l.unitPrice,
-                discountRate: l.discountRate,
-                vatRate: l.vatRate,
-                lineSubtotal: l.lineSubtotal,
-                lineVat: l.lineVat,
-                lineTotal: l.lineTotal,
-                sortOrder: i,
-              })),
-            },
-          },
-        });
-        await tx.quote.update({
-          where: { id: quote.id },
-          data: { status: "CONVERTED", convertedAt: now },
-        });
-        await emitDomainEvent(tx as never, ctx.organizationId, "quote.converted", {
-          quoteId: quote.id,
-          invoiceId: invoice.id,
-        });
-        await audit(ctx, "quote.converted_to_invoice", quote.id, {
-          after: { invoiceId: invoice.id },
-        });
-        void org;
+        // M08 : même brouillon que `invoice.createFromQuote` (lignes acceptées, totaux RG-M08-05).
+        const invoice = await createDraftFromQuote(tx, actorOf(ctx), org, quote);
         return { invoiceId: invoice.id };
       });
     }),

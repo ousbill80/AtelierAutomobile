@@ -951,7 +951,9 @@ model Invoice {
   vatTotal         Int @default(0)
   total            Int @default(0)
   amountPaid       Int @default(0)
-  balance          Int @default(0)            // total - amountPaid (dénormalisé, maintenu en transaction)
+  balance          Int @default(0)            // total - amountPaid - creditedAmount, jamais négatif (RG-M08-10)
+  // subtotal = HT net après remises (Σ lineSubtotal) ; HT brut = subtotal + discountTotal (M08).
+  // Un avoir (CREDIT_NOTE) porte des montants négatifs, balance 0 (RG-M08-12).
   mileage          Int?
   notes            String?
   publicToken      String? @unique
@@ -973,6 +975,13 @@ model Invoice {
   writeOffReason   String?
   disputedAt       DateTime?                   // RG-M09-08
   collectionCaseId String?                     // dossier de recouvrement de rattachement
+  // M08 §14
+  creditedAmount   Int @default(0)             // Σ |total| des avoirs émis sur cette facture (RG-M08-10/12)
+  costTotal        Int @default(0)             // coût pièces + MO figé à l'émission (marge, M12)
+  fneAttempts      Int @default(0)             // RG-M08-15 (étape 4.2)
+  fneNextRetryAt   DateTime?
+  fneErrorKind     String?                     // transient | rejected
+  sentAt           DateTime?
   createdById      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -999,6 +1008,11 @@ model InvoiceLine {
   lineVat         Int
   lineTotal       Int
   sortOrder       Int @default(0)
+  // M08 §14
+  costAmount      Int @default(0)             // CMP × qté (pièces) ou coût MO, figé à l'émission
+  depositInvoiceId String?                    // ligne de déduction d'acompte (US-M08-03)
+  payer           Payer @default(CUSTOMER)
+  repairOrderLineId String?
 }
 
 model Payment {
@@ -1019,18 +1033,26 @@ model Payment {
   unallocated      Int @default(0)            // acompte / trop-perçu
   notes            String?
   createdAt        DateTime @default(now())
+  // M08 §14
+  voidedAt         DateTime?                  // RG-M08-21 : saisie annulée (status FAILED, reçu conservé)
+  voidReason       String?
+  payerPhone       String?                    // numéro mobile money payeur (rapprochement)
   allocations      PaymentAllocation[]
   @@unique([organizationId, number])
   @@unique([provider, providerRef])
+  @@index([organizationId, method, reference]) // RG-M08-26 : unicité de référence vérifiée à la saisie
 }
 enum PaymentMethod { CASH WAVE ORANGE_MONEY MTN_MOMO MOOV_MONEY CARD BANK_TRANSFER CHEQUE INSURANCE OTHER }
 enum PaymentStatus { PENDING CONFIRMED FAILED REFUNDED }
 
 model PaymentAllocation {
   id         String @id @default(cuid())
-  paymentId  String
+  paymentId  String?                          // M08 §14 : null pour l'affectation d'un crédit client
   invoiceId  String
   amount     Int
+  // M08 §14
+  customerCreditId String?                    // affectation d'un crédit client (avoir payé, trop-perçu)
+  voidedAt   DateTime?                        // paiement annulé / chèque rejeté : ne compte plus
 }
 
 model PaymentLink {
@@ -1060,6 +1082,13 @@ model CashSession {                              // ouverture / clôture de cais
   countedCash    Int?
   difference     Int?
   notes          String?
+  // M08 §14
+  denominations  Json?                         // { "10000": 42, "5000": 30, … }
+  lateClose      Boolean @default(false)       // RG-M08-29
+  reviewedById   String?                       // CLOSED → REVIEWED (cash:review)
+  reviewedAt     DateTime?
+  reviewComment  String?                       // M08 (hors §14) : commentaire de validation de l'écart
+  @@index([organizationId, siteId, closedAt])
 }
 
 model Expense {                                  // décaissements de caisse (petites dépenses)
@@ -1072,7 +1101,67 @@ model Expense {                                  // décaissements de caisse (pe
   description    String
   paidAt         DateTime
   createdById    String?
+  // M08 (hors §14) : justificatif (US-M08-12) et validation au-delà de settings.cash.expenseApproval (RG-M08-30)
+  attachmentId   String?
+  approvedById   String?
+  approvedAt     DateTime?
 }
+
+model CashDrop {                                 // M08 §14 — versement coffre / banque depuis la caisse (RG-M08-28)
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String
+  cashSessionId  String
+  amount         Int
+  destination    String                        // safe | bank
+  reference      String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+}
+
+model Refund {                                   // M08 §14 — remboursement (RG-M08-22)
+  id               String @id @default(cuid())
+  organizationId   String
+  siteId           String
+  customerId       String
+  paymentId        String?                     // trop-perçu d'un paiement
+  customerCreditId String?                     // ou crédit client (avoir payé)
+  method           PaymentMethod
+  amount           Int
+  reference        String?
+  cashSessionId    String?                     // espèces : sortie de la session de caisse
+  reason           String
+  createdById      String?
+  createdAt        DateTime @default(now())
+}
+
+model CustomerCredit {                           // M08 §14 — crédit client issu d'un avoir payé (RG-M08-12)
+  id             String @id @default(cuid())
+  organizationId String
+  customerId     String
+  sourceType     String                        // payment | credit_note
+  sourceId       String
+  amount         Int
+  remaining      Int
+  createdAt      DateTime @default(now())
+  @@index([organizationId, customerId])
+}
+
+model PaymentWebhookLog {                        // M08 §14 — journal des webhooks de paiement (RG-M08-24, étape 4.3)
+  id             String @id @default(cuid())
+  organizationId String?                       // null si l'organisation de l'URL est inconnue (RLS : invisible côté app)
+  provider       String
+  providerRef    String?
+  signatureValid Boolean
+  payload        Json
+  outcome        String                        // created | duplicate | rejected | error
+  receivedAt     DateTime @default(now())
+  @@index([provider, providerRef])
+}
+// Paramètres M08 dans Organization.settings : billing.vatRounding ("line" | "total"), billing.allowWalkIn,
+// fne.blockSendUntilCertified, payments.passFeesToCustomer, cash.varianceAlert (5 000), cash.expenseApproval
+// (25 000), cash.oneSessionPerSite (true), cash.expenseCategories, accounting.accounts (plan de comptes
+// SYSCOHADA : 411, 701, 706, 4431, 571, 521, 585…) — lus par core/billing/settings.ts.
 
 // ───────────── Créances et recouvrement ─────────────
 
@@ -1593,6 +1682,8 @@ model DocumentSequence {
   year           Int
   lastValue      Int @default(0)
   @@unique([organizationId, siteId, docType, year])
+  // M08 (RG-M08-01) : index unique partiel (organizationId, docType, year) WHERE siteId IS NULL
+  // (migration SQL) — une seule séquence fiscale FAC/AV/REC par organisation et année, même en concurrence.
 }
 
 model Holiday {                                   // jours fériés — source unique (A1), M15 §14

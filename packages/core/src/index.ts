@@ -15,15 +15,27 @@ export {
   today,
 } from "./calendar";
 
-export type { InvoiceLineInput, InvoiceLineTotals, InvoiceTotals } from "./money";
+export type {
+  DocumentLineInput,
+  DocumentTotals,
+  InvoiceLineInput,
+  InvoiceLineTotals,
+  InvoiceTotals,
+  VatRounding,
+} from "./money";
 export {
+  amountInWords,
+  computeDocumentTotals,
   computeInvoiceTotals,
   computeLine,
   formatFCFA,
   parseFCFA,
   roundHalfUp,
+  toFrenchWords,
   ttcToHt,
 } from "./money";
+
+export * from "./billing";
 
 export type { NormalizedPhone, PhoneLineType, PhoneStatus } from "./phone";
 export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } from "./phone";

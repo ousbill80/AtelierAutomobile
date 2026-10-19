@@ -124,7 +124,8 @@ export async function buildDigestForMembership(
   const attributions = attributionRows.map((r) => ({
     source: r.source,
     amount: r.amount,
-    receivedAt: r.paymentAllocation.payment.receivedAt,
+    // Filtré sur `payment` ci-dessus : une attribution vient toujours d'un paiement (jamais d'un crédit).
+    receivedAt: r.paymentAllocation.payment!.receivedAt,
   }));
 
   return buildDigestText({
