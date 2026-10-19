@@ -120,3 +120,14 @@ export {
   pairingExpiresAt,
   SYNC_BATCH_SIZE,
 } from "./agent";
+
+export type { WatchRule } from "./watch";
+export {
+  ERROR_FOLDER,
+  isFileStable,
+  matchesFilePattern,
+  processedFolder,
+  ruleForFile,
+  WATCH_MAX_RULES,
+  WATCH_STABLE_MS,
+} from "./watch";

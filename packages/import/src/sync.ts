@@ -16,6 +16,7 @@ import {
   SYNC_ENTITY_ORDER,
   type ImportPolicy,
   type SyncEntity,
+  type WatchRule,
 } from "@atelieros/core";
 import { db } from "@atelieros/db";
 import {
@@ -31,6 +32,8 @@ import { runImport } from "./run";
 /** Contenu (chiffré en base) de `DataSource.config` pour une source `SQL_DATABASE` (M13 §6). */
 export interface SqlSourceConfig extends ExternalDbConfig {
   queries: Partial<Record<SyncEntity, string>>;
+  /** Agent local : fichiers du dossier surveillé et entité de chacun (RG-M13-29). */
+  watchRules?: WatchRule[];
   policy?: ImportPolicy;
 }
 

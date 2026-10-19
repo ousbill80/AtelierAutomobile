@@ -136,14 +136,31 @@ test("gérant : appairer un agent local, le voir en ligne puis le révoquer", as
     data: { code, hostname: "PC-COMPTA", version: "0.1.0" },
   });
   expect(paired.ok()).toBe(true);
+  const agentToken = (await paired.json()).token as string;
 
   await page.reload();
   await expect(page.getByText("En ligne")).toBeVisible();
   await expect(page.getByText("PC Comptabilité · PC-COMPTA")).toBeVisible();
+  // Règle du dossier surveillé sur la source de l'agent (pas de bloc connexion).
+  await page.getByRole("link", { name: "Régler les requêtes" }).click();
+  await expect(page.getByText("alimentée par l'agent local")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tester la connexion" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Ajouter une règle" }).click();
+  await page.getByLabel("Fichiers (motif)").fill("clients*.csv");
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByRole("status")).toContainText("Source enregistrée.");
+  const config = await request.get("/api/v1/sync/config", {
+    headers: { authorization: `Bearer ${agentToken}` },
+  });
+  expect((await config.json()).watch_rules).toEqual([
+    { pattern: "clients*.csv", entity: "customers" },
+  ]);
+  await page.goto("/import/agent");
+
   await page.getByRole("button", { name: "Révoquer" }).click();
   await expect(page.getByText("Révoqué")).toBeVisible();
-  const config = await request.get("/api/v1/sync/config", {
-    headers: { authorization: `Bearer ${(await paired.json()).token}` },
+  const revoked = await request.get("/api/v1/sync/config", {
+    headers: { authorization: `Bearer ${agentToken}` },
   });
-  expect(config.status()).toBe(401);
+  expect(revoked.status()).toBe(401);
 });

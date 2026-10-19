@@ -112,6 +112,7 @@ export async function handleConfig(req: Request): Promise<Response> {
     queries: Object.fromEntries(
       SYNC_ENTITY_ORDER.map((e) => [e, config?.queries[e]?.trim() || null]),
     ),
+    watch_rules: config?.watchRules ?? [],
     server_time: new Date().toISOString(),
   });
 }

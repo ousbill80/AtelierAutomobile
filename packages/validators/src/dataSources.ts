@@ -25,12 +25,23 @@ const connectionSchema = z.object({
   ssl: z.boolean().default(false),
 });
 
+// RG-M13-29 : fichiers du dossier surveillé par l'agent local → entité.
+export const watchRulesSchema = z
+  .array(
+    z.object({
+      pattern: z.string().trim().min(1, "Motif obligatoire.").max(120),
+      entity: syncEntitySchema,
+    }),
+  )
+  .max(20);
+
 export const dataSourceCreateInputSchema = connectionSchema.extend({
   name: z.string().trim().min(1, "Nom obligatoire.").max(120),
   schedule: z.string().trim().min(1).max(120).default("0 2 * * *"),
   isActive: z.boolean().default(true),
   queries: queriesSchema,
   policy: syncPolicySchema.default("UPSERT"),
+  watchRules: watchRulesSchema.optional(),
 });
 export type DataSourceCreateInput = z.infer<typeof dataSourceCreateInputSchema>;
 

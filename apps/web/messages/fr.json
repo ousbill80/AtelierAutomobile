@@ -627,7 +627,15 @@
         "deactivated": "Source désactivée.",
         "lastError": "Dernière erreur",
         "failures": "{count} échec(s) consécutif(s)",
-        "agentSourceHint": "Cette source est alimentée par l'agent local installé au garage : la connexion à la base reste sur ce PC. Réglez ici les requêtes et le planning."
+        "agentSourceHint": "Cette source est alimentée par l'agent local installé au garage : la connexion à la base reste sur ce PC. Réglez ici les requêtes et le planning.",
+        "sectionWatch": "Dossier surveillé",
+        "watchHint": "Si votre logiciel dépose des exports (CSV, Excel) dans un dossier du PC, indiquez quels fichiers lire et ce qu'ils contiennent. Chaque fichier stable depuis 1 minute est lu sur le PC, puis rangé dans traites/ (ou erreurs/).",
+        "watchPattern": "Fichiers (motif)",
+        "watchPatternPlaceholder": "clients*.csv",
+        "watchEntity": "Contenu",
+        "watchAdd": "Ajouter une règle",
+        "watchRemove": "Retirer",
+        "watchEmpty": "Aucune règle : le dossier n'est pas surveillé."
       },
       "runs": {
         "title": "Journal des 30 dernières exécutions",

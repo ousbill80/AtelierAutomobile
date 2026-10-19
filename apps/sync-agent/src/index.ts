@@ -4,3 +4,5 @@ export { LocalStore } from "./store";
 export type { AgentState, LocalConfig, QueuedBatch } from "./store";
 export { flushQueue, runSync } from "./sync";
 export type { FlushResult, RunSyncResult } from "./sync";
+export { scanWatchFolder } from "./watch";
+export type { WatchScanResult } from "./watch";

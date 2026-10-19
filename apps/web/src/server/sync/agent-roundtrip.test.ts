@@ -1,11 +1,17 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { computeSessionAbsoluteExpiry } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { createMemoryExternalDatabase } from "@atelieros/integrations";
-import { AgentApi, LocalStore, runSync, type FetchLike } from "@atelieros/sync-agent";
+import {
+  AgentApi,
+  LocalStore,
+  runSync,
+  scanWatchFolder,
+  type FetchLike,
+} from "@atelieros/sync-agent";
 import { describe, expect, it } from "vitest";
 import { createContext } from "../context";
 import { appRouter } from "../routers/_app";
@@ -102,6 +108,36 @@ describe("agent local ↔ AtelierOS (RG-M13-28, US-M13-07)", () => {
     const second = await runSync({ api, store, db: localDb(), now: new Date() });
     expect(second.flush.sent).toBe(0);
     expect(await adminDb.customer.count({ where: { organizationId: org.id } })).toBe(1);
+
+    // Dossier surveillé : export CSV « à la française » de l'ancien logiciel (RG-M13-29).
+    await owner.dataSources.update({
+      id: pairing.dataSourceId,
+      watchRules: [{ pattern: "clients*.csv", entity: "customers" }],
+    });
+    const remote = await api.getConfig();
+    expect(remote.watch_rules).toEqual([{ pattern: "clients*.csv", entity: "customers" }]);
+    const watchDir = mkdtempSync(path.join(tmpdir(), "watch-rt-"));
+    const phone2 = `05${String(randomBytes(4).readUInt32BE(0)).padStart(8, "0").slice(0, 8)}`;
+    const exportFile = path.join(watchDir, "clients_2026-10-18.csv");
+    writeFileSync(
+      exportFile,
+      Buffer.from(`Nom & Prénoms;Tél.\r\nKouassi Jean-Marc;${phone2}\r\n`, "latin1"),
+    );
+    const old = new Date(Date.now() - 120_000);
+    utimesSync(exportFile, old, old);
+    const scan = await scanWatchFolder({
+      api,
+      store,
+      watchDir,
+      rules: [{ pattern: "clients*.csv", entity: "customers" }],
+      now: new Date(),
+      localDay: new Date().toISOString().slice(0, 10),
+    });
+    expect(scan.flush).toMatchObject({ sent: 1, remaining: 0 });
+    const imported = await adminDb.customer.findFirst({
+      where: { organizationId: org.id, phone: `+225${phone2}` },
+    });
+    expect(imported?.displayName).toBe("Kouassi Jean-Marc");
 
     await api.heartbeat({
       version: "0.1.0",

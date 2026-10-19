@@ -372,4 +372,5 @@ export {
   syncDbTypeSchema,
   syncEntitySchema,
   syncPolicySchema,
+  watchRulesSchema,
 } from "./dataSources";

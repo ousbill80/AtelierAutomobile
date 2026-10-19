@@ -10,6 +10,8 @@ export interface RemoteConfig {
   timezone: string;
   policy: string;
   queries: Record<string, string | null>;
+  /** RG-M13-29 : motifs de fichiers du dossier surveillé et entité de chacun. */
+  watch_rules: { pattern: string; entity: string }[];
   server_time: string;
 }
 

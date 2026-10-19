@@ -1,15 +1,17 @@
 // Agent local AtelierOS (RG-M13-28) — ligne de commande.
 //   pair  --server https://app.atelieros.ci --code ABCD2345 --db-type mssql --host … --database … --user … --password …
+//         [--watch-dir D:\Exports]  (dossier surveillé, RG-M13-29)
 //   once  : une synchronisation immédiate
 //   start : service (battement toutes les 5 min, synchro selon le planning, renvoi de la file)
 // Dossier de données : ATELIEROS_AGENT_DIR, sinon %ProgramData%\AtelierOS\agent, sinon ~/.atelieros-agent.
 import { hostname, homedir } from "node:os";
 import path from "node:path";
-import { AGENT_HEARTBEAT_INTERVAL_MS, isSyncDue } from "@atelieros/core";
+import { AGENT_HEARTBEAT_INTERVAL_MS, isSyncDue, localDay, type WatchRule } from "@atelieros/core";
 import { createExternalDatabase, type ExternalDbType } from "@atelieros/integrations";
 import { AgentApi, AgentApiError } from "./api";
 import { LocalStore } from "./store";
 import { flushQueue, runSync } from "./sync";
+import { scanWatchFolder } from "./watch";
 
 export const AGENT_VERSION = "0.1.0";
 
@@ -51,6 +53,7 @@ async function pair(store: LocalStore, args: string[]) {
       password: arg(args, "password"),
       ssl: args.includes("--ssl"),
     },
+    watchDir: arg(args, "watch-dir"),
   });
   log(`Agent appairé au garage « ${result.organization_name} ».`);
 }
@@ -86,7 +89,7 @@ async function once(store: LocalStore) {
 }
 
 async function start(store: LocalStore) {
-  const { api } = connect(store);
+  const { config, api } = connect(store);
   let lastHeartbeat = 0;
   log("Agent AtelierOS démarré.");
   for (;;) {
@@ -103,6 +106,19 @@ async function start(store: LocalStore) {
         await once(store);
       } else if (store.pending().length > 0) {
         await flushQueue(api, store, now);
+      }
+      if (config.watchDir && remote.active && remote.watch_rules.length > 0) {
+        const scan = await scanWatchFolder({
+          api,
+          store,
+          watchDir: config.watchDir,
+          rules: remote.watch_rules as WatchRule[],
+          now,
+          localDay: localDay(now, remote.timezone),
+        });
+        for (const failed of scan.failed)
+          log(`Fichier rangé dans erreurs/ : ${failed.file} (${failed.error})`);
+        if (scan.processed.length > 0) log(`Fichiers traités : ${scan.processed.join(", ")}`);
       }
     } catch (error) {
       if (error instanceof AgentApiError && error.status === 401) {

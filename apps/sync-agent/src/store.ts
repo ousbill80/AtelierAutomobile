@@ -20,6 +20,8 @@ export interface LocalConfig {
   token: string | null;
   /** Connexion à la base locale : ne quitte jamais le PC du garage. */
   db: ExternalDbConfig;
+  /** RG-M13-29 : dossier local surveillé (exports de l'ancien logiciel), facultatif. */
+  watchDir?: string;
 }
 
 export interface AgentState {
@@ -85,6 +87,17 @@ export class LocalStore {
    * Nom = horodatage + séquence : l'ordre d'envoi suit l'ordre de mise en file (clients avant
    * véhicules avant factures, RG-M13-17), même pour des lots créés dans la même milliseconde.
    */
+  /** Empreintes sha256 des fichiers déjà traités (les 1 000 derniers). */
+  isFileProcessed(sha: string): boolean {
+    return this.readJson<string[]>("processed-files.json", []).includes(sha);
+  }
+
+  markFileProcessed(sha: string) {
+    const list = this.readJson<string[]>("processed-files.json", []);
+    list.push(sha);
+    writePrivate(path.join(this.dir, "processed-files.json"), JSON.stringify(list.slice(-1000)));
+  }
+
   enqueue(item: QueuedBatch) {
     const seq = String(this.sequence++).padStart(9, "0");
     const name = `${item.createdAt.replace(/[:.]/g, "-")}_${seq}_${item.key.slice(0, 16)}.json`;

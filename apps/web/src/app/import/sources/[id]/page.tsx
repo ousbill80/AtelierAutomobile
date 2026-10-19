@@ -43,6 +43,7 @@ interface FormState {
   isActive: boolean;
   policy: (typeof POLICIES)[number];
   queries: Record<Entity, string>;
+  watchRules: { pattern: string; entity: Entity }[];
 }
 
 const EMPTY_FORM: FormState = {
@@ -58,6 +59,7 @@ const EMPTY_FORM: FormState = {
   isActive: true,
   policy: "UPSERT",
   queries: { customers: "", vehicles: "", invoices: "", payments: "" },
+  watchRules: [],
 };
 
 type SourceDetail = inferRouterOutputs<AppRouter>["dataSources"]["get"];
@@ -84,6 +86,7 @@ function formFromSource(source: SourceDetail): FormState {
       invoices: c.queries.invoices ?? "",
       payments: c.queries.payments ?? "",
     },
+    watchRules: (c.watchRules ?? []).map((r) => ({ pattern: r.pattern, entity: r.entity })),
   };
 }
 
@@ -178,6 +181,7 @@ function SourceEditor({
       isActive: form.isActive,
       policy: form.policy,
       queries,
+      watchRules: form.watchRules.filter((r) => r.pattern.trim()),
     };
   }
 
@@ -433,6 +437,81 @@ function SourceEditor({
           </Field>
         </CardContent>
       </Card>
+
+      {isAgent && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("import.sources.form.sectionWatch")}</CardTitle>
+            <CardDescription>{t("import.sources.form.watchHint")}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {form.watchRules.length === 0 && (
+              <p className="text-sm text-muted">{t("import.sources.form.watchEmpty")}</p>
+            )}
+            {form.watchRules.map((rule, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_12rem_auto] sm:items-end"
+              >
+                <Field label={t("import.sources.form.watchPattern")}>
+                  <Input
+                    value={rule.pattern}
+                    placeholder={t("import.sources.form.watchPatternPlaceholder")}
+                    onChange={(e) =>
+                      set(
+                        "watchRules",
+                        form.watchRules.map((r, i) =>
+                          i === index ? { ...r, pattern: e.target.value } : r,
+                        ),
+                      )
+                    }
+                  />
+                </Field>
+                <Field label={t("import.sources.form.watchEntity")}>
+                  <select
+                    className={SELECT_CLASS}
+                    value={rule.entity}
+                    onChange={(e) =>
+                      set(
+                        "watchRules",
+                        form.watchRules.map((r, i) =>
+                          i === index ? { ...r, entity: e.target.value as Entity } : r,
+                        ),
+                      )
+                    }
+                  >
+                    {ENTITIES.map((entity) => (
+                      <option key={entity} value={entity}>
+                        {t(`import.list.entity.${entity}`)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    set(
+                      "watchRules",
+                      form.watchRules.filter((_, i) => i !== index),
+                    )
+                  }
+                >
+                  {t("import.sources.form.watchRemove")}
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              className="self-start"
+              onClick={() =>
+                set("watchRules", [...form.watchRules, { pattern: "", entity: "customers" }])
+              }
+            >
+              {t("import.sources.form.watchAdd")}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

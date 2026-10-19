@@ -38,6 +38,9 @@ importers:
       '@atelieros/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@atelieros/import':
+        specifier: workspace:*
+        version: link:../../packages/import
       '@atelieros/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations

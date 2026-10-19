@@ -200,6 +200,7 @@ export const dataSourcesRouter = router({
               ...current,
               queries: changes.queries ?? current.queries,
               policy: changes.policy ?? current.policy,
+              watchRules: changes.watchRules ?? current.watchRules,
             }
           : {
               ...current,
