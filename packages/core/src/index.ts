@@ -112,16 +112,11 @@ export type {
   OnboardingChannelConfigSeed,
   OnboardingInspectionItemSeed,
   OnboardingLaborOperationSeed,
-  OnboardingMessageTemplateSeed,
-  OnboardingReminderRuleSeed,
-  OnboardingReminderStep,
 } from "./onboarding/seed";
 export {
   defaultChannelConfigs,
   defaultInspectionTemplate,
   defaultLaborOperations,
-  defaultMessageTemplates,
-  defaultReminderRules,
   defaultSiteBays,
   defaultSiteOpeningHours,
 } from "./onboarding/seed";
@@ -183,6 +178,8 @@ export type {
   SalutationInput,
   ReceivableSummaryInput,
   VehicleDueLine,
+  DefaultMessageTemplate,
+  DefaultReminderRule,
 } from "./reminders";
 export {
   DEFAULT_MIN_GAP_DAYS as REMINDER_DEFAULT_MIN_GAP_DAYS,
@@ -258,4 +255,7 @@ export {
   lateDays,
   receivablesSummary,
   formatVehicleDueList,
+  resolveTemplateCandidates,
+  DEFAULT_REMINDER_RULES,
+  DEFAULT_MESSAGE_TEMPLATES,
 } from "./reminders";

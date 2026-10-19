@@ -3,8 +3,6 @@ import {
   defaultChannelConfigs,
   defaultInspectionTemplate,
   defaultLaborOperations,
-  defaultMessageTemplates,
-  defaultReminderRules,
   defaultSiteBays,
   defaultSiteOpeningHours,
 } from "./seed";
@@ -24,34 +22,8 @@ describe("onboarding seed (RG-M01-16)", () => {
     expect(bays.filter((b) => b.type === "DIAGNOSTIC")).toHaveLength(1);
   });
 
-  it("defaultReminderRules couvre VT, révision, créances, RDV, devis, véhicule prêt", () => {
-    const rules = defaultReminderRules();
-    const types = rules.map((r) => r.type);
-    expect(types).toEqual([
-      "INSPECTION",
-      "SERVICE",
-      "RECEIVABLE",
-      "APPOINTMENT",
-      "QUOTE_FOLLOWUP",
-      "VEHICLE_READY",
-    ]);
-
-    const inspection = rules.find((r) => r.type === "INSPECTION")!;
-    expect(inspection.steps.map((s) => s.offsetDays)).toEqual([-30, -7, 0]);
-
-    const receivable = rules.find((r) => r.type === "RECEIVABLE")!;
-    expect(receivable.steps.map((s) => s.offsetDays)).toEqual([3, 15, 30, 45]);
-  });
-
-  it("chaque templateKey référencé par defaultReminderRules a un message par défaut", () => {
-    const templateKeys = defaultReminderRules().flatMap((rule) =>
-      rule.steps.map((step) => step.templateKey),
-    );
-    const definedKeys = new Set(defaultMessageTemplates().map((t) => t.key));
-    for (const key of templateKeys) {
-      expect(definedKeys.has(key)).toBe(true);
-    }
-  });
+  // Les règles de relance et modèles de message par défaut (RG-M10-02) sont couverts par
+  // packages/core/src/reminders/defaults.test.ts.
 
   it("defaultInspectionTemplate s'appelle « Inspection 30 points » et compte 30 items", () => {
     const template = defaultInspectionTemplate();

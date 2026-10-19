@@ -163,3 +163,10 @@ export {
   receivablesSummary,
   formatVehicleDueList,
 } from "./variables";
+
+export type { DefaultMessageTemplate, DefaultReminderRule } from "./defaults";
+export {
+  resolveTemplateCandidates,
+  DEFAULT_REMINDER_RULES,
+  DEFAULT_MESSAGE_TEMPLATES,
+} from "./defaults";
