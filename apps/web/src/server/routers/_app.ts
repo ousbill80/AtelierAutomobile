@@ -14,6 +14,8 @@ import { customerRouter } from "./customer";
 import { devOutboxRouter } from "./devOutbox";
 import { messagingRouter } from "./messaging";
 import { optOutRouter } from "./optOut";
+import { holidayRouter } from "./holiday";
+import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { quickReplyRouter } from "./quickReply";
 import { reminderRulesRouter } from "./reminderRules";
@@ -23,6 +25,7 @@ import { roleRouter } from "./role";
 import { searchRouter } from "./search";
 import { segmentRouter } from "./segment";
 import { sessionRouter } from "./session";
+import { settingsRouter } from "./settings";
 import { siteRouter } from "./site";
 import { templateRouter } from "./template";
 import { vehicleRouter } from "./vehicle";
@@ -33,6 +36,9 @@ export const appRouter = router({
   session: sessionRouter,
   org: orgRouter,
   site: siteRouter,
+  holiday: holidayRouter,
+  numbering: numberingRouter,
+  settings: settingsRouter,
   member: memberRouter,
   invitation: invitationRouter,
   role: roleRouter,

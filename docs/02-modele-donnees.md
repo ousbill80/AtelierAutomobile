@@ -1251,6 +1251,17 @@ model DocumentSequence {
   @@unique([organizationId, siteId, docType, year])
 }
 
+model Holiday {                                   // jours fériés — source unique (A1), M15 §14
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String?                         // null = tous les sites
+  date           DateTime @db.Date
+  name           String                          // "Fête de l'Indépendance"
+  kind           String @default("PUBLIC")       // PUBLIC | CLOSURE (fermeture exceptionnelle)
+  isEstimated    Boolean @default(false)         // fêtes religieuses à confirmer
+  @@unique([organizationId, siteId, date])
+}
+
 model AuditLog {
   id             String @id @default(cuid())
   organizationId String
@@ -1316,6 +1327,7 @@ model AiInteraction {                             // trace des appels IA (coût,
 | `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés           | M02                                                  |
 | `Customer.phone` normalisé E.164                                                                                                    | `core/phone`                                         |
 | Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
+| `Site.code` non modifiable dès qu'une `DocumentSequence` existe pour ce site (il figure dans les numéros déjà émis)                 | M15 (RG-M15-05)                                      |
 
 ## 4. Variables de modèles de messages
 

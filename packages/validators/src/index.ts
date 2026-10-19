@@ -25,8 +25,13 @@ export {
   setActiveSiteInputSchema,
 } from "./session";
 
-export type { UpdateOrgInput } from "./org";
-export { operatingModeSchema, taxRegimeSchema, updateOrgInputSchema } from "./org";
+export type { SetOperatingModeInput, UpdateOrgInput } from "./org";
+export {
+  operatingModeSchema,
+  setOperatingModeInputSchema,
+  taxRegimeSchema,
+  updateOrgInputSchema,
+} from "./org";
 
 export type {
   CreateBayInput,
@@ -311,3 +316,36 @@ export {
   reminderUpdateInputSchema,
   REMINDER_SKIP_REASONS,
 } from "./reminders";
+export type {
+  CreateHolidayInput,
+  DeleteHolidayInput,
+  ListHolidaysInput,
+  SeedHolidayYearInput,
+  UpdateHolidayInput,
+} from "./holiday";
+export {
+  createHolidayInputSchema,
+  deleteHolidayInputSchema,
+  holidayKindSchema,
+  listHolidaysInputSchema,
+  seedHolidayYearInputSchema,
+  updateHolidayInputSchema,
+} from "./holiday";
+
+export type { UpdateNumberingInput } from "./numbering";
+export { documentTypeSchema, updateNumberingInputSchema } from "./numbering";
+
+export type {
+  GetSettingsInput,
+  SettingsSection,
+  TaxSettings,
+  UpdateSettingsInput,
+} from "./settings";
+export {
+  DEFAULT_TAX_SETTINGS,
+  getSettingsInputSchema,
+  settingsSectionSchema,
+  taxRoundingSchema,
+  taxSettingsSchema,
+  updateSettingsInputSchema,
+} from "./settings";
