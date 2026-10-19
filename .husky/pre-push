@@ -1,0 +1,13 @@
+# Garde-fou (A14/A15) : `main` ne reçoit du code que par Pull Request fusionnée sur GitHub,
+# avec la CI verte. La protection de branche GitHub est payante sur un dépôt privé : ce hook
+# refuse donc, depuis n'importe quel clone, tout push direct sur `main`.
+# Git fournit sur stdin : <ref locale> <sha local> <ref distante> <sha distant>.
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "✖ Push direct sur main refusé (A14/A15)."
+    echo "  Poussez votre branche d'étape et ouvrez une Pull Request :"
+    echo "  la session d'intégration la fusionnera une fois la CI verte."
+    exit 1
+  fi
+done
+exit 0
