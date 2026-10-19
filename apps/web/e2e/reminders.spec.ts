@@ -13,7 +13,11 @@ import { adminDb } from "@atelieros/db";
 
 async function createSignedInContext(browserContext: BrowserContext) {
   const organization = await adminDb.organization.create({
-    data: { name: `E2E Garage Relances ${randomBytes(3).toString("hex")}` },
+    data: {
+      name: `E2E Garage Relances ${randomBytes(3).toString("hex")}`,
+      // Évite la redirection vers /bienvenue (M01) : ce test couvre /relances, pas l'accueil.
+      onboardingCompletedAt: new Date(),
+    },
   });
   const user = await adminDb.user.create({
     data: {

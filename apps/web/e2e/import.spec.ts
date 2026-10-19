@@ -19,7 +19,11 @@ let sessionToken: string;
 
 test.beforeAll(async () => {
   const organization = await adminDb.organization.create({
-    data: { name: `Garage Import E2E ${randomBytes(4).toString("hex")}` },
+    data: {
+      name: `Garage Import E2E ${randomBytes(4).toString("hex")}`,
+      // Évite la redirection vers /bienvenue (M01) : ce test couvre /import, pas l'accueil.
+      onboardingCompletedAt: new Date(),
+    },
   });
   organizationId = organization.id;
 
