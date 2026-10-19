@@ -15,3 +15,5 @@ dump.rdb
 prisma/generated/
 .vscode/*
 !.vscode/extensions.json
+
+.claude/
