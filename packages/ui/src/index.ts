@@ -60,3 +60,11 @@ export {
 // Ajouts M02/M10 (badges plaque et échéance) ; les autres composants existent déjà ci-dessus.
 export { PlateBadge, type PlateBadgeProps } from "./plate-badge";
 export { DueBadge, type DueBadgeProps } from "./due-badge";
+// M07 — lecture des codes-barres (caméra + douchette USB).
+export {
+  BarcodeScanner,
+  scanFeedback,
+  useScannerWedge,
+  type BarcodeScannerLabels,
+  type BarcodeScannerProps,
+} from "./BarcodeScanner";

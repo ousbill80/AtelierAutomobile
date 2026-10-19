@@ -465,10 +465,7 @@ export const stockRouter = router({
         at: input.at ?? null,
         groups: result.groups.map((g) => ({
           ...g,
-          label:
-            input.groupBy === "site"
-              ? (siteOf.get(g.key)?.name ?? g.key)
-              : g.key || "Sans catégorie",
+          label: input.groupBy === "site" ? (siteOf.get(g.key)?.name ?? g.key) : g.key, // "" = sans catégorie (libellé côté interface)
         })),
         negatives: result.negatives.map((n) => ({
           ...n,
