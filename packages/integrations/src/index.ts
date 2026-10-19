@@ -57,3 +57,5 @@ export { resolveFneProvider } from "./registry/fne";
 
 export { assertUploadable, createS3ObjectStorage, S3ObjectStorage } from "./storage";
 export type { S3ObjectStorageConfig, UploadInput } from "./storage";
+export { LocalObjectStorage } from "./storage-local";
+export type { BinaryObjectStorage } from "./storage-local";

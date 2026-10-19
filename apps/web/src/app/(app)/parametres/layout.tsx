@@ -31,6 +31,19 @@ const NAV = [
     label: "nav.settingsJournal",
     permission: "audit:read",
   },
+  // M04 — ordres de réparation et modèles d'inspection.
+  {
+    key: "ordres",
+    href: "/parametres/ordres",
+    label: "nav.settingsRepairOrders",
+    permission: "settings:update",
+  },
+  {
+    key: "inspection",
+    href: "/parametres/inspection",
+    label: "nav.settingsInspection",
+    permission: "inspection:template_manage",
+  },
 ] as const;
 
 export default function ParametresLayout({ children }: { children: ReactNode }) {
