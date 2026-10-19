@@ -9,7 +9,10 @@ import { adminDb } from "@atelieros/db";
 
 async function createSignedInContext(browserContext: BrowserContext) {
   const organization = await adminDb.organization.create({
-    data: { name: `E2E Garage Messaging ${randomBytes(3).toString("hex")}` },
+    data: {
+      name: `E2E Garage Messaging ${randomBytes(3).toString("hex")}`,
+      onboardingCompletedAt: new Date(),
+    },
   });
   const user = await adminDb.user.create({
     data: { name: "E2E Owner", email: `e2e-msg-${randomBytes(4).toString("hex")}@example.com` },
@@ -133,6 +136,6 @@ test("parcours messagerie : canaux console, envoi, repli NOT_ON_WHATSAPP, répon
   });
   await page.goto("/parametres/modeles");
   await page.getByRole("button", { name: /Modèle SMS E2E/ }).click();
-  await page.getByRole("textbox").first().fill("Règlement rêvé");
+  await page.locator("textarea").first().fill("Règlement rêvé");
   await expect(page.getByText(/UCS2/)).toBeVisible();
 });

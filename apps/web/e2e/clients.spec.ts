@@ -8,7 +8,10 @@ import { adminDb } from "@atelieros/db";
 
 async function createSignedInContext(browserContext: BrowserContext) {
   const organization = await adminDb.organization.create({
-    data: { name: `E2E Garage ${randomBytes(3).toString("hex")}` },
+    data: {
+      name: `E2E Garage ${randomBytes(3).toString("hex")}`,
+      onboardingCompletedAt: new Date(),
+    },
   });
   const user = await adminDb.user.create({
     data: { name: "E2E Owner", email: `e2e-${randomBytes(4).toString("hex")}@example.com` },
