@@ -34,6 +34,8 @@ export class OtpRateLimitError extends Error {
 export interface SendOtpResult {
   sentVia: MessageChannel;
   retryAfterSec: number;
+  /** Code en clair, uniquement en développement, pour fluidifier les tests locaux. */
+  devCode?: string;
 }
 
 /** RG-M01-04 : envoie un OTP à 6 chiffres (5 min, 3 essais, cadence 60 s / 5 par heure). */
@@ -79,7 +81,11 @@ export async function sendOtp(
     templateKey: `otp.${purpose.toLowerCase()}`,
   });
 
-  return { sentVia: channel, retryAfterSec: OTP_RESEND_COOLDOWN_SECONDS };
+  return {
+    sentVia: channel,
+    retryAfterSec: OTP_RESEND_COOLDOWN_SECONDS,
+    devCode: process.env.NODE_ENV === "development" ? code : undefined,
+  };
 }
 
 export type VerifyOtpOutcome =
