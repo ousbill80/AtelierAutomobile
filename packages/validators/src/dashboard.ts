@@ -32,3 +32,5 @@ export const digestSettingsSchema = z.object({
 });
 export type DigestSettings = z.infer<typeof digestSettingsSchema>;
 export const DEFAULT_DIGEST_SETTINGS: DigestSettings = digestSettingsSchema.parse({});
+
+export const digestUpdateSettingsInputSchema = digestSettingsSchema;

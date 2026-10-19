@@ -275,5 +275,6 @@ export {
   dashboardInputSchema,
   DEFAULT_DIGEST_SETTINGS,
   digestSettingsSchema,
+  digestUpdateSettingsInputSchema,
   dashboardPeriodSchema,
 } from "./dashboard";

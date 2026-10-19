@@ -7,4 +7,5 @@ export {
   type ScopedTenantClient,
   type TenantContext,
 } from "./tenant";
+export { buildDigestForMembership } from "./dashboard/digest";
 export * from "@prisma/client";

@@ -178,4 +178,30 @@ describe("dashboard / alerts routers (M12 partie 1)", () => {
     await ownerA.caller.alerts.markRead({ ids: [list[0]!.id] });
     expect((await ownerA.caller.alerts.list({})).map((n) => n.severity)).toEqual(["warning"]);
   });
+  it("digest : aperçu RG-M12-30 et réglages (destinataire d'une autre organisation refusé)", async () => {
+    const { text } = await ownerA.caller.digest.preview();
+    expect(text).toContain("☀️ Garage Dashboard A — ");
+    expect(text).toContain("ARGENT DEHORS : 1 425 000 FCFA dont 1 240 000 à +30 j");
+    expect(text).toContain("⚠️ Crédit SMS bas");
+
+    await expect(
+      ownerA.caller.digest.updateSettings({
+        enabled: true,
+        time: "08:00",
+        channel: "WHATSAPP",
+        recipients: [ownerB.membership.id],
+      }),
+    ).rejects.toThrow("Un destinataire du résumé n'est pas un membre actif de ce garage.");
+    await ownerA.caller.digest.updateSettings({
+      enabled: true,
+      time: "08:00",
+      channel: "EMAIL",
+      recipients: [ownerA.membership.id],
+    });
+    expect(await ownerA.caller.digest.getSettings()).toMatchObject({
+      time: "08:00",
+      channel: "EMAIL",
+    });
+    expect(await ownerB.caller.digest.getSettings()).toMatchObject({ time: "07:30" });
+  });
 });

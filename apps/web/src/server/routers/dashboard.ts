@@ -20,11 +20,14 @@ import {
   type ReceivableInvoiceLike,
   type ReminderFactLike,
 } from "@atelieros/core";
-import { adminDb, db, type Prisma } from "@atelieros/db";
+import { adminDb, buildDigestForMembership, db, type Prisma } from "@atelieros/db";
 import {
   alertsListInputSchema,
   alertsMarkReadInputSchema,
   dashboardInputSchema,
+  DEFAULT_DIGEST_SETTINGS,
+  digestSettingsSchema,
+  digestUpdateSettingsInputSchema,
 } from "@atelieros/validators";
 import { orgProcedure, requirePermission, router } from "../trpc";
 
@@ -330,4 +333,53 @@ export const alertsRouter = router({
     });
     return { count: result.count };
   }),
+});
+
+// M12 §8 — résumé quotidien gérant (RG-M12-30) : aperçu du message tel qu'il serait envoyé
+// aujourd'hui au membre connecté, et réglages `Organization.settings.digest`.
+export const digestRouter = router({
+  preview: requirePermission("dashboard:owner").query(async ({ ctx }) => {
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    const org = await loadOrg(ctx.organizationId);
+    const text = await buildDigestForMembership(
+      tenantDb,
+      org,
+      { id: ctx.membership.id, siteIds: ctx.membership.siteIds },
+      new Date(),
+      `${process.env.APP_URL ?? "http://localhost:3000"}/tableau-de-bord`,
+    );
+    return { text };
+  }),
+
+  getSettings: requirePermission("settings:read").query(async ({ ctx }) => {
+    const org = await adminDb.organization.findUniqueOrThrow({ where: { id: ctx.organizationId } });
+    const raw = (org.settings as { digest?: unknown } | null)?.digest ?? {};
+    return digestSettingsSchema.catch(DEFAULT_DIGEST_SETTINGS).parse(raw);
+  }),
+
+  updateSettings: requirePermission("settings:update")
+    .input(digestUpdateSettingsInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (input.recipients.length > 0) {
+        const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+        const found = await tenantDb.membership.count({
+          where: { id: { in: input.recipients }, isActive: true },
+        });
+        if (found !== new Set(input.recipients).size) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Un destinataire du résumé n'est pas un membre actif de ce garage.",
+          });
+        }
+      }
+      const org = await adminDb.organization.findUniqueOrThrow({
+        where: { id: ctx.organizationId },
+      });
+      const settings = (org.settings as Record<string, unknown> | null) ?? {};
+      await adminDb.organization.update({
+        where: { id: ctx.organizationId },
+        data: { settings: { ...settings, digest: input } },
+      });
+      return input;
+    }),
 });
