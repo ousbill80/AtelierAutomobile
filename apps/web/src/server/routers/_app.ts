@@ -5,6 +5,7 @@ import { deviceRouter } from "./device";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
 import { memberRouter } from "./member";
+import { onboardingRouter } from "./onboarding";
 import { orgRouter } from "./org";
 import { roleRouter } from "./role";
 import { sessionRouter } from "./session";
@@ -21,6 +22,7 @@ export const appRouter = router({
   role: roleRouter,
   device: deviceRouter,
   audit: auditRouter,
+  onboarding: onboardingRouter,
 });
 
 export type AppRouter = typeof appRouter;

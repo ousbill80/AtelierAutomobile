@@ -92,3 +92,6 @@ export { registerSharedDeviceInputSchema } from "./device";
 
 export type { AuditExportInput, AuditListInput } from "./audit";
 export { auditExportInputSchema, auditListInputSchema } from "./audit";
+
+export type { SaveOnboardingStepInput } from "./onboarding";
+export { saveOnboardingStepInputSchema } from "./onboarding";

@@ -94,3 +94,23 @@ export {
   SESSION_ABSOLUTE_DAYS,
   SESSION_INACTIVITY_DAYS,
 } from "./auth/session";
+
+export type {
+  OnboardingBaySeed,
+  OnboardingBayType,
+  OnboardingChannelConfigSeed,
+  OnboardingInspectionItemSeed,
+  OnboardingLaborOperationSeed,
+  OnboardingMessageTemplateSeed,
+  OnboardingReminderRuleSeed,
+  OnboardingReminderStep,
+} from "./onboarding/seed";
+export {
+  defaultChannelConfigs,
+  defaultInspectionTemplate,
+  defaultLaborOperations,
+  defaultMessageTemplates,
+  defaultReminderRules,
+  defaultSiteBays,
+  defaultSiteOpeningHours,
+} from "./onboarding/seed";
