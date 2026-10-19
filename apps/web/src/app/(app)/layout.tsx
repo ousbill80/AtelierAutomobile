@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { trpc } from "@/trpc/react";
+import { t } from "./creances/i18n";
 
 /**
  * Coquille minimale de l'espace applicatif : barre latérale + nom de l'organisation active.
@@ -55,6 +56,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
           >
             Échéances
+          </Link>
+          <Link
+            href="/creances"
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2"
+          >
+            {t("nav")}
           </Link>
           <Link
             href="/parametres/canaux"

@@ -1,0 +1,194 @@
+{
+  "receivables": {
+    "nav": "Créances",
+    "title": "Créances",
+    "kpi": {
+      "totalDue": "Total dû",
+      "overdue": "En retard",
+      "over30": "dont +30 j : {amount}",
+      "recovered": "Récupéré ce mois",
+      "recoveredByReminders": "dont relances : {amount}",
+      "unallocated": "Crédits non affectés"
+    },
+    "importedBalances": "Soldes du {date} (données importées).",
+    "aging": {
+      "title": "Balance âgée",
+      "notDue": "Non échu",
+      "b0_30": "0-30 j",
+      "b31_60": "31-60 j",
+      "b61_90": "61-90 j",
+      "b90p": "+90 j",
+      "customers": "{count} client(s)",
+      "clearFilter": "Retirer le filtre"
+    },
+    "views": { "byCustomer": "Par client", "byInvoice": "Par facture" },
+    "tabs": {
+      "ALL": "Tous",
+      "TO_HANDLE": "À traiter",
+      "PROMISES": "Promesses",
+      "DISPUTES": "Litiges",
+      "WRITTEN_OFF": "Pertes"
+    },
+    "search": "Rechercher un client",
+    "loadError": "Impossible de charger les créances.",
+    "retry": "Réessayer",
+    "empty": "Aucune créance en cours. Bravo !",
+    "emptyDescription": "Les dossiers s'ouvrent automatiquement dès qu'une facture passe en retard.",
+    "loadMore": "Afficher plus",
+    "columns": {
+      "customer": "Client",
+      "totalDue": "Solde dû",
+      "overdue": "En retard",
+      "maxDays": "Retard max",
+      "score": "Score",
+      "nextAction": "Prochaine action",
+      "status": "Statut",
+      "number": "N°",
+      "issuedAt": "Date",
+      "total": "Total",
+      "paid": "Payé",
+      "balance": "Reste dû",
+      "dueDate": "Échéance",
+      "days": "Retard (j)"
+    },
+    "days": "{count} j",
+    "customerType": { "INDIVIDUAL": "Particulier", "COMPANY": "Entreprise" },
+    "unreachable": "Injoignable",
+    "creditHold": "Crédit suspendu",
+    "promiseNext": "Promesse {amount} le {date}",
+    "caseStatus": {
+      "OPEN": "Ouvert",
+      "PROMISED": "Promesse",
+      "PAUSED": "En pause",
+      "DISPUTED": "Litige",
+      "ESCALATED": "Escaladé",
+      "CLOSED_PAID": "Soldé",
+      "CLOSED_WRITTEN_OFF": "Passé en perte"
+    },
+    "invoiceStatus": {
+      "ISSUED": "À échéance",
+      "PARTIALLY_PAID": "Payée partiellement",
+      "OVERDUE": "En retard",
+      "DISPUTED": "Litige",
+      "WRITTEN_OFF": "Perte",
+      "PAID": "Payée"
+    },
+    "promiseStatus": {
+      "PENDING": "En attente",
+      "KEPT": "Tenue",
+      "PARTIALLY_KEPT": "Partiellement tenue",
+      "BROKEN": "Rompue",
+      "CANCELLED": "Annulée"
+    },
+    "reminderStatus": {
+      "PLANNED": "Planifiée",
+      "NEEDS_APPROVAL": "À valider",
+      "QUEUED": "En file",
+      "SENT": "Envoyée",
+      "FAILED": "Échec",
+      "SKIPPED": "Ignorée",
+      "SNOOZED": "Reportée",
+      "CANCELLED": "Annulée"
+    },
+    "risk": {
+      "label": "Score de risque",
+      "GOOD": "Bon payeur",
+      "WATCH": "À surveiller",
+      "RISKY": "Risqué",
+      "VERY_RISKY": "Très risqué",
+      "none": "Non calculé",
+      "components": "Retard {A} · Dette {B} · Promesses {C} · Historique {D} · Signaux {E}"
+    },
+    "case": {
+      "back": "Retour aux créances",
+      "loadError": "Impossible de charger le dossier.",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "accountingContacts": "Contacts comptabilité",
+      "creditLimit": "Plafond : {limit} · Exposition : {exposure}",
+      "noCreditLimit": "Pas de plafond · Exposition : {exposure}",
+      "sequence": "Séquence de relances",
+      "noReminders": "Aucune relance planifiée pour ce dossier.",
+      "invoices": "Factures",
+      "noInvoices": "Aucune facture ouverte.",
+      "promises": "Promesses",
+      "noPromises": "Aucune promesse.",
+      "timeline": "Chronologie",
+      "noTimeline": "Rien pour l'instant.",
+      "paymentLine": "Paiement {number} : {amount} ({method})",
+      "pausedUntil": "En pause jusqu'au {date}",
+      "statement": "Relevé de compte (PDF)",
+      "fne": "FNE {number}"
+    },
+    "actions": {
+      "recordPayment": "Enregistrer un paiement",
+      "addPromise": "Noter une promesse",
+      "logCall": "Résultat d'appel",
+      "addNote": "Ajouter une note",
+      "openDispute": "Litige",
+      "resolveDispute": "Résoudre le litige",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
+      "escalate": "Escalader",
+      "writeOff": "Passer en perte",
+      "cancelPromise": "Annuler",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "addInstallment": "Ajouter une échéance",
+      "removeInstallment": "Retirer"
+    },
+    "form": {
+      "amount": "Montant (FCFA)",
+      "date": "Date",
+      "method": "Mode de paiement",
+      "reference": "Référence (n° de transaction, chèque…)",
+      "autoAllocation": "Le paiement est affecté aux factures les plus anciennes d'abord.",
+      "channel": "Canal",
+      "note": "Note",
+      "outcome": "Résultat",
+      "callbackAt": "Rappeler le",
+      "reason": "Motif",
+      "disputedInvoices": "Factures contestées",
+      "disputedAmount": "Montant contesté (facultatif)",
+      "resolution": "Issue",
+      "until": "Jusqu'au",
+      "confirmAmount": "Montant total à confirmer (si retard < 90 j)",
+      "noteType": "Type"
+    },
+    "methods": {
+      "CASH": "Espèces",
+      "WAVE": "Wave",
+      "ORANGE_MONEY": "Orange Money",
+      "MTN_MOMO": "MTN MoMo",
+      "MOOV_MONEY": "Moov Money",
+      "BANK_TRANSFER": "Virement",
+      "CHEQUE": "Chèque",
+      "CARD": "Carte",
+      "OTHER": "Autre",
+      "INSURANCE": "Assurance"
+    },
+    "promiseChannels": {
+      "phone": "Téléphone",
+      "whatsapp": "WhatsApp",
+      "in_person": "En personne",
+      "email": "Email"
+    },
+    "callOutcomes": {
+      "REACHED": "Joint",
+      "NO_ANSWER": "Pas de réponse",
+      "WRONG_NUMBER": "Numéro erroné",
+      "CALLBACK": "Rappeler plus tard"
+    },
+    "noteTypes": { "note": "Note", "visit": "Visite" },
+    "resolutions": {
+      "PAY": "Résolu — client paie",
+      "CREDIT_NOTE": "Résolu — avoir",
+      "WRITE_OFF": "Résolu — passage en perte"
+    },
+    "credit": {
+      "OK": "Crédit OK",
+      "WARN": "Attention",
+      "BLOCK": "Crédit bloqué"
+    }
+  }
+}
