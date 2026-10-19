@@ -18,15 +18,24 @@ if (existsSync(envPath)) {
 async function main(): Promise<void> {
   const { logger } = await import("./logger");
   const { startImportsWorker } = await import("./jobs/imports");
+  const { startAppointmentsWorker } = await import("./jobs/appointments");
 
   logger.info("AtelierOS worker démarré");
 
   const importsWorker = startImportsWorker();
   logger.info({ queue: "imports" }, "worker: file « imports » prête");
 
+  const appointments = await startAppointmentsWorker();
+  logger.info(
+    { queue: "appointments" },
+    "worker: file « appointments » prête (no-show, agenda, confirmations)",
+  );
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await importsWorker.close();
+    await appointments.worker.close();
+    await appointments.queue.close();
     process.exit(0);
   }
 

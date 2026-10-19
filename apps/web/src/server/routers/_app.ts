@@ -1,4 +1,5 @@
 import { router } from "../trpc";
+import { appointmentRouter } from "./appointment";
 import { auditRouter } from "./audit";
 import { authRouter } from "./auth";
 import { catalogRouter } from "./catalog";
@@ -13,6 +14,9 @@ import { memberRouter } from "./member";
 import { numberingRouter } from "./numbering";
 import { onboardingRouter } from "./onboarding";
 import { orgRouter } from "./org";
+import { planningRouter } from "./planning";
+import { portalRouter } from "./portal";
+import { resourceBlockRouter } from "./resourceBlock";
 import { roleRouter } from "./role";
 import { searchRouter } from "./search";
 import { segmentRouter } from "./segment";
@@ -43,6 +47,10 @@ export const appRouter = router({
   segment: segmentRouter,
   catalog: catalogRouter,
   search: searchRouter,
+  appointment: appointmentRouter,
+  planning: planningRouter,
+  resourceBlock: resourceBlockRouter,
+  portal: portalRouter,
 });
 
 export type AppRouter = typeof appRouter;

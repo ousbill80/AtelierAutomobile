@@ -284,3 +284,68 @@ export {
   taxSettingsSchema,
   updateSettingsInputSchema,
 } from "./settings";
+
+export type {
+  AppointmentCancelInput,
+  AppointmentConfirmInput,
+  AppointmentCreateBatchInput,
+  AppointmentCreateInput,
+  AppointmentGetInput,
+  AppointmentListInput,
+  AppointmentTodayInput,
+  AppointmentUpdateInput,
+} from "./appointment";
+export {
+  appointmentCancelInputSchema,
+  appointmentCompleteInputSchema,
+  appointmentConfirmInputSchema,
+  appointmentCreateBatchInputSchema,
+  appointmentCreateInputSchema,
+  appointmentGetInputSchema,
+  appointmentListInputSchema,
+  appointmentMarkArrivedInputSchema,
+  appointmentMarkNoShowInputSchema,
+  appointmentRevertNoShowInputSchema,
+  appointmentSendReminderNowInputSchema,
+  appointmentSourceSchema,
+  appointmentStatusSchema,
+  appointmentTodayInputSchema,
+  appointmentTypeSchema,
+  appointmentUpdateInputSchema,
+  CANCEL_REASONS,
+  cancelledBySchema,
+  confirmViaSchema,
+} from "./appointment";
+
+export type {
+  AppointmentSettingsInput,
+  AvailableSlotsInput,
+  CapacityInput,
+  PlanningSettingsInput,
+  ResourceBlockCreateInput,
+  ResourceBlockListInput,
+  SuggestSlotInput,
+  UpdatePlanningSettingsInput,
+} from "./planning";
+export {
+  appointmentSettingsSchema,
+  availableSlotsInputSchema,
+  capacityInputSchema,
+  planningSettingsSchema,
+  resourceBlockCreateInputSchema,
+  resourceBlockDeleteInputSchema,
+  resourceBlockListInputSchema,
+  suggestSlotInputSchema,
+  updatePlanningSettingsInputSchema,
+} from "./planning";
+
+export {
+  portalAppointmentCancelInputSchema,
+  portalAppointmentConfirmInputSchema,
+  portalAppointmentGetInputSchema,
+  portalAppointmentRescheduleInputSchema,
+  portalBookInputSchema,
+  portalLinkCreateInputSchema,
+  portalSlotsInputSchema,
+  portalTokenSchema,
+} from "./portal-appointment";

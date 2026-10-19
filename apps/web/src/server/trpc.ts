@@ -1,9 +1,24 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import type { Permission } from "@atelieros/core";
+import { isDomainError, type Permission } from "@atelieros/core";
 import type { Ctx, CtxMembership, CtxSession, CtxUser } from "./context";
 
-const t = initTRPC.context<Ctx>().create({ transformer: superjson });
+const t = initTRPC.context<Ctx>().create({
+  transformer: superjson,
+  // Une `DomainError` (packages/core) placée en `cause` expose son code et ses détails
+  // structurés au client (ex. SLOT_CONFLICT { conflictingId }, CAPACITY_EXCEEDED { load, capacity })
+  // pour que l'interface réagisse autrement qu'avec le seul message (M03 §8).
+  errorFormatter({ shape, error }) {
+    const cause = error.cause;
+    if (isDomainError(cause)) {
+      return {
+        ...shape,
+        data: { ...shape.data, domain: { code: cause.code, details: cause.details ?? null } },
+      };
+    }
+    return shape;
+  },
+});
 
 export const router = t.router;
 export const middleware = t.middleware;
