@@ -47,7 +47,7 @@ export function agingBucket(days: number): AgingBucket {
   return "d90plus";
 }
 
-export function isOpenReceivable(
+function isOpenReceivable(
   invoice: Pick<ReceivableInvoiceLike, "type" | "status" | "balance">,
 ): boolean {
   return (
