@@ -14,6 +14,7 @@
     "./src/auth/password-policy": "./src/auth/password-policy.ts",
     "./money": "./src/money/index.ts",
     "./inventory": "./src/inventory/index.ts",
+    "./planning": "./src/planning/index.ts",
     "./repairOrders": "./src/repairOrders/index.ts"
   },
   "scripts": {

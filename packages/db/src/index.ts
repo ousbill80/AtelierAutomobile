@@ -22,3 +22,5 @@ export {
   type SyncResult,
 } from "./receivables";
 export * from "./stock";
+export { hashPortalToken, issuePortalToken, resolvePortalToken } from "./portal";
+export type { IssuePortalTokenInput, ResolvedPortalToken } from "./portal";

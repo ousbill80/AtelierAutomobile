@@ -39,6 +39,10 @@ async function main(): Promise<void> {
     await import("./queues/reports");
   const { processDigestOwnerJob } = await import("./jobs/digestOwner");
   const { processAlertsScanJob } = await import("./jobs/alertsScan");
+  const { APPOINTMENTS_JOB_NAMES, APPOINTMENTS_QUEUE_NAME, scheduleAppointmentJobs } =
+    await import("./queues/appointments");
+  const { processDailyAgendaJob, processMarkNoShowJob, processUnconfirmedCheckJob } =
+    await import("./jobs/appointments");
   const { REPAIR_ORDERS_JOB_NAMES, REPAIR_ORDERS_QUEUE_NAME, scheduleRepairOrderJobs } =
     await import("./queues/repairOrders");
   const { processRepairOrdersLateCheckJob, processRepairOrdersReadyFollowupJob } =
@@ -139,6 +143,27 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "reports : un job a échoué");
   });
 
+  // M03 §9 : absences automatiques, agenda du jour, confirmations à obtenir.
+  await scheduleAppointmentJobs();
+
+  const appointmentsWorker = new Worker(
+    APPOINTMENTS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case APPOINTMENTS_JOB_NAMES.MARK_NO_SHOW:
+          return processMarkNoShowJob();
+        case APPOINTMENTS_JOB_NAMES.DAILY_AGENDA:
+          return processDailyAgendaJob();
+        case APPOINTMENTS_JOB_NAMES.UNCONFIRMED_CHECK:
+          return processUnconfirmedCheckJob();
+        default:
+          logger.warn({ jobName: job.name }, "appointments : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+
   // M04 §9 : OR en retard sur la promesse, véhicules prêts non récupérés, gardiennage.
   await scheduleRepairOrderJobs();
 
@@ -157,6 +182,9 @@ async function main(): Promise<void> {
     },
     { connection: createRedisConnection() },
   );
+  appointmentsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "appointments : un job a échoué");
+  });
   repairOrdersWorker.on("failed", (job, error) => {
     logger.error({ jobName: job?.name, error: error.message }, "repairOrders : un job a échoué");
   });
@@ -192,6 +220,7 @@ async function main(): Promise<void> {
       messagesWorker.close(),
       remindersWorker.close(),
       reportsWorker.close(),
+      appointmentsWorker.close(),
       repairOrdersWorker.close(),
       stockWorker.close(),
     ]);

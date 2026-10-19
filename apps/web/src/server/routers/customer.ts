@@ -3,10 +3,8 @@ import {
   computeDisplayName,
   duplicateScore,
   duplicateSeverity,
-  isDomainError,
   mergeConsent,
   mergeTags,
-  normalizePhoneCI,
   normalizePlate,
   resolveDedupeKeyCollisions,
   resolveField,
@@ -32,26 +30,9 @@ import {
 import { requirePermission, router } from "../trpc";
 import { writeAuditLog } from "../audit";
 import { findSimilarCustomerNames } from "../customers/trigram";
+import { normalizePhoneOrThrow } from "../phone";
 
 const UNPAID_INVOICE_STATUSES = ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] as const;
-
-function normalizePhoneOrThrow(input: string): string {
-  try {
-    const result = normalizePhoneCI(input);
-    if (result.status !== "OK" || !result.e164) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: `Numéro « ${input} » à vérifier (ancien format non résolu).`,
-      });
-    }
-    return result.e164;
-  } catch (error) {
-    if (isDomainError(error)) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
-    }
-    throw error;
-  }
-}
 
 async function detectDuplicates(
   tenantDb: ReturnType<typeof db.forTenant>,
@@ -185,7 +166,13 @@ export const customerRouter = router({
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const customer = await tenantDb.customer.findFirstOrThrow({
         where: { id: input.id, deletedAt: null },
-        include: { contacts: true, vehicles: { where: { deletedAt: null } } },
+        include: {
+          contacts: {
+            where: { deletedAt: null },
+            orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+          },
+          vehicles: { where: { deletedAt: null } },
+        },
       });
 
       const unpaidInvoices = await tenantDb.invoice.findMany({

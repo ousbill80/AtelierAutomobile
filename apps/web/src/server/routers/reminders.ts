@@ -14,6 +14,7 @@ import {
   reminderCreateManualInputSchema,
   reminderDueDatesInputSchema,
   reminderGetInputSchema,
+  reminderHistoryInputSchema,
   reminderMarkAppointmentTakenInputSchema,
   reminderMarkInspectionDoneInputSchema,
   reminderMarkWaLinkSentInputSchema,
@@ -32,6 +33,26 @@ import { buildPreviewContext } from "../reminders/context";
 import { requirePermission, router } from "../trpc";
 
 const CANCELLABLE_STATUSES = ["PLANNED", "NEEDS_APPROVAL", "SNOOZED"] as const;
+const FINISHED_STATUSES = ["SENT", "FAILED", "CANCELLED", "SKIPPED"] as const;
+
+/**
+ * Relances terminées dont l'activité tombe dans [from, to] : date d'envoi pour une relance
+ * envoyée, sinon date de dernière mise à jour (échec, annulation, ignorée).
+ */
+function historyWhere(input: {
+  from: Date;
+  to: Date;
+  type?: Prisma.ReminderWhereInput["type"];
+  channel?: Prisma.ReminderWhereInput["channel"];
+}): Prisma.ReminderWhereInput {
+  const range = { gte: input.from, lte: input.to };
+  return {
+    status: { in: [...FINISHED_STATUSES] },
+    OR: [{ sentAt: range }, { sentAt: null, updatedAt: range }],
+    ...(input.type ? { type: input.type } : {}),
+    ...(input.channel ? { channel: input.channel } : {}),
+  };
+}
 
 function tabWhere(tab: string, now: Date): Prisma.ReminderWhereInput {
   const dayStart = new Date(`${now.toISOString().slice(0, 10)}T00:00:00.000Z`);
@@ -417,6 +438,69 @@ export const remindersRouter = router({
         }),
       );
       return vehicle;
+    }),
+
+  /**
+   * Page « Résultats des relances » : historique paginé des relances terminées et, sur la
+   * première page, synthèse de la période (par statut, par issue) avec les mêmes filtres de
+   * type/canal — le filtre de statut ne s'applique qu'à la liste.
+   */
+  history: requirePermission("reminder:read")
+    .input(reminderHistoryInputSchema)
+    .query(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const base = historyWhere(input);
+      const items = await tenantDb.reminder.findMany({
+        where: input.status ? { ...base, status: input.status } : base,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          channel: true,
+          stepKey: true,
+          sentAt: true,
+          updatedAt: true,
+          skippedReason: true,
+          outcome: true,
+          outcomeAt: true,
+          customer: { select: { id: true, displayName: true } },
+          vehicle: { select: { id: true, plate: true, plateType: true } },
+        },
+      });
+      const nextCursor = items.length > input.limit ? items[input.limit]!.id : null;
+
+      let summary: {
+        byStatus: Record<(typeof FINISHED_STATUSES)[number], number>;
+        byOutcome: { outcome: string; count: number }[];
+      } | null = null;
+      if (!input.cursor) {
+        const [statusGroups, outcomeGroups] = await Promise.all([
+          tenantDb.reminder.groupBy({ by: ["status"], where: base, _count: { _all: true } }),
+          tenantDb.reminder.groupBy({
+            by: ["outcome"],
+            where: { ...base, outcome: { not: null } },
+            _count: { _all: true },
+          }),
+        ]);
+        const byStatus = { SENT: 0, FAILED: 0, CANCELLED: 0, SKIPPED: 0 };
+        for (const group of statusGroups) {
+          if (group.status in byStatus) {
+            byStatus[group.status as keyof typeof byStatus] = group._count._all;
+          }
+        }
+        summary = {
+          byStatus,
+          byOutcome: outcomeGroups
+            .filter((g) => g.outcome !== null)
+            .map((g) => ({ outcome: g.outcome as string, count: g._count._all }))
+            .sort((a, b) => b.count - a.count),
+        };
+      }
+
+      return { items: items.slice(0, input.limit), nextCursor, summary };
     }),
 
   stats: requirePermission("report:read")

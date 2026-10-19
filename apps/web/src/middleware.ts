@@ -21,7 +21,8 @@ export function middleware(request: NextRequest) {
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
   const isInvitationPath = pathname.startsWith("/invitation/");
-  // M04/M14 — portail client sans compte (suivi de réparation, signature à distance).
+  // Portail client public (`/p/[token]/…`, M03 RDV, M04 suivi et signature à distance, M14) :
+  // authentifié par jeton, jamais par session.
   const isPortalPath = pathname.startsWith("/p/");
   const isPublicPath = isAuthPath || isInvitationPath || isPortalPath;
 

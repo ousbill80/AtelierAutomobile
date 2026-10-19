@@ -23,6 +23,7 @@ import type { AppRouter } from "@/server/routers/_app";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
+import { GlobalSearch } from "@/components/global-search";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
 
@@ -65,6 +66,12 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
 
   const mainItems = [
     { href: "/tableau-de-bord", label: t("nav.ownerDashboard"), permission: "dashboard:owner" },
+    { href: "/rendez-vous", label: t("nav.appointments"), permission: "appointment:read" },
+    {
+      href: "/rendez-vous/aujourdhui",
+      label: t("nav.appointmentsToday"),
+      permission: "appointment:read",
+    },
     {
       href: "/ordres",
       label: t("nav.repairOrders"),
@@ -78,6 +85,11 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     { href: "/messages", label: t("nav.messages"), permission: "message:read" },
     { href: "/relances", label: t("nav.reminders"), permission: "reminder:read" },
     { href: "/relances/echeances", label: t("nav.dueDates"), permission: "reminder:read" },
+    {
+      href: "/relances/resultats",
+      label: t("nav.reminderResults"),
+      permission: "reminder:read",
+    },
     { href: "/creances", label: t("nav.receivables"), permission: "receivable:read" },
     { href: "/stock", label: t("nav.stock"), permission: "stock:read" },
     { href: "/achats", label: t("nav.purchases"), permission: "purchase:read" },
@@ -103,6 +115,11 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       href: "/parametres/relances",
       label: t("nav.settingsReminderRules"),
       permission: "reminder:rules_manage",
+    },
+    {
+      href: "/parametres/planning",
+      label: t("nav.settingsPlanning"),
+      permission: "planning:manage",
     },
     {
       href: "/parametres/ordres",
@@ -174,7 +191,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
               </DropdownMenu>
             </div>
           ) : null}
-          <SearchBox placeholder={t("common.search")} />
+          {has("customer:read") ? <GlobalSearch /> : <SearchBox placeholder={t("common.search")} />}
           <TopbarActions>
             <IconButton aria-label="Notifications" />
             <div className="dropdown-wrap">
