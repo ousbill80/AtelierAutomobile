@@ -31,33 +31,23 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
+  # Stockage S3 de dev : moto (émulateur compatible S3). MinIO n'est plus publié sur
+  # Docker Hub (`minio/minio` → 404). Moto garde les fichiers en mémoire : ils sont perdus
+  # au redémarrage du conteneur, ce qui suffit en dev (imports relançables).
+  s3:
+    image: motoserver/moto:5.2.4
     restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: atelieros
-      MINIO_ROOT_PASSWORD: atelieros123
     ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - atelieros-minio:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - "9000:5000"
 
-  # Crée le bucket S3 de dev au démarrage (le code ne le crée pas lui-même) ; idempotent.
-  minio-init:
-    image: minio/mc:latest
+  # Crée le bucket au démarrage (le code ne le crée pas lui-même) ; idempotent.
+  s3-init:
+    image: curlimages/curl:8.23.0
     depends_on:
-      minio:
-        condition: service_healthy
+      - s3
     entrypoint: >
-      sh -c "mc alias set local http://minio:9000 atelieros atelieros123
-      && mc mb --ignore-existing local/atelieros-dev"
+      sh -c "for i in $$(seq 1 30); do curl -sf http://s3:5000/moto-api/ >/dev/null && break; sleep 1; done
+      && curl -sf -X PUT http://s3:5000/atelieros-dev && echo 'bucket atelieros-dev prêt'"
     restart: "no"
 
   mailpit:
@@ -70,4 +60,3 @@ services:
 volumes:
   atelieros-postgres:
   atelieros-redis:
-  atelieros-minio:

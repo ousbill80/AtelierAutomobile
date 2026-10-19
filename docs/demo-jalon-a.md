@@ -31,6 +31,6 @@ Consigner chaque écart (donnée mal importée, libellé, montant) dans une issu
 
 ## 3. Points d'attention connus
 
-- Le bucket S3 doit exister (créé par `pnpm dev:setup` / `minio-init`, ou à la main en hébergé).
+- Le bucket S3 doit exister (créé par `pnpm dev:setup` / service `s3-init`, ou à la main en hébergé ; en dev le stockage est l'émulateur moto, en mémoire).
 - Une base créée avant le 19/10/2026 (ancien historique de migrations M02/M10) doit être recréée :
   `pnpm --filter @atelieros/db exec prisma migrate reset`, puis `pnpm db:seed`.

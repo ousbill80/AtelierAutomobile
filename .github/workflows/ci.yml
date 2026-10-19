@@ -49,11 +49,15 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s
           --health-retries 10
+      # Émulateur S3 (moto) : MinIO n'est plus publié sur Docker Hub.
+      s3:
+        image: motoserver/moto:5.2.4
+        ports: ["9000:5000"]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - name: Stockage S3 (MinIO + bucket)
-        run: ./scripts/ci-minio.sh
+      - name: Bucket S3
+        run: ./scripts/ci-s3.sh
       - name: Migrations
         run: pnpm db:migrate
       - name: pnpm check
@@ -81,11 +85,15 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s
           --health-retries 10
+      # Émulateur S3 (moto) : MinIO n'est plus publié sur Docker Hub.
+      s3:
+        image: motoserver/moto:5.2.4
+        ports: ["9000:5000"]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - name: Stockage S3 (MinIO + bucket)
-        run: ./scripts/ci-minio.sh
+      - name: Bucket S3
+        run: ./scripts/ci-s3.sh
       - name: Migrations
         run: pnpm db:migrate
       - name: Navigateur Playwright
