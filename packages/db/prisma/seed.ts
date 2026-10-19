@@ -1,4 +1,4 @@
-import { randomBytes, scryptSync } from "node:crypto";
+import { hashPassword } from "@atelieros/core";
 import { adminDb } from "../src/client";
 import type { Prisma } from "@prisma/client";
 
@@ -11,16 +11,6 @@ function daysFrom(days: number): Date {
   d.setUTCDate(d.getUTCDate() + days);
   return d;
 }
-
-// Hash de démonstration uniquement : M01 (Étape 0.4) remplace ce champ par Better Auth
-// (arbitrage A6, docs/04-arbitrages-coherence.md) et supprime User.passwordHash.
-function hashDemoPassword(password: string): string {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return `scrypt:${salt}:${hash}`;
-}
-
-const DEMO_PASSWORD_HASH = hashDemoPassword("demo1234");
 
 const FIRST_NAMES = [
   "Kouadio",
@@ -205,16 +195,32 @@ async function main() {
     { name: "Mariam Silué (comptable)", role: "ACCOUNTANT", skills: [] },
   ];
 
+  // Mot de passe de démonstration pour tous les comptes semés, haché en argon2id
+  // (RG-M01-03) et stocké dans Account (providerId "credential"), cf. arbitrage A6.
+  const demoPasswordHash = await hashPassword("demo1234");
+
   const memberships: Record<string, { userId: string; membershipId: string }> = {};
   for (const [i, spec] of teamSpec.entries()) {
     const email = `demo.${spec.role.toLowerCase()}.${i}@excellence-auto.ci`;
+    const phone = phoneFor(900 + i);
     const user = await adminDb.user.create({
       data: {
         name: spec.name,
         email,
-        phone: phoneFor(900 + i),
-        passwordHash: DEMO_PASSWORD_HASH,
+        phone,
+        emailVerifiedAt: TODAY,
+        phoneVerifiedAt: TODAY,
         locale: "fr",
+      },
+    });
+    await adminDb.account.create({
+      data: {
+        userId: user.id,
+        providerId: "credential",
+        // accountId = User.id : un seul mot de passe par utilisateur, indépendant de
+        // l'identifiant (email ou téléphone) utilisé pour se connecter.
+        accountId: user.id,
+        password: demoPasswordHash,
       },
     });
     const membership = await adminDb.membership.create({

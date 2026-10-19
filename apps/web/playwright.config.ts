@@ -1,4 +1,12 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+
+// Monorepo : le `.env` vit à la racine (même convention que `vitest.setup.ts` / `next.config.ts`).
+const envPath = path.resolve(__dirname, "../../.env");
+if (existsSync(envPath)) {
+  process.loadEnvFile(envPath);
+}
 
 export default defineConfig({
   testDir: "./e2e",

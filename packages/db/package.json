@@ -13,6 +13,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@atelieros/core": "workspace:*",
     "@prisma/client": "^6.1.0"
   },
   "devDependencies": {
