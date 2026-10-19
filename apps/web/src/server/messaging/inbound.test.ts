@@ -27,6 +27,7 @@ describe("recordInboundMessage (RG-M11-18/19)", () => {
     await adminDb.message.deleteMany({ where: { organizationId: org.id } });
     await adminDb.optOut.deleteMany({ where: { organizationId: org.id } });
     await adminDb.conversation.deleteMany({ where: { organizationId: org.id } });
+    await adminDb.domainEvent.deleteMany({ where: { organizationId: org.id } });
     await adminDb.customer.deleteMany({ where: { organizationId: org.id } });
     await adminDb.organization.delete({ where: { id: org.id } });
   });
@@ -44,6 +45,13 @@ describe("recordInboundMessage (RG-M11-18/19)", () => {
     });
     expect(conversation?.customerId).toBe(customer.id);
     expect(conversation?.unreadCount).toBe(1);
+
+    // RG-M10-22 : consommé par reminders.on_event (REPLIED hors STOP).
+    const event = await adminDb.domainEvent.findFirst({
+      where: { organizationId: org.id, type: "message.inbound_received" },
+      orderBy: { occurredAt: "desc" },
+    });
+    expect((event?.payload as { stop?: boolean } | null)?.stop).toBe(false);
   });
 
   it("STOP crée une OptOut globale et n'envoie qu'un seul accusé (pas de doublon)", async () => {
@@ -56,6 +64,12 @@ describe("recordInboundMessage (RG-M11-18/19)", () => {
     });
     const updatedCustomer = await adminDb.customer.findFirst({ where: { id: customer.id } });
     expect(updatedCustomer?.optedOutAt).not.toBeNull();
+
+    const event = await adminDb.domainEvent.findFirst({
+      where: { organizationId: org.id, type: "message.inbound_received" },
+      orderBy: { occurredAt: "desc" },
+    });
+    expect((event?.payload as { stop?: boolean } | null)?.stop).toBe(true);
 
     const optOuts = await adminDb.optOut.findMany({ where: { organizationId: org.id } });
     expect(optOuts).toHaveLength(1);

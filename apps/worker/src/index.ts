@@ -24,6 +24,14 @@ async function main(): Promise<void> {
   const { createRedisConnection } = await import("./redis");
   const { MESSAGES_QUEUE_NAME } = await import("./queues/messages");
   const { processMessagesSendJob } = await import("./jobs/messagesSend");
+  const { REMINDERS_JOB_NAMES, REMINDERS_QUEUE_NAME, scheduleReminderJobs } = await import(
+    "./queues/reminders"
+  );
+  const { processRemindersPlanJob } = await import("./jobs/remindersPlan");
+  const { processRemindersDispatchJob } = await import("./jobs/remindersDispatch");
+  const { processRemindersOnEventJob } = await import("./jobs/remindersOnEvent");
+  const { processRemindersOutcomesJob } = await import("./jobs/remindersOutcomes");
+  const { processVehiclesEstimateMileageJob } = await import("./jobs/vehiclesEstimateMileage");
 
   logger.info("AtelierOS worker démarré");
 
@@ -59,10 +67,42 @@ async function main(): Promise<void> {
   });
   logger.info({ queue: MESSAGES_QUEUE_NAME }, "worker: file « messages » prête");
 
+  // §9.1-9.3 (M10) : planification, envoi, consolidation des résultats, consommation des
+  // événements et estimation du kilométrage. Une seule file à jobs répétables ; le routage se
+  // fait par nom de job (chaque job parcourt lui-même toutes les organisations).
+  await scheduleReminderJobs();
+
+  const remindersWorker = new Worker(
+    REMINDERS_QUEUE_NAME,
+    async (job) => {
+      switch (job.name) {
+        case REMINDERS_JOB_NAMES.PLAN:
+          return processRemindersPlanJob();
+        case REMINDERS_JOB_NAMES.DISPATCH:
+          return processRemindersDispatchJob();
+        case REMINDERS_JOB_NAMES.OUTCOMES:
+          return processRemindersOutcomesJob();
+        case REMINDERS_JOB_NAMES.ON_EVENT:
+          return processRemindersOnEventJob();
+        case REMINDERS_JOB_NAMES.ESTIMATE_MILEAGE:
+          return processVehiclesEstimateMileageJob();
+        default:
+          logger.warn({ jobName: job.name }, "reminders : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  remindersWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "reminders : un job a échoué");
+  });
+  logger.info({ queue: REMINDERS_QUEUE_NAME }, "worker: file « reminders » prête");
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await importsWorker.close();
     await messagesWorker.close();
+    await remindersWorker.close();
     process.exit(0);
   }
 

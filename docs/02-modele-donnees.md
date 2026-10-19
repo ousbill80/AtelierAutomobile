@@ -165,6 +165,8 @@ model Customer {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
+  // M10 §14
+  phoneInvalidAt     DateTime?                 // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
@@ -220,6 +222,10 @@ model Vehicle {
   lastServiceMileage        Int?
   nextServiceDueDate        DateTime? @db.Date       // calculé (M10)
   nextServiceDueMileage     Int?                     // calculé
+  // M10 §14
+  serviceDueBasis           String?                  // "date" | "km" (laquelle a déterminé l'échéance)
+  inspectionExpiryEstimated Boolean  @default(false) // déduite de la dernière VT (RG-M10-30)
+  dataQualityFlags          String[]                 // "inspection_date_suspect", "duplicate_plate"
   // Assurance
   insuranceCompanyId        String?
   insuranceExpiryDate       DateTime? @db.Date
@@ -759,7 +765,7 @@ model ReminderRule {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
-enum ReminderType { INSPECTION SERVICE RECEIVABLE APPOINTMENT QUOTE_FOLLOWUP VEHICLE_READY INSURANCE_EXPIRY SATISFACTION CUSTOM }
+enum ReminderType { INSPECTION SERVICE RECEIVABLE APPOINTMENT QUOTE_FOLLOWUP VEHICLE_READY INSURANCE_EXPIRY SATISFACTION RECOMMENDED_WORK CUSTOM }
 
 model Reminder {                                  // une occurrence planifiée
   id              String @id @default(cuid())
@@ -787,11 +793,49 @@ model Reminder {                                  // une occurrence planifiée
   dedupeKey       String                        // ex. "INSPECTION:veh_123:2026-11-02:J-30"
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  // M10 §14 — regroupement, priorisation et traçabilité d'envoi
+  sequenceKey       String?                     // "INSPECTION:veh_123:2026-11-02" (sans le palier)
+  groupKey          String?                     // regroupement d'envoi (RG-M10-15)
+  messageId         String?                     // message M11 portant cette relance (partagé dans un groupe)
+  priority          Int      @default(5)        // RG-M10-16
+  renderedSubject   String?
+  editedBody        Boolean  @default(false)
+  editedById        String?
+  editedContext     Json?                       // valeurs chiffrées au moment de la modification (RG-M10-25)
+  supersededById    String?
+  approvalExpiresAt DateTime?
+  deferCount        Int      @default(0)        // reports anti-spam
+  isCatchUp         Boolean  @default(false)
+  attributedAmount  Int?                        // FCFA récupérés (créances)
+  attributedRevenue Int?                        // CA de l'OR issu de la relance (VT, révision)
   @@unique([organizationId, dedupeKey])
   @@index([organizationId, status, scheduledFor])
+  @@index([organizationId, sequenceKey])
+  @@index([organizationId, customerId, status])
+  @@index([organizationId, groupKey])
 }
 enum ReminderStatus { PLANNED NEEDS_APPROVAL QUEUED SENT FAILED SKIPPED SNOOZED CANCELLED }
-enum ReminderOutcome { APPOINTMENT_BOOKED PAID PARTIALLY_PAID PROMISED REPLIED NO_RESPONSE OPTED_OUT }
+enum ReminderOutcome {
+  APPOINTMENT_BOOKED PAID PARTIALLY_PAID PROMISED REPLIED NO_RESPONSE OPTED_OUT
+  VISITED QUOTE_ACCEPTED VEHICLE_PICKED_UP        // M10 §14
+}
+
+model ReminderSuppression {                       // M10 §14, RG-M10-21
+  id             String @id @default(cuid())
+  organizationId String
+  sequenceKey    String?
+  customerId     String?
+  vehicleId      String?
+  type           ReminderType?
+  until          DateTime?                     // null = permanente
+  reason         String                        // "RDV pris le 24/10/2026", "VT effectuée", "Litige"
+  source         String                        // appointment | inspection_done | staff | collection
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, sequenceKey])
+  @@index([organizationId, customerId, type])
+  @@index([organizationId, vehicleId, type])
+}
 
 model MessageTemplate {
   id                 String @id @default(cuid())

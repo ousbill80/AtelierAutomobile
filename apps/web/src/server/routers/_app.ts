@@ -13,6 +13,9 @@ import { onboardingRouter } from "./onboarding";
 import { optOutRouter } from "./optOut";
 import { orgRouter } from "./org";
 import { quickReplyRouter } from "./quickReply";
+import { reminderRulesRouter } from "./reminderRules";
+import { remindersRouter } from "./reminders";
+import { reminderSettingsRouter } from "./reminderSettings";
 import { roleRouter } from "./role";
 import { sessionRouter } from "./session";
 import { siteRouter } from "./site";
@@ -37,6 +40,9 @@ export const appRouter = router({
   optOut: optOutRouter,
   quickReply: quickReplyRouter,
   devOutbox: devOutboxRouter,
+  reminders: remindersRouter,
+  reminderRules: reminderRulesRouter,
+  reminderSettings: reminderSettingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

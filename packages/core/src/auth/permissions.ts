@@ -111,6 +111,7 @@ export const PERMISSIONS = [
   "receivable:manage",
   "receivable:writeoff",
   "receivable:dispute",
+  "receivable:formal_notice",
   // Relances / messages (M10, M11)
   "reminder:read",
   "reminder:approve",
@@ -241,7 +242,8 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   // org:update, site:manage, member:deactivate, role:manage, settings:update,
   // settings:channels, settings:payments, settings:fne, settings:billing,
   // repair_order:deliver_unpaid, invoice:void, invoice:price_below_min, payment:refund,
-  // receivable:writeoff, dashboard:owner, integration:manage, ai:configure.
+  // receivable:writeoff, receivable:formal_notice, dashboard:owner, integration:manage,
+  // ai:configure.
 ];
 
 function buildDefaultRolePermissions(): Record<NonOwnerRole, Permission[]> {

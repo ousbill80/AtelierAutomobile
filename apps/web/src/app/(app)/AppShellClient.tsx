@@ -63,11 +63,28 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
   const garageSub =
     me.allowedSites.length > 1 ? (activeSite?.name ?? t("common.allSites")) : activeSite?.name;
 
+  const mainItems = [
+    { href: "/messages", label: t("nav.messages"), permission: "message:read" },
+    { href: "/relances", label: t("nav.reminders"), permission: "reminder:read" },
+    {
+      href: "/relances/echeances",
+      label: t("nav.reminderDeadlines"),
+      permission: "reminder:read",
+    },
+  ].filter((item) => has(item.permission));
+
   const settingsItems = [
     { href: "/parametres/equipe", label: t("nav.settingsTeam"), permission: "member:read" },
     { href: "/parametres/roles", label: t("nav.settingsRoles"), permission: "role:manage" },
     { href: "/parametres/sites", label: t("nav.settingsSites"), permission: "site:manage" },
     { href: "/parametres/journal", label: t("nav.settingsJournal"), permission: "audit:read" },
+    { href: "/parametres/canaux", label: t("nav.settingsChannels"), permission: "settings:channels" },
+    { href: "/parametres/modeles", label: t("nav.settingsTemplates"), permission: "template:manage" },
+    {
+      href: "/parametres/relances",
+      label: t("nav.settingsReminderRules"),
+      permission: "reminder:rules_manage",
+    },
   ].filter((item) => has(item.permission));
 
   return (
@@ -78,6 +95,15 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         logoLabel={t("common.appName")}
       >
         <NavItem as={Link} href="/" label={t("nav.dashboard")} active={pathname === "/"} />
+        {mainItems.map((item) => (
+          <NavItem
+            key={item.href}
+            as={Link}
+            href={item.href}
+            label={item.label}
+            active={pathname.startsWith(item.href)}
+          />
+        ))}
         {settingsItems.length > 0 ? (
           <>
             <SidebarSectionLabel>{t("nav.settings")}</SidebarSectionLabel>

@@ -101,11 +101,17 @@
   },
   "nav": {
     "dashboard": "Tableau de bord",
+    "messages": "Messages",
+    "reminders": "Relances",
+    "reminderDeadlines": "Échéances",
     "settings": "Paramètres",
     "settingsTeam": "Équipe",
     "settingsRoles": "Rôles et permissions",
     "settingsSites": "Sites",
     "settingsJournal": "Journal d'audit",
+    "settingsChannels": "Canaux",
+    "settingsTemplates": "Modèles",
+    "settingsReminderRules": "Règles de relance",
     "profile": "Mon profil",
     "profileSecurity": "Sécurité",
     "logout": "Se déconnecter"

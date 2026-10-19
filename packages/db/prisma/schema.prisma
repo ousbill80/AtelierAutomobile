@@ -329,6 +329,8 @@ model Customer {
   // M11 §14
   hasWhatsappCheckedAt DateTime?
   emailInvalidAt       DateTime?
+  // M10 §14
+  phoneInvalidAt       DateTime? // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
   vehicles        Vehicle[]
@@ -347,6 +349,8 @@ model Customer {
 
   @@index([organizationId, displayName])
   @@index([organizationId, phone])
+  @@index([organizationId, phone2])
+  @@index([organizationId, email])
 }
 
 enum CustomerType {
@@ -385,48 +389,54 @@ model CustomerContact {
 }
 
 model Vehicle {
-  id                    String        @id @default(cuid(2))
-  organizationId        String
-  customerId            String
-  plate                 String // normalisée : majuscules, sans espaces multiples
-  vin                   String?
-  make                  String // Toyota
-  model                 String // Corolla
-  version               String?
-  year                  Int?
-  firstRegistrationDate DateTime?     @db.Date
-  fuel                  FuelType?
-  transmission          Transmission?
-  engineCode            String?
-  color                 String?
-  fleetNumber           String? // n° interne flotte client
-  driverName            String?
-  driverPhone           String?
+  id                        String        @id @default(cuid(2))
+  organizationId            String
+  customerId                String
+  plate                     String // normalisée : majuscules, sans espaces multiples
+  usage                     VehicleUsage  @default(PRIVATE)
+  vin                       String?
+  make                      String // Toyota
+  model                     String // Corolla
+  version                   String?
+  year                      Int?
+  firstRegistrationDate     DateTime?     @db.Date
+  fuel                      FuelType?
+  transmission              Transmission?
+  engineCode                String?
+  color                     String?
+  fleetNumber               String? // n° interne flotte client
+  driverName                String?
+  driverPhone               String?
   // Kilométrage
-  currentMileage        Int?
-  currentMileageAt      DateTime?
-  avgKmPerDay           Float? // calculé à partir des relevés
-  estimatedMileage      Int? // estimé du jour (worker)
+  currentMileage            Int?
+  currentMileageAt          DateTime?
+  avgKmPerDay               Float? // calculé à partir des relevés
+  estimatedMileage          Int? // estimé du jour (worker)
+  odometerOffset            Int           @default(0) // après remplacement de compteur (RG-M02-09)
   // Visite technique
-  inspectionLastDate    DateTime?     @db.Date
-  inspectionExpiryDate  DateTime?     @db.Date
-  inspectionCenter      String?
+  inspectionLastDate        DateTime?     @db.Date
+  inspectionExpiryDate      DateTime?     @db.Date
+  inspectionCenter          String?
   // Révision
-  serviceIntervalKm     Int? // ex. 10000
-  serviceIntervalMonths Int? // ex. 6
-  lastServiceDate       DateTime?     @db.Date
-  lastServiceMileage    Int?
-  nextServiceDueDate    DateTime?     @db.Date // calculé (M10)
-  nextServiceDueMileage Int? // calculé
+  serviceIntervalKm         Int? // ex. 10000
+  serviceIntervalMonths     Int? // ex. 6
+  lastServiceDate           DateTime?     @db.Date
+  lastServiceMileage        Int?
+  nextServiceDueDate        DateTime?     @db.Date // calculé (M10)
+  nextServiceDueMileage     Int? // calculé
+  // M10 §14
+  serviceDueBasis           String? // "date" | "km" (laquelle a déterminé l'échéance)
+  inspectionExpiryEstimated Boolean       @default(false) // déduite de la dernière VT (RG-M10-30)
+  dataQualityFlags          String[] // "inspection_date_suspect", "duplicate_plate"
   // Assurance
-  insuranceCompanyId    String?
-  insuranceExpiryDate   DateTime?     @db.Date
-  insurancePolicyNumber String?
-  notes                 String?
-  origin                RecordOrigin  @default(NATIVE)
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-  deletedAt             DateTime?
+  insuranceCompanyId        String?
+  insuranceExpiryDate       DateTime?     @db.Date
+  insurancePolicyNumber     String?
+  notes                     String?
+  origin                    RecordOrigin  @default(NATIVE)
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+  deletedAt                 DateTime?
 
   organization     Organization      @relation(fields: [organizationId], references: [id])
   customer         Customer          @relation(fields: [customerId], references: [id])
@@ -444,6 +454,15 @@ model Vehicle {
   @@index([organizationId, inspectionExpiryDate])
   @@index([organizationId, nextServiceDueDate])
   @@index([organizationId, customerId])
+}
+
+enum VehicleUsage {
+  PRIVATE
+  TAXI
+  TRANSPORT
+  UTILITY
+  RENTAL
+  OTHER
 }
 
 enum FuelType {
@@ -469,6 +488,8 @@ model MileageReading {
   source         MileageSource
   repairOrderId  String?
   createdById    String?
+  isOutlier      Boolean       @default(false) // RG-M10-08 : exclu du calcul de km/jour
+  createdAt      DateTime      @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   vehicle      Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -476,6 +497,7 @@ model MileageReading {
   createdBy    Membership?  @relation("MileageReadingCreatedBy", fields: [createdById], references: [id])
 
   @@index([organizationId, vehicleId])
+  @@index([vehicleId, readAt])
 }
 
 enum MileageSource {
@@ -1548,17 +1570,17 @@ model ReminderSuppression {
 }
 
 model MessageTemplate {
-  id                   String  @id @default(cuid(2))
-  organizationId       String
-  key                  String // "vt_j30"
-  name                 String
-  channel              Channel
-  subject              String? // email
-  body                 String // avec variables {{client.prenom}}
-  whatsappTemplateName String? // nom du modèle approuvé chez Meta
-  whatsappLanguage     String? @default("fr")
-  whatsappStatus       String? // APPROVED | PENDING | REJECTED
-  isActive             Boolean @default(true)
+  id                     String        @id @default(cuid(2))
+  organizationId         String
+  key                    String // "vt_j30"
+  name                   String
+  channel                Channel
+  subject                String? // email
+  body                   String // avec variables {{client.prenom}}
+  whatsappTemplateName   String? // nom du modèle approuvé chez Meta
+  whatsappLanguage       String?       @default("fr")
+  whatsappStatus         String? // APPROVED | PENDING | REJECTED
+  isActive               Boolean       @default(true)
   // M11 §14
   type                   ReminderType? // classement dans l'éditeur
   isTransactional        Boolean       @default(false)
@@ -1591,21 +1613,21 @@ model QuickReply {
 }
 
 model Conversation {
-  id              String             @id @default(cuid(2))
-  organizationId  String
-  customerId      String?
-  channel         Channel
-  externalAddress String // téléphone ou email
-  status          ConversationStatus @default(OPEN)
-  assignedToId    String?
-  lastMessageAt   DateTime
-  unreadCount     Int                @default(0)
-  lastIntent      String? // classé par l'IA (M17)
+  id                      String             @id @default(cuid(2))
+  organizationId          String
+  customerId              String?
+  channel                 Channel
+  externalAddress         String // téléphone ou email
+  status                  ConversationStatus @default(OPEN)
+  assignedToId            String?
+  lastMessageAt           DateTime
+  unreadCount             Int                @default(0)
+  lastIntent              String? // classé par l'IA (M17)
   // M11 §14
   whatsappWindowExpiresAt DateTime?
   lastInboundAt           DateTime?
   candidateCustomerIds    String[] // numéro partagé, à trancher
-  createdAt               DateTime  @default(now())
+  createdAt               DateTime           @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   customer     Customer?    @relation(fields: [customerId], references: [id])
@@ -1622,40 +1644,40 @@ enum ConversationStatus {
 }
 
 model Message {
-  id                String        @id @default(cuid(2))
-  organizationId    String
-  conversationId    String?
-  customerId        String?
-  reminderId        String?
-  direction         Direction
-  channel           Channel
-  to                String
-  from              String?
-  subject           String?
-  body              String
-  attachments       Json          @default("[]")
-  status            MessageStatus @default(QUEUED)
-  provider          String
-  providerMessageId String?
-  errorCode         String?
-  errorMessage      String?
-  cost              Int? // FCFA
-  fallbackOfId      String? // message d'origine si repli (WhatsApp → SMS)
-  idempotencyKey    String? // M11 §14 : unique par organisation/canal
-  sentById          String? // null = automatique
+  id                   String        @id @default(cuid(2))
+  organizationId       String
+  conversationId       String?
+  customerId           String?
+  reminderId           String?
+  direction            Direction
+  channel              Channel
+  to                   String
+  from                 String?
+  subject              String?
+  body                 String
+  attachments          Json          @default("[]")
+  status               MessageStatus @default(QUEUED)
+  provider             String
+  providerMessageId    String?
+  errorCode            String?
+  errorMessage         String?
+  cost                 Int? // FCFA
+  fallbackOfId         String? // message d'origine si repli (WhatsApp → SMS)
+  idempotencyKey       String? // M11 §14 : unique par organisation/canal
+  sentById             String? // null = automatique
   // M11 §14
-  kind              MessageKind   @default(REMINDER)
-  templateKey       String?
+  kind                 MessageKind   @default(REMINDER)
+  templateKey          String?
   whatsappTemplateName String? // modèle Meta réellement utilisé
-  intent            String? // classement M17 (entrants)
-  intentConfidence  Float?
-  attemptCount      Int           @default(0)
-  nextRetryAt       DateTime?
-  failedAt          DateTime?
-  createdAt         DateTime      @default(now())
-  sentAt            DateTime?
-  deliveredAt       DateTime?
-  readAt            DateTime?
+  intent               String? // classement M17 (entrants)
+  intentConfidence     Float?
+  attemptCount         Int           @default(0)
+  nextRetryAt          DateTime?
+  failedAt             DateTime?
+  createdAt            DateTime      @default(now())
+  sentAt               DateTime?
+  deliveredAt          DateTime?
+  readAt               DateTime?
 
   organization        Organization         @relation(fields: [organizationId], references: [id])
   conversation        Conversation?        @relation(fields: [conversationId], references: [id])
@@ -1732,17 +1754,17 @@ model MessageAttempt {
 }
 
 model ChannelConfig {
-  id             String    @id @default(cuid(2))
-  organizationId String
-  channel        Channel
-  provider       String // whatsapp_cloud | wa_link | orange_sms | twilio | http_sms | smtp | resend | console
-  isActive       Boolean   @default(false)
-  priority       Int       @default(1)
-  credentials    String // JSON chiffré (AES-256-GCM)
-  senderId       String? // nom d'expéditeur SMS, numéro WhatsApp, email from
-  status         String? // OK | ERROR
-  lastCheckedAt  DateTime?
-  balance        Int? // crédit SMS restant si disponible
+  id                 String    @id @default(cuid(2))
+  organizationId     String
+  channel            Channel
+  provider           String // whatsapp_cloud | wa_link | orange_sms | twilio | http_sms | smtp | resend | console
+  isActive           Boolean   @default(false)
+  priority           Int       @default(1)
+  credentials        String // JSON chiffré (AES-256-GCM)
+  senderId           String? // nom d'expéditeur SMS, numéro WhatsApp, email from
+  status             String? // OK | ERROR
+  lastCheckedAt      DateTime?
+  balance            Int? // crédit SMS restant si disponible
   // M11 §14
   webhookVerifyToken String?
   messagingTier      String? // palier de messagerie WhatsApp
