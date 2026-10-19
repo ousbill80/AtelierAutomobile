@@ -100,3 +100,23 @@ export {
   SYNC_QUERY_MAX_ROWS,
   SYNC_QUERY_TIMEOUT_MS,
 } from "./sync";
+
+export type { AgentStatus } from "./agent";
+export {
+  AGENT_CLOCK_SKEW_WARNING_MS,
+  AGENT_HEARTBEAT_INTERVAL_MS,
+  AGENT_OFFLINE_AFTER_MS,
+  AGENT_QUEUE_RETENTION_MS,
+  batchIdempotencyKey,
+  chunkRows,
+  effectiveAgentStatus,
+  generateAgentToken,
+  generatePairingCode,
+  hashAgentToken,
+  hashSourceRow,
+  isClockSkewed,
+  normalizePairingCode,
+  PAIRING_CODE_LENGTH,
+  pairingExpiresAt,
+  SYNC_BATCH_SIZE,
+} from "./agent";

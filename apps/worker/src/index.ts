@@ -46,7 +46,8 @@ async function main(): Promise<void> {
     scheduleSyncJobs,
   } = await import("./queues/sync");
   type SyncRunJobData = import("./queues/sync").SyncRunJobData;
-  const { findDueSqlSources, processSyncRunJob } = await import("./jobs/syncWatch");
+  const { findDueSqlSources, processAgentsHealthJob, processSyncRunJob } =
+    await import("./jobs/syncWatch");
   const { processAlertsScanJob } = await import("./jobs/alertsScan");
 
   logger.info("AtelierOS worker démarré");
@@ -152,6 +153,8 @@ async function main(): Promise<void> {
         }
         case SYNC_JOB_NAMES.RUN:
           return processSyncRunJob(job.data as SyncRunJobData);
+        case SYNC_JOB_NAMES.AGENTS_HEALTH:
+          return processAgentsHealthJob();
         default:
           logger.warn({ jobName: job.name }, "sync : job inconnu, ignoré");
           return undefined;

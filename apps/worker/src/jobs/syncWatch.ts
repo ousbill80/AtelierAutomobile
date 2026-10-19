@@ -2,7 +2,7 @@
 // repérer les sources `SQL_DATABASE` actives dont le planning est échu (RG-M13-27) ;
 // l'exécution (requêtes en lecture seule puis pipeline d'import) vit dans
 // `@atelieros/import` (`runSqlSync`).
-import { isSyncDue } from "@atelieros/core";
+import { AGENT_OFFLINE_AFTER_MS, isSyncDue } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
 import { runSqlSync, type RunSqlSyncInput } from "@atelieros/import";
 import { loadEncryptionKey } from "@atelieros/integrations";
@@ -26,7 +26,8 @@ export async function findDueSqlSources(
   const due: { data: SyncRunJobData; runKey: string }[] = [];
   for (const org of organizations) {
     const sources = await db.forTenant({ organizationId: org.id }).dataSource.findMany({
-      where: { type: "SQL_DATABASE", isActive: true },
+      // Les sources d'un agent local sont alimentées par ses lots, jamais interrogées d'ici.
+      where: { type: "SQL_DATABASE", isActive: true, syncAgents: { none: {} } },
       select: { id: true, schedule: true, lastRunAt: true, createdAt: true },
     });
     for (const source of sources) {
@@ -66,4 +67,16 @@ export async function processSyncRunJob(
     "sync.run terminé",
   );
   if (result.status === "FAILED") throw new SyncRunFailedError(result.error ?? "Synchro en échec");
+}
+
+/** M13 §9 `sync.agents_health` (toutes les 5 min) : ONLINE sans battement depuis 15 min → OFFLINE. */
+export async function processAgentsHealthJob(now = new Date()): Promise<number> {
+  const result = await adminDb.syncAgent.updateMany({
+    where: {
+      status: "ONLINE",
+      lastSeenAt: { lt: new Date(now.getTime() - AGENT_OFFLINE_AFTER_MS) },
+    },
+    data: { status: "OFFLINE" },
+  });
+  return result.count;
 }

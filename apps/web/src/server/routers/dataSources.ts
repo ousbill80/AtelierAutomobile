@@ -296,9 +296,15 @@ export const dataSourcesRouter = router({
         .forTenant({ organizationId: ctx.organizationId })
         .dataSource.findFirst({
           where: { id: input.id, type: "SQL_DATABASE" },
-          select: { id: true },
+          select: { id: true, syncAgents: { select: { id: true }, take: 1 } },
         });
       if (!source) throw new TRPCError({ code: "NOT_FOUND", message: "Source introuvable." });
+      if (source.syncAgents.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cette source est alimentée par l'agent local installé au garage.",
+        });
+      }
       return getSyncRunner().run({ organizationId: ctx.organizationId, dataSourceId: source.id });
     }),
 });

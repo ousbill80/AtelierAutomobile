@@ -1212,6 +1212,19 @@ model SyncAgent {                                 // M13 §14 — agent local (R
   revokedAt        DateTime?
 }
 
+model SyncBatch {                                 // M13 partie 2 — lot reçu de l'agent local (RG-M13-28)
+  id             String @id @default(cuid())
+  organizationId String
+  agentId        String
+  idempotencyKey String                          // sha256(lot) ; renvoi = réponse rejouée
+  entity         String
+  rowCount       Int
+  importJobId    String?
+  response       Json
+  createdAt      DateTime @default(now())
+  @@unique([agentId, idempotencyKey])
+}
+
 model ImportJob {
   id              String @id @default(cuid())
   organizationId  String

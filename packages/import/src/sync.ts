@@ -68,6 +68,96 @@ export interface RunSqlSyncInput {
   createDb?: (config: SqlSourceConfig) => ExternalDatabase;
 }
 
+export interface ImportSyncRowsInput {
+  organizationId: string;
+  dataSourceId: string;
+  sourceName: string;
+  entity: SyncEntity;
+  /** Colonnes et lignes telles que lues dans la base source (requête serveur ou lot d'agent). */
+  result: { columns: string[]; rows: string[][] };
+  policy: ImportPolicy;
+  now: Date;
+}
+
+/**
+ * Applique des lignes issues d'une base source avec le pipeline d'import (même chemin qu'un
+ * fichier) et trace l'exécution dans un `ImportJob`. Partagé par la connexion directe
+ * (`runSqlSync`) et les lots de l'agent local (`POST /api/v1/sync/batches`).
+ */
+export async function importSyncRows(input: ImportSyncRowsInput): Promise<SyncEntityResult> {
+  const { organizationId, dataSourceId, sourceName, entity, result, policy, now } = input;
+  const tenantDb = db.forTenant({ organizationId });
+  const columns = mapSyncColumns(entity, result.columns);
+  const parsed: ParsedImportFile = {
+    format: "csv",
+    encoding: null,
+    delimiter: null,
+    headers: result.columns,
+    rows: result.rows,
+    rowNumbers: result.rows.map((_, i) => i + 1),
+  };
+  const rows = buildAnalyzedRows(parsed, entity, columns, now);
+  const job = await tenantDb.importJob.create({
+    data: {
+      organizationId,
+      dataSourceId,
+      entity,
+      fileName: `synchro ${sourceName} — ${entity}`,
+      mapping: { columns },
+      policy,
+      status: "RUNNING",
+      totalRows: rows.length,
+      startedAt: now,
+    },
+  });
+  const run = await runImport({
+    tenantDb,
+    organizationId,
+    entity,
+    rows,
+    policy,
+    jobId: job.id,
+    now,
+    // Synchro automatique : les lignes en erreur sont écartées et tracées, jamais bloquantes.
+    skipErrors: true,
+  });
+  if (run.rowErrors.length > 0) {
+    await tenantDb.importRowError.createMany({
+      data: run.rowErrors.map((e) => ({
+        organizationId,
+        importJobId: job.id,
+        rowNumber: e.rowNumber,
+        field: e.field,
+        message: e.message,
+        severity: e.severity,
+        raw: e.raw as object,
+      })),
+    });
+  }
+  await tenantDb.importJob.update({
+    where: { id: job.id },
+    data: {
+      status: "COMPLETED",
+      finishedAt: now,
+      processedRows: run.totalApplicable,
+      createdCount: run.create,
+      updatedCount: run.update,
+      unchangedCount: run.unchanged,
+      skippedCount: run.skip,
+      errorCount: run.error,
+    },
+  });
+  return {
+    entity,
+    jobId: job.id,
+    rows: rows.length,
+    create: run.create,
+    update: run.update,
+    unchanged: run.unchanged,
+    error: run.error,
+  };
+}
+
 /** Exécute une synchronisation complète d'une source `SQL_DATABASE` et met à jour son suivi. */
 export async function runSqlSync(input: RunSqlSyncInput): Promise<RunSqlSyncResult> {
   const { organizationId, dataSourceId, now } = input;
@@ -85,75 +175,17 @@ export async function runSqlSync(input: RunSqlSyncInput): Promise<RunSqlSyncResu
         if (!sql?.trim()) continue;
         assertReadOnlySelect(sql);
         const result = await external.query(sql, since);
-        const columns = mapSyncColumns(entity, result.columns);
-        const parsed: ParsedImportFile = {
-          format: "csv",
-          encoding: null,
-          delimiter: null,
-          headers: result.columns,
-          rows: result.rows,
-          rowNumbers: result.rows.map((_, i) => i + 1),
-        };
-        const rows = buildAnalyzedRows(parsed, entity, columns, now);
-        const job = await tenantDb.importJob.create({
-          data: {
+        entities.push(
+          await importSyncRows({
             organizationId,
             dataSourceId,
+            sourceName: source.name,
             entity,
-            fileName: `synchro ${source.name} — ${entity}`,
-            mapping: { columns },
+            result,
             policy: config.policy ?? "UPSERT",
-            status: "RUNNING",
-            totalRows: rows.length,
-            startedAt: now,
-          },
-        });
-        const run = await runImport({
-          tenantDb,
-          organizationId,
-          entity,
-          rows,
-          policy: config.policy ?? "UPSERT",
-          jobId: job.id,
-          now,
-          // Synchro automatique : les lignes en erreur sont écartées et tracées, jamais bloquantes.
-          skipErrors: true,
-        });
-        if (run.rowErrors.length > 0) {
-          await tenantDb.importRowError.createMany({
-            data: run.rowErrors.map((e) => ({
-              organizationId,
-              importJobId: job.id,
-              rowNumber: e.rowNumber,
-              field: e.field,
-              message: e.message,
-              severity: e.severity,
-              raw: e.raw as object,
-            })),
-          });
-        }
-        await tenantDb.importJob.update({
-          where: { id: job.id },
-          data: {
-            status: "COMPLETED",
-            finishedAt: now,
-            processedRows: run.totalApplicable,
-            createdCount: run.create,
-            updatedCount: run.update,
-            unchangedCount: run.unchanged,
-            skippedCount: run.skip,
-            errorCount: run.error,
-          },
-        });
-        entities.push({
-          entity,
-          jobId: job.id,
-          rows: rows.length,
-          create: run.create,
-          update: run.update,
-          unchanged: run.unchanged,
-          error: run.error,
-        });
+            now,
+          }),
+        );
       }
     } finally {
       await external.close();

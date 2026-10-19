@@ -79,4 +79,4 @@ export {
 } from "./queue";
 
 export type { RunSqlSyncInput, RunSqlSyncResult, SqlSourceConfig, SyncEntityResult } from "./sync";
-export { parseSqlSourceConfig, runSqlSync, serializeSqlSourceConfig } from "./sync";
+export { importSyncRows, parseSqlSourceConfig, runSqlSync, serializeSqlSourceConfig } from "./sync";

@@ -9,6 +9,7 @@ import { contactRouter } from "./contact";
 import { customerRouter } from "./customer";
 import { alertsRouter, dashboardRouter, digestRouter } from "./dashboard";
 import { dataSourcesRouter } from "./dataSources";
+import { syncAgentsRouter } from "./syncAgents";
 import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
@@ -51,6 +52,7 @@ export const appRouter = router({
   onboarding: onboardingRouter,
   import: importRouter,
   dataSources: dataSourcesRouter,
+  syncAgents: syncAgentsRouter,
   customer: customerRouter,
   vehicle: vehicleRouter,
   contact: contactRouter,

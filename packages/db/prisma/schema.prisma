@@ -93,6 +93,7 @@ model Organization {
   fneConfig              FneConfig?
   dataSources            DataSource[]
   syncAgents             SyncAgent[]
+  syncBatches            SyncBatch[]
   importJobs             ImportJob[]
   importRowErrors        ImportRowError[]
   externalRefs           ExternalRef[]
@@ -2104,8 +2105,29 @@ model SyncAgent {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   dataSource   DataSource?  @relation(fields: [dataSourceId], references: [id])
+  batches      SyncBatch[]
 
   @@index([organizationId])
+}
+
+model SyncBatch {
+  // M13 partie 2 (étape 6.4) — lot reçu de l'agent local (RG-M13-28) : idempotence par
+  // `Idempotency-Key = sha256(lot)` ; un renvoi du même lot rejoue la réponse enregistrée.
+  id             String   @id @default(cuid(2))
+  organizationId String
+  agentId        String
+  idempotencyKey String
+  entity         String
+  rowCount       Int
+  importJobId    String?
+  response       Json
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  agent        SyncAgent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, idempotencyKey])
+  @@index([organizationId, createdAt])
 }
 
 enum DataSourceType {

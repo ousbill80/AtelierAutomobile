@@ -10,6 +10,7 @@ export const SYNC_QUEUE_NAME = "sync";
 export const SYNC_JOB_NAMES = {
   WATCH: "imports.watch",
   RUN: "sync.run",
+  AGENTS_HEALTH: "sync.agents_health",
 } as const;
 
 export interface SyncRunJobData {
@@ -42,5 +43,10 @@ export async function scheduleSyncJobs(): Promise<void> {
     SYNC_JOB_NAMES.WATCH,
     { pattern: "*/15 * * * *" },
     { name: SYNC_JOB_NAMES.WATCH },
+  );
+  await getSyncQueue().upsertJobScheduler(
+    SYNC_JOB_NAMES.AGENTS_HEALTH,
+    { pattern: "*/5 * * * *" },
+    { name: SYNC_JOB_NAMES.AGENTS_HEALTH },
   );
 }

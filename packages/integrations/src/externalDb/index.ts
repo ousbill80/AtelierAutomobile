@@ -13,7 +13,8 @@ import mssql from "mssql";
 import mysql from "mysql2/promise";
 import pg from "pg";
 
-export type ExternalDbType = SqlDialect | "memory";
+/** `agent` : source alimentée par l'agent local (requêtes exécutées au garage, pas ici). */
+export type ExternalDbType = SqlDialect | "memory" | "agent";
 
 export interface ExternalDbConfig {
   dbType: ExternalDbType;
@@ -331,6 +332,11 @@ export function createExternalDatabase(config: ExternalDbConfig): ExternalDataba
       throw new DomainError(
         "sync.dialect_agent_only",
         "Firebird se synchronise via l'agent local installé sur le PC du garage.",
+      );
+    case "agent":
+      throw new DomainError(
+        "sync.agent_source",
+        "Cette source est alimentée par l'agent local installé au garage.",
       );
     case "memory":
       // Sans résultats préparés : base vide (utile en développement local).
