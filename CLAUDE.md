@@ -61,6 +61,7 @@ En implémentant un module, applique sa section **§14 Évolutions du modèle de
 ## Commandes
 
 ```
+pnpm dev:setup      # première fois : docker, .env, deps, migrations, seed, bucket S3
 docker compose -f docker/docker-compose.yml up -d
 pnpm dev            # web + worker
 pnpm check          # lint + typecheck + tests

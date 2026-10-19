@@ -49,6 +49,17 @@ services:
       timeout: 5s
       retries: 10
 
+  # Crée le bucket S3 de dev au démarrage (le code ne le crée pas lui-même) ; idempotent.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mc alias set local http://minio:9000 atelieros atelieros123
+      && mc mb --ignore-existing local/atelieros-dev"
+    restart: "no"
+
   mailpit:
     image: axllent/mailpit:latest
     restart: unless-stopped
