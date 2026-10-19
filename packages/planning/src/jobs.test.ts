@@ -74,9 +74,11 @@ describe("jobs M03 (no-show automatique, agenda, confirmations)", () => {
         status: "BOOKED",
       },
     });
-    const before = await runNoShowJob(fixedClock(new Date("2026-10-26T19:45:00Z")));
+    // La base de test est partagée avec d'autres organisations (seed) : on ne traite que la nôtre.
+    const only = { organizationId: orgId };
+    const before = await runNoShowJob(fixedClock(new Date("2026-10-26T19:45:00Z")), only);
     expect(before.processed).toBe(0);
-    const after = await runNoShowJob(fixedClock(new Date("2026-10-26T20:00:00Z")));
+    const after = await runNoShowJob(fixedClock(new Date("2026-10-26T20:00:00Z")), only);
     expect(after.processed).toBe(1);
     const updated = await adminDb.appointment.findUniqueOrThrow({ where: { id: appointment.id } });
     expect(updated.status).toBe("NO_SHOW");
@@ -97,7 +99,7 @@ describe("jobs M03 (no-show automatique, agenda, confirmations)", () => {
     });
     expect(notification?.title).toContain("Absent");
     // Rejouer le job est idempotent.
-    const again = await runNoShowJob(fixedClock(new Date("2026-10-26T20:15:00Z")));
+    const again = await runNoShowJob(fixedClock(new Date("2026-10-26T20:15:00Z")), only);
     expect(again.processed).toBe(0);
   });
 

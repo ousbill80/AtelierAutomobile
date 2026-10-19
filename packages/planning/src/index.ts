@@ -57,7 +57,13 @@ export {
   deleteResourceBlock,
   type CreateResourceBlockInput,
 } from "./resource-blocks";
-export { runDailyAgendaJob, runNoShowJob, runUnconfirmedCheckJob, type JobReport } from "./jobs";
+export {
+  runDailyAgendaJob,
+  runNoShowJob,
+  runUnconfirmedCheckJob,
+  type JobOptions,
+  type JobReport,
+} from "./jobs";
 export {
   checkRateLimit,
   loadPortalBookingContext,

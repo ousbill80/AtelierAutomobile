@@ -19,14 +19,23 @@ export interface JobReport {
   processed: number;
 }
 
+export interface JobOptions {
+  /** Restreint le job à une organisation (tests ; en production le job parcourt toutes les organisations). */
+  organizationId?: string;
+}
+
 /**
  * `appointments.mark_no_show` (toutes les 15 min) — RG-M03-10 : pour chaque organisation dont
  * l'heure locale a dépassé `noShowJobTime`, passe en NO_SHOW les RDV du jour encore
  * BOOKED/CONFIRMED (et ceux des jours précédents jamais traités). Idempotent par construction.
  */
-export async function runNoShowJob(clock: Clock = systemClock): Promise<JobReport> {
+export async function runNoShowJob(
+  clock: Clock = systemClock,
+  options: JobOptions = {},
+): Promise<JobReport> {
   const now = clock.now();
   const organizations = await adminDb.organization.findMany({
+    where: options.organizationId ? { id: options.organizationId } : undefined,
     select: { id: true, timezone: true, settings: true },
   });
   let processed = 0;
