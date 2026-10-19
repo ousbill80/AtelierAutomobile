@@ -194,6 +194,41 @@ describe("computeCapacity / checkCapacity (RG-M03-05)", () => {
       }).ok,
     ).toBe(true);
   });
+  it("blocages qui se chevauchent (fermeture + congé) décomptés une seule fois", async () => {
+    const { mechanicAvailableMinutes } = await import("./index");
+    const day = { startsAt: at("2026-10-24T08:00:00Z"), endsAt: at("2026-10-24T14:00:00Z") };
+    const minutes = mechanicAvailableMinutes(
+      "m1",
+      [day],
+      [
+        {
+          id: "b1",
+          bayId: null,
+          membershipId: null,
+          reason: "Fermeture",
+          startsAt: at("2026-10-24T08:00:00Z"),
+          endsAt: at("2026-10-24T10:00:00Z"),
+        },
+        {
+          id: "b2",
+          bayId: null,
+          membershipId: "m1",
+          reason: "Congé",
+          startsAt: at("2026-10-24T09:00:00Z"),
+          endsAt: at("2026-10-24T11:00:00Z"),
+        },
+        {
+          id: "b3",
+          bayId: "pont1",
+          membershipId: null,
+          reason: "Pont",
+          startsAt: at("2026-10-24T08:00:00Z"),
+          endsAt: at("2026-10-24T14:00:00Z"),
+        },
+      ],
+    );
+    expect(minutes).toBe(180);
+  });
   it("jauge d'occupation : vert < 70 %, orange 70-90 %, rouge > 90 %", () => {
     expect(occupancyTone(0.5)).toBe("ok");
     expect(occupancyTone(0.7)).toBe("warn");

@@ -668,7 +668,7 @@ function ListView({
   const groups = new Map<string, PlanningAppointment[]>();
   for (const a of data.appointments) {
     const d = new Date(a.startsAt);
-    const key = `${localDateKey(d, tz)}|${localMinutes(d, tz) < 13 * 60 ? "AM" : "PM"}`;
+    const key = `${localDateKey(d, tz)}|${localMinutes(d, tz) < data.halfDayBoundaryMinutes ? "AM" : "PM"}`;
     groups.set(key, [...(groups.get(key) ?? []), a]);
   }
   return (

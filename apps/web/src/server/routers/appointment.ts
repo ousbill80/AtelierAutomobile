@@ -15,6 +15,7 @@ import {
   clientNamespace,
   confirmationMessage,
   defaultDuration,
+  halfDayBoundary,
   isBayCompatible,
   isLate,
   isLateCancellation,
@@ -54,6 +55,7 @@ import {
   dayBounds,
   dispatchNotifications,
   enqueueAppointmentMessage,
+  extendAppointmentLink,
   hasConfirmTemplate,
   isOverlapViolation,
   issueAppointmentLink,
@@ -334,6 +336,7 @@ export const appointmentRouter = router({
         timeZone: org.timezone,
         operatingMode: org.operatingMode,
         slotStepMinutes: config.appointments.slotStepMinutes,
+        halfDayBoundaryMinutes: halfDayBoundary(config.planning.lunchBreak),
         appointments: rows.map((r) =>
           enrich(r, toEnrichCtx(config.appointments.lateAfterMinutes, now, noShows)),
         ),
@@ -425,10 +428,15 @@ export const appointmentRouter = router({
           });
           if (!customer) throw new TRPCError({ code: "NOT_FOUND", message: "Client introuvable." });
           const vehicle = input.vehicleId
-            ? await tx.vehicle.findFirst({ where: { id: input.vehicleId } })
+            ? await tx.vehicle.findFirst({
+                where: { id: input.vehicleId, customerId: customer.id, deletedAt: null },
+              })
             : null;
           if (input.vehicleId && !vehicle) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Véhicule introuvable." });
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Véhicule introuvable pour ce client.",
+            });
           }
           const operations = input.laborOperationIds.length
             ? await tx.laborOperation.findMany({ where: { id: { in: input.laborOperationIds } } })
@@ -686,13 +694,14 @@ export const appointmentRouter = router({
           if (rescheduled) {
             // M10 recalcule le J-1 au prochain passage du planificateur (dueDate = nouveau jour).
             await cancelAppointmentReminders(tx, current.id, "Rendez-vous déplacé.");
+            await extendAppointmentLink(tx, current.id, startsAt);
             if (input.notifyCustomer) {
               notifications.push(
                 await enqueueAppointmentMessage(tx, {
                   organizationId: ctx.organizationId,
                   appointmentId: current.id,
                   kind: "moved",
-                  idempotencySuffix: startsAt.toISOString(),
+                  idempotencySuffix: `${startsAt.toISOString()}@${now.getTime()}`,
                   customer: current.customer,
                   body: rescheduledMessage({
                     salutation: clientNamespace(current.customer).salutation,
@@ -935,6 +944,12 @@ export const appointmentRouter = router({
         }
         return group.map((a) => a.id);
       });
+      for (const id of ids) {
+        await audit(ctx, "appointment.cancelled", id, {
+          reason: "Annulation du groupe",
+          after: { cancelledBy: "GARAGE", groupCancel: input.id },
+        });
+      }
       return { cancelled: ids.length };
     }),
 
@@ -969,24 +984,44 @@ export const appointmentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const now = new Date();
-      const row = await tenantDb.transaction(async (tx) => {
-        const current = await loadAppointment(tx, input.id);
-        requireSite(ctx, current.siteId);
-        withDomain(() =>
-          assertTransition(current.status as AppointmentStatusKey, "revert_no_show"),
-        );
-        if (!canRevertNoShow(current.noShowAt, now)) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "La correction d'une absence n'est possible que dans les 48 h.",
+      const row = await tenantDb
+        .transaction(async (tx) => {
+          const current = await loadAppointment(tx, input.id);
+          requireSite(ctx, current.siteId);
+          withDomain(() =>
+            assertTransition(current.status as AppointmentStatusKey, "revert_no_show"),
+          );
+          if (!canRevertNoShow(current.noShowAt, now)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "La correction d'une absence n'est possible que dans les 48 h.",
+            });
+          }
+          // §11 : si le pont a été réattribué entre-temps, le RDV passe « À affecter ».
+          const bayTaken = current.bayId
+            ? await tx.appointment.findFirst({
+                where: {
+                  id: { not: current.id },
+                  bayId: current.bayId,
+                  status: { notIn: ["CANCELLED", "NO_SHOW"] },
+                  startsAt: { lt: current.endsAt },
+                  endsAt: { gt: current.startsAt },
+                },
+                select: { id: true },
+              })
+            : null;
+          await tx.appointment.update({
+            where: { id: current.id },
+            data: {
+              status: "ARRIVED",
+              arrivedAt: now,
+              noShowAt: null,
+              ...(bayTaken ? { bayId: null } : {}),
+            },
           });
-        }
-        await tx.appointment.update({
-          where: { id: current.id },
-          data: { status: "ARRIVED", arrivedAt: now, noShowAt: null },
-        });
-        return current;
-      });
+          return current;
+        })
+        .catch(rethrow);
       await audit(ctx, "appointment.no_show_reverted", row.id, {
         siteId: row.siteId,
         reason: input.reason,

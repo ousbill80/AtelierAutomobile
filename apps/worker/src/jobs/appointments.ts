@@ -296,19 +296,26 @@ export async function handleAppointmentEvent(event: EventRow, now: Date): Promis
         orderBy: { createdAt: "desc" },
         select: { idempotencyKey: true },
       });
-      const appointmentId = lastAppointmentMessage?.idempotencyKey?.split(":")[1];
-      if (!appointmentId) return;
-      const appt = await tenantDb.appointment.findFirst({
-        where: { id: appointmentId, status: { in: ["BOOKED", "CONFIRMED"] } },
+      // `appt:<id>:…` (un RDV) ou `appt:<groupId>:batch:…` (confirmation groupée d'une flotte).
+      const [, targetId, kind] = lastAppointmentMessage?.idempotencyKey?.split(":") ?? [];
+      if (!targetId) return;
+      const targets = await tenantDb.appointment.findMany({
+        where: {
+          ...(kind === "batch" ? { groupId: targetId } : { id: targetId }),
+          status: { in: ["BOOKED", "CONFIRMED"] },
+        },
         include: { customer: { select: { displayName: true } } },
+        orderBy: { startsAt: "asc" },
       });
-      if (!appt) return;
+      const first = targets[0];
+      if (!first) return;
       const reply = classifyAppointmentReply(message.body);
       if (!reply) return;
       const via =
         message.channel === "SMS" ? "sms" : message.channel === "EMAIL" ? "email" : "whatsapp";
       if (reply.intent === "CONFIRM" && reply.automatic) {
-        if (appt.status === "BOOKED") {
+        for (const appt of targets) {
+          if (appt.status !== "BOOKED") continue;
           await tenantDb.appointment.update({
             where: { id: appt.id },
             data: { status: "CONFIRMED", confirmedAt: now, confirmedVia: via },
@@ -321,48 +328,53 @@ export async function handleAppointmentEvent(event: EventRow, now: Date): Promis
         return;
       }
       if (reply.intent === "CANCEL" && reply.automatic) {
-        await tenantDb.appointment.update({
-          where: { id: appt.id },
-          data: {
-            status: "CANCELLED",
-            cancelledAt: now,
-            cancelledBy: "CUSTOMER",
-            cancelReason: `Réponse « ${message.body.trim()} »`,
-          },
-        });
-        await tenantDb.reminder.updateMany({
-          where: {
+        for (const appt of targets) {
+          await tenantDb.appointment.update({
+            where: { id: appt.id },
+            data: {
+              status: "CANCELLED",
+              cancelledAt: now,
+              cancelledBy: "CUSTOMER",
+              cancelReason: `Réponse « ${message.body.trim()} »`,
+            },
+          });
+          await tenantDb.reminder.updateMany({
+            where: {
+              appointmentId: appt.id,
+              type: "APPOINTMENT",
+              status: { in: ["PLANNED", "NEEDS_APPROVAL", "SNOOZED"] },
+            },
+            data: { status: "CANCELLED", skippedReason: "Rendez-vous annulé." },
+          });
+          await emit(tenantDb, event.organizationId, "appointment.cancelled", {
             appointmentId: appt.id,
-            type: "APPOINTMENT",
-            status: { in: ["PLANNED", "NEEDS_APPROVAL", "SNOOZED"] },
-          },
-          data: { status: "CANCELLED", skippedReason: "Rendez-vous annulé." },
-        });
-        await emit(tenantDb, event.organizationId, "appointment.cancelled", {
-          appointmentId: appt.id,
-          vehicleId: appt.vehicleId,
-          customerId: appt.customerId,
-          cancelledBy: "CUSTOMER",
-        });
+            vehicleId: appt.vehicleId,
+            customerId: appt.customerId,
+            cancelledBy: "CUSTOMER",
+          });
+        }
         await notifyStaff(tenantDb, {
           organizationId: event.organizationId,
-          siteId: appt.siteId,
+          siteId: first.siteId,
           type: "appointment.cancelled_by_customer",
-          title: `${appt.customer.displayName} a annulé son RDV`,
+          title:
+            targets.length > 1
+              ? `${first.customer.displayName} a annulé ${targets.length} RDV`
+              : `${first.customer.displayName} a annulé son RDV`,
           link: "/rendez-vous",
-          dedupeKey: `appointment.cancelled:${appt.id}`,
+          dedupeKey: `appointment.cancelled:${targetId}`,
         });
         return;
       }
       // « 2 » ou texte libre : jamais de modification automatique, RDV à replanifier.
       await notifyStaff(tenantDb, {
         organizationId: event.organizationId,
-        siteId: appt.siteId,
+        siteId: first.siteId,
         type: "appointment.to_reschedule",
-        title: `RDV à replanifier — ${appt.customer.displayName}`,
+        title: `RDV à replanifier — ${first.customer.displayName}`,
         body: `« ${message.body.trim()} »`,
         link: "/rendez-vous",
-        dedupeKey: `appointment.to_reschedule:${appt.id}:${messageId}`,
+        dedupeKey: `appointment.to_reschedule:${targetId}:${messageId}`,
       });
       return;
     }

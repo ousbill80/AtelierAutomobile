@@ -508,6 +508,14 @@ export async function issueAppointmentLink(
   return `${appUrl()}/p/${token}/rdv`;
 }
 
+/** Après un déplacement : le lien du RDV reste valable jusqu'à 7 jours après la nouvelle date. */
+export async function extendAppointmentLink(tx: Tx, appointmentId: string, startsAt: Date) {
+  await tx.portalToken.updateMany({
+    where: { scope: "APPOINTMENT", targetId: appointmentId, status: "ACTIVE" },
+    data: { expiresAt: new Date(startsAt.getTime() + 7 * 86_400_000) },
+  });
+}
+
 /** Jeton BOOKING (choisir un créneau) pour un client/véhicule, ex. reprogrammation après absence. */
 export async function issueBookingLink(
   tx: Tx,

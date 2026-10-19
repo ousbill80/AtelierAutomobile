@@ -277,10 +277,22 @@ export async function processRemindersOnEventJob(): Promise<void> {
   });
 
   for (const event of events) {
+    // M03 : consommateur RDV du même événement (OR livré → COMPLETED, réponses 1/2/3), isolé
+    // pour qu'un échec côté relances ne l'empêche pas de s'exécuter (et inversement).
+    try {
+      await handleAppointmentEvent(event, new Date());
+    } catch (error) {
+      logger.error(
+        {
+          eventId: event.id,
+          type: event.type,
+          error: error instanceof Error ? error.message : error,
+        },
+        "appointments.on_event : échec du traitement d'un événement",
+      );
+    }
     try {
       await handleEvent(event, new Date());
-      // M03 : même événement, consommateur RDV (OR livré → COMPLETED, réponses 1/2/3).
-      await handleAppointmentEvent(event, new Date());
     } catch (error) {
       logger.error(
         {

@@ -300,7 +300,7 @@ function BlocksSection({
     },
     onError(e) {
       const info = errorInfo(e);
-      if (info?.code === "BLOCK_HAS_APPOINTMENTS") setConflict(info.message);
+      if (info?.code === "BLOCK_HAS_APPOINTMENTS" && info.forcible) setConflict(info.message);
       else onToast(info?.message ?? ta("errors.generic"), "bad");
     },
   });

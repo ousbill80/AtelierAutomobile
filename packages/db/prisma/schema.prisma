@@ -729,7 +729,7 @@ model Appointment {
 
   // Contrainte d'exclusion (migration SQL, extension btree_gist, RG-M03-02) :
   // ALTER TABLE "Appointment" ADD CONSTRAINT appointment_no_overlap
-  //   EXCLUDE USING gist ("bayId" WITH =, tstzrange("startsAt","endsAt") WITH &&)
+  //   EXCLUDE USING gist ("bayId" WITH =, tsrange("startsAt","endsAt",'[)') WITH &&)
   //   WHERE ("bayId" IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW') AND NOT overbooked);
   @@index([organizationId, siteId, startsAt])
   @@index([organizationId, customerId])

@@ -788,6 +788,88 @@ describe("appointment / planning / portal routers (M03)", () => {
     ).rejects.toThrow(/planning:manage/);
   });
 
+  it("Relecture — véhicule d'un autre client refusé ; fermeture du site non forçable", async () => {
+    await expect(
+      advisorYop.caller.appointment.create({
+        siteId: siteYop.id,
+        customerId: kouassi.id,
+        vehicleId: bambaCar.id,
+        type: "SERVICE",
+        startsAt: at(addDaysToKey(SAT, 21), "09:00"),
+      }),
+    ).rejects.toThrow(/Véhicule introuvable pour ce client/);
+    const day = addDaysToKey(SAT, 30);
+    await advisorYop.caller.appointment.create({
+      siteId: siteYop.id,
+      customerId: bamba.id,
+      type: "OTHER",
+      startsAt: at(day, "09:00"),
+      notifyCustomer: false,
+    });
+    const error = await expectCode(
+      manager.caller.resourceBlock.create({
+        siteId: siteYop.id,
+        startsAt: at(day, "07:30"),
+        endsAt: at(day, "18:00"),
+        reason: "Inventaire",
+        force: true,
+      }),
+      "BLOCK_HAS_APPOINTMENTS",
+    );
+    expect(error.message).toMatch(/avant de fermer l'atelier/);
+  });
+
+  it("Relecture — correction d'absence : pont repris entre-temps → « À affecter »", async () => {
+    const day = addDaysToKey(SAT, 23);
+    const { appointment } = await advisorYop.caller.appointment.create({
+      siteId: siteYop.id,
+      customerId: kouassi.id,
+      type: "OTHER",
+      startsAt: at(day, "09:00"),
+      bayId: pont1.id,
+      notifyCustomer: false,
+    });
+    await advisorYop.caller.appointment.markNoShow({ id: appointment.id });
+    await advisorYop.caller.appointment.create({
+      siteId: siteYop.id,
+      customerId: bamba.id,
+      type: "OTHER",
+      startsAt: at(day, "09:00"),
+      bayId: pont1.id,
+      notifyCustomer: false,
+    });
+    await advisorYop.caller.appointment.revertNoShow({
+      id: appointment.id,
+      reason: "Client arrivé, non pointé",
+    });
+    expect(
+      await adminDb.appointment.findUniqueOrThrow({ where: { id: appointment.id } }),
+    ).toMatchObject({ status: "ARRIVED", bayId: null });
+  });
+
+  it("Relecture — déplacer puis revenir à une heure déjà proposée renvoie bien un message", async () => {
+    const day = addDaysToKey(SAT, 24);
+    const { appointment } = await advisorYop.caller.appointment.create({
+      siteId: siteYop.id,
+      customerId: kouassi.id,
+      type: "OTHER",
+      startsAt: at(day, "09:00"),
+      notifyCustomer: false,
+    });
+    await advisorYop.caller.appointment.update({ id: appointment.id, startsAt: at(day, "14:00") });
+    await advisorYop.caller.appointment.update({ id: appointment.id, startsAt: at(day, "09:00") });
+    const third = await advisorYop.caller.appointment.update({
+      id: appointment.id,
+      startsAt: at(day, "14:00"),
+    });
+    expect(third.notified).toBe(true);
+    expect(
+      await adminDb.message.count({
+        where: { idempotencyKey: { startsWith: `appt:${appointment.id}:moved` } },
+      }),
+    ).toBe(3);
+  });
+
   it("Permissions : un CASHIER voit le planning mais ne crée pas de RDV", async () => {
     const list = await cashier.caller.appointment.list({
       siteId: siteYop.id,

@@ -133,10 +133,11 @@ export const planningRouter = router({
   /**
    * US-M03-05 / M17 — suggestion de créneau à partir d'une intention libre (« samedi matin »).
    * Heuristique déterministe journalisée dans `AiInteraction` : l'humain accepte ou change.
+   * Mutation (et non query) : une ligne `AiInteraction` par demande explicite, pas par refetch.
    */
   suggestSlot: requirePermission("appointment:create")
     .input(suggestSlotInputSchema)
-    .query(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const tx = asTx(tenantDb);
       const now = new Date();
@@ -260,11 +261,21 @@ export const resourceBlockRouter = router({
               { appointments: [], blocks: [block] },
             ).length > 0,
         );
+        const siteWide = !input.bayId && !input.membershipId;
+        if (affected.length > 0 && siteWide) {
+          // Fermeture du site : rien à « réaffecter », les RDV doivent être déplacés d'abord.
+          const domain = new DomainError(
+            "BLOCK_HAS_APPOINTMENTS",
+            `${affected.length} RDV sont prévus pendant cette fermeture. Déplacez-les ou annulez-les avant de fermer l'atelier.`,
+            { ids: affected.map((a) => a.id), forcible: false },
+          );
+          throw new TRPCError({ code: "CONFLICT", message: domain.message, cause: domain });
+        }
         if (affected.length > 0 && !input.force) {
           const domain = new DomainError(
             "BLOCK_HAS_APPOINTMENTS",
             `${affected.length} RDV sont prévus sur cette période. Déplacez-les ou confirmez : ils passeront « À affecter ».`,
-            { ids: affected.map((a) => a.id) },
+            { ids: affected.map((a) => a.id), forcible: true },
           );
           throw new TRPCError({ code: "CONFLICT", message: domain.message, cause: domain });
         }

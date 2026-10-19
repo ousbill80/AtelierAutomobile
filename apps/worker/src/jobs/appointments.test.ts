@@ -213,6 +213,64 @@ describe("appointments jobs (M03)", () => {
     ).toBe(1);
   });
 
+  it("Relecture — « 1 » en réponse à une confirmation groupée confirme tout le groupe", async () => {
+    const now = new Date();
+    const groupId = `grp-${randomBytes(3).toString("hex")}`;
+    const start = new Date(now.getTime() + 2 * 86_400_000);
+    const ids = [];
+    for (const offset of [0, 3_600_000]) {
+      const a = await adminDb.appointment.create({
+        data: {
+          organizationId: org.id,
+          siteId: site.id,
+          customerId: customer.id,
+          startsAt: new Date(start.getTime() + offset),
+          endsAt: new Date(start.getTime() + offset + 3_600_000),
+          type: "INSPECTION_PREP",
+          groupId,
+        },
+      });
+      ids.push(a.id);
+    }
+    await adminDb.message.create({
+      data: {
+        organizationId: org.id,
+        customerId: customer.id,
+        direction: "OUTBOUND",
+        channel: "SMS",
+        to: "+2250701020304",
+        body: "2 RDV…",
+        provider: "console",
+        kind: "TRANSACTIONAL",
+        idempotencyKey: `appt:${groupId}:batch:2031-01-01`,
+        createdAt: new Date(now.getTime() - 60_000),
+      },
+    });
+    const inbound = await adminDb.message.create({
+      data: {
+        organizationId: org.id,
+        customerId: customer.id,
+        direction: "INBOUND",
+        channel: "SMS",
+        to: "garage",
+        body: "1",
+        provider: "console",
+        kind: "CONVERSATION",
+      },
+    });
+    await handleAppointmentEvent(
+      {
+        id: inbound.id,
+        organizationId: org.id,
+        type: "message.inbound_received",
+        payload: { customerId: customer.id, messageId: inbound.id },
+      },
+      now,
+    );
+    const rows = await adminDb.appointment.findMany({ where: { id: { in: ids } } });
+    expect(rows.map((r) => r.status)).toEqual(["CONFIRMED", "CONFIRMED"]);
+  });
+
   it("agenda du jour à 07:00 et appels à passer à 18:00, une fois par jour", async () => {
     await appointment(at("09:00", "2031-03-18"));
     await appointment(at("08:00", "2031-03-19"));

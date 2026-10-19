@@ -217,7 +217,8 @@ async function revalidate(tenantDb: TenantDb, reminder: DueReminder): Promise<Re
     if (
       !appointment ||
       !["BOOKED", "CONFIRMED"].includes(appointment.status) ||
-      // `dueDate` est un @db.Date (jour du RDV) : comparer le jour, pas l'instant (M03).
+      // `dueDate` est un @db.Date : remindersPlan y écrit `startsAt`, que Prisma tronque au jour
+      // UTC. On compare donc le jour UTC des deux côtés (et non l'instant exact) — M03.
       appointment.startsAt.toISOString().slice(0, 10) !==
         reminder.dueDate.toISOString().slice(0, 10)
     ) {

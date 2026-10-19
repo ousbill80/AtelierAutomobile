@@ -105,10 +105,7 @@ export function AppointmentForm({
     { siteId, type, durationMinutes: duration, days: 14, limit: 10 },
     { enabled: showSlots },
   );
-  const suggestion = trpc.planning.suggestSlot.useQuery(
-    { customerId: customerId ?? "", vehicleId: vehicleId || null, type, preferredText: intent },
-    { enabled: false },
-  );
+  const suggestion = trpc.planning.suggestSlot.useMutation();
 
   const createCustomer = trpc.customer.create.useMutation({
     onSuccess(result) {
@@ -370,7 +367,15 @@ export function AppointmentForm({
               type="button"
               variant="secondary"
               className="min-h-11"
-              onClick={() => suggestion.refetch()}
+              onClick={() =>
+                customerId &&
+                suggestion.mutate({
+                  customerId,
+                  vehicleId: vehicleId || null,
+                  type,
+                  preferredText: intent,
+                })
+              }
             >
               {ta("form.suggest")}
             </Button>

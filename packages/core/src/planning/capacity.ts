@@ -38,13 +38,28 @@ export function mechanicAvailableMinutes(
   intervals: readonly Interval[],
   blocks: readonly BlockLike[],
 ): number {
+  const relevant = blocks.filter(
+    (b) => b.membershipId === membershipId || (!b.membershipId && !b.bayId),
+  );
   let total = 0;
   for (const interval of intervals) {
-    const open = overlapMinutes(interval, interval);
-    const blocked = blocks
-      .filter((b) => b.membershipId === membershipId || (!b.membershipId && !b.bayId))
-      .reduce((sum, b) => sum + overlapMinutes(interval, b), 0);
-    total += Math.max(0, open - blocked);
+    // Union des blocages rognés à la plage : deux blocages qui se chevauchent (fermeture du
+    // site + congé) ne sont décomptés qu'une fois.
+    const clipped = relevant
+      .map((b) => [
+        Math.max(b.startsAt.getTime(), interval.startsAt.getTime()),
+        Math.min(b.endsAt.getTime(), interval.endsAt.getTime()),
+      ])
+      .filter(([from, to]) => to! > from!)
+      .sort((x, y) => x[0]! - y[0]!);
+    let blockedMs = 0;
+    let cursor = -Infinity;
+    for (const [from, to] of clipped) {
+      const start = Math.max(from!, cursor);
+      if (to! > start) blockedMs += to! - start;
+      cursor = Math.max(cursor, to!);
+    }
+    total += Math.max(0, overlapMinutes(interval, interval) - Math.round(blockedMs / 60_000));
   }
   return total;
 }

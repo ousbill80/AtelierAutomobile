@@ -38,6 +38,7 @@ import {
   dayBounds,
   dispatchNotifications,
   enqueueAppointmentMessage,
+  extendAppointmentLink,
   isOverlapViolation,
   issueAppointmentLink,
   loadOrganization,
@@ -63,6 +64,12 @@ function rateLimit(ip: string, now: Date) {
   }
   recent.push(now.getTime());
   bookingsByIp.set(ip, recent);
+  // Purge des adresses inactives depuis plus d'une heure (la table ne grossit pas sans fin).
+  if (bookingsByIp.size > 1000) {
+    for (const [key, times] of bookingsByIp) {
+      if (times.every((t) => t <= since)) bookingsByIp.delete(key);
+    }
+  }
 }
 
 /** Réinitialise le limiteur (tests). */
@@ -109,8 +116,21 @@ async function siteForToken(tx: Tx, token: PortalToken) {
     if (!appt) throw new TRPCError({ code: "NOT_FOUND", message: "Rendez-vous introuvable." });
     return tx.site.findFirstOrThrow({ where: { id: appt.siteId } });
   }
+  // Lien BOOKING : l'atelier habituel du client (dernier RDV, sinon dernier OR), sinon le
+  // premier site actif.
+  const lastVisit =
+    (await tx.appointment.findFirst({
+      where: { customerId: token.customerId, site: { isActive: true } },
+      orderBy: { startsAt: "desc" },
+      select: { siteId: true },
+    })) ??
+    (await tx.repairOrder.findFirst({
+      where: { customerId: token.customerId, site: { isActive: true } },
+      orderBy: { createdAt: "desc" },
+      select: { siteId: true },
+    }));
   const site = await tx.site.findFirst({
-    where: { isActive: true },
+    where: { isActive: true, ...(lastVisit ? { id: lastVisit.siteId } : {}) },
     orderBy: { createdAt: "asc" },
   });
   if (!site) throw new TRPCError({ code: "NOT_FOUND", message: "Garage indisponible." });
@@ -525,6 +545,7 @@ export const portalAppointmentRouter = router({
             where: { id: appt.id },
             data: { startsAt: input.startsAt, endsAt, bayId },
           });
+          await extendAppointmentLink(tx, appt.id, input.startsAt);
           await tx.reminder.updateMany({
             where: {
               appointmentId: appt.id,
