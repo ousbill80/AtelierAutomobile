@@ -71,6 +71,9 @@ export type {
 } from "./customers/merge";
 export { mergePlan } from "./customers/merge";
 
+export type { ComputeReachabilityInput, ReachabilityStatus } from "./customers/reachability";
+export { computeReachability } from "./customers/reachability";
+
 export type { DocumentSequenceKey, DocumentType, SequenceStore } from "./numbering";
 export {
   formatDocumentNumber,
