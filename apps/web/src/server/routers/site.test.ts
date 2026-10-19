@@ -147,42 +147,55 @@ describe("site router (M01)", () => {
     const caller = callerFactory(await contextFor(proOwner.token));
     const site = await caller.site.create({ name: "Atelier Abobo", code: "ABO", bays: [] });
 
-    const customer = await adminDb.customer.create({
-      data: { organizationId: proOrg.id, displayName: "Client Test Abobo" },
-    });
-    const vehicle = await adminDb.vehicle.create({
-      data: {
-        organizationId: proOrg.id,
-        customerId: customer.id,
-        plate: "1234AB01",
-        make: "Toyota",
-        model: "Corolla",
-      },
-    });
-    const repairOrder = await adminDb.repairOrder.create({
-      data: {
-        organizationId: proOrg.id,
-        siteId: site.id,
-        number: "OR-ABO-2026-00001",
-        customerId: customer.id,
-        vehicleId: vehicle.id,
-        status: "IN_PROGRESS",
-      },
-    });
+    let customerId: string | undefined;
+    let vehicleId: string | undefined;
+    let repairOrderId: string | undefined;
 
-    await expect(caller.site.deactivate({ siteId: site.id })).rejects.toThrow("OR ouverts");
+    // Nettoyage garanti même si une étape intermédiaire échoue (ex. dérive de schéma hors
+    // périmètre M15) : sans ce filet, le site et ses dépendances resteraient en base et
+    // épuiseraient le quota du plan PRO (3 sites) pour tous les tests suivants de ce fichier.
+    try {
+      const customer = await adminDb.customer.create({
+        data: { organizationId: proOrg.id, displayName: "Client Test Abobo" },
+      });
+      customerId = customer.id;
+      const vehicle = await adminDb.vehicle.create({
+        data: {
+          organizationId: proOrg.id,
+          customerId: customer.id,
+          plate: "1234AB01",
+          make: "Toyota",
+          model: "Corolla",
+        },
+      });
+      vehicleId = vehicle.id;
+      const repairOrder = await adminDb.repairOrder.create({
+        data: {
+          organizationId: proOrg.id,
+          siteId: site.id,
+          number: "OR-ABO-2026-00001",
+          customerId: customer.id,
+          vehicleId: vehicle.id,
+          status: "IN_PROGRESS",
+        },
+      });
+      repairOrderId = repairOrder.id;
 
-    await adminDb.repairOrder.update({
-      where: { id: repairOrder.id },
-      data: { status: "DELIVERED" },
-    });
+      await expect(caller.site.deactivate({ siteId: site.id })).rejects.toThrow("OR ouverts");
 
-    const deactivated = await caller.site.deactivate({ siteId: site.id });
-    expect(deactivated.isActive).toBe(false);
+      await adminDb.repairOrder.update({
+        where: { id: repairOrder.id },
+        data: { status: "DELIVERED" },
+      });
 
-    await adminDb.repairOrder.delete({ where: { id: repairOrder.id } });
-    await adminDb.vehicle.delete({ where: { id: vehicle.id } });
-    await adminDb.customer.delete({ where: { id: customer.id } });
+      const deactivated = await caller.site.deactivate({ siteId: site.id });
+      expect(deactivated.isActive).toBe(false);
+    } finally {
+      if (repairOrderId) await adminDb.repairOrder.deleteMany({ where: { id: repairOrderId } });
+      if (vehicleId) await adminDb.vehicle.deleteMany({ where: { id: vehicleId } });
+      if (customerId) await adminDb.customer.deleteMany({ where: { id: customerId } });
+      await adminDb.site.update({ where: { id: site.id }, data: { isActive: false } });
+    }
   });
 
   it("site.create refuse des horaires invalides (RG-M15-07)", async () => {
