@@ -1,5 +1,6 @@
 // Onglet « Relances » (M12 §7) : envoyés / délivrés / lus, clients revenus après rappel,
-// montant récupéré (RG-M12-21/22) et taux de retour VT / révision (RG-M12-24).
+// taux de retour VT / révision (RG-M12-24). Le montant récupéré (RG-M12-22) vient des
+// `PaymentAttribution` M09 : voir `recoveredByReminders` (./receivables).
 // Les faits viennent de M10/M11 (`Reminder` + statut du `Message` porteur).
 import { inRange } from "./period";
 
@@ -26,14 +27,11 @@ export interface ReminderResults {
   sentByType: Record<string, number>;
   /** Clients distincts revenus (RDV pris ou visite) après une relance, sur la période. */
   returnedCustomers: number;
-  /** RG-M12-22 : montant FCFA récupéré sur les créances (attribution M10). */
-  recoveredAmount: number;
   /** CA généré par les retours VT / révision — affiché à part, jamais additionné. */
   generatedRevenue: number;
 }
 
 const RETURN_OUTCOMES = new Set(["APPOINTMENT_BOOKED", "VISITED"]);
-const PAID_OUTCOMES = new Set(["PAID", "PARTIALLY_PAID"]);
 
 export function computeReminderResults(
   facts: readonly ReminderFactLike[],
@@ -47,7 +45,6 @@ export function computeReminderResults(
     failed: 0,
     sentByType: {},
     returnedCustomers: 0,
-    recoveredAmount: 0,
     generatedRevenue: 0,
   };
   const returned = new Set<string>();
@@ -66,9 +63,6 @@ export function computeReminderResults(
     if (RETURN_OUTCOMES.has(fact.outcome)) {
       returned.add(fact.customerId);
       results.generatedRevenue += fact.attributedRevenue ?? 0;
-    }
-    if (PAID_OUTCOMES.has(fact.outcome) && fact.type === "RECEIVABLE") {
-      results.recoveredAmount += fact.attributedAmount ?? 0;
     }
   }
   results.returnedCustomers = returned.size;

@@ -30,7 +30,7 @@ export interface CollectionSettings {
 
 export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
   minAmount: 2_000,
-  attributionDays: 7,
+  attributionDays: 14, // A10 : fenêtre M12 (RG-M12-22)
   blockAfterDays: 60,
   writeOffMinDays: 90,
   graceDays: 0,
