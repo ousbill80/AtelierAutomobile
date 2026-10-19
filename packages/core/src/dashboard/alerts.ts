@@ -2,7 +2,8 @@
 // sms_balance_low, import_stale, receivable_45d, promise_broken. Chaque alerte est
 // dédoublonnée par objet et par jour (`alert.<code>:<objectId>:<yyyy-MM-dd>`).
 // RG-M12-28 — tri du bloc Alertes.
-import { daysLate } from "./receivables";
+import { daysOverdue } from "../receivables/aging";
+import { asOfDate } from "./receivables";
 
 export const ALERT_CODES = [
   "channel_error",
@@ -156,7 +157,7 @@ export function evaluateAlerts(input: AlertScanInput): AlertCandidate[] {
   }
 
   for (const invoice of input.overdueInvoices) {
-    const days = daysLate(invoice.dueDate, input.today);
+    const days = daysOverdue(invoice.dueDate, asOfDate(input.today));
     if (days <= t.receivableDays || invoice.balance <= 0) continue;
     alerts.push(
       candidate(

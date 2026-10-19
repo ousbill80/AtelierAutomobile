@@ -521,3 +521,23 @@ describe("stageEffectForStep (RG-M09-04)", () => {
     expect(stageEffectForStep("PROMISE_BROKEN")).toBeNull();
   });
 });
+
+describe("attributePayment — fenêtre par défaut (A10 : 14 jours, règle M12)", () => {
+  const reminder = { id: "r1", at: new Date("2026-10-01T09:00:00Z") };
+  it("attribue un paiement reçu 14 jours après la relance, pas 15", () => {
+    expect(
+      attributePayment({
+        receivedAt: new Date("2026-10-15T09:00:00Z"),
+        reminders: [reminder],
+        calls: [],
+      }),
+    ).toEqual({ source: "reminder", reminderId: "r1" });
+    expect(
+      attributePayment({
+        receivedAt: new Date("2026-10-16T09:00:00Z"),
+        reminders: [reminder],
+        calls: [],
+      }),
+    ).toEqual({ source: "spontaneous" });
+  });
+});

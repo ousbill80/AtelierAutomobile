@@ -4,9 +4,9 @@
 import {
   buildDigestText,
   computeReceivables,
-  computeReminderResults,
   localDay,
-  RECEIVABLE_STATUSES,
+  OPEN_INVOICE_STATUSES,
+  recoveredByReminders,
   shiftDay,
   startOfLocalDay,
 } from "@atelieros/core";
@@ -32,19 +32,21 @@ export async function buildDigestForMembership(
   const invoiceSite = restricted ? { siteId: { in: siteIds } } : {};
   const reminderSite = restricted ? { invoice: { siteId: { in: siteIds } } } : {};
 
-  const [invoices, toApprove, failed, facts, promises, inspections, services, alerts] =
+  const [invoices, toApprove, failed, attributionRows, promises, inspections, services, alerts] =
     await Promise.all([
       tenantDb.invoice.findMany({
         where: {
           ...invoiceSite,
           type: "INVOICE",
-          status: { in: [...RECEIVABLE_STATUSES] },
+          billTo: "CUSTOMER",
+          status: { in: [...OPEN_INVOICE_STATUSES] },
           balance: { gt: 0 },
         },
         select: {
           id: true,
           type: true,
           status: true,
+          billTo: true,
           balance: true,
           dueDate: true,
           customerId: true,
@@ -54,19 +56,19 @@ export async function buildDigestForMembership(
       tenantDb.reminder.count({
         where: { ...reminderSite, status: "FAILED", updatedAt: { gte: yesterdayStart } },
       }),
-      tenantDb.reminder.findMany({
-        where: { ...reminderSite, type: "RECEIVABLE", outcomeAt: { gte: since30, lt: todayStart } },
+      // RG-M12-22 (A10) : attributions M09 des paiements reçus sur 30 j, site de la facture.
+      tenantDb.paymentAttribution.findMany({
+        where: {
+          source: "reminder",
+          paymentAllocation: {
+            payment: { status: "CONFIRMED", receivedAt: { gte: since30, lt: todayStart } },
+            ...(restricted ? { invoice: { siteId: { in: siteIds } } } : {}),
+          },
+        },
         select: {
-          type: true,
-          status: true,
-          sentAt: true,
-          outcome: true,
-          outcomeAt: true,
-          attributedAmount: true,
-          attributedRevenue: true,
-          customerId: true,
-          vehicleId: true,
-          dueDate: true,
+          source: true,
+          amount: true,
+          paymentAllocation: { select: { payment: { select: { receivedAt: true } } } },
         },
       }),
       // Promesses (M09) : non rattachées à un site → « Tous les sites » seulement.
@@ -119,9 +121,11 @@ export async function buildDigestForMembership(
     ]);
 
   const receivables = computeReceivables(invoices, today);
-  const reminderFacts = facts.map((f) => ({ ...f, messageStatus: null }));
-  const yesterday = computeReminderResults(reminderFacts, yesterdayStart, todayStart);
-  const last30 = computeReminderResults(reminderFacts, since30, todayStart);
+  const attributions = attributionRows.map((r) => ({
+    source: r.source,
+    amount: r.amount,
+    receivedAt: r.paymentAllocation.payment.receivedAt,
+  }));
 
   return buildDigestText({
     garageName: org.name,
@@ -134,7 +138,10 @@ export async function buildDigestForMembership(
       amount: promises.reduce((sum, p) => sum + p.amount, 0),
     },
     reminders: { toApprove, failed },
-    recovered: { yesterday: yesterday.recoveredAmount, last30Days: last30.recoveredAmount },
+    recovered: {
+      yesterday: recoveredByReminders(attributions, yesterdayStart, todayStart),
+      last30Days: recoveredByReminders(attributions, since30, todayStart),
+    },
     remindersOnly: { inspectionsDue30: inspections, servicesDueThisMonth: services },
     alerts: alerts.map((a) => a.title),
     link,
