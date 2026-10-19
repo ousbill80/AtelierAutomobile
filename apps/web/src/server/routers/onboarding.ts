@@ -159,13 +159,16 @@ async function saveGarageStep(
 
   // Semences RG-M01-16 : contenu de référence minimal, à enrichir par M10/M11/M04/M05.
   const tenantDb = db.forTenant({ organizationId: org.id });
+  // RG-M10-02 / Annexe A — même jeu que le seed de démonstration (core/onboarding/reminder-defaults).
   await tenantDb.reminderRule.createMany({
     data: defaultReminderRules().map((rule) => ({
       organizationId: org.id,
       type: rule.type,
       name: rule.name,
+      isActive: rule.isActive,
       steps: rule.steps as unknown as Prisma.InputJsonValue,
       sendWindow: rule.sendWindow as unknown as Prisma.InputJsonValue,
+      conditions: rule.conditions as Prisma.InputJsonValue,
       stopOn: rule.stopOn,
     })),
   });
@@ -175,7 +178,11 @@ async function saveGarageStep(
       key: template.key,
       name: template.name,
       channel: template.channel,
+      subject: template.subject ?? null,
       body: template.body,
+      type: template.type ?? null,
+      isActive: true,
+      isDefault: true,
     })),
   });
   const inspection = defaultInspectionTemplate();

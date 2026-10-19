@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { computeSessionAbsoluteExpiry } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { defaultOutbox } from "@atelieros/integrations";
+import { reminderRuleUpsertInputSchema } from "@atelieros/validators";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createContext } from "../context";
 import { createCallerFactory } from "../trpc";
@@ -109,8 +110,26 @@ describe("onboarding router (M01, RG-M01-16/17)", () => {
       });
       expect(membership.role).toBe("OWNER");
 
-      expect(await adminDb.reminderRule.count({ where: { organizationId: orgId } })).toBe(6);
-      expect(await adminDb.messageTemplate.count({ where: { organizationId: orgId } })).toBe(12);
+      // RG-M10-02 / Annexe A : 9 règles (dont 2 inactives) et 97 modèles par (clé, canal).
+      expect(await adminDb.reminderRule.count({ where: { organizationId: orgId } })).toBe(9);
+      expect(
+        await adminDb.reminderRule.count({ where: { organizationId: orgId, isActive: false } }),
+      ).toBe(2);
+      expect(await adminDb.messageTemplate.count({ where: { organizationId: orgId } })).toBe(97);
+      // Les règles installées restent éditables : elles passent le schéma de reminderRules.upsert.
+      const rules = await adminDb.reminderRule.findMany({ where: { organizationId: orgId } });
+      for (const rule of rules) {
+        const parsed = reminderRuleUpsertInputSchema.safeParse({
+          type: rule.type,
+          name: rule.name,
+          isActive: rule.isActive,
+          steps: rule.steps,
+          sendWindow: rule.sendWindow,
+          conditions: rule.conditions,
+          stopOn: rule.stopOn,
+        });
+        expect(parsed.success, `${rule.name} : ${parsed.error?.message}`).toBe(true);
+      }
       expect(await adminDb.inspectionTemplate.count({ where: { organizationId: orgId } })).toBe(1);
       expect(await adminDb.laborOperation.count({ where: { organizationId: orgId } })).toBe(26);
       expect(await adminDb.channelConfig.count({ where: { organizationId: orgId } })).toBe(2);
