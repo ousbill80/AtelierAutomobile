@@ -49,6 +49,9 @@ export {
 
 export { hashPassword, verifyPassword } from "./auth/password";
 
+export type { PasswordPolicyContext, PasswordPolicyViolation } from "./auth/password-policy";
+export { checkPasswordPolicy, isPasswordPolicyCompliant } from "./auth/password-policy";
+
 export type { LockoutState } from "./auth/lockout";
 export {
   INITIAL_LOCKOUT_STATE,

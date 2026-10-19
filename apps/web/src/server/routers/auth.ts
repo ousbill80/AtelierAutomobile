@@ -6,6 +6,7 @@ import {
   hashPassword,
   INITIAL_LOCKOUT_STATE,
   isLocked,
+  pickActiveSite,
   PIN_ELIGIBLE_ROLES,
   PIN_MAX_FAILED_ATTEMPTS,
   recordFailedLogin,
@@ -28,6 +29,7 @@ import {
   sendOtp as sendOtpCode,
   verifyOtp as verifyOtpCode,
 } from "../auth/otp-service";
+import { assertPasswordPolicy } from "../auth/password-policy";
 import { buildSessionCookie, clearSessionCookie } from "../cookies";
 import { authedProcedure, publicProcedure, router } from "../trpc";
 import { writeAuditLog } from "../audit";
@@ -38,6 +40,30 @@ async function findUserByIdentifier(identifier: ReturnType<typeof resolveIdentif
   return identifier.kind === "EMAIL"
     ? adminDb.user.findUnique({ where: { email: identifier.value } })
     : adminDb.user.findUnique({ where: { phone: identifier.value } });
+}
+
+/** Écrit l'entrée d'audit dans chaque organisation où le compte a une adhésion active (RG-M01-05/15). */
+async function writeAuditLogToAllMemberships(
+  userId: string,
+  action: string,
+  ip: string | null,
+  userAgent: string | null,
+) {
+  const memberships = await adminDb.membership.findMany({ where: { userId, isActive: true } });
+  await Promise.all(
+    memberships.map((membership) =>
+      writeAuditLog({
+        organizationId: membership.organizationId,
+        userId,
+        membershipId: membership.id,
+        action,
+        entity: "Membership",
+        entityId: membership.id,
+        ip,
+        userAgent,
+      }),
+    ),
+  );
 }
 
 async function resolveActiveMembership(user: {
@@ -52,6 +78,21 @@ async function resolveActiveMembership(user: {
   return { organizationId: user.lastActiveOrganizationId, membership };
 }
 
+/** RG-M01-10 — dernier site utilisé s'il est toujours autorisé, sinon le premier par ordre alphabétique. */
+async function resolveActiveSiteId(
+  organizationId: string,
+  siteIds: string[],
+  lastActiveSiteId: string | null,
+): Promise<string | null> {
+  const allowedSiteIds = siteIds.length === 0 ? ("ALL" as const) : siteIds;
+  const sites = await db.forTenant({ organizationId }).site.findMany({
+    where: { isActive: true, ...(allowedSiteIds === "ALL" ? {} : { id: { in: allowedSiteIds } }) },
+    select: { id: true, name: true },
+  });
+  if (sites.length === 0) return null;
+  return pickActiveSite({ authorizedSites: sites, lastActiveSiteId });
+}
+
 async function createSessionForUser(
   userId: string,
   deviceId: string,
@@ -63,6 +104,13 @@ async function createSessionForUser(
   const token = randomBytes(32).toString("hex");
   const user = await adminDb.user.findUniqueOrThrow({ where: { id: userId } });
   const activeOrganizationId = activeMembership?.organizationId ?? null;
+  const activeSiteId = activeMembership
+    ? await resolveActiveSiteId(
+        activeMembership.organizationId,
+        activeMembership.membership.siteIds,
+        user.lastActiveSiteId,
+      )
+    : null;
 
   const session = await adminDb.session.create({
     data: {
@@ -73,7 +121,7 @@ async function createSessionForUser(
       userAgent,
       deviceId,
       activeOrganizationId,
-      activeSiteId: activeOrganizationId ? user.lastActiveSiteId : null,
+      activeSiteId,
       isPinSession: false,
       lastActiveAt: now,
     },
@@ -85,6 +133,8 @@ export const authRouter = router({
   signUp: publicProcedure.input(signUpInputSchema).mutation(async ({ input }) => {
     const email = input.email?.toLowerCase().trim();
     const phone = input.phone ? resolveIdentifier(input.phone).value : undefined;
+
+    assertPasswordPolicy(input.password, { phone: input.phone });
 
     const existing = await adminDb.user.findFirst({
       where: {
@@ -221,20 +271,21 @@ export const authRouter = router({
           lockedUntil: nextState.lockedUntil,
         },
       });
+      if (nextState.lockedUntil) {
+        await writeAuditLogToAllMemberships(user.id, "auth.locked", ctx.ip, ctx.userAgent);
+        return { status: "LOCKED" as const, lockedUntil: nextState.lockedUntil };
+      }
       if (activeMembership) {
         await writeAuditLog({
           organizationId: activeMembership.organizationId,
           userId: user.id,
           membershipId: activeMembership.membership.id,
-          action: nextState.lockedUntil ? "auth.locked" : "auth.login.failed",
+          action: "auth.login.failed",
           entity: "Membership",
           entityId: activeMembership.membership.id,
           ip: ctx.ip,
           userAgent: ctx.userAgent,
         });
-      }
-      if (nextState.lockedUntil) {
-        return { status: "LOCKED" as const, lockedUntil: nextState.lockedUntil };
       }
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Identifiants invalides." });
     }
@@ -432,41 +483,51 @@ export const authRouter = router({
     return { ok: true as const };
   }),
 
-  resetPassword: publicProcedure.input(resetPasswordInputSchema).mutation(async ({ input }) => {
-    const [userId] = input.resetToken.split(".");
-    if (!userId) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Jeton de réinitialisation invalide." });
-    }
+  resetPassword: publicProcedure
+    .input(resetPasswordInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const [userId] = input.resetToken.split(".");
+      if (!userId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Jeton de réinitialisation invalide.",
+        });
+      }
 
-    const now = new Date();
-    const row = await adminDb.verification.findFirst({
-      where: { identifier: `RESET_TOKEN:${userId}` },
-      orderBy: { createdAt: "desc" },
-    });
-    if (
-      !row ||
-      row.expiresAt.getTime() < now.getTime() ||
-      row.value !== hashResetToken(input.resetToken)
-    ) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Jeton de réinitialisation invalide ou expiré.",
+      const now = new Date();
+      const row = await adminDb.verification.findFirst({
+        where: { identifier: `RESET_TOKEN:${userId}` },
+        orderBy: { createdAt: "desc" },
       });
-    }
+      if (
+        !row ||
+        row.expiresAt.getTime() < now.getTime() ||
+        row.value !== hashResetToken(input.resetToken)
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Jeton de réinitialisation invalide ou expiré.",
+        });
+      }
 
-    const passwordHash = await hashPassword(input.newPassword);
-    await adminDb.$transaction([
-      adminDb.account.update({
-        where: { providerId_accountId: { providerId: "credential", accountId: userId } },
-        data: { password: passwordHash },
-      }),
-      adminDb.session.deleteMany({ where: { userId } }),
-      adminDb.verification.delete({ where: { id: row.id } }),
-      adminDb.user.update({ where: { id: userId }, data: { ...INITIAL_LOCKOUT_STATE } }),
-    ]);
+      const user = await adminDb.user.findUniqueOrThrow({ where: { id: userId } });
+      assertPasswordPolicy(input.newPassword, { phone: user.phone });
 
-    return { ok: true as const };
-  }),
+      const passwordHash = await hashPassword(input.newPassword);
+      await adminDb.$transaction([
+        adminDb.account.update({
+          where: { providerId_accountId: { providerId: "credential", accountId: userId } },
+          data: { password: passwordHash },
+        }),
+        adminDb.session.deleteMany({ where: { userId } }),
+        adminDb.verification.delete({ where: { id: row.id } }),
+        adminDb.user.update({ where: { id: userId }, data: { ...INITIAL_LOCKOUT_STATE } }),
+      ]);
+
+      await writeAuditLogToAllMemberships(userId, "auth.password_reset", ctx.ip, ctx.userAgent);
+
+      return { ok: true as const };
+    }),
 
   signOut: authedProcedure.mutation(async ({ ctx }) => {
     await adminDb.session.delete({ where: { id: ctx.session.id } }).catch(() => undefined);

@@ -5,6 +5,7 @@ import { acceptInvitationInputSchema, invitationPreviewInputSchema } from "@atel
 import { publicProcedure, router } from "../trpc";
 import { writeAuditLog } from "../audit";
 import { hashInvitationToken } from "../invitation-token";
+import { assertPasswordPolicy } from "../auth/password-policy";
 
 const INVITATION_INVALID_MESSAGE =
   "Cette invitation n'est plus valable. Demandez une nouvelle invitation à votre gérant.";
@@ -67,6 +68,13 @@ export const invitationRouter = router({
           message: "Un mot de passe est requis pour créer votre compte.",
         });
       }
+      const organization = await adminDb.organization.findUniqueOrThrow({
+        where: { id: invitation.organizationId },
+      });
+      assertPasswordPolicy(input.password, {
+        garageName: organization.name,
+        phone: invitation.phone,
+      });
       const passwordHash = await hashPassword(input.password);
       const now = new Date();
       const createdUser = await adminDb.$transaction(async (tx) => {

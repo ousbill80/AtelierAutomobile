@@ -214,6 +214,31 @@ describe("authRouter — parcours inscription / connexion (M01)", () => {
   });
 });
 
+describe("authRouter — politique de mot de passe (RG-M01-03)", () => {
+  it("signUp refuse un mot de passe de la liste des plus courants", async () => {
+    await expect(
+      callerFactory(makeCtx()).auth.signUp({
+        name: "Test Policy",
+        phone: randomPhone(),
+        password: "password1",
+        acceptTerms: true,
+      }),
+    ).rejects.toThrow("trop courant");
+  });
+
+  it("signUp refuse un mot de passe contenant le numéro de téléphone fourni", () => {
+    const phone = randomPhone();
+    return expect(
+      callerFactory(makeCtx()).auth.signUp({
+        name: "Test Policy",
+        phone,
+        password: `Secret${phone}`,
+        acceptTerms: true,
+      }),
+    ).rejects.toThrow("numéro de téléphone");
+  });
+});
+
 describe("authRouter — OTP nouvel appareil et audit (RG-M01-07 / RG-M01-15)", () => {
   it("exige un OTP sur nouvel appareil pour un OWNER puis approuve l'appareil pour 90 jours", async () => {
     const { phone, orgId } = await createUserWithOrg("OWNER", "OwnerPassword123");

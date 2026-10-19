@@ -7,6 +7,7 @@ import {
   setActiveSiteInputSchema,
 } from "@atelieros/validators";
 import { authedProcedure, orgProcedure, requireSite, router } from "../trpc";
+import { writeAuditLog } from "../audit";
 
 async function siteOptions(organizationId: string, siteIds: string[] | "ALL") {
   const tenantDb = db.forTenant({ organizationId });
@@ -74,6 +75,17 @@ export const sessionRouter = router({
       await adminDb.user.update({
         where: { id: ctx.user.id },
         data: { lastActiveOrganizationId: input.organizationId, lastActiveSiteId: activeSiteId },
+      });
+
+      await writeAuditLog({
+        organizationId: input.organizationId,
+        userId: ctx.user.id,
+        membershipId: membership.id,
+        action: "org.switched",
+        entity: "Membership",
+        entityId: membership.id,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
       });
 
       return { ok: true as const };

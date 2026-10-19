@@ -351,7 +351,21 @@ export const memberRouter = router({
   reactivate: requirePermission("member:deactivate")
     .input(reactivateMemberInputSchema)
     .mutation(async ({ ctx, input }) => {
+      const org = await adminDb.organization.findUniqueOrThrow({
+        where: { id: ctx.organizationId },
+      });
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const activeMemberCount = await tenantDb.membership.count({ where: { isActive: true } });
+      if (!canAddMember(org.plan, activeMemberCount)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            org.plan === "STARTER"
+              ? "Votre offre STARTER permet 5 utilisateurs actifs."
+              : "Limite d'utilisateurs atteinte pour votre offre actuelle.",
+        });
+      }
+
       const after = await tenantDb.membership.update({
         where: { id: input.membershipId },
         data: { isActive: true, deactivatedAt: null, deactivationReason: null },

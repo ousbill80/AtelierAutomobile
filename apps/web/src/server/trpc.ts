@@ -26,6 +26,7 @@ export const orgProcedure = authedProcedure.use(({ ctx, next }) => {
       message: "Aucune organisation active pour cette session.",
     });
   }
+  assertOrgHeaderMatches(ctx, ctx.orgHeaderId ?? null);
   return next({
     ctx: {
       ...ctx,
