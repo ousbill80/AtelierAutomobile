@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "./cn";
 
 export interface DataTableColumn<T> {
   key: string;
@@ -8,42 +9,75 @@ export interface DataTableColumn<T> {
 }
 
 export interface DataTableProps<T> {
-  columns: DataTableColumn<T>[];
-  rows: T[];
+  columns: ReadonlyArray<DataTableColumn<T>>;
+  rows: readonly T[];
   rowKey: (row: T) => string;
-  onRowClick?: (row: T) => void;
+  /** Affiche des squelettes à la place des lignes (CLAUDE.md § UI : « états chargement »). */
+  isLoading?: boolean;
+  skeletonRowCount?: number;
+  /** Affiché si `rows` est vide et `isLoading` est faux. */
+  emptyState?: ReactNode;
+  rowClassName?: (row: T) => string | undefined;
 }
 
-/** Table générique ; CLAUDE.md impose des cartes sur mobile, gérées par l'écran appelant. */
-export function DataTable<T>({ columns, rows, rowKey, onRowClick }: DataTableProps<T>) {
+/** Tableau de données générique (en-têtes + lignes), avec états chargement/vide. */
+export function DataTable<T>({
+  columns,
+  rows,
+  rowKey,
+  isLoading = false,
+  skeletonRowCount = 5,
+  emptyState,
+  rowClassName,
+}: DataTableProps<T>) {
+  if (!isLoading && rows.length === 0 && emptyState) {
+    return <>{emptyState}</>;
+  }
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-border text-muted">
-            {columns.map((col) => (
-              <th key={col.key} className="px-4 py-3 font-medium">
-                {col.header}
+    <div className="relative w-full overflow-x-auto rounded-lg border border-border">
+      <table className="w-full caption-bottom text-sm">
+        <thead className="border-b border-border">
+          <tr>
+            {columns.map((column) => (
+              <th
+                key={column.key}
+                className={cn(
+                  "h-10 px-3 text-left align-middle text-xs font-medium uppercase tracking-wide text-muted",
+                  column.className,
+                )}
+              >
+                {column.header}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr
-              key={rowKey(row)}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={`border-b border-border last:border-0 ${
-                onRowClick ? "cursor-pointer hover:bg-surface-2" : ""
-              }`}
-            >
-              {columns.map((col) => (
-                <td key={col.key} className={`px-4 py-3 ${col.className ?? ""}`}>
-                  {col.render(row)}
-                </td>
+          {isLoading
+            ? Array.from({ length: skeletonRowCount }).map((_, rowIndex) => (
+                <tr key={`skeleton-${rowIndex}`} className="border-b border-border last:border-0">
+                  {columns.map((column) => (
+                    <td key={column.key} className="p-3">
+                      <div className="h-4 w-full max-w-32 animate-pulse rounded-md bg-surface-2" />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            : rows.map((row) => (
+                <tr
+                  key={rowKey(row)}
+                  className={cn(
+                    "border-b border-border transition-colors last:border-0 hover:bg-surface-2/60",
+                    rowClassName?.(row),
+                  )}
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} className={cn("p-3 align-middle", column.className)}>
+                      {column.render(row)}
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
         </tbody>
       </table>
     </div>

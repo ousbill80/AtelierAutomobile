@@ -703,6 +703,8 @@ model Invoice {
   writeOffReason   String?
   disputedAt       DateTime?                   // RG-M09-08
   collectionCaseId String?                     // dossier de recouvrement de rattachement
+  origin           RecordOrigin @default(NATIVE)
+  externalNumber   String?                    // RG-M13-20 : n° dans le logiciel source (import), utilisé dans {{facture.numero}}
   createdById      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -1189,32 +1191,49 @@ model DataSource {
 enum DataSourceType { FILE_UPLOAD WATCHED_FOLDER SQL_DATABASE REST_API WEBHOOK }
 
 model ImportJob {
-  id             String @id @default(cuid())
-  organizationId String
-  dataSourceId   String?
-  entity         String                          // customers | vehicles | invoices | payments | products
-  fileUrl        String?
-  status         ImportStatus @default(PENDING)
-  dryRun         Boolean @default(false)
-  totalRows      Int @default(0)
-  createdCount   Int @default(0)
-  updatedCount   Int @default(0)
-  skippedCount   Int @default(0)
-  errorCount     Int @default(0)
-  startedAt      DateTime?
-  finishedAt     DateTime?
-  createdById    String?
-  errors         ImportRowError[]
+  id              String @id @default(cuid())
+  organizationId  String
+  dataSourceId    String?
+  entity          String                          // customers | vehicles | invoices | payments | products | repair_orders | mixed
+  fileUrl         String?
+  fileName        String?
+  encoding        String?                         // UTF-8 | UTF-8-BOM | UTF-16 | WINDOWS-1252 | ISO-8859-1 (RG-M13-02)
+  delimiter       String?                         // ; , \t | (RG-M13-03, CSV uniquement)
+  headerSignature String?                         // sha256 des en-têtes normalisés triés (RG-M13-08)
+  mapping         Json @default("{}")             // { columns: {...}, options: {...} } (imports.setMapping)
+  policy          ImportPolicy @default(UPSERT)
+  status          ImportStatus @default(PENDING)
+  dryRun          Boolean @default(false)
+  totalRows       Int @default(0)
+  processedRows   Int @default(0)
+  createdCount    Int @default(0)
+  updatedCount    Int @default(0)
+  unchangedCount  Int @default(0)
+  skippedCount    Int @default(0)
+  errorCount      Int @default(0)
+  warningCount    Int @default(0)
+  summary         Json?                           // échantillon avant/après de la simulation (imports.simulate)
+  errorReportUrl  String?                         // clé S3 du rapport d'erreurs .xlsx
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  rolledBackAt    DateTime?
+  createdById     String?
+  createdAt       DateTime @default(now())          // tri de imports.list et résolution du mapping mémorisé (RG-M13-08)
+  updatedAt       DateTime @updatedAt
+  errors          ImportRowError[]
 }
-enum ImportStatus { PENDING VALIDATING READY RUNNING COMPLETED FAILED }
+enum ImportPolicy { CREATE_ONLY UPSERT UPSERT_OVERWRITE }
+enum ImportStatus { PENDING VALIDATING READY RUNNING COMPLETED FAILED CANCELLED ROLLED_BACK }
 
 model ImportRowError {
-  id          String @id @default(cuid())
-  importJobId String
-  rowNumber   Int
-  field       String?
-  message     String
-  raw         Json
+  id             String @id @default(cuid())
+  organizationId String
+  importJobId    String
+  rowNumber      Int
+  field          String?
+  message        String
+  severity       String @default("ERROR")        // ERROR | WARNING (RG-M13-16)
+  raw            Json
 }
 
 model ExternalRef {                               // lien entre un enregistrement et son ID dans le logiciel source
@@ -1225,6 +1244,8 @@ model ExternalRef {                               // lien entre un enregistremen
   externalId     String
   internalId     String
   hash           String?                         // détection des changements
+  importJobId    String?                         // dernier job ayant écrit (rollback)
+  lastSeenAt     DateTime?
   @@unique([dataSourceId, entity, externalId])
 }
 
@@ -1306,6 +1327,17 @@ model DocumentSequence {
   @@unique([organizationId, siteId, docType, year])
 }
 
+model Holiday {                                   // jours fériés — source unique (A1), M15 §14
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String?                         // null = tous les sites
+  date           DateTime @db.Date
+  name           String                          // "Fête de l'Indépendance"
+  kind           String @default("PUBLIC")       // PUBLIC | CLOSURE (fermeture exceptionnelle)
+  isEstimated    Boolean @default(false)         // fêtes religieuses à confirmer
+  @@unique([organizationId, siteId, date])
+}
+
 model AuditLog {
   id             String @id @default(cuid())
   organizationId String
@@ -1371,6 +1403,7 @@ model AiInteraction {                             // trace des appels IA (coût,
 | `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés           | M02                                                  |
 | `Customer.phone` normalisé E.164                                                                                                    | `core/phone`                                         |
 | Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
+| `Site.code` non modifiable dès qu'une `DocumentSequence` existe pour ce site (il figure dans les numéros déjà émis)                 | M15 (RG-M15-05)                                      |
 
 ## 4. Variables de modèles de messages
 

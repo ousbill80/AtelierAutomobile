@@ -1,4 +1,551 @@
 {
+  "common": {
+    "appName": "AtelierOS",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "next": "Continuer",
+    "continue": "Continuer",
+    "back": "Retour",
+    "loading": "Chargement…",
+    "search": "Rechercher",
+    "optional": "(facultatif)",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "invite": "Inviter",
+    "resend": "Renvoyer",
+    "revoke": "Révoquer",
+    "copyLink": "Copier le lien",
+    "allSites": "Tous les sites",
+    "genericError": "Une erreur est survenue. Réessayez.",
+    "yes": "Oui",
+    "no": "Non",
+    "unauthorized": "Vous n'avez pas la permission d'accéder à cette page.",
+    "roles": {
+      "OWNER": "Propriétaire",
+      "MANAGER": "Gérant",
+      "ADVISOR": "Réceptionniste",
+      "MECHANIC": "Mécanicien",
+      "STOREKEEPER": "Magasinier",
+      "CASHIER": "Caissier",
+      "ACCOUNTANT": "Comptable"
+    },
+    "channels": {
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS",
+      "EMAIL": "Email"
+    }
+  },
+  "auth": {
+    "brand": "AtelierOS",
+    "tagline": "Gestion d'atelier automobile",
+    "signIn": {
+      "title": "Connexion",
+      "identifierLabel": "Téléphone ou email",
+      "identifierPlaceholder": "07 00 00 00 00 ou vous@exemple.com",
+      "passwordLabel": "Mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "submit": "Se connecter",
+      "noAccount": "Pas encore de compte ?",
+      "createAccount": "Créer un garage",
+      "invalidCredentials": "Identifiants invalides.",
+      "locked": "Compte verrouillé après plusieurs échecs. Réinitialisez votre mot de passe pour le déverrouiller.",
+      "useAtelierMode": "Mode atelier (code PIN)"
+    },
+    "signUp": {
+      "title": "Créer votre garage",
+      "nameLabel": "Votre nom",
+      "phoneLabel": "Téléphone",
+      "emailLabel": "Email",
+      "passwordLabel": "Mot de passe",
+      "passwordHint": "8 caractères minimum, avec au moins une lettre et un chiffre.",
+      "acceptTerms": "J'accepte les conditions d'utilisation",
+      "submit": "Créer mon compte",
+      "hasAccount": "Déjà un compte ?",
+      "signInLink": "Se connecter"
+    },
+    "verifyOtp": {
+      "title": "Vérification",
+      "description": "Un code à 6 chiffres a été envoyé sur {channel} au {identifier}.",
+      "submit": "Vérifier",
+      "resendIn": "Renvoyer le code dans {seconds}s",
+      "resend": "Renvoyer le code",
+      "switchToSms": "Recevoir par SMS",
+      "invalidCode": "Code invalide ou expiré."
+    },
+    "forgotPassword": {
+      "title": "Mot de passe oublié",
+      "description": "Indiquez votre téléphone ou email : nous vous enverrons un code de réinitialisation.",
+      "submit": "Envoyer le code",
+      "newPasswordTitle": "Nouveau mot de passe",
+      "newPasswordLabel": "Nouveau mot de passe",
+      "submitNewPassword": "Réinitialiser le mot de passe"
+    },
+    "invitation": {
+      "title": "Rejoindre {organizationName}",
+      "invitedBy": "Invité par {inviterName} en tant que {role}",
+      "expired": "Cette invitation n'est plus valable. Demandez une nouvelle invitation à votre gérant.",
+      "existingAccountNote": "Un compte existe déjà avec cet identifiant : connectez-vous pour rejoindre l'équipe.",
+      "passwordLabel": "Choisissez un mot de passe",
+      "submit": "Rejoindre l'équipe"
+    },
+    "atelier": {
+      "title": "Mode atelier",
+      "pinLabel": "Code PIN",
+      "wrongPin": "Code PIN incorrect.",
+      "blocked": "Trop d'essais. Utilisez votre mot de passe."
+    }
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "settings": "Paramètres",
+    "settingsTeam": "Équipe",
+    "settingsRoles": "Rôles et permissions",
+    "settingsSites": "Sites",
+    "settingsJournal": "Journal d'audit",
+    "settingsChannels": "Canaux",
+    "settingsTemplates": "Modèles",
+    "settingsReminderRules": "Règles de relance",
+    "customers": "Clients",
+    "vehicles": "Véhicules",
+    "duplicates": "Doublons",
+    "messages": "Messages",
+    "reminders": "Relances",
+    "dueDates": "Échéances",
+    "import": "Import",
+    "profile": "Mon profil",
+    "profileSecurity": "Sécurité",
+    "logout": "Se déconnecter",
+    "receivables": "Créances"
+  },
+  "onboarding": {
+    "title": "Bienvenue sur AtelierOS",
+    "later": "Plus tard",
+    "finish": "Terminer la configuration",
+    "steps": {
+      "garage": "Votre garage",
+      "workshop": "Atelier",
+      "mode": "Mode",
+      "team": "Équipe",
+      "channels": "Canaux",
+      "data": "Données",
+      "done": "Terminé"
+    },
+    "garage": {
+      "title": "Parlez-nous de votre garage",
+      "nameLabel": "Nom du garage",
+      "legalNameLabel": "Raison sociale",
+      "communeLabel": "Commune",
+      "addressLabel": "Adresse",
+      "phoneLabel": "Téléphone"
+    },
+    "workshop": {
+      "title": "Votre premier site",
+      "nameLabel": "Nom du site",
+      "codeLabel": "Code du site",
+      "codeHint": "Lettres majuscules et chiffres uniquement."
+    },
+    "mode": {
+      "title": "Comment utilisez-vous AtelierOS ?",
+      "full": "Gestion complète",
+      "fullDescription": "RDV, ordres de réparation, devis, facturation, stock.",
+      "remindersOnly": "Relances uniquement",
+      "remindersOnlyDescription": "Je garde mon logiciel actuel, AtelierOS gère mes relances."
+    },
+    "team": {
+      "title": "Invitez votre équipe",
+      "description": "Vous pourrez toujours inviter des membres plus tard depuis les paramètres.",
+      "addAction": "Ajouter un membre",
+      "nameLabel": "Nom",
+      "roleLabel": "Rôle",
+      "channelLabel": "Canal",
+      "submit": "Envoyer les invitations"
+    },
+    "channels": {
+      "title": "Canaux de communication",
+      "description": "Configurez comment AtelierOS contacte vos clients.",
+      "smsEnabled": "Activer les SMS",
+      "emailEnabled": "Activer l'email",
+      "sendTestLabel": "Envoyer un message de test à",
+      "submit": "Enregistrer"
+    },
+    "data": {
+      "title": "Données de démonstration",
+      "description": "Ajoutez des clients et véhicules fictifs pour découvrir AtelierOS.",
+      "demo": "Charger les données de démonstration",
+      "skip": "Commencer avec un garage vide"
+    },
+    "done": {
+      "title": "Tout est prêt !",
+      "description": "Votre garage est configuré. Vous pouvez commencer à travailler."
+    }
+  },
+  "settings": {
+    "team": {
+      "title": "Équipe",
+      "description": "Membres de votre garage et invitations en attente.",
+      "inviteAction": "Inviter un membre",
+      "tabs": {
+        "members": "Membres",
+        "invitations": "Invitations en attente"
+      },
+      "table": {
+        "name": "Nom",
+        "role": "Rôle",
+        "sites": "Sites",
+        "phone": "Téléphone",
+        "lastActive": "Dernière connexion",
+        "status": "Statut",
+        "channel": "Canal"
+      },
+      "statusActive": "Actif",
+      "statusInactive": "Désactivé",
+      "inviteModal": {
+        "title": "Inviter un membre",
+        "nameLabel": "Nom",
+        "phoneLabel": "Téléphone",
+        "emailLabel": "Email",
+        "roleLabel": "Rôle",
+        "sitesLabel": "Sites autorisés",
+        "submit": "Envoyer l'invitation"
+      },
+      "planLimitError": "Limite de membres atteinte pour votre forfait."
+    },
+    "roles": {
+      "title": "Rôles et permissions",
+      "description": "Matrice des permissions par rôle.",
+      "resetDefaults": "Réinitialiser aux valeurs par défaut",
+      "ownerColumnNote": "Le rôle Propriétaire a toujours accès à tout."
+    },
+    "sites": {
+      "title": "Sites",
+      "description": "Garages et points de service de votre organisation.",
+      "createAction": "Ajouter un site",
+      "codeTaken": "Ce code de site est déjà utilisé.",
+      "nameLabel": "Nom du site",
+      "codeLabel": "Code",
+      "addressLabel": "Adresse",
+      "cityLabel": "Commune",
+      "phoneLabel": "Téléphone",
+      "whatsappLabel": "WhatsApp"
+    },
+    "journal": {
+      "title": "Journal d'audit",
+      "description": "Historique des actions sensibles de votre organisation.",
+      "export": "Exporter (CSV)",
+      "table": {
+        "date": "Date",
+        "user": "Utilisateur",
+        "action": "Action",
+        "entity": "Élément"
+      },
+      "filters": {
+        "user": "Utilisateur",
+        "action": "Action",
+        "period": "Période"
+      }
+    }
+  },
+  "profile": {
+    "title": "Mon profil",
+    "nameLabel": "Nom",
+    "phoneLabel": "Téléphone",
+    "emailLabel": "Email",
+    "changePassword": "Changer de mot de passe",
+    "security": {
+      "title": "Sécurité",
+      "sessionsTitle": "Sessions actives",
+      "currentSession": "Cet appareil",
+      "revokeSession": "Révoquer",
+      "trustedDevicesTitle": "Appareils approuvés",
+      "noTrustedDevices": "Aucun appareil approuvé pour le moment.",
+      "noSessions": "Aucune session active."
+    }
+  },
+  "permissions": {
+    "org:read": "Consulter l'organisation",
+    "org:update": "Modifier l'organisation",
+    "site:manage": "Gérer les sites",
+    "member:read": "Consulter les membres",
+    "member:invite": "Inviter des membres",
+    "member:update": "Modifier les membres",
+    "member:deactivate": "Désactiver des membres",
+    "role:manage": "Gérer les rôles et permissions",
+    "audit:read": "Consulter le journal d'audit",
+    "settings:read": "Consulter les paramètres",
+    "settings:update": "Modifier les paramètres",
+    "settings:channels": "Configurer les canaux de communication",
+    "settings:payments": "Configurer les moyens de paiement",
+    "settings:fne": "Configurer la facturation normalisée (FNE)",
+    "settings:billing": "Gérer l'abonnement et la facturation",
+    "customer:read": "Consulter les clients",
+    "customer:create": "Créer des clients",
+    "customer:update": "Modifier les clients",
+    "customer:delete": "Supprimer des clients",
+    "customer:merge": "Fusionner des clients",
+    "customer:export": "Exporter les clients",
+    "customer:consent": "Gérer le consentement client",
+    "customer:credit": "Gérer le crédit client",
+    "vehicle:read": "Consulter les véhicules",
+    "vehicle:create": "Créer des véhicules",
+    "vehicle:update": "Modifier les véhicules",
+    "vehicle:delete": "Supprimer des véhicules",
+    "vehicle:transfer": "Transférer un véhicule",
+    "vehicle:mileage_correct": "Corriger le kilométrage",
+    "appointment:read": "Consulter les rendez-vous",
+    "appointment:create": "Créer des rendez-vous",
+    "appointment:update": "Modifier les rendez-vous",
+    "appointment:cancel": "Annuler des rendez-vous",
+    "planning:manage": "Gérer le planning",
+    "repair_order:read": "Consulter les ordres de réparation",
+    "repair_order:create": "Créer des ordres de réparation",
+    "repair_order:update": "Modifier les ordres de réparation",
+    "repair_order:assign": "Affecter un ordre de réparation",
+    "repair_order:qc": "Effectuer le contrôle qualité",
+    "repair_order:deliver": "Restituer un véhicule",
+    "repair_order:deliver_unpaid": "Restituer sans paiement complet",
+    "repair_order:cancel": "Annuler un ordre de réparation",
+    "repair_order:reopen": "Rouvrir un ordre de réparation",
+    "repair_order:warranty_decide": "Statuer sur une garantie",
+    "inspection:perform": "Réaliser une inspection",
+    "inspection:template_manage": "Gérer les modèles d'inspection",
+    "quote:read": "Consulter les devis",
+    "quote:create": "Créer des devis",
+    "quote:update": "Modifier les devis",
+    "quote:send": "Envoyer des devis",
+    "quote:record_decision": "Enregistrer la décision client",
+    "quote:discount_override": "Dépasser la remise autorisée",
+    "quote:delete": "Supprimer des devis",
+    "labor_catalog:manage": "Gérer le catalogue de main-d'œuvre",
+    "task:read_own": "Consulter ses propres tâches",
+    "task:read_all": "Consulter toutes les tâches",
+    "time:clock": "Pointer le temps de travail",
+    "time:edit": "Modifier les temps pointés",
+    "attendance:manage": "Gérer la présence",
+    "stock:read": "Consulter le stock",
+    "stock:issue": "Sortir du stock",
+    "stock:receive": "Réceptionner du stock",
+    "stock:adjust": "Ajuster le stock",
+    "stock:transfer": "Transférer du stock",
+    "product:manage": "Gérer les produits",
+    "product:view_cost": "Voir le prix de revient",
+    "purchase:read": "Consulter les achats",
+    "purchase:create": "Créer des achats",
+    "purchase:approve": "Approuver des achats",
+    "supplier:manage": "Gérer les fournisseurs",
+    "invoice:read": "Consulter les factures",
+    "invoice:create": "Créer des factures",
+    "invoice:issue": "Émettre des factures",
+    "invoice:void": "Annuler une facture émise",
+    "invoice:credit_note": "Émettre un avoir",
+    "invoice:price_below_min": "Facturer sous le prix minimum",
+    "payment:read": "Consulter les paiements",
+    "payment:create": "Enregistrer des paiements",
+    "payment:refund": "Rembourser un paiement",
+    "cash:operate": "Opérer la caisse",
+    "cash:close": "Clôturer la caisse",
+    "cash:expense": "Enregistrer une dépense de caisse",
+    "receivable:read": "Consulter les créances",
+    "receivable:manage": "Gérer les créances",
+    "receivable:writeoff": "Passer une créance en perte",
+    "receivable:dispute": "Gérer un litige de créance",
+    "reminder:read": "Consulter les relances",
+    "reminder:approve": "Approuver les relances",
+    "reminder:rules_manage": "Gérer les règles de relance",
+    "message:read": "Consulter les messages",
+    "message:send": "Envoyer des messages",
+    "template:manage": "Gérer les modèles de message",
+    "report:read": "Consulter les rapports",
+    "report:financial": "Consulter les rapports financiers",
+    "dashboard:owner": "Voir le tableau de bord propriétaire",
+    "import:run": "Lancer un import de données",
+    "integration:manage": "Gérer les intégrations",
+    "insurance:read": "Consulter les assurances",
+    "insurance:manage": "Gérer les assurances",
+    "ai:use": "Utiliser les suggestions IA",
+    "ai:configure": "Configurer l'IA"
+  },
+  "auditActions": {
+    "auth.login.failed": "Connexion échouée",
+    "auth.login.success": "Connexion réussie",
+    "auth.otp_new_device": "Vérification nouvel appareil",
+    "member.deactivated": "Membre désactivé",
+    "member.invited": "Membre invité",
+    "member.joined": "Membre a rejoint l'organisation",
+    "member.permissions_changed": "Permissions du membre modifiées",
+    "member.reactivated": "Membre réactivé",
+    "member.role_changed": "Rôle du membre modifié",
+    "member.sites_changed": "Sites du membre modifiés",
+    "org.switched": "Changement d'organisation active",
+    "org.updated": "Organisation modifiée",
+    "organization.created": "Organisation créée",
+    "role.permissions_changed": "Permissions du rôle modifiées",
+    "session.revoked": "Session révoquée",
+    "site.created": "Site créé",
+    "site.deactivated": "Site désactivé",
+    "site.updated": "Site modifié"
+  },
+  "import": {
+    "list": {
+      "title": "Imports",
+      "fileImportCardTitle": "Fichier Excel/CSV",
+      "fileImportCardDescription": "Importez vos clients, véhicules, factures ou paiements depuis un fichier Excel ou CSV existant.",
+      "fileImportCardCta": "Importer un fichier",
+      "historyTitle": "Historique des imports",
+      "historyEmptyTitle": "Aucun import pour le moment",
+      "historyEmptyDescription": "Les imports de fichiers que vous lancez apparaîtront ici avec leur statut et leur résumé.",
+      "columnDate": "Date",
+      "columnEntity": "Type",
+      "columnCreated": "Créés",
+      "columnUpdated": "Mis à jour",
+      "columnUnchanged": "Inchangés",
+      "columnErrors": "Erreurs",
+      "columnStatus": "Statut",
+      "templatesTitle": "Modèles de fichier",
+      "templatesDescription": "Téléchargez un modèle vierge au bon format pour chaque type de donnée.",
+      "downloadTemplate": "Télécharger le modèle",
+      "entity": {
+        "customers": "Clients",
+        "vehicles": "Véhicules",
+        "invoices": "Factures",
+        "payments": "Paiements",
+        "products": "Produits",
+        "repair_orders": "Ordres de réparation",
+        "mixed": "Mixte"
+      },
+      "status": {
+        "PENDING": "En attente",
+        "VALIDATING": "Vérification",
+        "READY": "Prêt",
+        "RUNNING": "En cours",
+        "COMPLETED": "Terminé",
+        "FAILED": "Échoué",
+        "CANCELLED": "Annulé",
+        "ROLLED_BACK": "Annulé (retour arrière)"
+      }
+    },
+    "wizard": {
+      "title": "Importer un fichier",
+      "steps": {
+        "1": "Déposer",
+        "2": "Lecture",
+        "3": "Correspondance",
+        "4": "Vérification",
+        "5": "Simulation",
+        "6": "Import",
+        "7": "Résumé"
+      },
+      "step1": {
+        "title": "Déposez votre fichier",
+        "description": "Formats acceptés : .xlsx, .xls, .csv, .txt (20 Mo maximum).",
+        "dropHint": "Glissez-déposez votre fichier ici, ou",
+        "browseButton": "choisir un fichier",
+        "uploading": "Envoi du fichier en cours…"
+      },
+      "step2": {
+        "title": "Lecture du fichier",
+        "description": "Vérifiez l'encodage et le séparateur détectés automatiquement, ou corrigez-les si besoin.",
+        "notApplicable": "Non applicable",
+        "encodingLabel": "Encodage",
+        "delimiterLabel": "Séparateur",
+        "rereadButton": "Relire le fichier",
+        "analyzing": "Analyse du fichier en cours…"
+      },
+      "step3": {
+        "title": "Correspondance des colonnes",
+        "description": "Associez chaque colonne de votre fichier à un champ AtelierOS.",
+        "entityLabel": "Type de données",
+        "policyLabel": "Politique d'import",
+        "policy": {
+          "CREATE_ONLY": "Créer uniquement",
+          "UPSERT": "Créer ou mettre à jour",
+          "UPSERT_OVERWRITE": "Créer, mettre à jour et écraser"
+        },
+        "columnHeader": "Colonne du fichier",
+        "sampleHeader": "Exemples",
+        "fieldHeader": "Champ AtelierOS",
+        "ignoreColumn": "Ignorer cette colonne",
+        "confidenceHigh": "Correspondance fiable",
+        "confidenceLow": "À vérifier",
+        "confidenceNone": "Aucune correspondance",
+        "fields": {
+          "customer": {
+            "displayName": "Client — Nom complet",
+            "firstName": "Client — Prénom",
+            "lastName": "Client — Nom",
+            "phone": "Client — Téléphone",
+            "phone2": "Client — Autre téléphone",
+            "email": "Client — Email",
+            "type": "Client — Type",
+            "ncc": "Client — N° contribuable (NCC)"
+          },
+          "vehicle": {
+            "plate": "Véhicule — Immatriculation",
+            "make": "Véhicule — Marque",
+            "model": "Véhicule — Modèle",
+            "vin": "Véhicule — N° de châssis (VIN)",
+            "year": "Véhicule — Année",
+            "inspectionExpiryDate": "Véhicule — Expiration visite technique",
+            "lastServiceDate": "Véhicule — Date dernière révision",
+            "lastServiceMileage": "Véhicule — Kilométrage dernière révision",
+            "currentMileage": "Véhicule — Kilométrage actuel"
+          },
+          "invoice": {
+            "externalNumber": "Facture — N° facture",
+            "issuedAt": "Facture — Date facture",
+            "dueDate": "Facture — Date échéance",
+            "total": "Facture — Montant TTC",
+            "amountPaid": "Facture — Montant réglé",
+            "balance": "Facture — Solde restant"
+          },
+          "payment": {
+            "amount": "Paiement — Montant",
+            "method": "Paiement — Mode de règlement",
+            "receivedAt": "Paiement — Date de règlement"
+          }
+        }
+      },
+      "step4": {
+        "title": "Vérification des lignes",
+        "description": "Corrigez les erreurs avant de poursuivre, ou ignorez-les à l'étape suivante.",
+        "errorsOnlyToggle": "Erreurs seulement",
+        "rowNumber": "Ligne",
+        "noRows": "Aucune ligne à afficher.",
+        "totalRows": "{count} ligne(s)",
+        "errorCount": "{count} erreur(s)",
+        "warningCount": "{count} avertissement(s)"
+      },
+      "step5": {
+        "title": "Simulation",
+        "description": "Vérifiez le résultat attendu avant de lancer l'import pour de vrai.",
+        "create": "À créer",
+        "update": "À mettre à jour",
+        "unchanged": "Inchangés",
+        "skip": "Doublons fusionnés",
+        "error": "En erreur",
+        "skipErrorsLabel": "Ignorer les lignes en erreur et importer le reste"
+      },
+      "step6": {
+        "title": "Import en cours",
+        "description": "Ne fermez pas cette page tant que l'import n'est pas terminé.",
+        "processedOf": "{processed} / {total} lignes traitées",
+        "viewSummary": "Voir le résumé"
+      },
+      "step7": {
+        "title": "Import terminé",
+        "created": "Créés",
+        "updated": "Mis à jour",
+        "unchanged": "Inchangés",
+        "skipped": "Doublons fusionnés",
+        "errors": "Erreurs",
+        "downloadErrorReport": "Télécharger le rapport d'erreurs",
+        "backToList": "Retour aux imports"
+      }
+    }
+  },
   "receivables": {
     "nav": "Créances",
     "title": "Créances",
@@ -21,7 +568,10 @@
       "customers": "{count} client(s)",
       "clearFilter": "Retirer le filtre"
     },
-    "views": { "byCustomer": "Par client", "byInvoice": "Par facture" },
+    "views": {
+      "byCustomer": "Par client",
+      "byInvoice": "Par facture"
+    },
     "tabs": {
       "ALL": "Tous",
       "TO_HANDLE": "À traiter",
@@ -52,7 +602,10 @@
       "days": "Retard (j)"
     },
     "days": "{count} j",
-    "customerType": { "INDIVIDUAL": "Particulier", "COMPANY": "Entreprise" },
+    "customerType": {
+      "INDIVIDUAL": "Particulier",
+      "COMPANY": "Entreprise"
+    },
     "unreachable": "Injoignable",
     "creditHold": "Crédit suspendu",
     "promiseNext": "Promesse {amount} le {date}",
@@ -179,7 +732,10 @@
       "WRONG_NUMBER": "Numéro erroné",
       "CALLBACK": "Rappeler plus tard"
     },
-    "noteTypes": { "note": "Note", "visit": "Visite" },
+    "noteTypes": {
+      "note": "Note",
+      "visit": "Visite"
+    },
     "resolutions": {
       "PAY": "Résolu — client paie",
       "CREDIT_NOTE": "Résolu — avoir",

@@ -98,13 +98,13 @@ export default function NewCustomerPage() {
         <PhoneInput
           label="Téléphone"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={setPhone}
           hint="Saisissez le numéro tel quel, il sera normalisé automatiquement."
         />
 
         <fieldset className="flex flex-col gap-3 rounded-lg border border-border p-4">
           <legend className="px-1 text-sm font-medium text-muted">Véhicule (facultatif)</legend>
-          <PlateInput label="Plaque" value={plate} onChange={(e) => setPlate(e.target.value)} />
+          <PlateInput label="Plaque" value={plate} onChange={setPlate} />
           <Input label="Marque" value={make} onChange={(e) => setMake(e.target.value)} />
           <Input label="Modèle" value={model} onChange={(e) => setModel(e.target.value)} />
         </fieldset>
