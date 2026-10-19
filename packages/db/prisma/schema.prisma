@@ -82,6 +82,8 @@ model Organization {
   conversations          Conversation[]
   messages               Message[]
   messageStatusEvents    MessageStatusEvent[]
+  messageAttempts        MessageAttempt[]
+  quickReplies           QuickReply[]
   channelConfigs         ChannelConfig[]
   optOuts                OptOut[]
   paymentProviderConfigs PaymentProviderConfig[]
@@ -261,6 +263,7 @@ model Membership {
   aiInteractionsCreated       AiInteraction[]       @relation("AiInteractionCreatedBy")
   invoicesCreated             Invoice[]             @relation("InvoiceCreatedBy")
   portalTokensCreated         PortalToken[]         @relation("PortalTokenCreatedBy")
+  quickRepliesCreated         QuickReply[]          @relation("QuickReplyCreatedBy")
 
   @@unique([organizationId, userId])
   @@index([organizationId])
@@ -323,6 +326,9 @@ model Customer {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?
+  // M11 §14
+  hasWhatsappCheckedAt DateTime?
+  emailInvalidAt       DateTime?
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
   vehicles        Vehicle[]
@@ -1553,10 +1559,35 @@ model MessageTemplate {
   whatsappLanguage     String? @default("fr")
   whatsappStatus       String? // APPROVED | PENDING | REJECTED
   isActive             Boolean @default(true)
+  // M11 §14
+  type                   ReminderType? // classement dans l'éditeur
+  isTransactional        Boolean       @default(false)
+  whatsappCategory       String? // UTILITY | MARKETING | AUTHENTICATION (effective)
+  whatsappParamMap       Json? // ["client.salutation","vehicule.marque",…]
+  whatsappRejectedReason String?
+  whatsappVersion        Int           @default(1)
+  isDefault              Boolean       @default(true) // modèle livré non modifié
+  updatedAt              DateTime      @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([organizationId, key, channel])
+}
+
+model QuickReply {
+  // réponse rapide partagée dans l'organisation (M11 §14, RG-M11-22)
+  id             String  @id @default(cuid(2))
+  organizationId String
+  title          String
+  shortcut       String // "/prix-vidange"
+  body           String
+  templateKey    String? // modèle approuvé équivalent (hors fenêtre 24 h)
+  createdById    String?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    Membership?  @relation("QuickReplyCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([organizationId, shortcut])
 }
 
 model Conversation {
@@ -1570,6 +1601,11 @@ model Conversation {
   lastMessageAt   DateTime
   unreadCount     Int                @default(0)
   lastIntent      String? // classé par l'IA (M17)
+  // M11 §14
+  whatsappWindowExpiresAt DateTime?
+  lastInboundAt           DateTime?
+  candidateCustomerIds    String[] // numéro partagé, à trancher
+  createdAt               DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   customer     Customer?    @relation(fields: [customerId], references: [id])
@@ -1607,6 +1643,15 @@ model Message {
   fallbackOfId      String? // message d'origine si repli (WhatsApp → SMS)
   idempotencyKey    String? // M11 §14 : unique par organisation/canal
   sentById          String? // null = automatique
+  // M11 §14
+  kind              MessageKind   @default(REMINDER)
+  templateKey       String?
+  whatsappTemplateName String? // modèle Meta réellement utilisé
+  intent            String? // classement M17 (entrants)
+  intentConfidence  Float?
+  attemptCount      Int           @default(0)
+  nextRetryAt       DateTime?
+  failedAt          DateTime?
   createdAt         DateTime      @default(now())
   sentAt            DateTime?
   deliveredAt       DateTime?
@@ -1621,14 +1666,25 @@ model Message {
   fallbacks           Message[]            @relation("MessageFallback")
   sentBy              Membership?          @relation("MessageSentBy", fields: [sentById], references: [id])
   statusEvents        MessageStatusEvent[]
+  attempts            MessageAttempt[]
 
   @@unique([organizationId, idempotencyKey, channel])
   @@index([organizationId, providerMessageId])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, status, createdAt])
 }
 
 enum Direction {
   OUTBOUND
   INBOUND
+}
+
+enum MessageKind {
+  REMINDER
+  TRANSACTIONAL
+  CONVERSATION
+  DIGEST
+  SYSTEM
 }
 
 enum MessageStatus {
@@ -1657,6 +1713,24 @@ model MessageStatusEvent {
   @@index([organizationId, messageId])
 }
 
+model MessageAttempt {
+  // une tentative d'envoi fournisseur (M11 §14, RG-M11-07)
+  id             String    @id @default(cuid(2))
+  organizationId String
+  messageId      String
+  attempt        Int
+  startedAt      DateTime
+  finishedAt     DateTime?
+  outcome        String // OK | TEMPORARY | PERMANENT_RECIPIENT | PERMANENT_TEMPLATE | PERMANENT_CONFIG | RATE_LIMIT
+  providerCode   String?
+  providerRaw    Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  message      Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, messageId])
+}
+
 model ChannelConfig {
   id             String    @id @default(cuid(2))
   organizationId String
@@ -1669,6 +1743,10 @@ model ChannelConfig {
   status         String? // OK | ERROR
   lastCheckedAt  DateTime?
   balance        Int? // crédit SMS restant si disponible
+  // M11 §14
+  webhookVerifyToken String?
+  messagingTier      String? // palier de messagerie WhatsApp
+  lastError          String?
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
@@ -1682,6 +1760,9 @@ model OptOut {
   channel        Channel?
   reason         String?
   createdAt      DateTime @default(now())
+  // M11 §14
+  source         String? // keyword | email_link | staff | complaint
+  messageId      String?
 
   organization Organization @relation(fields: [organizationId], references: [id])
 

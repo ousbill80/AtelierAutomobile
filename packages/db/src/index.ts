@@ -6,6 +6,7 @@ export {
   forTenant,
   MissingTenantContextError,
   TenantIsolationViolationError,
+  type ScopedTenantClient,
   type TenantContext,
 } from "./tenant";
 export * from "@prisma/client";

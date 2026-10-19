@@ -127,3 +127,63 @@ export {
 } from "./onboarding/seed";
 
 export * from "./import";
+
+// Portés depuis le brouillon de l'Étape 1.1 (M02), en attendant la fusion de la
+// branche canonique etape-1.1-clients-vehicules : fonctions pures sans dépendance
+// schéma/router, nécessaires à M10 (vehicles.estimate_mileage, échéance révision).
+// À supprimer/réconcilier avec la copie réelle de M02 à ce moment-là.
+export type {
+  AvgKmPerDayResult,
+  AvgKmPerDaySource,
+  MileageReadingLike,
+  VehicleUsage,
+} from "./vehicles/mileage";
+export { computeAvgKmPerDay, DEFAULT_AVG_KM_PER_DAY, estimateMileage } from "./vehicles/mileage";
+
+export type { ServiceDueInput, ServiceDueResult, ServiceDueTrigger } from "./reminders/serviceDue";
+export { computeNextServiceDue } from "./reminders/serviceDue";
+
+export type { SmsSegmentsResult } from "./messaging/smsSegments";
+export { isGsm7, nonGsmChars, smsSegments, transliterate } from "./messaging/smsSegments";
+
+export { isStartKeyword, isStopKeyword } from "./messaging/keywords";
+
+export type { OutboundMessageStatus } from "./messaging/status";
+export { nextStatus } from "./messaging/status";
+
+export type {
+  Channel,
+  ChannelCandidate,
+  PickChannelInput,
+  PickChannelResult,
+} from "./messaging/channel";
+export { pickChannel } from "./messaging/channel";
+
+export type {
+  FallbackDecisionInput,
+  FallbackDecisionResult,
+  FallbackSituation,
+} from "./messaging/fallback";
+export { fallbackDecision, whatsappFallbackDelayMinutes } from "./messaging/fallback";
+
+export type { ToWhatsappParamsResult } from "./messaging/whatsapp";
+export { toWhatsappParams, whatsappTemplateName } from "./messaging/whatsapp";
+
+export type {
+  RenderChannel,
+  RenderTemplateInput,
+  RenderTemplateResult,
+} from "./messaging/template";
+export { renderTemplate } from "./messaging/template";
+
+export { buildWaLinkUrl } from "./messaging/waLink";
+
+export {
+  applyJitter,
+  MAX_RETRY_ATTEMPTS,
+  retryBackoffMs,
+  TEMPORARY_ERROR_BACKOFF_MS,
+} from "./messaging/retry";
+
+export type { SendWindow } from "./messaging/sendWindow";
+export { isWithinSendWindow, nextSendWindowStart } from "./messaging/sendWindow";

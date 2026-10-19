@@ -38,3 +38,19 @@ export interface MessagingProvider {
   verifyWebhook(req: Request): Promise<boolean>;
   healthCheck(): Promise<HealthStatus>;
 }
+
+/** RG-M11-07 : classement des erreurs fournisseur pour décider repli/retry. */
+export type ProviderErrorCategory =
+  "TEMPORARY" | "PERMANENT_RECIPIENT" | "PERMANENT_TEMPLATE" | "PERMANENT_CONFIG" | "RATE_LIMIT";
+
+/**
+ * Forme attendue d'une erreur levée par `MessagingProvider.send` : chaque adaptateur attache
+ * `category` (et `providerCode` quand disponible) à l'`Error` qu'il lève, classée par sa propre
+ * table `providerErrorMap` (RG-M11-07). `messages.send` (apps/worker) lit ces propriétés par
+ * duck-typing plutôt que par une classe commune, pour ne pas imposer de hiérarchie d'erreurs
+ * aux adaptateurs.
+ */
+export interface MessagingSendErrorLike {
+  category?: ProviderErrorCategory;
+  providerCode?: string;
+}
