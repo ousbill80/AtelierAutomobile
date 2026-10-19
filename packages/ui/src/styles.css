@@ -213,6 +213,24 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
 .step-line{flex:1;height:1px;background:var(--border);margin:0 8px;}
 @media (max-width:760px){.step-label{display:none;}}
 
+/* ===== Calendrier (relances/échéances) ===== */
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.calendar-cell{position:relative;min-height:44px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;color:var(--fg);}
+.calendar-cell.empty{visibility:hidden;cursor:default;}
+.calendar-cell.has-items{border-color:var(--accent);font-weight:700;}
+.calendar-cell.active{background:var(--accent);color:var(--accent-fg);}
+.calendar-cell .badge{position:absolute;top:2px;right:2px;background:var(--status-warn);color:#fff;font-size:10px;font-weight:700;border-radius:var(--radius-full);min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px;}
+
+/* ===== Statistiques (résultats des relances) ===== */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+@media (max-width:760px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+.card-kpi{font-size:28px;font-weight:700;font-family:var(--font-display);}
+.card-label{font-size:13px;color:var(--muted);margin-top:4px;}
+.simple-list{display:flex;flex-direction:column;gap:8px;list-style:none;padding:0;margin:0;}
+.simple-list li{display:flex;align-items:center;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid var(--border);}
+.simple-list li:last-child{border-bottom:none;}
+.muted{color:var(--muted);font-size:13.5px;}
+
 /* ===== Misc ===== */
 .badge-type{font-size:11px;font-weight:700;padding:3px 9px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);}
 .badge-type.entreprise{background:var(--primary);color:var(--primary-fg);border-color:transparent;}

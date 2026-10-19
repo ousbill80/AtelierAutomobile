@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./import": "./src/import/index.ts",
     "./src/money": "./src/money/index.ts",
+    "./src/reminders": "./src/reminders/index.ts",
     "./src/phone": "./src/phone/index.ts",
     "./src/plate": "./src/plate.ts",
     "./src/auth/password-policy": "./src/auth/password-policy.ts"

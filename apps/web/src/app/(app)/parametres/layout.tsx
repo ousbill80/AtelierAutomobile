@@ -26,6 +26,12 @@ const NAV = [
     permission: "site:manage",
   },
   {
+    key: "relances",
+    href: "/parametres/relances",
+    label: "nav.settingsReminderRules",
+    permission: "reminder:rules_manage",
+  },
+  {
     key: "journal",
     href: "/parametres/journal",
     label: "nav.settingsJournal",

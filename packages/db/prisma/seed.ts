@@ -1,4 +1,10 @@
-import { generateCiHolidays, hashPassword, normalizePlate } from "@atelieros/core";
+import {
+  DEFAULT_MESSAGE_TEMPLATES,
+  DEFAULT_REMINDER_RULES,
+  generateCiHolidays,
+  hashPassword,
+  normalizePlate,
+} from "@atelieros/core";
 import { adminDb } from "../src/client";
 import type { Prisma } from "@prisma/client";
 
@@ -388,6 +394,30 @@ async function main() {
       }),
     ),
   );
+
+  console.log("Seed — règles de relance et modèles de message par défaut (M10)...");
+  await adminDb.reminderRule.createMany({
+    data: DEFAULT_REMINDER_RULES.map((rule) => ({
+      organizationId: organization.id,
+      type: rule.type,
+      name: rule.name,
+      isActive: rule.isActive,
+      steps: rule.steps as unknown as Prisma.InputJsonValue,
+      sendWindow: rule.sendWindow as unknown as Prisma.InputJsonValue,
+      conditions: (rule.conditions ?? {}) as Prisma.InputJsonValue,
+      stopOn: rule.stopOn,
+    })),
+  });
+  await adminDb.messageTemplate.createMany({
+    data: DEFAULT_MESSAGE_TEMPLATES.map((template) => ({
+      organizationId: organization.id,
+      key: template.key,
+      name: template.name,
+      channel: template.channel,
+      subject: template.subject,
+      body: template.body,
+    })),
+  });
 
   console.log("Seed — utilisateurs et équipe...");
   const teamSpec: Array<{

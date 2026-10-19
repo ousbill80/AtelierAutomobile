@@ -13,6 +13,9 @@ import { memberRouter } from "./member";
 import { numberingRouter } from "./numbering";
 import { onboardingRouter } from "./onboarding";
 import { orgRouter } from "./org";
+import { reminderRulesRouter } from "./reminderRules";
+import { reminderSettingsRouter } from "./reminderSettings";
+import { remindersRouter } from "./reminders";
 import { roleRouter } from "./role";
 import { searchRouter } from "./search";
 import { segmentRouter } from "./segment";
@@ -43,6 +46,9 @@ export const appRouter = router({
   segment: segmentRouter,
   catalog: catalogRouter,
   search: searchRouter,
+  reminders: remindersRouter,
+  reminderRules: reminderRulesRouter,
+  reminderSettings: reminderSettingsRouter,
 });
 
 export type AppRouter = typeof appRouter;
