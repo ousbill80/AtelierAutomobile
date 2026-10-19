@@ -1,0 +1,171 @@
+{
+  "common": {
+    "appName": "AtelierOS",
+    "back": "Retour",
+    "continue": "Continuer",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "loading": "Chargement…",
+    "errorGeneric": "Une erreur est survenue. Réessayez.",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "import": {
+    "list": {
+      "title": "Imports",
+      "fileImportCardTitle": "Fichier Excel/CSV",
+      "fileImportCardDescription": "Importez vos clients, véhicules, factures ou paiements depuis un fichier Excel ou CSV existant.",
+      "fileImportCardCta": "Importer un fichier",
+      "historyTitle": "Historique des imports",
+      "historyEmptyTitle": "Aucun import pour le moment",
+      "historyEmptyDescription": "Les imports de fichiers que vous lancez apparaîtront ici avec leur statut et leur résumé.",
+      "columnDate": "Date",
+      "columnEntity": "Type",
+      "columnCreated": "Créés",
+      "columnUpdated": "Mis à jour",
+      "columnUnchanged": "Inchangés",
+      "columnErrors": "Erreurs",
+      "columnStatus": "Statut",
+      "templatesTitle": "Modèles de fichier",
+      "templatesDescription": "Téléchargez un modèle vierge au bon format pour chaque type de donnée.",
+      "downloadTemplate": "Télécharger le modèle",
+      "entity": {
+        "customers": "Clients",
+        "vehicles": "Véhicules",
+        "invoices": "Factures",
+        "payments": "Paiements",
+        "products": "Produits",
+        "repair_orders": "Ordres de réparation",
+        "mixed": "Mixte"
+      },
+      "status": {
+        "PENDING": "En attente",
+        "VALIDATING": "Vérification",
+        "READY": "Prêt",
+        "RUNNING": "En cours",
+        "COMPLETED": "Terminé",
+        "FAILED": "Échoué",
+        "CANCELLED": "Annulé",
+        "ROLLED_BACK": "Annulé (retour arrière)"
+      }
+    },
+    "wizard": {
+      "title": "Importer un fichier",
+      "steps": {
+        "1": "Déposer",
+        "2": "Lecture",
+        "3": "Correspondance",
+        "4": "Vérification",
+        "5": "Simulation",
+        "6": "Import",
+        "7": "Résumé"
+      },
+      "step1": {
+        "title": "Déposez votre fichier",
+        "description": "Formats acceptés : .xlsx, .xls, .csv, .txt (20 Mo maximum).",
+        "dropHint": "Glissez-déposez votre fichier ici, ou",
+        "browseButton": "choisir un fichier",
+        "uploading": "Envoi du fichier en cours…"
+      },
+      "step2": {
+        "title": "Lecture du fichier",
+        "description": "Vérifiez l'encodage et le séparateur détectés automatiquement, ou corrigez-les si besoin.",
+        "notApplicable": "Non applicable",
+        "encodingLabel": "Encodage",
+        "delimiterLabel": "Séparateur",
+        "rereadButton": "Relire le fichier",
+        "analyzing": "Analyse du fichier en cours…"
+      },
+      "step3": {
+        "title": "Correspondance des colonnes",
+        "description": "Associez chaque colonne de votre fichier à un champ AtelierOS.",
+        "entityLabel": "Type de données",
+        "policyLabel": "Politique d'import",
+        "policy": {
+          "CREATE_ONLY": "Créer uniquement",
+          "UPSERT": "Créer ou mettre à jour",
+          "UPSERT_OVERWRITE": "Créer, mettre à jour et écraser"
+        },
+        "columnHeader": "Colonne du fichier",
+        "sampleHeader": "Exemples",
+        "fieldHeader": "Champ AtelierOS",
+        "ignoreColumn": "Ignorer cette colonne",
+        "confidenceHigh": "Correspondance fiable",
+        "confidenceLow": "À vérifier",
+        "confidenceNone": "Aucune correspondance",
+        "fields": {
+          "customer": {
+            "displayName": "Client — Nom complet",
+            "firstName": "Client — Prénom",
+            "lastName": "Client — Nom",
+            "phone": "Client — Téléphone",
+            "phone2": "Client — Autre téléphone",
+            "email": "Client — Email",
+            "type": "Client — Type",
+            "ncc": "Client — N° contribuable (NCC)"
+          },
+          "vehicle": {
+            "plate": "Véhicule — Immatriculation",
+            "make": "Véhicule — Marque",
+            "model": "Véhicule — Modèle",
+            "vin": "Véhicule — N° de châssis (VIN)",
+            "year": "Véhicule — Année",
+            "inspectionExpiryDate": "Véhicule — Expiration visite technique",
+            "lastServiceDate": "Véhicule — Date dernière révision",
+            "lastServiceMileage": "Véhicule — Kilométrage dernière révision",
+            "currentMileage": "Véhicule — Kilométrage actuel"
+          },
+          "invoice": {
+            "externalNumber": "Facture — N° facture",
+            "issuedAt": "Facture — Date facture",
+            "dueDate": "Facture — Date échéance",
+            "total": "Facture — Montant TTC",
+            "amountPaid": "Facture — Montant réglé",
+            "balance": "Facture — Solde restant"
+          },
+          "payment": {
+            "amount": "Paiement — Montant",
+            "method": "Paiement — Mode de règlement",
+            "receivedAt": "Paiement — Date de règlement"
+          }
+        }
+      },
+      "step4": {
+        "title": "Vérification des lignes",
+        "description": "Corrigez les erreurs avant de poursuivre, ou ignorez-les à l'étape suivante.",
+        "errorsOnlyToggle": "Erreurs seulement",
+        "rowNumber": "Ligne",
+        "noRows": "Aucune ligne à afficher.",
+        "totalRows": "{count} ligne(s)",
+        "errorCount": "{count} erreur(s)",
+        "warningCount": "{count} avertissement(s)"
+      },
+      "step5": {
+        "title": "Simulation",
+        "description": "Vérifiez le résultat attendu avant de lancer l'import pour de vrai.",
+        "create": "À créer",
+        "update": "À mettre à jour",
+        "unchanged": "Inchangés",
+        "skip": "Doublons fusionnés",
+        "error": "En erreur",
+        "skipErrorsLabel": "Ignorer les lignes en erreur et importer le reste"
+      },
+      "step6": {
+        "title": "Import en cours",
+        "description": "Ne fermez pas cette page tant que l'import n'est pas terminé.",
+        "processedOf": "{processed} / {total} lignes traitées",
+        "viewSummary": "Voir le résumé"
+      },
+      "step7": {
+        "title": "Import terminé",
+        "created": "Créés",
+        "updated": "Mis à jour",
+        "unchanged": "Inchangés",
+        "skipped": "Doublons fusionnés",
+        "errors": "Erreurs",
+        "downloadErrorReport": "Télécharger le rapport d'erreurs",
+        "backToList": "Retour aux imports"
+      }
+    }
+  }
+}

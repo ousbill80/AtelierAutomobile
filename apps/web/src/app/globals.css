@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../../packages/ui/src";
 
 /*
  * Tokens de marque AtelierOS — repris de docs/design/autorappel-prototype
