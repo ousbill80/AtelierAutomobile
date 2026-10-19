@@ -179,6 +179,10 @@ export type {
   ApprovalMode,
   InitialStatusInput,
   ReminderSettings,
+  Civility,
+  SalutationInput,
+  ReceivableSummaryInput,
+  VehicleDueLine,
 } from "./reminders";
 export {
   DEFAULT_MIN_GAP_DAYS as REMINDER_DEFAULT_MIN_GAP_DAYS,
@@ -249,4 +253,9 @@ export {
   NO_CHANNEL,
   DEFAULT_REMINDER_SETTINGS,
   parseReminderSettings,
+  customerSalutation,
+  describeDueCountdown,
+  lateDays,
+  receivablesSummary,
+  formatVehicleDueList,
 } from "./reminders";
