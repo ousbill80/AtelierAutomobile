@@ -10,6 +10,9 @@ import { customerRouter } from "./customer";
 import { alertsRouter, dashboardRouter, digestRouter } from "./dashboard";
 import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
+import { laborOperationRouter } from "./laborOperation";
+import { portalQuoteRouter } from "./portalQuote";
+import { quoteLineRouter, quoteRouter } from "./quote";
 import { meRouter } from "./me";
 import { memberRouter } from "./member";
 import { onboardingRouter } from "./onboarding";
@@ -77,7 +80,10 @@ export const appRouter = router({
   repairOrderLine: repairOrderLineRouter,
   inspection: inspectionRouter,
   inspectionTemplate: inspectionTemplateRouter,
-  portal: router({ repairOrder: portalRepairOrderRouter }),
+  portal: router({ repairOrder: portalRepairOrderRouter, quote: portalQuoteRouter }),
+  quote: quoteRouter,
+  quoteLine: quoteLineRouter,
+  laborOperation: laborOperationRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -362,3 +362,4 @@ export {
   dashboardPeriodSchema,
 } from "./dashboard";
 export * from "./repairOrder";
+export * from "./quote";

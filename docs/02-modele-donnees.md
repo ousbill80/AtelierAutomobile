@@ -177,6 +177,7 @@ model Customer {
   creditHold         Boolean @default(false)   // RG-M09-10 : crédit suspendu
   creditHoldReason   String?
   riskComponents     Json?                     // { A, B, C, D, E } du riskScore (RG-M09-12)
+  requiresPurchaseOrder Boolean @default(false) // M05 §11 : flotte, bon de commande exigé après l'accord technique
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
@@ -529,6 +530,14 @@ model LaborOperation {                         // catalogue de main-d'œuvre
   rateType       LaborRateType @default(STANDARD)
   fixedPrice     Int?                          // forfait éventuel
   isActive       Boolean @default(true)
+  // M05 §14 (étape 3.3)
+  customerDescription String?                   // explication par défaut pour le client
+  defaultParts        Json @default("[]")       // [{ productId?, category?, quantity }] — kit de pièces
+  vehicleOverrides    Json @default("[]")       // [{ make, model?, yearFrom?, yearTo?, standardHours }]
+  isServiceOperation  Boolean @default(false)   // compte comme « révision » (M02 RG-M02-13)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  @@unique([organizationId, code])
 }
 enum LaborRateType { STANDARD DIAGNOSTIC BODYWORK ELECTRICAL }
 
@@ -616,10 +625,40 @@ model Quote {
   createdById      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  // M05 §14 (étape 3.3)
+  origin                 QuoteOrigin @default(STANDALONE)
+  inspectionId           String?                  // devis créé depuis une inspection
+  insuranceClaimId       String?                  // devis de sinistre (RG-M05-13)
+  supersedesId           String?                  // version précédente (même number, version − 1)
+  supersededAt           DateTime?                // renseigné quand une version plus récente existe
+  globalDiscountRate     Int?                     // remise globale en %
+  globalDiscountAmount   Int?                     // remise globale en FCFA (exclusif avec le taux)
+  discountReason         String?                  // motif obligatoire au-delà de 5 % (RG-M05-07)
+  discountApprovalStatus String @default("NONE")  // NONE | PENDING | APPROVED | REJECTED
+  discountApprovedById   String?                  // Membership ayant validé la remise
+  sentVia                String?                  // WHATSAPP | SMS | EMAIL | WA_LINK | LINK_ONLY
+  sentTo                 String?                  // adresse effective d'envoi
+  recipientContactId     String?                  // contact entreprise destinataire
+  decisionHash           String?                  // SHA-256 du contenu signé (RG-M05-10)
+  decisionIp             String?
+  decisionUserAgent      String?
+  decisionMessageId      String?                  // message WhatsApp entrant servant de preuve
+  recordedById           String?                  // membre ayant saisi une décision hors portail
+  decisionCounterpart    String?                  // interlocuteur au téléphone
+  acceptedTotal          Int @default(0)          // TTC des lignes acceptées (dénormalisé pour M12)
+  depositAmount          Int?                     // acompte demandé (RG-M05-14)
+  depositInvoiceId       String?                  // facture DEPOSIT (M08)
+  customerPoNumber       String?                  // bon de commande du client entreprise (§11)
+  convertedAt            DateTime?
+  deletedAt              DateTime?                // brouillon supprimé logiquement
   lines            QuoteLine[]
   @@unique([organizationId, number, version])
+  @@index([organizationId, status, sentAt])
+  @@index([organizationId, repairOrderId])
+  @@index([organizationId, customerId])
 }
 enum QuoteStatus { DRAFT SENT VIEWED ACCEPTED PARTIALLY_ACCEPTED DECLINED EXPIRED CONVERTED }
+enum QuoteOrigin { REPAIR_ORDER INSPECTION STANDALONE APPOINTMENT INSURANCE }   // M05 RG-M05-02
 
 model QuoteLine {
   id              String @id @default(cuid())
@@ -637,6 +676,20 @@ model QuoteLine {
   accepted        Boolean?                   // null = pas encore décidé
   payer           Payer @default(CUSTOMER)
   sortOrder       Int @default(0)
+  // M05 §14 (étape 3.3) — organizationId existe déjà (04 §3)
+  groupKey            String?                // regroupe MO + pièces d'un même travail (RG-M05-04)
+  groupLabel          String?                // "Plaquettes avant"
+  requiresGroupKey    String?                // dépendance : refus du parent → refus de l'enfant (§11)
+  customerExplanation String?                // texte simple affiché au client
+  inspectionItemId    String?                // point d'inspection d'origine
+  photoAttachmentIds  String[]               // photos montrées au client
+  costPrice           Int?                   // coût unitaire estimé (marge, product:view_cost)
+  isCustomerSupplied  Boolean @default(false)
+  declineReason       String?                // motif de refus de la ligne
+  lineSubtotal        Int @default(0)        // HT après remises (calculé)
+  lineVat             Int @default(0)
+  lineTotal           Int @default(0)
+  @@index([quoteId])
 }
 
 // ───────────── Stock et achats ─────────────

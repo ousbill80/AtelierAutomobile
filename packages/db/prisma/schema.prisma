@@ -254,6 +254,8 @@ model Membership {
   timeEntries                 TimeEntry[]
   attendances                 Attendance[]
   quotesCreated               Quote[]               @relation("QuoteCreatedBy")
+  quotesDiscountApproved      Quote[]               @relation("QuoteDiscountApprovedBy")
+  quotesRecorded              Quote[]               @relation("QuoteRecordedBy")
   stockMovementsCreated       StockMovement[]       @relation("StockMovementCreatedBy")
   paymentsReceived            Payment[]             @relation("PaymentReceivedBy")
   cashSessionsOpened          CashSession[]         @relation("CashSessionOpenedBy")
@@ -304,56 +306,58 @@ enum RecordOrigin {
 }
 
 model Customer {
-  id                   String       @id @default(cuid(2))
-  organizationId       String
-  type                 CustomerType @default(INDIVIDUAL)
-  firstName            String?
-  lastName             String?
-  companyName          String?
-  displayName          String // calculé : "Kouassi Jean-Marc" ou "SOTRA Logistique SARL"
-  civility             Civility?
-  phone                String? // E.164, principal
-  phone2               String?
-  hasWhatsapp          Boolean? // null = inconnu, détecté au 1er envoi
-  whatsappPhone        String? // si différent
-  email                String?
-  address              String?
-  commune              String?
-  ncc                  String? // entreprises
-  rccm                 String?
-  preferredChannel     Channel? // null = suit l'ordre par défaut
-  remindersConsent     Boolean      @default(true)
-  marketingConsent     Boolean      @default(false)
-  optedOutAt           DateTime? // a répondu STOP
-  doNotRemind          Boolean      @default(false) // décision interne
-  doNotRemindReason    String?
-  paymentTermsDays     Int          @default(0) // 0 = comptant
-  creditLimit          Int? // en FCFA
-  priceListId          String?
-  discountRate         Int? // remise par défaut en %
-  riskScore            Int? // 0-100, calculé (M09/M17)
-  tags                 String[]
-  notes                String?
-  source               String? // "import", "portail", "comptoir"
-  origin               RecordOrigin @default(NATIVE)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  deletedAt            DateTime?
+  id                    String       @id @default(cuid(2))
+  organizationId        String
+  type                  CustomerType @default(INDIVIDUAL)
+  firstName             String?
+  lastName              String?
+  companyName           String?
+  displayName           String // calculé : "Kouassi Jean-Marc" ou "SOTRA Logistique SARL"
+  civility              Civility?
+  phone                 String? // E.164, principal
+  phone2                String?
+  hasWhatsapp           Boolean? // null = inconnu, détecté au 1er envoi
+  whatsappPhone         String? // si différent
+  email                 String?
+  address               String?
+  commune               String?
+  ncc                   String? // entreprises
+  rccm                  String?
+  preferredChannel      Channel? // null = suit l'ordre par défaut
+  remindersConsent      Boolean      @default(true)
+  marketingConsent      Boolean      @default(false)
+  optedOutAt            DateTime? // a répondu STOP
+  doNotRemind           Boolean      @default(false) // décision interne
+  doNotRemindReason     String?
+  paymentTermsDays      Int          @default(0) // 0 = comptant
+  creditLimit           Int? // en FCFA
+  priceListId           String?
+  discountRate          Int? // remise par défaut en %
+  riskScore             Int? // 0-100, calculé (M09/M17)
+  tags                  String[]
+  notes                 String?
+  source                String? // "import", "portail", "comptoir"
+  origin                RecordOrigin @default(NATIVE)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  deletedAt             DateTime?
   // M02 §14
-  consentUpdatedAt     DateTime?
-  consentSource        String? // counter | phone | whatsapp_reply | portal | import | staff
-  mergedIntoId         String? // client cible après fusion (RG-M02-08)
-  anonymizedAt         DateTime?
-  lastVisitAt          DateTime? // dénormalisé (dernier OR livré ou facture), pour tri/filtre
+  consentUpdatedAt      DateTime?
+  consentSource         String? // counter | phone | whatsapp_reply | portal | import | staff
+  mergedIntoId          String? // client cible après fusion (RG-M02-08)
+  anonymizedAt          DateTime?
+  lastVisitAt           DateTime? // dénormalisé (dernier OR livré ou facture), pour tri/filtre
   // M11 §14
-  hasWhatsappCheckedAt DateTime?
-  emailInvalidAt       DateTime?
+  hasWhatsappCheckedAt  DateTime?
+  emailInvalidAt        DateTime?
   // M10 §14
-  phoneInvalidAt       DateTime? // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
+  phoneInvalidAt        DateTime? // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
   // M09 §14
-  creditHold           Boolean      @default(false)
-  creditHoldReason     String?
-  riskComponents       Json? // { A, B, C, D, E } pour l'affichage (RG-M09-12)
+  creditHold            Boolean      @default(false)
+  creditHoldReason      String?
+  riskComponents        Json? // { A, B, C, D, E } pour l'affichage (RG-M09-12)
+  // M05 §14
+  requiresPurchaseOrder Boolean      @default(false) // flotte : bon de commande client exigé au-delà de l'accord technique
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
   vehicles        Vehicle[]
@@ -933,6 +937,7 @@ model Inspection {
   template     InspectionTemplate? @relation(fields: [templateId], references: [id])
   performedBy  Membership?         @relation("InspectionPerformedBy", fields: [performedById], references: [id])
   items        InspectionItem[]
+  quotes       Quote[]
 
   @@index([organizationId, repairOrderId])
 }
@@ -982,21 +987,29 @@ model InspectionTemplate {
 
 model LaborOperation {
   // catalogue de main-d'œuvre
-  id             String        @id @default(cuid(2))
-  organizationId String
-  code           String
-  name           String // "Vidange moteur + filtre"
-  category       String?
-  standardHours  Float // temps barème
-  rateType       LaborRateType @default(STANDARD)
-  fixedPrice     Int? // forfait éventuel
-  isActive       Boolean       @default(true)
+  id                  String        @id @default(cuid(2))
+  organizationId      String
+  code                String
+  name                String // "Vidange moteur + filtre"
+  category            String?
+  standardHours       Float // temps barème
+  rateType            LaborRateType @default(STANDARD)
+  fixedPrice          Int? // forfait éventuel
+  isActive            Boolean       @default(true)
+  // M05 §14
+  customerDescription String? // explication par défaut pour le client
+  defaultParts        Json          @default("[]") // [{ productId?, category?, quantity }]
+  vehicleOverrides    Json          @default("[]") // [{ make, model?, yearFrom?, yearTo?, standardHours }]
+  isServiceOperation  Boolean       @default(false) // compte comme « révision » (M02 RG-M02-13)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @default(now()) @updatedAt
 
   organization     Organization      @relation(fields: [organizationId], references: [id])
   repairOrderLines RepairOrderLine[]
   quoteLines       QuoteLine[]
   invoiceLines     InvoiceLine[]
 
+  @@unique([organizationId, code])
   @@index([organizationId, code])
 }
 
@@ -1090,46 +1103,89 @@ model Attendance {
 // ═══════════════════════════════════════════════════════════════
 
 model Quote {
-  id              String      @id @default(cuid(2))
-  organizationId  String
-  siteId          String
-  number          String // DEV-YOP-2026-00017
-  version         Int         @default(1)
-  customerId      String
-  vehicleId       String?
-  repairOrderId   String?
-  status          QuoteStatus @default(DRAFT)
-  validUntil      DateTime    @db.Date
-  publicToken     String?     @unique
-  sentAt          DateTime?
-  viewedAt        DateTime?
-  decidedAt       DateTime?
-  decisionChannel String? // portal | whatsapp | in_person | phone
-  signatureUrl    String?
-  signerName      String?
-  declineReason   String?
-  subtotal        Int         @default(0)
-  discountTotal   Int         @default(0)
-  vatTotal        Int         @default(0)
-  total           Int         @default(0)
-  insuranceShare  Int         @default(0)
-  customerShare   Int         @default(0)
-  notes           String?
-  createdById     String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                     String      @id @default(cuid(2))
+  organizationId         String
+  siteId                 String
+  number                 String // DEV-YOP-2026-00017
+  version                Int         @default(1)
+  customerId             String
+  vehicleId              String?
+  repairOrderId          String?
+  status                 QuoteStatus @default(DRAFT)
+  validUntil             DateTime    @db.Date
+  publicToken            String?     @unique
+  sentAt                 DateTime?
+  viewedAt               DateTime?
+  decidedAt              DateTime?
+  decisionChannel        String? // portal | whatsapp | in_person | phone
+  signatureUrl           String?
+  signerName             String?
+  declineReason          String?
+  subtotal               Int         @default(0)
+  discountTotal          Int         @default(0)
+  vatTotal               Int         @default(0)
+  total                  Int         @default(0)
+  insuranceShare         Int         @default(0)
+  customerShare          Int         @default(0)
+  notes                  String?
+  createdById            String?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  // M05 §14
+  origin                 QuoteOrigin @default(STANDALONE)
+  inspectionId           String?
+  insuranceClaimId       String?
+  supersedesId           String? // version précédente
+  supersededAt           DateTime? // renseigné quand une version plus récente existe
+  globalDiscountRate     Int? // %
+  globalDiscountAmount   Int? // FCFA (exclusif avec le taux)
+  discountReason         String?
+  discountApprovalStatus String      @default("NONE") // NONE | PENDING | APPROVED | REJECTED
+  discountApprovedById   String?
+  sentVia                String? // WHATSAPP | SMS | EMAIL | WA_LINK | LINK_ONLY
+  sentTo                 String? // adresse effective
+  recipientContactId     String?
+  decisionHash           String? // SHA-256 du contenu signé (RG-M05-10)
+  decisionIp             String?
+  decisionUserAgent      String?
+  decisionMessageId      String? // message WhatsApp servant de preuve
+  recordedById           String? // membre ayant saisi une décision hors portail
+  decisionCounterpart    String? // interlocuteur au téléphone
+  acceptedTotal          Int         @default(0) // TTC des lignes acceptées (dénormalisé)
+  depositAmount          Int?
+  depositInvoiceId       String?
+  customerPoNumber       String? // bon de commande du client entreprise
+  convertedAt            DateTime?
+  deletedAt              DateTime?
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  site         Site         @relation(fields: [siteId], references: [id])
-  customer     Customer     @relation(fields: [customerId], references: [id])
-  vehicle      Vehicle?     @relation(fields: [vehicleId], references: [id])
-  repairOrder  RepairOrder? @relation(fields: [repairOrderId], references: [id])
-  createdBy    Membership?  @relation("QuoteCreatedBy", fields: [createdById], references: [id])
-  lines        QuoteLine[]
-  invoices     Invoice[]
-  reminders    Reminder[]
+  organization       Organization    @relation(fields: [organizationId], references: [id])
+  site               Site            @relation(fields: [siteId], references: [id])
+  customer           Customer        @relation(fields: [customerId], references: [id])
+  vehicle            Vehicle?        @relation(fields: [vehicleId], references: [id])
+  repairOrder        RepairOrder?    @relation(fields: [repairOrderId], references: [id])
+  createdBy          Membership?     @relation("QuoteCreatedBy", fields: [createdById], references: [id])
+  inspection         Inspection?     @relation(fields: [inspectionId], references: [id])
+  insuranceClaim     InsuranceClaim? @relation(fields: [insuranceClaimId], references: [id])
+  supersedes         Quote?          @relation("QuoteVersions", fields: [supersedesId], references: [id])
+  supersededBy       Quote[]         @relation("QuoteVersions")
+  discountApprovedBy Membership?     @relation("QuoteDiscountApprovedBy", fields: [discountApprovedById], references: [id])
+  recordedBy         Membership?     @relation("QuoteRecordedBy", fields: [recordedById], references: [id])
+  lines              QuoteLine[]
+  invoices           Invoice[]
+  reminders          Reminder[]
 
   @@unique([organizationId, number, version])
+  @@index([organizationId, status, sentAt])
+  @@index([organizationId, repairOrderId])
+  @@index([organizationId, customerId])
+}
+
+enum QuoteOrigin {
+  REPAIR_ORDER
+  INSPECTION
+  STANDALONE
+  APPOINTMENT
+  INSURANCE
 }
 
 enum QuoteStatus {
@@ -1144,22 +1200,35 @@ enum QuoteStatus {
 }
 
 model QuoteLine {
-  id               String            @id @default(cuid(2))
-  organizationId   String
-  quoteId          String
-  type             LineType
-  productId        String?
-  laborOperationId String?
-  description      String
-  quantity         Float
-  unitPrice        Int
-  discountRate     Int               @default(0)
-  vatRate          Int
-  isOptional       Boolean           @default(false)
-  priority         InspectionResult? // URGENT / WATCH pour l'affichage client
-  accepted         Boolean? // null = pas encore décidé
-  payer            Payer             @default(CUSTOMER)
-  sortOrder        Int               @default(0)
+  id                  String            @id @default(cuid(2))
+  organizationId      String
+  quoteId             String
+  type                LineType
+  productId           String?
+  laborOperationId    String?
+  description         String
+  quantity            Float
+  unitPrice           Int
+  discountRate        Int               @default(0)
+  vatRate             Int
+  isOptional          Boolean           @default(false)
+  priority            InspectionResult? // URGENT / WATCH pour l'affichage client
+  accepted            Boolean? // null = pas encore décidé
+  payer               Payer             @default(CUSTOMER)
+  sortOrder           Int               @default(0)
+  // M05 §14
+  groupKey            String? // regroupe MO + pièces d'un même travail
+  groupLabel          String? // "Plaquettes avant"
+  requiresGroupKey    String? // dépendance (ex. disques nécessite plaquettes)
+  customerExplanation String? // texte simple affiché au client
+  inspectionItemId    String?
+  photoAttachmentIds  String[]
+  costPrice           Int? // coût unitaire estimé (marge)
+  isCustomerSupplied  Boolean           @default(false)
+  declineReason       String?
+  lineSubtotal        Int               @default(0) // HT après remises (calculé)
+  lineVat             Int               @default(0)
+  lineTotal           Int               @default(0)
 
   organization     Organization      @relation(fields: [organizationId], references: [id])
   quote            Quote             @relation(fields: [quoteId], references: [id], onDelete: Cascade)
@@ -1168,6 +1237,7 @@ model QuoteLine {
   repairOrderLines RepairOrderLine[]
 
   @@index([organizationId, quoteId])
+  @@index([quoteId])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2345,6 +2415,7 @@ model InsuranceClaim {
   vehicle          Vehicle          @relation(fields: [vehicleId], references: [id])
   repairOrders     RepairOrder[]
   invoices         Invoice[]
+  quotes           Quote[]
 
   @@index([organizationId, status])
 }

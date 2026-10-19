@@ -1075,6 +1075,13 @@ function InspectionTab({
     onSuccess: (r) => onDone(t("inspection.added", { count: r.created })),
     onError,
   });
+  const createQuote = trpc.quote.createFromInspection.useMutation({
+    onSuccess: (r) => {
+      onDone(t("inspection.quoteCreated", { number: r.quote.number }));
+      router.push(`/devis/${r.quote.id}`);
+    },
+    onError,
+  });
   const canPerform =
     perms.has("inspection:perform") && !LOCKED.has(order.status) && order.status !== "DRAFT";
   if (order.inspections.length === 0) {
@@ -1156,8 +1163,8 @@ function InspectionTab({
                     size="sm"
                     variant="secondary"
                     className="min-h-11"
-                    disabled
-                    title={t("inspection.quoteSoon")}
+                    loading={createQuote.isPending}
+                    onClick={() => createQuote.mutate({ inspectionId: inspection.id })}
                   >
                     {t("inspection.createQuote")}
                   </Button>
@@ -1171,17 +1178,32 @@ function InspectionTab({
 }
 
 function QuotesTab({ order }: { order: RepairOrderDetail }) {
-  if (order.quotes.length === 0) return <EmptyState title={t("quotes.none")} />;
+  const actions = !LOCKED.has(order.status) && (
+    <div className="flex flex-wrap gap-2">
+      <Link href={`/devis/nouveau?repairOrderId=${order.id}`} className="btn btn-secondary btn-sm min-h-11">
+        + {t("quotes.new")}
+      </Link>
+    </div>
+  );
+  if (order.quotes.length === 0) return <EmptyState title={t("quotes.none")} action={actions || undefined} />;
   return (
-    <ul className="flex flex-col gap-2 text-sm">
-      {order.quotes.map((q) => (
-        <li key={q.id} className="flex justify-between rounded-md bg-surface p-3">
-          <span className="font-mono">{q.number}</span>
-          <span>{q.status}</span>
-          <span>{formatFCFA(q.total)}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-2 text-sm">
+      <ul className="flex flex-col gap-2">
+        {order.quotes.map((q) => (
+          <li key={q.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface p-3">
+            <Link href={`/devis/${q.id}`} className="font-mono hover:underline">
+              {q.number}
+            </Link>
+            <span>{q.status}</span>
+            <span>{formatFCFA(q.total)}</span>
+            <Link href={`/devis/${q.id}`} className="btn btn-secondary btn-sm min-h-11">
+              {t("quotes.open")}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {actions}
+    </div>
   );
 }
 

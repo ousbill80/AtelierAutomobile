@@ -32,9 +32,14 @@ export type DomainEventType =
   | "collection.resumed"
   | "collection.promise_kept"
   | "collection.promise_broken"
+  | "quote.created"
+  | "quote.sent"
+  | "quote.viewed"
   | "quote.accepted"
   | "quote.declined"
   | "quote.expired"
+  | "quote.converted"
+  | "quote.discount_approval_requested"
   | "message.inbound_received"
   | "customer.updated";
 

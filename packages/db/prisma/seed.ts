@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import {
   defaultInspectionTemplate,
   extraInspectionTemplates,
@@ -42,6 +43,7 @@ async function deleteOrganizationCascade(organizationId: string): Promise<void> 
 // Date de référence fixe pour que les écarts relatifs ("retard de 38 j", "VT expire
 // dans 15 j"...) restent cohérents même si le seed est rejoué un autre jour.
 const TODAY = new Date("2026-10-18T00:00:00.000Z");
+const APP_URL = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 function daysFrom(days: number): Date {
   const d = new Date(TODAY);
@@ -404,6 +406,57 @@ async function main() {
       rateType: "STANDARD" as const,
     })),
   });
+
+  const laborOps = await adminDb.laborOperation.findMany({
+    where: { organizationId: organization.id },
+    select: { id: true, code: true },
+  });
+  const laborIdByCode = new Map(laborOps.map((o) => [o.code, o.id]));
+  // M05 RG-M05-05 — forfaits, kit de pièces et descriptions client sur quelques opérations.
+  await adminDb.laborOperation.update({
+    where: { id: laborIdByCode.get("VID")! },
+    data: {
+      fixedPrice: 25000,
+      isServiceOperation: true,
+      customerDescription:
+        "Vidange de l'huile moteur et remplacement du filtre pour protéger votre moteur.",
+      defaultParts: [
+        { category: "Lubrifiants", quantity: 4 },
+        { category: "Filtration", quantity: 1 },
+      ] as unknown as Prisma.InputJsonValue,
+    },
+  });
+  await adminDb.laborOperation.update({
+    where: { id: laborIdByCode.get("ENTR")! },
+    data: {
+      isServiceOperation: true,
+      customerDescription: "Révision complète selon le carnet d'entretien du constructeur.",
+    },
+  });
+  await adminDb.laborOperation.update({
+    where: { id: laborIdByCode.get("FRA")! },
+    data: {
+      customerDescription:
+        "Vos plaquettes de frein avant sont usées : à remplacer rapidement pour freiner en sécurité.",
+    },
+  });
+  await adminDb.laborOperation.update({
+    where: { id: laborIdByCode.get("DIST")! },
+    data: {
+      customerDescription:
+        "Remplacement du kit de distribution et de la pompe à eau, à faire à l'intervalle constructeur.",
+      vehicleOverrides: [
+        { make: "Toyota", model: "Corolla", standardHours: 3 },
+        { make: "Toyota", model: "Hilux", standardHours: 4.5 },
+      ] as unknown as Prisma.InputJsonValue,
+    },
+  });
+  for (const [code, price] of [["DIAG", 20000], ["CLIM", 35000], ["GEO", 15000], ["CTRL", 10000]] as const) {
+    await adminDb.laborOperation.update({
+      where: { id: laborIdByCode.get(code)! },
+      data: { fixedPrice: price },
+    });
+  }
 
   console.log("Seed — catalogue pièces (120 références)...");
   const partFamilies = [
@@ -2232,6 +2285,135 @@ async function main() {
     }
   }
 
+  console.log("Seed — devis de démonstration (M05)...");
+  let devSeq = 1;
+  {
+    const quoteCustomer = await adminDb.customer.findFirst({
+      where: { organizationId: organization.id, phone: { not: null } },
+      orderBy: { createdAt: "asc" },
+    });
+    const quoteVehicle = quoteCustomer
+      ? await adminDb.vehicle.findFirst({ where: { customerId: quoteCustomer.id } })
+      : null;
+    const plaquettes = createdProducts.find((p) => p.sku.startsWith("PLQ-AV"));
+    const amortisseur = createdProducts.find((p) => p.sku.startsWith("AMOR"));
+    if (quoteCustomer && quoteVehicle && plaquettes && amortisseur) {
+      // Exemple du PRD (US-M05-01) : plaquettes (urgent), amortisseurs (à surveiller), balais.
+      const quote = await adminDb.quote.create({
+        data: {
+          organizationId: organization.id,
+          siteId: siteYopougon.id,
+          number: `DEV-${siteYopougon.code}-2026-${String(devSeq++).padStart(5, "0")}`,
+          customerId: quoteCustomer.id,
+          vehicleId: quoteVehicle.id,
+          origin: "STANDALONE",
+          status: "SENT",
+          sentAt: daysFrom(-1),
+          sentVia: "WHATSAPP",
+          validUntil: daysFrom(14),
+          createdById: advisorMembershipId,
+          subtotal: 171000,
+          discountTotal: 0,
+          vatTotal: 30780,
+          total: 201780,
+          customerShare: 201780,
+          lines: {
+            create: [
+              {
+                organizationId: organization.id,
+                type: "LABOR",
+                laborOperationId: laborIdByCode.get("FRA")!,
+                description: "Remplacement plaquettes avant",
+                quantity: 1,
+                unitPrice: 15000,
+                vatRate: 18,
+                priority: "URGENT",
+                groupKey: "g-plaquettes",
+                groupLabel: "Plaquettes avant",
+                customerExplanation:
+                  "Vos plaquettes de frein avant sont usées : à remplacer rapidement pour freiner en sécurité.",
+                lineSubtotal: 15000,
+                lineVat: 2700,
+                lineTotal: 17700,
+                sortOrder: 0,
+              },
+              {
+                organizationId: organization.id,
+                type: "PART",
+                productId: plaquettes.id,
+                description: plaquettes.name,
+                quantity: 1,
+                unitPrice: 28000,
+                vatRate: 18,
+                priority: "URGENT",
+                groupKey: "g-plaquettes",
+                groupLabel: "Plaquettes avant",
+                costPrice: plaquettes.averageCost,
+                lineSubtotal: 28000,
+                lineVat: 5040,
+                lineTotal: 33040,
+                sortOrder: 1,
+              },
+              {
+                organizationId: organization.id,
+                type: "LABOR",
+                laborOperationId: laborIdByCode.get("AMORT")!,
+                description: "Remplacement amortisseurs arrière",
+                quantity: 2,
+                unitPrice: 15000,
+                vatRate: 18,
+                priority: "WATCH",
+                isOptional: true,
+                groupKey: "g-amortisseurs",
+                groupLabel: "Amortisseurs arrière",
+                customerExplanation:
+                  "Vos amortisseurs arrière sont fatigués : à surveiller pour le confort et la tenue de route.",
+                lineSubtotal: 30000,
+                lineVat: 5400,
+                lineTotal: 35400,
+                sortOrder: 2,
+              },
+              {
+                organizationId: organization.id,
+                type: "PART",
+                productId: amortisseur.id,
+                description: amortisseur.name,
+                quantity: 2,
+                unitPrice: 45000,
+                vatRate: 18,
+                priority: "WATCH",
+                isOptional: true,
+                groupKey: "g-amortisseurs",
+                groupLabel: "Amortisseurs arrière",
+                costPrice: amortisseur.averageCost,
+                lineSubtotal: 90000,
+                lineVat: 16200,
+                lineTotal: 106200,
+                sortOrder: 3,
+              },
+            ],
+          },
+        },
+      });
+      const token = randomBytes(32).toString("base64url");
+      await adminDb.portalToken.create({
+        data: {
+          organizationId: organization.id,
+          tokenHash: createHash("sha256").update(token).digest("hex"),
+          scope: "QUOTE",
+          targetId: quote.id,
+          customerId: quoteCustomer.id,
+          expiresAt: daysFrom(44),
+        },
+      });
+      await adminDb.quote.update({
+        where: { id: quote.id },
+        data: { publicToken: createHash("sha256").update(token).digest("hex") },
+      });
+      console.log(`  → devis démo ${quote.number} — lien portail : ${APP_URL}/p/${token}/devis`);
+    }
+  }
+
   console.log("Seed — compteurs de numérotation (DocumentSequence)...");
   await adminDb.documentSequence.createMany({
     data: [
@@ -2255,6 +2437,13 @@ async function main() {
         docType: "OR",
         year: 2026,
         lastValue: orSeqBySite[siteYopougon.id]! - 1,
+      },
+      {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        docType: "DEV",
+        year: 2026,
+        lastValue: devSeq - 1,
       },
       {
         organizationId: organization.id,

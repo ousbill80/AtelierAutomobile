@@ -44,6 +44,18 @@ const NAV = [
     label: "nav.settingsInspection",
     permission: "inspection:template_manage",
   },
+  {
+    key: "devis",
+    href: "/parametres/devis",
+    label: "nav.settingsQuotes",
+    permission: "settings:update",
+  },
+  {
+    key: "catalogue-mo",
+    href: "/parametres/catalogue-mo",
+    label: "nav.settingsLaborCatalog",
+    permission: "labor_catalog:manage",
+  },
 ] as const;
 
 export default function ParametresLayout({ children }: { children: ReactNode }) {
