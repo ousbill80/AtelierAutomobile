@@ -309,12 +309,13 @@ export const authRouter = router({
           const otpChannel = resolved.kind === "PHONE" ? "WHATSAPP" : "EMAIL";
 
           if (!input.otpCode) {
+            let devCode: string | undefined;
             try {
-              await sendOtpCode(resolved.value, "NEW_DEVICE", otpChannel, now);
+              devCode = (await sendOtpCode(resolved.value, "NEW_DEVICE", otpChannel, now)).devCode;
             } catch {
               // Un code a déjà été envoyé récemment : le client peut saisir le dernier reçu.
             }
-            return { status: "OTP_REQUIRED" as const };
+            return { status: "OTP_REQUIRED" as const, devCode };
           }
 
           const outcome = await verifyOtpCode(resolved.value, input.otpCode, "NEW_DEVICE", now);
