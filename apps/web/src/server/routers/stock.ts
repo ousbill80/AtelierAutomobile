@@ -4,6 +4,7 @@ import {
   computeValuation,
   daysSince,
   dormantBucket,
+  isStaleReservation,
   formatQty,
   reconstructStockAt,
   stockSettingsFrom,
@@ -75,6 +76,9 @@ function movementsWhere(
       : {}),
   };
 }
+
+/** OR « non actif » pour RG-M07-04 : livré, facturé ou annulé. */
+const INACTIVE_RO_STATUSES: string[] = ["DELIVERED", "INVOICED", "CANCELLED"];
 
 const MOVEMENT_INCLUDE = {
   site: { select: { code: true } },
@@ -618,6 +622,12 @@ export const stockRouter = router({
             onHand: level?.onHand ?? 0,
             binLocation: level?.binLocation ?? null,
             purchaseOrder: r.purchaseOrder,
+            // RG-M07-04 : réservée depuis plus de 30 jours sur un OR qui n'est plus actif.
+            stale: isStaleReservation(
+              r,
+              !ro || !INACTIVE_RO_STATUSES.includes(ro.status),
+              stockNow(),
+            ),
             repairOrder: ro
               ? {
                   id: ro.id,

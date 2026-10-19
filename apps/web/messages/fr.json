@@ -1103,7 +1103,8 @@
       "returned": "Retour enregistré.",
       "expectedPo": "Attendue sur {number}",
       "noRo": "Sans OR",
-      "partRequestsGap": "Les demandes de pièces des mécaniciens (M06) apparaîtront ici avec l'étape Atelier."
+      "partRequestsGap": "Les demandes de pièces des mécaniciens (M06) apparaîtront ici avec l'étape Atelier.",
+      "stale": "Réservée depuis plus de 30 jours (OR inactif)"
     },
     "movements": {
       "title": "Journal des mouvements",

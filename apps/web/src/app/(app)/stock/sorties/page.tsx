@@ -87,6 +87,7 @@ export default function StoreQueuePage() {
                     {item.binLocation ? ` · ${t("queue.bin")} ${item.binLocation}` : ""}
                   </div>
                 </div>
+                {item.stale ? <StatusBadge tone="bad" label={t("queue.stale")} /> : null}
                 <StatusBadge
                   tone={RESERVATION_TONE[item.status] ?? "off"}
                   label={item.status === "RESERVED" ? t("queue.toIssue") : t("queue.waiting")}

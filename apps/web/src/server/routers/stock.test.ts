@@ -77,6 +77,8 @@ describe("routeurs stock et achats (M07)", () => {
   let padsId: string;
   let vehicleId: string;
   let roId: string;
+  let countId: string;
+  let transferId: string;
 
   beforeAll(async () => {
     orgA = (await adminDb.organization.create({ data: { name: "Garage Stock A" } })).id;
@@ -364,6 +366,7 @@ describe("routeurs stock et achats (M07)", () => {
       siteId: yop,
       scope: { categories: ["Filtration"] },
     });
+    countId = count.id;
     await storekeeper.stockCount.start({ id: count.id });
     const sheet = await storekeeper.stockCount.get({ id: count.id });
     expect(sheet.lines.map((l) => [l.product.sku, l.expectedQty])).toEqual([["FH-TOY-001", 32]]);
@@ -390,6 +393,7 @@ describe("routeurs stock et achats (M07)", () => {
       toSiteId: coc,
       lines: [{ productId: filterId, quantity: 5 }],
     });
+    transferId = transfer.id;
     await storekeeper.stockTransfer.ship({ id: transfer.id });
     const t = await storekeeper.stockTransfer.get({ id: transfer.id });
     const received = await storekeeper.stockTransfer.receive({
@@ -424,5 +428,15 @@ describe("routeurs stock et achats (M07)", () => {
       "Produit introuvable.",
     );
     expect((await owner.product.get({ id: filterId })).product.name).toBe("Filtre à huile");
+    expect(await ownerB.stockCount.list({})).toEqual([]);
+    await expect(ownerB.stockCount.get({ id: countId })).rejects.toThrow("Inventaire introuvable.");
+    expect(await ownerB.stockTransfer.list({})).toEqual([]);
+    await expect(ownerB.stockTransfer.get({ id: transferId })).rejects.toThrow(
+      "Transfert introuvable.",
+    );
+    await expect(ownerB.stockTransfer.ship({ id: transferId })).rejects.toThrow();
+    await expect(ownerB.purchaseOrder.get({ id: "x" })).rejects.toThrow(
+      "Bon de commande introuvable.",
+    );
   });
 });
