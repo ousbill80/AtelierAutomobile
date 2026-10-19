@@ -26,6 +26,12 @@ const NAV = [
     permission: "site:manage",
   },
   {
+    key: "planning",
+    href: "/parametres/planning",
+    label: "nav.settingsPlanning",
+    permission: "planning:manage",
+  },
+  {
     key: "journal",
     href: "/parametres/journal",
     label: "nav.settingsJournal",

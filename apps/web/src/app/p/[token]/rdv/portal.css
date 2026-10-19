@@ -1,0 +1,28 @@
+.portal{max-width:520px;margin:0 auto;padding:16px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d2330;}
+.portal h1{font-size:20px;margin:0 0 4px;}
+.portal h2{font-size:16px;margin:18px 0 8px;}
+.portal .muted{color:#5b6472;font-size:14px;}
+.portal .box{border:1px solid #e1e5ea;border-radius:12px;padding:12px 14px;margin:10px 0;background:#fff;}
+.portal .plate{font-family:ui-monospace,Menlo,monospace;font-weight:700;background:#f1f3f6;border-radius:6px;padding:2px 6px;}
+.portal .days{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;}
+.portal .day{flex:0 0 auto;min-width:64px;min-height:56px;border:1px solid #e1e5ea;border-radius:10px;background:#fff;padding:6px 8px;font-size:13px;text-align:center;cursor:pointer;}
+.portal .day.active{border-color:#d9622b;background:#fff3ec;}
+.portal .day:disabled{opacity:.4;cursor:not-allowed;}
+.portal .day b{display:block;font-size:14px;}
+.portal .slots{display:flex;flex-wrap:wrap;gap:8px;}
+.portal .slot{min-height:44px;min-width:78px;padding:0 14px;border-radius:10px;border:1px solid #e1e5ea;background:#fff;font-weight:600;font-size:15px;cursor:pointer;}
+.portal .slot.active{border-color:#d9622b;background:#fff3ec;}
+.portal .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border-radius:10px;border:1px solid transparent;font-weight:700;font-size:15px;cursor:pointer;width:100%;margin-top:8px;}
+.portal .btn-primary{background:#d9622b;color:#fff;}
+.portal .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.portal .btn-secondary{background:#fff;border-color:#e1e5ea;color:#1d2330;}
+.portal .btn-danger{background:#fff;border-color:#e9b4b4;color:#b42318;}
+.portal .types{display:flex;flex-wrap:wrap;gap:8px;}
+.portal .type{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid #e1e5ea;background:#fff;font-weight:600;cursor:pointer;}
+.portal .type.active{border-color:#d9622b;background:#fff3ec;}
+.portal textarea{width:100%;min-height:72px;border:1px solid #e1e5ea;border-radius:10px;padding:10px;font:inherit;box-sizing:border-box;}
+.portal .ok{border-color:#9fd3b0;background:#eefaf1;}
+.portal .err{border-color:#e9b4b4;background:#fdf0ef;color:#b42318;}
+.portal .status{display:inline-block;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700;background:#f1f3f6;}
+.portal .skel{height:120px;border-radius:12px;background:linear-gradient(90deg,#f1f3f6 25%,#e6e9ee 37%,#f1f3f6 63%);background-size:400% 100%;animation:psk 1.4s ease infinite;}
+@keyframes psk{0%{background-position:100% 50%}100%{background-position:0 50%}}

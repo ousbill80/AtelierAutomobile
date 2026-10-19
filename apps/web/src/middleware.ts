@@ -21,7 +21,9 @@ export function middleware(request: NextRequest) {
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
   const isInvitationPath = pathname.startsWith("/invitation/");
-  const isPublicPath = isAuthPath || isInvitationPath;
+  // Portail client public (M14 / M03 `/p/[token]/rdv`) : authentifié par jeton, jamais par session.
+  const isPortalPath = pathname.startsWith("/p/");
+  const isPublicPath = isAuthPath || isInvitationPath || isPortalPath;
 
   if (!hasSession && !isPublicPath) {
     const url = request.nextUrl.clone();

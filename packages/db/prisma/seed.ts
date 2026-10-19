@@ -862,6 +862,171 @@ async function main() {
     fillerCustomers.push(customer);
   }
 
+  console.log("Seed — rendez-vous et planning (M03)...");
+  // Jours ouvrés à venir (lun-sam, Abidjan = UTC+0) : J+1, J+2, J+7 — jamais un dimanche.
+  function nextWorkingDay(from: Date, offset: number): Date {
+    const date = new Date(
+      Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate() + offset),
+    );
+    while (date.getUTCDay() === 0) date.setUTCDate(date.getUTCDate() + 1);
+    return date;
+  }
+  function atTime(day: Date, time: string): Date {
+    const [h, m] = time.split(":").map(Number);
+    return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), h, m));
+  }
+  const today = new Date();
+  const kouassiVehicle = await adminDb.vehicle.findFirstOrThrow({
+    where: { customerId: kouassi.id },
+  });
+  const bambaVehicle = await adminDb.vehicle.findFirstOrThrow({ where: { customerId: bamba.id } });
+  const mechanicMembershipId = memberships.MECHANIC!.membershipId;
+  const demoAppointments: Array<{
+    customerId: string;
+    vehicleId: string | null;
+    day: Date;
+    time: string;
+    minutes: number;
+    type: Prisma.AppointmentCreateInput["type"];
+    status: Prisma.AppointmentCreateInput["status"];
+    source: Prisma.AppointmentCreateInput["source"];
+    bayId: string | null;
+    mechanicId?: string | null;
+    complaint?: string;
+  }> = [
+    // Aujourd'hui : un RDV confirmé ce matin (arrivé), un réservé cet après-midi, un absent hier.
+    {
+      customerId: kouassi.id,
+      vehicleId: kouassiVehicle.id,
+      day: nextWorkingDay(today, 0),
+      time: "09:00",
+      minutes: 90,
+      type: "INSPECTION_PREP",
+      status: "CONFIRMED",
+      source: "REMINDER",
+      bayId: baysYopougon[0]!.id,
+      mechanicId: mechanicMembershipId,
+      complaint: "Pré-visite technique avant VT du mois prochain",
+    },
+    {
+      customerId: bamba.id,
+      vehicleId: bambaVehicle.id,
+      day: nextWorkingDay(today, 0),
+      time: "14:00",
+      minutes: 120,
+      type: "REPAIR",
+      status: "BOOKED",
+      source: "PHONE",
+      bayId: baysYopougon[1]!.id,
+      complaint: "Bruit au freinage",
+    },
+    {
+      customerId: fillerCustomers[0]!.id,
+      vehicleId: null,
+      day: nextWorkingDay(today, -1),
+      time: "10:00",
+      minutes: 60,
+      type: "DIAGNOSTIC",
+      status: "NO_SHOW",
+      source: "WHATSAPP",
+      bayId: baysYopougon[2]!.id,
+    },
+    // Demain et J+2 : portail et comptoir.
+    {
+      customerId: fillerCustomers[1]!.id,
+      vehicleId: null,
+      day: nextWorkingDay(today, 1),
+      time: "08:00",
+      minutes: 90,
+      type: "SERVICE",
+      status: "CONFIRMED",
+      source: "PORTAL",
+      bayId: null,
+    },
+    {
+      customerId: fillerCustomers[2]!.id,
+      vehicleId: null,
+      day: nextWorkingDay(today, 1),
+      time: "10:30",
+      minutes: 45,
+      type: "TIRES",
+      status: "BOOKED",
+      source: "STAFF",
+      bayId: baysYopougon[0]!.id,
+    },
+    {
+      customerId: fillerCustomers[3]!.id,
+      vehicleId: null,
+      day: nextWorkingDay(today, 2),
+      time: "15:00",
+      minutes: 60,
+      type: "OTHER",
+      status: "BOOKED",
+      source: "STAFF",
+      bayId: baysYopougon[3]!.id,
+    },
+  ];
+  for (const spec of demoAppointments) {
+    const startsAt = atTime(spec.day, spec.time);
+    await adminDb.appointment.create({
+      data: {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        customerId: spec.customerId,
+        vehicleId: spec.vehicleId,
+        bayId: spec.bayId,
+        mechanicId: spec.mechanicId ?? null,
+        advisorId: advisorMembershipId,
+        createdById: advisorMembershipId,
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + spec.minutes * 60_000),
+        type: spec.type,
+        status: spec.status,
+        source: spec.source,
+        complaint: spec.complaint ?? null,
+        confirmedAt: spec.status === "CONFIRMED" ? daysFrom(-1) : null,
+        confirmedVia:
+          spec.status === "CONFIRMED" ? (spec.source === "PORTAL" ? "portal" : "whatsapp") : null,
+        noShowAt: spec.status === "NO_SHOW" ? atTime(spec.day, "20:00") : null,
+      },
+    });
+  }
+  // RDV groupés flotte SOTRA (RG-M03-14) : 4 véhicules, 2 en parallèle, la semaine prochaine.
+  const fleetDay = nextWorkingDay(today, 7);
+  const fleetGroupId = `grp_seed_${organization.id.slice(0, 6)}`;
+  for (let i = 0; i < 4; i++) {
+    const startsAt = atTime(fleetDay, i < 2 ? "08:00" : "09:00");
+    await adminDb.appointment.create({
+      data: {
+        organizationId: organization.id,
+        siteId: siteYopougon.id,
+        customerId: sotra.id,
+        vehicleId: sotraVehicles[i]!.id,
+        bayId: baysYopougon[i % 2]!.id,
+        advisorId: advisorMembershipId,
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + 60 * 60_000),
+        type: "INSPECTION_PREP",
+        status: "BOOKED",
+        source: "STAFF",
+        groupId: fleetGroupId,
+      },
+    });
+  }
+  // Blocage : Pont 2 en maintenance deux jours la semaine prochaine (US-M03-10).
+  const maintenanceDay = nextWorkingDay(today, 8);
+  await adminDb.resourceBlock.create({
+    data: {
+      organizationId: organization.id,
+      siteId: siteYopougon.id,
+      bayId: baysYopougon[1]!.id,
+      startsAt: atTime(maintenanceDay, "07:30"),
+      endsAt: atTime(nextWorkingDay(maintenanceDay, 1), "18:00"),
+      reason: "Maintenance pont",
+      createdById: memberships.MANAGER!.membershipId,
+    },
+  });
+
   console.log("Seed — documents fiscaux : créances SOTRA et Koné...");
   // Numérotation manuelle de démonstration : la logique définitive (sans trou, par
   // organisation pour les documents fiscaux) arrive avec packages/core (Étape 0.3).

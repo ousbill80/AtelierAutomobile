@@ -67,6 +67,11 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     { href: "/parametres/equipe", label: t("nav.settingsTeam"), permission: "member:read" },
     { href: "/parametres/roles", label: t("nav.settingsRoles"), permission: "role:manage" },
     { href: "/parametres/sites", label: t("nav.settingsSites"), permission: "site:manage" },
+    {
+      href: "/parametres/planning",
+      label: t("nav.settingsPlanning"),
+      permission: "planning:manage",
+    },
     { href: "/parametres/journal", label: t("nav.settingsJournal"), permission: "audit:read" },
   ].filter((item) => has(item.permission));
 
@@ -78,6 +83,22 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         logoLabel={t("common.appName")}
       >
         <NavItem as={Link} href="/" label={t("nav.dashboard")} active={pathname === "/"} />
+        {has("appointment:read") ? (
+          <>
+            <NavItem
+              as={Link}
+              href="/rendez-vous"
+              label={t("nav.appointments")}
+              active={pathname === "/rendez-vous" || pathname === "/rendez-vous/nouveau"}
+            />
+            <NavItem
+              as={Link}
+              href="/rendez-vous/aujourdhui"
+              label={t("nav.appointmentsToday")}
+              active={pathname.startsWith("/rendez-vous/aujourdhui")}
+            />
+          </>
+        ) : null}
         {settingsItems.length > 0 ? (
           <>
             <SidebarSectionLabel>{t("nav.settings")}</SidebarSectionLabel>
