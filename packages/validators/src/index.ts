@@ -361,3 +361,15 @@ export {
   digestUpdateSettingsInputSchema,
   dashboardPeriodSchema,
 } from "./dashboard";
+
+export type { DataSourceCreateInput } from "./dataSources";
+export {
+  dataSourceCreateInputSchema,
+  dataSourceIdInputSchema,
+  dataSourcePreviewQueryInputSchema,
+  dataSourceTestInputSchema,
+  dataSourceUpdateInputSchema,
+  syncDbTypeSchema,
+  syncEntitySchema,
+  syncPolicySchema,
+} from "./dataSources";
