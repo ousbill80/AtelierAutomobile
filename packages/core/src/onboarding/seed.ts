@@ -1,8 +1,15 @@
 // RG-M01-16 — Semences créées à la fin de l'étape 2 de l'assistant d'onboarding.
-// Le contenu détaillé des relances/messages/inspections/main-d'œuvre est défini par
-// M10/M11/M04/M05 ; ce qui suit est un jeu de référence minimal pour qu'un garage
-// nouvellement créé soit immédiatement utilisable, à enrichir quand ces modules
-// seront implémentés.
+// Relances et modèles de message : jeu complet de M10 (RG-M10-02, Annexe A), partagé avec le
+// seed de démonstration via `./reminder-defaults`. Inspections et main-d'œuvre : jeu de
+// référence minimal, à enrichir avec M04/M05.
+
+import {
+  DEFAULT_MESSAGE_TEMPLATES,
+  DEFAULT_REMINDER_RULES,
+  type DefaultMessageTemplate,
+  type DefaultReminderRule,
+  type DefaultReminderStep,
+} from "./reminder-defaults";
 
 export type OnboardingBayType = "LIFT" | "DIAGNOSTIC";
 
@@ -33,246 +40,22 @@ export function defaultSiteBays(): OnboardingBaySeed[] {
   ];
 }
 
-export interface OnboardingReminderStep {
-  key: string;
-  offsetDays: number;
-  templateKey: string;
-  autoSend: boolean;
-  channels: Array<"WHATSAPP" | "SMS" | "EMAIL">;
-}
+export type OnboardingReminderStep = DefaultReminderStep;
+export type OnboardingReminderRuleSeed = DefaultReminderRule;
+export type OnboardingMessageTemplateSeed = DefaultMessageTemplate;
 
-export interface OnboardingReminderRuleSeed {
-  type:
-    "INSPECTION" | "SERVICE" | "RECEIVABLE" | "APPOINTMENT" | "QUOTE_FOLLOWUP" | "VEHICLE_READY";
-  name: string;
-  steps: OnboardingReminderStep[];
-  sendWindow: { days: number[]; from: string; to: string };
-  stopOn: string[];
-}
-
-const DEFAULT_SEND_WINDOW = { days: [1, 2, 3, 4, 5, 6], from: "08:00", to: "19:00" };
-
-/** RG-M01-16 : VT J-30/J-7/J-0, révision J-15/J-0, créances J+3/J+15/J+30/J+45, RDV J-1, devis, véhicule prêt. */
+/**
+ * RG-M01-16 / RG-M10-02 : les 9 règles par défaut de M10 (VT, révision, créances, échéance
+ * proche entreprises, RDV, devis, véhicule prêt, assurance, satisfaction). Copie profonde : la
+ * constante partagée n'est jamais modifiée par l'appelant.
+ */
 export function defaultReminderRules(): OnboardingReminderRuleSeed[] {
-  return [
-    {
-      type: "INSPECTION",
-      name: "Visite technique",
-      steps: [
-        {
-          key: "J-30",
-          offsetDays: -30,
-          templateKey: "vt_j30",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-        {
-          key: "J-7",
-          offsetDays: -7,
-          templateKey: "vt_j7",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-        {
-          key: "J-0",
-          offsetDays: 0,
-          templateKey: "vt_j0",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-      ],
-      sendWindow: DEFAULT_SEND_WINDOW,
-      stopOn: ["appointment.created"],
-    },
-    {
-      type: "SERVICE",
-      name: "Révision",
-      steps: [
-        {
-          key: "J-15",
-          offsetDays: -15,
-          templateKey: "revision_j15",
-          autoSend: true,
-          channels: ["WHATSAPP"],
-        },
-        {
-          key: "J-0",
-          offsetDays: 0,
-          templateKey: "revision_j0",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-      ],
-      sendWindow: DEFAULT_SEND_WINDOW,
-      stopOn: ["appointment.created"],
-    },
-    {
-      type: "RECEIVABLE",
-      name: "Créances",
-      steps: [
-        {
-          key: "J+3",
-          offsetDays: 3,
-          templateKey: "receivable_j3",
-          autoSend: true,
-          channels: ["WHATSAPP"],
-        },
-        {
-          key: "J+15",
-          offsetDays: 15,
-          templateKey: "receivable_j15",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-        {
-          key: "J+30",
-          offsetDays: 30,
-          templateKey: "receivable_j30",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-        {
-          key: "J+45",
-          offsetDays: 45,
-          templateKey: "receivable_j45",
-          autoSend: false,
-          channels: ["WHATSAPP"],
-        },
-      ],
-      sendWindow: DEFAULT_SEND_WINDOW,
-      stopOn: ["payment.received"],
-    },
-    {
-      type: "APPOINTMENT",
-      name: "Rappel de rendez-vous",
-      steps: [
-        {
-          key: "J-1",
-          offsetDays: -1,
-          templateKey: "appointment_j1",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-      ],
-      sendWindow: DEFAULT_SEND_WINDOW,
-      stopOn: ["appointment.cancelled"],
-    },
-    {
-      type: "QUOTE_FOLLOWUP",
-      name: "Relance devis",
-      steps: [
-        {
-          key: "J+2",
-          offsetDays: 2,
-          templateKey: "quote_followup",
-          autoSend: true,
-          channels: ["WHATSAPP"],
-        },
-      ],
-      sendWindow: DEFAULT_SEND_WINDOW,
-      stopOn: ["quote.accepted", "quote.declined"],
-    },
-    {
-      type: "VEHICLE_READY",
-      name: "Véhicule prêt",
-      steps: [
-        {
-          key: "J-0",
-          offsetDays: 0,
-          templateKey: "vehicle_ready",
-          autoSend: true,
-          channels: ["WHATSAPP", "SMS"],
-        },
-      ],
-      sendWindow: DEFAULT_SEND_WINDOW,
-      stopOn: ["repair_order.delivered"],
-    },
-  ];
+  return structuredClone(DEFAULT_REMINDER_RULES);
 }
 
-export interface OnboardingMessageTemplateSeed {
-  key: string;
-  name: string;
-  channel: "WHATSAPP" | "SMS" | "EMAIL";
-  body: string;
-}
-
-/** Un modèle WhatsApp par templateKey référencé dans defaultReminderRules(). */
+/** Annexe A de M10 : un modèle par (clé, canal), y compris les variantes `_pro`. */
 export function defaultMessageTemplates(): OnboardingMessageTemplateSeed[] {
-  return [
-    {
-      key: "vt_j30",
-      name: "VT à 30 jours",
-      channel: "WHATSAPP",
-      body: "Bonjour {{client.prenom}}, la visite technique de votre véhicule {{vehicule.plaque}} arrive à échéance le {{vt.date}}. Prenez rendez-vous avec {{garage.nom}}.",
-    },
-    {
-      key: "vt_j7",
-      name: "VT à 7 jours",
-      channel: "WHATSAPP",
-      body: "Rappel : la visite technique de {{vehicule.plaque}} expire dans 7 jours ({{vt.date}}). Contactez {{garage.nom}} pour planifier.",
-    },
-    {
-      key: "vt_j0",
-      name: "VT échue",
-      channel: "WHATSAPP",
-      body: "La visite technique de {{vehicule.plaque}} est arrivée à échéance. Merci de régulariser rapidement.",
-    },
-    {
-      key: "revision_j15",
-      name: "Révision à 15 jours",
-      channel: "WHATSAPP",
-      body: "Bonjour {{client.prenom}}, la révision de {{vehicule.plaque}} est recommandée dans 15 jours. {{garage.nom}} reste à votre disposition.",
-    },
-    {
-      key: "revision_j0",
-      name: "Révision due",
-      channel: "WHATSAPP",
-      body: "Votre véhicule {{vehicule.plaque}} est dû pour une révision. Prenez rendez-vous avec {{garage.nom}}.",
-    },
-    {
-      key: "receivable_j3",
-      name: "Créance à 3 jours",
-      channel: "WHATSAPP",
-      body: "Bonjour {{client.prenom}}, la facture {{facture.numero}} de {{facture.montant}} reste à régler. Merci de votre retour.",
-    },
-    {
-      key: "receivable_j15",
-      name: "Créance à 15 jours",
-      channel: "WHATSAPP",
-      body: "Rappel : la facture {{facture.numero}} de {{facture.montant}} est toujours impayée. Contactez {{garage.nom}} pour régulariser.",
-    },
-    {
-      key: "receivable_j30",
-      name: "Créance à 30 jours",
-      channel: "WHATSAPP",
-      body: "La facture {{facture.numero}} de {{facture.montant}} est en retard de paiement depuis 30 jours. Merci de régulariser rapidement.",
-    },
-    {
-      key: "receivable_j45",
-      name: "Créance à 45 jours",
-      channel: "WHATSAPP",
-      body: "Dernier rappel : la facture {{facture.numero}} de {{facture.montant}} reste impayée depuis 45 jours.",
-    },
-    {
-      key: "appointment_j1",
-      name: "Rappel RDV",
-      channel: "WHATSAPP",
-      body: "Bonjour {{client.prenom}}, rappel de votre rendez-vous demain à {{rdv.heure}} chez {{garage.nom}}.",
-    },
-    {
-      key: "quote_followup",
-      name: "Relance devis",
-      channel: "WHATSAPP",
-      body: "Bonjour {{client.prenom}}, votre devis {{devis.numero}} de {{devis.montant}} est toujours disponible. Souhaitez-vous le valider ?",
-    },
-    {
-      key: "vehicle_ready",
-      name: "Véhicule prêt",
-      channel: "WHATSAPP",
-      body: "Bonjour {{client.prenom}}, votre véhicule {{vehicule.plaque}} est prêt. Vous pouvez venir le récupérer chez {{garage.nom}}.",
-    },
-  ];
+  return structuredClone(DEFAULT_MESSAGE_TEMPLATES);
 }
 
 export interface OnboardingInspectionItemSeed {

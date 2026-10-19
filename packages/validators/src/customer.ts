@@ -162,21 +162,30 @@ export const deleteCustomerInputSchema = z.object({
   reason: z.string().trim().min(1),
 });
 
-export const createContactInputSchema = z.object({
-  customerId: z.string().trim().min(1),
-  name: z.string().trim().min(1),
-  role: z.string().trim().min(1).optional(),
-  phone: z.string().trim().min(1).optional(),
-  phone2: z.string().trim().min(1).optional(),
-  email: z.string().trim().email().optional(),
+// RG-M02 (US « contacts d'une entreprise ») — interlocuteurs d'un client. `null` efface un champ
+// facultatif à la modification ; un seul contact principal par client (`isPrimary`).
+const contactFieldsSchema = z.object({
+  name: z.string().trim().min(1, "Le nom du contact est obligatoire."),
+  role: z.string().trim().min(1).nullable().optional(),
+  phone: z.string().trim().min(1).nullable().optional(),
+  phone2: z.string().trim().min(1).nullable().optional(),
+  email: z.string().trim().email("Adresse email invalide.").nullable().optional(),
+  isPrimary: z.boolean().optional(),
   receivesInvoices: z.boolean().optional(),
   receivesReminders: z.boolean().optional(),
+});
+
+export const createContactInputSchema = contactFieldsSchema.extend({
+  customerId: z.string().trim().min(1),
 });
 export type CreateContactInput = z.infer<typeof createContactInputSchema>;
 
 export const updateContactInputSchema = z.object({
   id: z.string().trim().min(1),
-  patch: createContactInputSchema.omit({ customerId: true }).partial(),
+  patch: contactFieldsSchema.partial(),
 });
+export type UpdateContactInput = z.infer<typeof updateContactInputSchema>;
+
+export const listContactsInputSchema = z.object({ customerId: z.string().trim().min(1) });
 
 export const deleteContactInputSchema = z.object({ id: z.string().trim().min(1) });

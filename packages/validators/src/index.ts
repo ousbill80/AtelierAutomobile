@@ -143,6 +143,7 @@ export type {
   CustomerListInput,
   MergeCustomerInput,
   SetConsentInput,
+  UpdateContactInput,
   VehicleQuickCreateInput,
 } from "./customer";
 export {
@@ -159,6 +160,7 @@ export {
   deleteContactInputSchema,
   deleteCustomerInputSchema,
   dismissDuplicateInputSchema,
+  listContactsInputSchema,
   mergeCustomerInputSchema,
   mergePreviewInputSchema,
   reactivateRemindersInputSchema,
@@ -278,6 +280,7 @@ export type {
   ReminderSettingsUpdateInput,
   ReminderSkipInput,
   ReminderSnoozeInput,
+  ReminderHistoryInput,
   ReminderStatsInput,
   ReminderStepInput,
   ReminderTypeInput,
@@ -307,6 +310,8 @@ export {
   reminderSkipInputSchema,
   reminderSkipReasonSchema,
   reminderSnoozeInputSchema,
+  reminderHistoryInputSchema,
+  reminderHistoryStatusSchema,
   reminderStatsInputSchema,
   reminderStatusSchema,
   reminderStepSchema,
