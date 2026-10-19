@@ -80,6 +80,9 @@ export { isTrivialPin } from "./auth/pin";
 export type { PickActiveSiteInput, SiteOption } from "./auth/site";
 export { canUseAllSitesOption, pickActiveSite } from "./auth/site";
 
+export type { PlanLimits, PlanTier } from "./auth/plan";
+export { canAddMember, canAddSite, PLAN_LIMITS, PLAN_TIERS } from "./auth/plan";
+
 export type { SessionRecord } from "./auth/session";
 export {
   computeSessionAbsoluteExpiry,
