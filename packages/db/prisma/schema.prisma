@@ -105,6 +105,11 @@ model Organization {
   invitations            Invitation[]
   rolePermissions        RolePermission[]
   trustedDevices         TrustedDevice[]
+  customerNotes          CustomerNote[]
+  duplicateDismissals    DuplicateDismissal[]
+  customerSegments       CustomerSegment[]
+  vehicleMakes           VehicleMake[]
+  vehicleModels          VehicleModel[]
 }
 
 enum TaxRegime {
@@ -261,6 +266,9 @@ model Membership {
   aiInteractionsCreated       AiInteraction[]       @relation("AiInteractionCreatedBy")
   invoicesCreated             Invoice[]             @relation("InvoiceCreatedBy")
   portalTokensCreated         PortalToken[]         @relation("PortalTokenCreatedBy")
+  customerNotesCreated        CustomerNote[]        @relation("CustomerNoteCreatedBy")
+  duplicateDismissalsCreated  DuplicateDismissal[]  @relation("DuplicateDismissalDismissedBy")
+  customerSegmentsCreated     CustomerSegment[]     @relation("CustomerSegmentCreatedBy")
 
   @@unique([organizationId, userId])
   @@index([organizationId])
@@ -323,6 +331,12 @@ model Customer {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?
+  // M02 §14
+  consentUpdatedAt DateTime?
+  consentSource    String? // counter | phone | whatsapp_reply | portal | import | staff
+  mergedIntoId     String? // client cible après fusion (RG-M02-08)
+  anonymizedAt     DateTime?
+  lastVisitAt      DateTime? // dénormalisé (dernier OR livré ou facture), pour tri/filtre
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
   vehicles        Vehicle[]
@@ -338,9 +352,14 @@ model Customer {
   messages        Message[]
   insuranceClaims InsuranceClaim[]
   portalTokens    PortalToken[]
+  customerNotes   CustomerNote[]
 
   @@index([organizationId, displayName])
   @@index([organizationId, phone])
+  @@index([organizationId, phone2])
+  @@index([organizationId, email])
+  // index trigram (migration SQL) :
+  // CREATE INDEX customer_display_name_trgm ON "Customer" USING gin ("displayName" gin_trgm_ops);
 }
 
 enum CustomerType {
@@ -362,15 +381,19 @@ enum Channel {
 
 model CustomerContact {
   // interlocuteurs d'une entreprise
-  id                String  @id @default(cuid(2))
+  id                String    @id @default(cuid(2))
   organizationId    String
   customerId        String
   name              String
   role              String? // "Responsable flotte", "Comptabilité"
   phone             String?
+  phone2            String?
   email             String?
-  receivesInvoices  Boolean @default(false)
-  receivesReminders Boolean @default(false)
+  receivesInvoices  Boolean   @default(false)
+  receivesReminders Boolean   @default(false)
+  isPrimary         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  deletedAt         DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -383,9 +406,14 @@ model Vehicle {
   organizationId        String
   customerId            String
   plate                 String // normalisée : majuscules, sans espaces multiples
+  plateCompact          String        @default("") // "2547GH01" — unicité et recherche (RG-M02-05)
+  plateType             PlateType     @default(STANDARD)
+  usage                 VehicleUsage  @default(PRIVATE)
   vin                   String?
   make                  String // Toyota
   model                 String // Corolla
+  makeId                String? // lien catalogue (facultatif, make/model restent la vérité affichée)
+  modelId               String?
   version               String?
   year                  Int?
   firstRegistrationDate DateTime?     @db.Date
@@ -401,6 +429,8 @@ model Vehicle {
   currentMileageAt      DateTime?
   avgKmPerDay           Float? // calculé à partir des relevés
   estimatedMileage      Int? // estimé du jour (worker)
+  odometerOffset        Int           @default(0) // après remplacement de compteur (RG-M02-09)
+  odometerInMiles       Boolean       @default(false)
   // Visite technique
   inspectionLastDate    DateTime?     @db.Date
   inspectionExpiryDate  DateTime?     @db.Date
@@ -412,11 +442,13 @@ model Vehicle {
   lastServiceMileage    Int?
   nextServiceDueDate    DateTime?     @db.Date // calculé (M10)
   nextServiceDueMileage Int? // calculé
+  nextServiceTrigger    String? // "DATE" | "MILEAGE" (RG-M02-13)
   // Assurance
   insuranceCompanyId    String?
   insuranceExpiryDate   DateTime?     @db.Date
   insurancePolicyNumber String?
   notes                 String?
+  mergedIntoId          String? // véhicule cible après fusion d'un doublon (RG-M02-08)
   origin                RecordOrigin  @default(NATIVE)
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
@@ -425,6 +457,8 @@ model Vehicle {
   organization     Organization      @relation(fields: [organizationId], references: [id])
   customer         Customer          @relation(fields: [customerId], references: [id])
   insuranceCompany InsuranceCompany? @relation(fields: [insuranceCompanyId], references: [id])
+  vehicleMake      VehicleMake?      @relation(fields: [makeId], references: [id])
+  vehicleModel     VehicleModel?     @relation(fields: [modelId], references: [id])
   mileageReadings  MileageReading[]
   events           VehicleEvent[]
   appointments     Appointment[]
@@ -433,11 +467,37 @@ model Vehicle {
   invoices         Invoice[]
   reminders        Reminder[]
   insuranceClaims  InsuranceClaim[]
+  customerNotes    CustomerNote[]
 
   @@index([organizationId, plate])
+  @@index([organizationId, plateCompact])
+  @@index([organizationId, vin])
   @@index([organizationId, inspectionExpiryDate])
   @@index([organizationId, nextServiceDueDate])
   @@index([organizationId, customerId])
+  // unicité partielle + index trigram (migration SQL) :
+  // CREATE UNIQUE INDEX vehicle_plate_unique ON "Vehicle" ("organizationId","plateCompact")
+  //   WHERE "deletedAt" IS NULL AND "plateType" <> 'NONE';
+  // CREATE INDEX vehicle_plate_trgm ON "Vehicle" USING gin ("plateCompact" gin_trgm_ops);
+}
+
+enum PlateType {
+  STANDARD
+  TEMPORARY
+  DIPLOMATIC
+  GOVERNMENT
+  FOREIGN
+  NONE
+  OTHER
+}
+
+enum VehicleUsage {
+  PRIVATE
+  TAXI
+  TRANSPORT
+  UTILITY
+  RENTAL
+  OTHER
 }
 
 enum FuelType {
@@ -463,6 +523,8 @@ model MileageReading {
   source         MileageSource
   repairOrderId  String?
   createdById    String?
+  isOutlier      Boolean       @default(false)
+  createdAt      DateTime      @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   vehicle      Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -470,6 +532,7 @@ model MileageReading {
   createdBy    Membership?  @relation("MileageReadingCreatedBy", fields: [createdById], references: [id])
 
   @@index([organizationId, vehicleId])
+  @@index([vehicleId, readAt])
 }
 
 enum MileageSource {
@@ -495,6 +558,89 @@ model VehicleEvent {
   createdBy    Membership?  @relation("VehicleEventCreatedBy", fields: [createdById], references: [id])
 
   @@index([organizationId, vehicleId])
+}
+
+model CustomerNote {
+  // notes internes datées (chronologie, RG-M02-10 US-M02-10)
+  id             String    @id @default(cuid(2))
+  organizationId String
+  customerId     String
+  vehicleId      String?
+  body           String
+  pinned         Boolean   @default(false)
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle?     @relation(fields: [vehicleId], references: [id])
+  createdBy    Membership?  @relation("CustomerNoteCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, customerId])
+}
+
+model DuplicateDismissal {
+  // paires de doublons ignorées (RG-M02-07)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  entity         String // customer | vehicle
+  idA            String // plus petit des deux id (ordre lexical)
+  idB            String
+  dismissedById  String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  dismissedBy  Membership?  @relation("DuplicateDismissalDismissedBy", fields: [dismissedById], references: [id])
+
+  @@unique([organizationId, entity, idA, idB])
+}
+
+model CustomerSegment {
+  // segments enregistrés (M10 campagnes, M12 ; RG-M02-14)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  name           String
+  filters        Json // mêmes clés que customer.list / vehicle.list
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    Membership?  @relation("CustomerSegmentCreatedBy", fields: [createdById], references: [id])
+}
+
+model VehicleMake {
+  // catalogue marques (RG-M02-20) ; organizationId null = catalogue global (platform)
+  id             String  @id @default(cuid(2))
+  organizationId String?
+  name           String // "Toyota"
+  isActive       Boolean @default(true)
+
+  organization Organization?  @relation(fields: [organizationId], references: [id])
+  models       VehicleModel[]
+  vehicles     Vehicle[]
+
+  @@unique([organizationId, name])
+}
+
+model VehicleModel {
+  id                    String    @id @default(cuid(2))
+  organizationId        String?
+  makeId                String
+  name                  String // "Corolla"
+  yearFrom              Int?
+  yearTo                Int?
+  defaultFuel           FuelType?
+  serviceIntervalKm     Int? // 10000
+  serviceIntervalMonths Int? // 12
+  isActive              Boolean   @default(true)
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  make         VehicleMake   @relation(fields: [makeId], references: [id], onDelete: Cascade)
+  vehicles     Vehicle[]
+
+  @@unique([makeId, organizationId, name])
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -86,3 +86,80 @@ export {
   resetRoleDefaultsInputSchema,
   updateRolePermissionsInputSchema,
 } from "./role";
+
+export type {
+  CheckDuplicatesInput,
+  CreateContactInput,
+  CreateCustomerInput,
+  CustomerListInput,
+  MergeCustomerInput,
+  SetConsentInput,
+  VehicleQuickCreateInput,
+} from "./customer";
+export {
+  addCustomerNoteInputSchema,
+  channelSchema,
+  checkDuplicatesInputSchema,
+  civilitySchema,
+  createContactInputSchema,
+  createCustomerInputSchema,
+  customerGetInputSchema,
+  customerListInputSchema,
+  customerTimelineInputSchema,
+  customerTypeSchema,
+  deleteContactInputSchema,
+  deleteCustomerInputSchema,
+  dismissDuplicateInputSchema,
+  mergeCustomerInputSchema,
+  mergePreviewInputSchema,
+  reactivateRemindersInputSchema,
+  setConsentInputSchema,
+  setCreditInputSchema,
+  updateContactInputSchema,
+  updateCustomerInputSchema,
+  vehicleQuickCreateInputSchema,
+} from "./customer";
+
+export type {
+  BulkCreateVehiclesInput,
+  RecordMileageInput,
+  RecordInspectionInput,
+  TransferOwnerInput,
+  VehicleInput,
+  VehicleListInput,
+} from "./vehicle";
+export {
+  bulkCreateVehiclesInputSchema,
+  deleteVehicleInputSchema,
+  fuelTypeSchema,
+  mergeVehicleInputSchema,
+  mileageSourceSchema,
+  plateTypeSchema,
+  recordInspectionInputSchema,
+  recordMileageInputSchema,
+  recordServiceInputSchema,
+  replacePlateInputSchema,
+  transferOwnerInputSchema,
+  transmissionSchema,
+  updateVehicleInputSchema,
+  vehicleGetInputSchema,
+  vehicleInputSchema,
+  vehicleListInputSchema,
+  vehicleUsageSchema,
+} from "./vehicle";
+
+export type { AddLocalModelInput } from "./catalog";
+export {
+  addLocalModelInputSchema,
+  catalogMakesInputSchema,
+  catalogModelsInputSchema,
+} from "./catalog";
+
+export type { CreateSegmentInput, SearchGlobalInput } from "./segment";
+export {
+  createSegmentInputSchema,
+  deleteSegmentInputSchema,
+  previewSegmentInputSchema,
+  searchGlobalInputSchema,
+  updateSegmentInputSchema,
+} from "./segment";

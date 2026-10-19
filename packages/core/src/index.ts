@@ -23,8 +23,8 @@ export {
   ttcToHt,
 } from "./money";
 
-export type { NormalizedPhone, PhoneStatus } from "./phone";
-export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./phone";
+export type { NormalizedPhone, PhoneLineType, PhoneStatus } from "./phone";
+export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } from "./phone";
 
 export type { NormalizedPlate, PlateType } from "./plate";
 export { normalizePlate } from "./plate";
@@ -94,3 +94,41 @@ export {
   SESSION_ABSOLUTE_DAYS,
   SESSION_INACTIVITY_DAYS,
 } from "./auth/session";
+
+export type { DisplayNameInput } from "./customers/display-name";
+export { computeDisplayName, titleCaseName } from "./customers/display-name";
+
+export type {
+  DuplicateScoreResult,
+  DuplicateSeverity,
+  DuplicateSignals,
+} from "./customers/duplicates";
+export {
+  DUPLICATE_BLOCK_THRESHOLD,
+  DUPLICATE_SUGGEST_THRESHOLD,
+  duplicateScore,
+  duplicateSeverity,
+} from "./customers/duplicates";
+
+export type { ConsentState, DedupeKeyed, FieldChoice } from "./customers/merge";
+export {
+  defaultFieldChoice,
+  mergeConsent,
+  mergeTags,
+  resolveDedupeKeyCollisions,
+  resolveField,
+} from "./customers/merge";
+
+export type {
+  AvgKmPerDayResult,
+  AvgKmPerDaySource,
+  MileageReadingLike,
+  VehicleUsage,
+} from "./vehicles/mileage";
+export { computeAvgKmPerDay, DEFAULT_AVG_KM_PER_DAY, estimateMileage } from "./vehicles/mileage";
+
+export type { InspectionStatus, ServiceDueStatus } from "./vehicles/status";
+export { inspectionStatus, serviceStatus } from "./vehicles/status";
+
+export type { ServiceDueInput, ServiceDueResult, ServiceDueTrigger } from "./reminders/serviceDue";
+export { computeNextServiceDue } from "./reminders/serviceDue";

@@ -1,6 +1,36 @@
-import { hashPassword } from "@atelieros/core";
+import { hashPassword, normalizePlate } from "@atelieros/core";
 import { adminDb } from "../src/client";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+
+// RG-M02-05 — plateCompact doit être renseigné dès la création (unicité partielle
+// vehicle_plate_unique sur organizationId+plateCompact, migration 20261019012546).
+function plateCompactOf(plate: string): string {
+  return normalizePlate(plate).plateCompact;
+}
+
+// Le seed doit être rejouable (CLAUDE.md "Commandes" : `pnpm db:seed`) : organization.delete()
+// seul ne cascade pas vers les tables tenant-scopées (pas de onDelete: Cascade sur chacune),
+// donc on purge nous-mêmes toutes les tables portant organizationId avant de supprimer
+// l'organisation, en désactivant temporairement les triggers de contrainte FK (connexion
+// superutilisateur adminDb, réservée à l'infra) plutôt que de deviner un ordre de dépendances.
+async function deleteOrganizationCascade(organizationId: string): Promise<void> {
+  const tenantModels = Prisma.dmmf.datamodel.models.filter(
+    (model) =>
+      model.name !== "Organization" &&
+      model.fields.some((field) => field.name === "organizationId"),
+  );
+  await adminDb.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe("SET session_replication_role = replica");
+    for (const model of tenantModels) {
+      await tx.$executeRawUnsafe(
+        `DELETE FROM "${model.dbName ?? model.name}" WHERE "organizationId" = $1`,
+        organizationId,
+      );
+    }
+    await tx.$executeRawUnsafe('DELETE FROM "Organization" WHERE id = $1', organizationId);
+    await tx.$executeRawUnsafe("SET session_replication_role = DEFAULT");
+  });
+}
 
 // Date de référence fixe pour que les écarts relatifs ("retard de 38 j", "VT expire
 // dans 15 j"...) restent cohérents même si le seed est rejoué un autre jour.
@@ -104,7 +134,15 @@ async function main() {
   console.log("Seed — suppression des données de démonstration précédentes...");
   const existing = await adminDb.organization.findFirst({ where: { name: "Excellence Auto" } });
   if (existing) {
-    await adminDb.organization.delete({ where: { id: existing.id } });
+    // User est global (pas de organizationId) : un compte démo recréé avec le même email
+    // entrerait en conflit si on ne le supprime pas ici (ses Membership disparaissent avec
+    // la cascade ci-dessous, mais pas la ligne User elle-même).
+    const previousMembers = await adminDb.membership.findMany({
+      where: { organizationId: existing.id },
+      select: { userId: true },
+    });
+    await deleteOrganizationCascade(existing.id);
+    await adminDb.user.deleteMany({ where: { id: { in: previousMembers.map((m) => m.userId) } } });
   }
 
   console.log("Seed — organisation et sites...");
@@ -392,6 +430,7 @@ async function main() {
       organizationId: organization.id,
       customerId: kouassi.id,
       plate: "2547 GH 01",
+      plateCompact: plateCompactOf("2547 GH 01"),
       make: "Toyota",
       model: "Corolla",
       year: 2018,
@@ -421,6 +460,7 @@ async function main() {
       organizationId: organization.id,
       customerId: bamba.id,
       plate: "8812 JK 01",
+      plateCompact: plateCompactOf("8812 JK 01"),
       make: "Hyundai",
       model: "Tucson",
       year: 2020,
@@ -458,6 +498,7 @@ async function main() {
           organizationId: organization.id,
           customerId: sotra.id,
           plate: `${3000 + i} SV 01`,
+          plateCompact: plateCompactOf(`${3000 + i} SV 01`),
           make: "Toyota",
           model: "Hilux",
           year: 2019 + (i % 4),
@@ -470,6 +511,7 @@ async function main() {
           organizationId: organization.id,
           customerId: sotra.id,
           plate: `${3100 + i} SV 01`,
+          plateCompact: plateCompactOf(`${3100 + i} SV 01`),
           make: "Isuzu",
           model: "D-Max",
           year: 2019 + (i % 4),
@@ -498,6 +540,7 @@ async function main() {
       organizationId: organization.id,
       customerId: kone.id,
       plate: "4421 FD 01",
+      plateCompact: plateCompactOf("4421 FD 01"),
       make: "Peugeot",
       model: "301",
       year: 2017,
@@ -524,6 +567,7 @@ async function main() {
       organizationId: organization.id,
       customerId: yao.id,
       plate: "1190 LM 01",
+      plateCompact: plateCompactOf("1190 LM 01"),
       make: "Kia",
       model: "Picanto",
       year: 2021,
@@ -554,6 +598,7 @@ async function main() {
       organizationId: organization.id,
       customerId: traore.id,
       plate: "6630 HB 01",
+      plateCompact: plateCompactOf("6630 HB 01"),
       make: "Mitsubishi",
       model: "L200",
       year: 2019,
@@ -586,6 +631,7 @@ async function main() {
       organizationId: organization.id,
       customerId: diabate.id,
       plate: "7745 NP 01",
+      plateCompact: plateCompactOf("7745 NP 01"),
       make: "Suzuki",
       model: "Swift",
       year: 2019,
@@ -617,6 +663,7 @@ async function main() {
         organizationId: organization.id,
         customerId: customer.id,
         plate: plateFor(i + 400),
+        plateCompact: plateCompactOf(plateFor(i + 400)),
         make: vehicleSpec.make,
         model: vehicleSpec.model,
         year: 2015 + (i % 10),
@@ -852,9 +899,103 @@ async function main() {
     ],
   });
 
+  // RG-M02-20 — catalogue marques/modèles global (organizationId null), avec intervalle de
+  // révision par défaut. Les modèles d'une organisation peuvent être ajoutés en plus via
+  // catalog.addLocalModel ; voir docs/modules/M02-clients-vehicules.md §4.
+  const MAKE_MODEL_CATALOG: Record<
+    string,
+    { name: string; serviceIntervalKm?: number; serviceIntervalMonths?: number }[]
+  > = {
+    Toyota: [
+      { name: "Corolla", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Hilux", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Land Cruiser", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "RAV4", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Yaris", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Hyundai: [
+      { name: "Tucson", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Accent", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "i10", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Kia: [
+      { name: "Picanto", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Sportage", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Rio", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Nissan: [
+      { name: "Navara", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Patrol", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Sentra", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Mitsubishi: [
+      { name: "L200", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Pajero", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Suzuki: [
+      { name: "Swift", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Vitara", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Isuzu: [{ name: "D-Max", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Peugeot: [
+      { name: "301", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "208", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Renault: [
+      { name: "Duster", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+      { name: "Logan", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
+    ],
+    Citroën: [{ name: "C3", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    "Mercedes-Benz": [{ name: "Classe C", serviceIntervalKm: 15000, serviceIntervalMonths: 12 }],
+    BMW: [{ name: "Série 3", serviceIntervalKm: 15000, serviceIntervalMonths: 12 }],
+    Ford: [{ name: "Ranger", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Honda: [{ name: "CR-V", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Mazda: [{ name: "CX-5", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Volkswagen: [{ name: "Polo", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    "Land Rover": [{ name: "Defender", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Chevrolet: [{ name: "Aveo", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Changan: [{ name: "CS35", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Geely: [{ name: "Coolray", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Chery: [{ name: "Tiggo", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Dongfeng: [{ name: "AX7", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    "Great Wall": [{ name: "Wingle", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    JAC: [{ name: "T6", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+    Tata: [{ name: "Xenon", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
+  };
+
+  // findFirst + create plutôt qu'upsert : le sélecteur composé généré par Prisma pour
+  // @@unique([organizationId, name]) n'accepte pas organizationId: null (la contrainte
+  // Postgres elle-même traite les NULL comme toujours distincts), bien que le champ soit
+  // nullable sur le modèle (catalogue global, RG-M02-20).
+  for (const [makeName, models] of Object.entries(MAKE_MODEL_CATALOG)) {
+    let make = await adminDb.vehicleMake.findFirst({
+      where: { organizationId: null, name: makeName },
+    });
+    if (!make) {
+      make = await adminDb.vehicleMake.create({ data: { organizationId: null, name: makeName } });
+    }
+    for (const model of models) {
+      const existingModel = await adminDb.vehicleModel.findFirst({
+        where: { makeId: make.id, organizationId: null, name: model.name },
+      });
+      if (!existingModel) {
+        await adminDb.vehicleModel.create({
+          data: {
+            organizationId: null,
+            makeId: make.id,
+            name: model.name,
+            serviceIntervalKm: model.serviceIntervalKm,
+            serviceIntervalMonths: model.serviceIntervalMonths,
+          },
+        });
+      }
+    }
+  }
+
   console.log(
     `Seed terminé : organisation "${organization.name}" (${organization.id}), ` +
-      `${1 + 1 + 1 + 1 + 1 + 1 + 1 + fillerCustomers.length} clients, ${createdProducts.length} produits.`,
+      `${1 + 1 + 1 + 1 + 1 + 1 + 1 + fillerCustomers.length} clients, ${createdProducts.length} produits, ` +
+      `${Object.keys(MAKE_MODEL_CATALOG).length} marques au catalogue.`,
   );
 }
 

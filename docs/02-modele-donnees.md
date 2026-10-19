@@ -165,25 +165,38 @@ model Customer {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
+  // M02 §14
+  consentUpdatedAt   DateTime?
+  consentSource      String?                   // counter | phone | whatsapp_reply | portal | import | staff
+  mergedIntoId       String?                   // client cible après fusion (RG-M02-08)
+  anonymizedAt       DateTime?
+  lastVisitAt        DateTime?                 // dénormalisé (dernier OR livré ou facture), pour tri/filtre
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
   @@index([organizationId, phone])
+  @@index([organizationId, phone2])
+  @@index([organizationId, email])
+  // index trigram : CREATE INDEX customer_display_name_trgm ON "Customer" USING gin ("displayName" gin_trgm_ops);
 }
 enum CustomerType { INDIVIDUAL COMPANY }
 enum Civility { M MME MLLE }
 enum Channel { WHATSAPP SMS EMAIL }
 
 model CustomerContact {                         // interlocuteurs d'une entreprise
-  id             String @id @default(cuid())
-  organizationId String
-  customerId     String
-  name           String
-  role           String?                        // "Responsable flotte", "Comptabilité"
-  phone          String?
-  email          String?
+  id                String @id @default(cuid())
+  organizationId    String
+  customerId        String
+  name              String
+  role              String?                        // "Responsable flotte", "Comptabilité"
+  phone             String?
+  phone2            String?                        // M02 §14
+  email             String?
   receivesInvoices  Boolean @default(false)
   receivesReminders Boolean @default(false)
+  isPrimary         Boolean  @default(false)       // M02 §14
+  createdAt         DateTime @default(now())       // M02 §14
+  deletedAt         DateTime?                      // M02 §14
 }
 
 model Vehicle {
@@ -191,9 +204,14 @@ model Vehicle {
   organizationId            String
   customerId                String
   plate                     String                   // normalisée : majuscules, sans espaces multiples
+  plateCompact              String                   // "2547GH01" — unicité et recherche (RG-M02-05)
+  plateType                 PlateType @default(STANDARD)
+  usage                     VehicleUsage @default(PRIVATE)
   vin                       String?
   make                      String                   // Toyota
   model                     String                   // Corolla
+  makeId                    String?                  // lien catalogue (facultatif, make/model restent la vérité affichée)
+  modelId                   String?
   version                   String?
   year                      Int?
   firstRegistrationDate     DateTime? @db.Date
@@ -209,6 +227,8 @@ model Vehicle {
   currentMileageAt          DateTime?
   avgKmPerDay               Float?                   // calculé à partir des relevés
   estimatedMileage          Int?                     // estimé du jour (worker)
+  odometerOffset            Int     @default(0)      // après remplacement de compteur (RG-M02-09)
+  odometerInMiles           Boolean @default(false)
   // Visite technique
   inspectionLastDate        DateTime? @db.Date
   inspectionExpiryDate      DateTime? @db.Date
@@ -220,20 +240,30 @@ model Vehicle {
   lastServiceMileage        Int?
   nextServiceDueDate        DateTime? @db.Date       // calculé (M10)
   nextServiceDueMileage     Int?                     // calculé
+  nextServiceTrigger        String?                  // "DATE" | "MILEAGE" (RG-M02-13)
   // Assurance
   insuranceCompanyId        String?
   insuranceExpiryDate       DateTime? @db.Date
   insurancePolicyNumber     String?
   notes                     String?
+  mergedIntoId              String?                  // véhicule cible après fusion d'un doublon (RG-M02-08)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   deletedAt                 DateTime?
   @@index([organizationId, plate])
+  @@index([organizationId, plateCompact])
+  @@index([organizationId, vin])
   @@index([organizationId, inspectionExpiryDate])
   @@index([organizationId, nextServiceDueDate])
+  // unicité partielle + index trigram :
+  // CREATE UNIQUE INDEX vehicle_plate_unique ON "Vehicle" ("organizationId","plateCompact")
+  //   WHERE "deletedAt" IS NULL AND "plateType" <> 'NONE';
+  // CREATE INDEX vehicle_plate_compact_trgm ON "Vehicle" USING gin ("plateCompact" gin_trgm_ops);
 }
 enum FuelType { PETROL DIESEL HYBRID ELECTRIC LPG OTHER }
 enum Transmission { MANUAL AUTOMATIC }
+enum PlateType { STANDARD TEMPORARY DIPLOMATIC GOVERNMENT FOREIGN NONE OTHER }     // M02 §14
+enum VehicleUsage { PRIVATE TAXI TRANSPORT UTILITY RENTAL OTHER }                  // M02 §14
 
 model MileageReading {
   id             String @id @default(cuid())
@@ -244,6 +274,8 @@ model MileageReading {
   source         MileageSource
   repairOrderId  String?
   createdById    String?
+  isOutlier      Boolean  @default(false)   // M02 §14
+  createdAt      DateTime @default(now())   // M02 §14
 }
 enum MileageSource { RECEPTION IMPORT CUSTOMER MANUAL INVOICE }
 
@@ -255,6 +287,61 @@ model VehicleEvent {                             // historique libre (VT faite, 
   occurredAt     DateTime
   data           Json @default("{}")
   createdById    String?
+}
+
+model CustomerNote {                             // M02 §14 — notes internes datées (chronologie)
+  id             String @id @default(cuid())
+  organizationId String
+  customerId     String
+  vehicleId      String?
+  body           String
+  pinned         Boolean  @default(false)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  deletedAt      DateTime?
+}
+
+model DuplicateDismissal {                       // M02 §14 — paires de doublons ignorées (RG-M02-07)
+  id             String @id @default(cuid())
+  organizationId String
+  entity         String                          // customer | vehicle
+  idA            String                          // plus petit des deux id (ordre lexical)
+  idB            String
+  dismissedById  String?
+  createdAt      DateTime @default(now())
+  @@unique([organizationId, entity, idA, idB])
+}
+
+model CustomerSegment {                          // M02 §14 — segments enregistrés (campagnes M10, M12)
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  filters        Json                            // mêmes clés que customer.list / vehicle.list
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model VehicleMake {                              // M02 §14 — catalogue marques (RG-M02-20) ; organizationId null = global
+  id             String  @id @default(cuid())
+  organizationId String?
+  name           String                          // "Toyota"
+  isActive       Boolean @default(true)
+  @@unique([organizationId, name])
+}
+
+model VehicleModel {                             // M02 §14
+  id                    String  @id @default(cuid())
+  organizationId        String?
+  makeId                String
+  name                  String                   // "Corolla"
+  yearFrom              Int?
+  yearTo                Int?
+  defaultFuel           FuelType?
+  serviceIntervalKm     Int?                     // 10000
+  serviceIntervalMonths Int?                     // 12
+  isActive              Boolean @default(true)
+  @@unique([makeId, organizationId, name])
 }
 
 // ───────────── Rendez-vous ─────────────
@@ -1085,32 +1172,32 @@ model AiInteraction {                             // trace des appels IA (coût,
 
 ## 3. Règles d'intégrité
 
-| Règle | Où |
-|---|---|
-| `Invoice.number` attribué uniquement à l'émission, séquence sans trou par organisation et par année | `core/numbering` + `DocumentSequence` en transaction |
-| Une facture `ISSUED` n'est plus modifiable ; correction = **avoir** (`CREDIT_NOTE`) | M08 |
-| `Invoice.amountPaid` = somme des `PaymentAllocation.amount` ; `balance = total - amountPaid` ; statut recalculé à chaque allocation | `core/receivables` |
-| `StockLevel.onHand` = somme des `StockMovement.quantity` ; jamais modifié sans mouvement | M07 |
-| `StockLevel.reserved` ≤ `onHand` sauf autorisation de stock négatif | M07 |
-| `Reminder.dedupeKey` unique → impossible d'envoyer deux fois le même palier pour la même échéance | M10 |
-| `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés | M02 |
-| `Customer.phone` normalisé E.164 | `core/phone` |
-| Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt) | M11 |
+| Règle                                                                                                                               | Où                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `Invoice.number` attribué uniquement à l'émission, séquence sans trou par organisation et par année                                 | `core/numbering` + `DocumentSequence` en transaction |
+| Une facture `ISSUED` n'est plus modifiable ; correction = **avoir** (`CREDIT_NOTE`)                                                 | M08                                                  |
+| `Invoice.amountPaid` = somme des `PaymentAllocation.amount` ; `balance = total - amountPaid` ; statut recalculé à chaque allocation | `core/receivables`                                   |
+| `StockLevel.onHand` = somme des `StockMovement.quantity` ; jamais modifié sans mouvement                                            | M07                                                  |
+| `StockLevel.reserved` ≤ `onHand` sauf autorisation de stock négatif                                                                 | M07                                                  |
+| `Reminder.dedupeKey` unique → impossible d'envoyer deux fois le même palier pour la même échéance                                   | M10                                                  |
+| `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés           | M02                                                  |
+| `Customer.phone` normalisé E.164                                                                                                    | `core/phone`                                         |
+| Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
 
 ## 4. Variables de modèles de messages
 
 Disponibles dans `MessageTemplate.body` (moteur **Handlebars**, sans exécution de code) :
 
-| Variable | Exemple |
-|---|---|
-| `{{client.civilite}}` `{{client.nom}}` `{{client.prenom}}` `{{client.nomComplet}}` | M. · Kouassi · Jean-Marc |
-| `{{vehicule.marque}}` `{{vehicule.modele}}` `{{vehicule.plaque}}` | Toyota · Corolla · 2547 GH 01 |
-| `{{vt.dateExpiration}}` `{{vt.joursRestants}}` | 02/11/2026 · 15 |
-| `{{revision.dateEcheance}}` `{{revision.kmEcheance}}` `{{vehicule.kmEstime}}` | 15/12/2026 · 25 000 · 24 200 |
+| Variable                                                                                                        | Exemple                            |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `{{client.civilite}}` `{{client.nom}}` `{{client.prenom}}` `{{client.nomComplet}}`                              | M. · Kouassi · Jean-Marc           |
+| `{{vehicule.marque}}` `{{vehicule.modele}}` `{{vehicule.plaque}}`                                               | Toyota · Corolla · 2547 GH 01      |
+| `{{vt.dateExpiration}}` `{{vt.joursRestants}}`                                                                  | 02/11/2026 · 15                    |
+| `{{revision.dateEcheance}}` `{{revision.kmEcheance}}` `{{vehicule.kmEstime}}`                                   | 15/12/2026 · 25 000 · 24 200       |
 | `{{facture.numero}}` `{{facture.montant}}` `{{facture.solde}}` `{{facture.echeance}}` `{{facture.joursRetard}}` | FAC-2026-000412 · 185 000 FCFA · … |
-| `{{client.soldeTotal}}` `{{client.nbFacturesOuvertes}}` | 1 240 000 FCFA · 3 |
-| `{{lien.paiement}}` `{{lien.devis}}` `{{lien.facture}}` `{{lien.rdv}}` | liens courts du portail |
-| `{{rdv.date}}` `{{rdv.heure}}` | 24/10/2026 · 09:00 |
-| `{{devis.numero}}` `{{devis.montant}}` `{{devis.validite}}` | |
-| `{{garage.nom}}` `{{garage.telephone}}` `{{garage.adresse}}` `{{garage.horaires}}` | |
-| `{{paiement.wave}}` `{{paiement.orangeMoney}}` `{{paiement.mtn}}` | numéros marchands |
+| `{{client.soldeTotal}}` `{{client.nbFacturesOuvertes}}`                                                         | 1 240 000 FCFA · 3                 |
+| `{{lien.paiement}}` `{{lien.devis}}` `{{lien.facture}}` `{{lien.rdv}}`                                          | liens courts du portail            |
+| `{{rdv.date}}` `{{rdv.heure}}`                                                                                  | 24/10/2026 · 09:00                 |
+| `{{devis.numero}}` `{{devis.montant}}` `{{devis.validite}}`                                                     |                                    |
+| `{{garage.nom}}` `{{garage.telephone}}` `{{garage.adresse}}` `{{garage.horaires}}`                              |                                    |
+| `{{paiement.wave}}` `{{paiement.orangeMoney}}` `{{paiement.mtn}}`                                               | numéros marchands                  |

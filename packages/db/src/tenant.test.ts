@@ -123,6 +123,61 @@ describe("db.forTenant — isolation multi-locataire A/B", () => {
     ).rejects.toThrow(TenantIsolationViolationError);
   });
 
+  it("catalogue global (RG-M02-20) : une lecture voit les lignes organizationId=null en plus des siennes", async () => {
+    const globalMake = await adminDb.vehicleMake.create({
+      data: { organizationId: null, name: `Toyota-${orgA.id}` },
+    });
+    const clientA = db.forTenant({ organizationId: orgA.id });
+    try {
+      const ownMake = await clientA.vehicleMake.create({
+        data: { name: `MarqueLocaleA-${orgA.id}` },
+      });
+
+      const rows = await clientA.vehicleMake.findMany({
+        where: { name: { in: [globalMake.name, ownMake.name] } },
+      });
+      expect(rows.map((r) => r.name).sort()).toEqual([globalMake.name, ownMake.name].sort());
+
+      // Mais le catalogue global reste strictement en lecture : une organisation ne peut pas le modifier.
+      await expect(
+        clientA.vehicleMake.update({ where: { id: globalMake.id }, data: { isActive: false } }),
+      ).rejects.toThrow(TenantIsolationViolationError);
+    } finally {
+      await adminDb.vehicleMake.deleteMany({ where: { name: { contains: orgA.id } } });
+    }
+  });
+
+  it("transaction() — plusieurs opérations tenant-scopées dans une seule transaction Postgres (RG-M02-08)", async () => {
+    const clientA = db.forTenant({ organizationId: orgA.id });
+    const extra = await adminDb.customer.create({
+      data: { organizationId: orgA.id, displayName: "À fusionner A", type: "INDIVIDUAL" },
+    });
+
+    const result = await clientA.transaction(async (tx) => {
+      const found = await tx.customer.findMany({ where: { id: { in: [extra.id, customerB.id] } } });
+      // La lecture, dans la transaction, respecte le même filtrage que forTenant() hors transaction :
+      // seule la ligne de A ressort, jamais celle de B.
+      expect(found.map((c) => c.id)).toEqual([extra.id]);
+
+      const updated = await tx.customer.update({
+        where: { id: extra.id },
+        data: { notes: "fusionné dans la transaction" },
+      });
+      return updated;
+    });
+
+    expect(result.notes).toBe("fusionné dans la transaction");
+
+    // Toujours bloqué pour une ligne d'une autre organisation, même à l'intérieur de transaction().
+    await expect(
+      clientA.transaction((tx) =>
+        tx.customer.update({ where: { id: customerB.id }, data: { notes: "x" } }),
+      ),
+    ).rejects.toThrow(TenantIsolationViolationError);
+
+    await adminDb.customer.delete({ where: { id: extra.id } });
+  });
+
   it("la Row Level Security Postgres bloque aussi un accès direct au rôle restreint, même en contournant l'extension Prisma", async () => {
     // Ceinture et bretelles (01 §3) : la policy RLS doit tenir à elle seule, indépendamment
     // de packages/db/src/tenant.ts. On se connecte ici avec le rôle restreint "atelieros_app"
