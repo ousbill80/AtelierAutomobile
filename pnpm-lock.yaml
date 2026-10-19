@@ -44,6 +44,9 @@ importers:
       '@atelieros/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
+      '@atelieros/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@atelieros/validators':
         specifier: workspace:*
         version: link:../../packages/validators
