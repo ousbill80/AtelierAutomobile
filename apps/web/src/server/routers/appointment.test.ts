@@ -226,15 +226,19 @@ describe("appointment / planning / portal routers (M03)", () => {
 
   afterAll(async () => {
     const where = { organizationId: { in: orgIds } };
+    // D'abord les événements : le job global `reminders.on_event` (tests du worker lancés en
+    // parallèle) consomme ceux de toutes les organisations et peut créer des
+    // ReminderSuppression dans les nôtres (appointment.created) pendant ce nettoyage.
+    await adminDb.domainEvent.deleteMany({ where });
     await adminDb.messageAttempt.deleteMany({ where });
     await adminDb.message.deleteMany({ where });
     await adminDb.portalToken.deleteMany({ where });
-    await adminDb.domainEvent.deleteMany({ where });
     await adminDb.auditLog.deleteMany({ where });
     await adminDb.notification.deleteMany({ where });
     await adminDb.aiInteraction.deleteMany({ where });
     await adminDb.resourceBlock.deleteMany({ where });
     await adminDb.appointment.deleteMany({ where });
+    await adminDb.reminderSuppression.deleteMany({ where });
     await adminDb.reminder.deleteMany({ where });
     await adminDb.reminderRule.deleteMany({ where });
     await adminDb.vehicle.deleteMany({ where });
@@ -245,6 +249,9 @@ describe("appointment / planning / portal routers (M03)", () => {
     await adminDb.session.deleteMany({ where: { userId: { in: userIds } } });
     await adminDb.membership.deleteMany({ where });
     await adminDb.user.deleteMany({ where: { id: { in: userIds } } });
+    // Une suppression créée par ce job pendant le nettoyage est purgée avant la dernière étape.
+    await adminDb.domainEvent.deleteMany({ where });
+    await adminDb.reminderSuppression.deleteMany({ where });
     await adminDb.organization.deleteMany({ where: { id: { in: orgIds } } });
   });
 
