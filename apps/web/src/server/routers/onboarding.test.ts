@@ -109,8 +109,8 @@ describe("onboarding router (M01, RG-M01-16/17)", () => {
       });
       expect(membership.role).toBe("OWNER");
 
-      expect(await adminDb.reminderRule.count({ where: { organizationId: orgId } })).toBe(6);
-      expect(await adminDb.messageTemplate.count({ where: { organizationId: orgId } })).toBe(12);
+      expect(await adminDb.reminderRule.count({ where: { organizationId: orgId } })).toBe(9);
+      expect(await adminDb.messageTemplate.count({ where: { organizationId: orgId } })).toBe(94);
       expect(await adminDb.inspectionTemplate.count({ where: { organizationId: orgId } })).toBe(1);
       expect(await adminDb.laborOperation.count({ where: { organizationId: orgId } })).toBe(26);
       expect(await adminDb.channelConfig.count({ where: { organizationId: orgId } })).toBe(2);

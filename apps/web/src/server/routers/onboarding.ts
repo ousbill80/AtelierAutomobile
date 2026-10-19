@@ -1,11 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import {
   canAddMember,
+  DEFAULT_MESSAGE_TEMPLATES,
+  DEFAULT_REMINDER_RULES,
   defaultChannelConfigs,
   defaultInspectionTemplate,
   defaultLaborOperations,
-  defaultMessageTemplates,
-  defaultReminderRules,
   defaultSiteBays,
   defaultSiteOpeningHours,
   normalizePlate,
@@ -157,24 +157,28 @@ async function saveGarageStep(
     return { org, membership };
   });
 
-  // Semences RG-M01-16 : contenu de référence minimal, à enrichir par M10/M11/M04/M05.
+  // RG-M10-02 : 8 règles de relance et leurs modèles de message par défaut, créés à la création
+  // de l'organisation (packages/core/src/reminders/defaults.ts).
   const tenantDb = db.forTenant({ organizationId: org.id });
   await tenantDb.reminderRule.createMany({
-    data: defaultReminderRules().map((rule) => ({
+    data: DEFAULT_REMINDER_RULES.map((rule) => ({
       organizationId: org.id,
       type: rule.type,
       name: rule.name,
+      isActive: rule.isActive,
       steps: rule.steps as unknown as Prisma.InputJsonValue,
       sendWindow: rule.sendWindow as unknown as Prisma.InputJsonValue,
+      conditions: (rule.conditions ?? {}) as Prisma.InputJsonValue,
       stopOn: rule.stopOn,
     })),
   });
   await tenantDb.messageTemplate.createMany({
-    data: defaultMessageTemplates().map((template) => ({
+    data: DEFAULT_MESSAGE_TEMPLATES.map((template) => ({
       organizationId: org.id,
       key: template.key,
       name: template.name,
       channel: template.channel,
+      subject: template.subject,
       body: template.body,
     })),
   });

@@ -63,10 +63,25 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
   const garageSub =
     me.allowedSites.length > 1 ? (activeSite?.name ?? t("common.allSites")) : activeSite?.name;
 
+  const remindersItems = [
+    { href: "/relances", label: t("nav.reminders"), permission: "reminder:read" },
+    {
+      href: "/relances/echeances",
+      label: t("nav.reminderDueDates"),
+      permission: "reminder:read",
+    },
+    { href: "/relances/resultats", label: t("nav.reminderResults"), permission: "reminder:stats" },
+  ].filter((item) => has(item.permission));
+
   const settingsItems = [
     { href: "/parametres/equipe", label: t("nav.settingsTeam"), permission: "member:read" },
     { href: "/parametres/roles", label: t("nav.settingsRoles"), permission: "role:manage" },
     { href: "/parametres/sites", label: t("nav.settingsSites"), permission: "site:manage" },
+    {
+      href: "/parametres/relances",
+      label: t("nav.settingsReminderRules"),
+      permission: "reminder:rules_manage",
+    },
     { href: "/parametres/journal", label: t("nav.settingsJournal"), permission: "audit:read" },
   ].filter((item) => has(item.permission));
 
@@ -78,6 +93,15 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         logoLabel={t("common.appName")}
       >
         <NavItem as={Link} href="/" label={t("nav.dashboard")} active={pathname === "/"} />
+        {remindersItems.map((item) => (
+          <NavItem
+            key={item.href}
+            as={Link}
+            href={item.href}
+            label={item.label}
+            active={pathname.startsWith(item.href)}
+          />
+        ))}
         {settingsItems.length > 0 ? (
           <>
             <SidebarSectionLabel>{t("nav.settings")}</SidebarSectionLabel>

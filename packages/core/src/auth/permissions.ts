@@ -111,10 +111,14 @@ export const PERMISSIONS = [
   "receivable:manage",
   "receivable:writeoff",
   "receivable:dispute",
+  "receivable:collect",
+  "receivable:formal_notice",
   // Relances / messages (M10, M11)
   "reminder:read",
   "reminder:approve",
   "reminder:rules_manage",
+  "reminder:pause",
+  "reminder:stats",
   "message:read",
   "message:send",
   "template:manage",
@@ -216,9 +220,14 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["receivable:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["receivable:manage", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["receivable:dispute", ["MANAGER", "ACCOUNTANT"]],
+  // RG-M10-§10 : créances = reminder:approve + receivable:collect (CASHIER limité aux paliers <J+30,
+  // vérifié en ligne dans le routeur — pas exprimable par ce catalogue grossier).
+  ["receivable:collect", ["MANAGER", "CASHIER", "ACCOUNTANT"]],
   ["reminder:read", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
-  ["reminder:approve", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
+  ["reminder:approve", ["MANAGER", "ADVISOR", "ACCOUNTANT", "CASHIER"]],
   ["reminder:rules_manage", ["MANAGER"]],
+  ["reminder:pause", ["MANAGER"]],
+  ["reminder:stats", ["MANAGER", "ACCOUNTANT"]],
   ["template:manage", ["MANAGER"]],
   ["message:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["message:send", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
@@ -233,7 +242,8 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   // org:update, site:manage, member:deactivate, role:manage, settings:update,
   // settings:channels, settings:payments, settings:fne, settings:billing,
   // repair_order:deliver_unpaid, invoice:void, invoice:price_below_min, payment:refund,
-  // receivable:writeoff, dashboard:owner, integration:manage, ai:configure.
+  // receivable:writeoff, dashboard:owner, integration:manage, ai:configure,
+  // receivable:formal_notice (OWNER seul, RG-M10-§10).
 ];
 
 function buildDefaultRolePermissions(): Record<NonOwnerRole, Permission[]> {

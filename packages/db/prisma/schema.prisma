@@ -333,6 +333,7 @@ model Customer {
   mergedIntoId      String? // RG-M02-08 : client cible après fusion (ce client est alors deletedAt != null)
   anonymizedAt      DateTime? // RG-M02-18 : export/anonymisation RGPD-like
   lastVisitAt       DateTime? // dénormalisé (dernier OR livré ou facture), pour tri/filtre
+  phoneInvalidAt    DateTime? // M10 §14, RG-M10-32 : 2 échecs définitifs sur ce numéro, plus aucun envoi jusqu'à modification
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?
@@ -450,6 +451,8 @@ model Vehicle {
   insuranceCompanyId    String?
   insuranceExpiryDate   DateTime?     @db.Date
   insurancePolicyNumber String?
+  inspectionExpiryEstimated Boolean  @default(false) // M10 §14, RG-M10-30 : date déduite (pas de VT connue)
+  dataQualityFlags      String[]      @default([]) // M10 §14 : "inspection_date_suspect", "duplicate_plate"
   notes                 String?
   origin                RecordOrigin  @default(NATIVE)
   mergedIntoId          String? // RG-M02-08 : véhicule cible après fusion de doublon de plaque

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 export interface DataTableColumn<T> {
   key: string;
@@ -36,6 +36,16 @@ export function DataTable<T>({
 
   const primaryCol = columns.find((c) => c.primary) ?? columns[0];
 
+  // Un clic sur une case à cocher, un bouton ou un lien à l'intérieur de la ligne ne doit pas
+  // aussi ouvrir le détail de la ligne (ex. cocher une relance dans `relances/page.tsx` ouvrait
+  // par erreur sa fiche de détail en plus de la sélectionner).
+  function handleRowClick(e: MouseEvent<HTMLElement>, row: T) {
+    if (!onRowClick) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("input, button, a, select, textarea, label")) return;
+    onRowClick(row);
+  }
+
   return (
     <div className="table-wrap to-cards">
       {toolbar ? <div className="table-toolbar">{toolbar}</div> : null}
@@ -51,7 +61,7 @@ export function DataTable<T>({
           {rows.map((row) => (
             <tr
               key={rowKey(row)}
-              onClick={() => onRowClick?.(row)}
+              onClick={(e) => handleRowClick(e, row)}
               style={onRowClick ? { cursor: "pointer" } : undefined}
             >
               {columns.map((col) => (
