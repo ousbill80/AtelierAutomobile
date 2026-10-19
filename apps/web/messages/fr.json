@@ -1085,7 +1085,9 @@
       "added": "Ligne ajoutée.",
       "pendingNotice": "Au-delà du plafond d'autorisation : la ligne attend l'accord du client.",
       "lockedNotice": "OR restitué : les lignes ne sont plus modifiables.",
-      "declinedHistory": "Refusées par le client"
+      "declinedHistory": "Refusées par le client",
+      "edit": "Modifier",
+      "editTitle": "Modifier la ligne"
     },
     "reception": {
       "title": "Réception du véhicule",

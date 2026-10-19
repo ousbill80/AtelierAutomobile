@@ -13,6 +13,7 @@ import {
   EmptyState,
   Input,
   Modal,
+  MoneyInput,
   PlateBadge,
   Select,
   StatusBadge,
@@ -686,7 +687,13 @@ function LineRow({
   onDone: () => void;
   onError: (e: { message: string }) => void;
 }) {
-  const update = trpc.repairOrderLine.update.useMutation({ onSuccess: onDone, onError });
+  const update = trpc.repairOrderLine.update.useMutation({
+    onSuccess: () => {
+      setEditing(false);
+      onDone();
+    },
+    onError,
+  });
   const setStatus = trpc.repairOrderLine.setStatus.useMutation({ onSuccess: onDone, onError });
   const assign = trpc.repairOrderLine.assign.useMutation({ onSuccess: onDone, onError });
   const remove = trpc.repairOrderLine.remove.useMutation({ onSuccess: onDone, onError });
@@ -694,6 +701,10 @@ function LineRow({
     onSuccess: onDone,
     onError,
   });
+  const [editing, setEditing] = useState(false);
+  const [quantity, setQuantity] = useState(String(line.quantity));
+  const [unitPrice, setUnitPrice] = useState<number | null>(line.unitPrice);
+  const [discount, setDiscount] = useState(String(line.discountRate));
   const workable = line.approval === "APPROVED" || line.approval === "NOT_REQUIRED";
   const working = ["APPROVED", "IN_PROGRESS", "WAITING_PARTS", "QUALITY_CHECK"].includes(
     order.status,
@@ -836,6 +847,11 @@ function LineRow({
             </Select>
           )}
           {perms.has("repair_order:update") && (
+            <Button size="sm" variant="ghost" className="min-h-11" onClick={() => setEditing(true)}>
+              {t("lines.edit")}
+            </Button>
+          )}
+          {perms.has("repair_order:update") && (
             <Button
               size="sm"
               variant="ghost"
@@ -847,6 +863,53 @@ function LineRow({
           )}
         </div>
       )}
+      <Modal
+        open={editing}
+        title={t("lines.editTitle")}
+        onClose={() => setEditing(false)}
+        footer={
+          <Button
+            loading={update.isPending}
+            onClick={() =>
+              update.mutate({
+                id: line.id,
+                expectedUpdatedAt: line.updatedAt,
+                patch: {
+                  quantity: Number(quantity.replace(",", ".")) || line.quantity,
+                  unitPrice: unitPrice ?? line.unitPrice,
+                  discountRate: Math.min(100, Math.max(0, Number(discount) || 0)),
+                },
+              })
+            }
+          >
+            {t("save")}
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">{line.description}</span>
+          <Input
+            label={t("lines.quantity")}
+            inputMode="decimal"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
+          <label className="flex flex-col gap-1 text-sm">
+            <span>{t("lines.unitPrice")}</span>
+            <MoneyInput
+              aria-label={t("lines.unitPrice")}
+              value={unitPrice}
+              onChange={setUnitPrice}
+            />
+          </label>
+          <Input
+            label={t("lines.discount")}
+            inputMode="numeric"
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value.replace(/\D/g, ""))}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }
