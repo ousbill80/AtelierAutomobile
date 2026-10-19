@@ -64,3 +64,19 @@ export function normalizePhoneCI(input: string): NormalizedPhone {
 export function isValidPhoneCI(e164: string): boolean {
   return new RegExp(`^\\+${COUNTRY_CODE}\\d{10}$`).test(e164);
 }
+
+export type PhoneLineType = "MOBILE" | "FIXED";
+
+/** Préfixes ivoiriens de lignes fixes (après +225) : 21, 25, 27 (RG-M10-11, M10 §4.3). */
+const FIXED_LINE_PREFIXES = ["21", "25", "27"];
+
+/**
+ * RG-M10-11 — classifie un numéro E.164 ivoirien en `FIXED` (ne reçoit ni SMS ni WhatsApp) ou
+ * `MOBILE`. Un numéro mal formé (hors `+225` + 10 chiffres) est traité comme `MOBILE` par défaut
+ * (prudence : on ne veut pas exclure un canal à tort sur une erreur de format).
+ */
+export function classifyPhoneCI(e164: string): PhoneLineType {
+  const match = new RegExp(`^\\+${COUNTRY_CODE}(\\d{2})`).exec(e164);
+  const prefix = match?.[1];
+  return prefix && FIXED_LINE_PREFIXES.includes(prefix) ? "FIXED" : "MOBILE";
+}

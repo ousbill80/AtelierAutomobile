@@ -23,8 +23,8 @@ export {
   ttcToHt,
 } from "./money";
 
-export type { NormalizedPhone, PhoneStatus } from "./phone";
-export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./phone";
+export type { NormalizedPhone, PhoneStatus, PhoneLineType } from "./phone";
+export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, classifyPhoneCI } from "./phone";
 
 export type { NormalizedPlate, PlateType } from "./plate";
 export { normalizePlate } from "./plate";
@@ -172,6 +172,13 @@ export type {
   ReminderStopEvent,
   ReminderSuppressionRecord,
   SuppressionTarget,
+  TemplateVariables,
+  IndividualRecipientInput,
+  ResolvedRecipient,
+  ResolveChannelsInput,
+  ApprovalMode,
+  InitialStatusInput,
+  ReminderSettings,
 } from "./reminders";
 export {
   DEFAULT_MIN_GAP_DAYS as REMINDER_DEFAULT_MIN_GAP_DAYS,
@@ -232,4 +239,14 @@ export {
   buildStopSequenceSuppression,
   buildReplyPauseSuppression,
   liftSuppressionsForSequence,
+  renderTemplate,
+  extractTemplateVariables,
+  resolveIndividualRecipient,
+  resolveReminderChannels,
+  initialReminderStatus,
+  isDispatchPaused,
+  DEFAULT_APPROVAL_MODE,
+  NO_CHANNEL,
+  DEFAULT_REMINDER_SETTINGS,
+  parseReminderSettings,
 } from "./reminders";

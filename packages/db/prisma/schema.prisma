@@ -320,6 +320,7 @@ model Customer {
   notes             String?
   source            String? // "import", "portail", "comptoir"
   origin            RecordOrigin @default(NATIVE)
+  phoneInvalidAt    DateTime? // M10 §14, RG-M10-32 : 2 échecs définitifs sur ce numéro, plus aucun envoi jusqu'à modification
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?
@@ -412,10 +413,13 @@ model Vehicle {
   lastServiceMileage    Int?
   nextServiceDueDate    DateTime?     @db.Date // calculé (M10)
   nextServiceDueMileage Int? // calculé
+  serviceDueBasis       String? // M10 §14 : "date" | "km" — base ayant déterminé nextServiceDueDate
   // Assurance
   insuranceCompanyId    String?
   insuranceExpiryDate   DateTime?     @db.Date
   insurancePolicyNumber String?
+  inspectionExpiryEstimated Boolean  @default(false) // M10 §14, RG-M10-30 : date déduite (pas de VT connue)
+  dataQualityFlags      String[]      @default([]) // M10 §14 : "inspection_date_suspect", "duplicate_plate"
   notes                 String?
   origin                RecordOrigin  @default(NATIVE)
   createdAt             DateTime      @default(now())

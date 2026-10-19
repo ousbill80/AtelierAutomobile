@@ -162,6 +162,7 @@ model Customer {
   tags               String[]
   notes              String?
   source             String?                   // "import", "portail", "comptoir"
+  phoneInvalidAt     DateTime?                 // M10 §14, RG-M10-32 : 2 échecs définitifs sur ce numéro, plus aucun envoi jusqu'à modification de la fiche
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
@@ -220,10 +221,13 @@ model Vehicle {
   lastServiceMileage        Int?
   nextServiceDueDate        DateTime? @db.Date       // calculé (M10)
   nextServiceDueMileage     Int?                     // calculé
+  serviceDueBasis           String?                  // M10 §14 : "date" | "km" — base ayant déterminé nextServiceDueDate
   // Assurance
   insuranceCompanyId        String?
   insuranceExpiryDate       DateTime? @db.Date
   insurancePolicyNumber     String?
+  inspectionExpiryEstimated Boolean @default(false)  // M10 §14, RG-M10-30 : date déduite (pas de VT connue)
+  dataQualityFlags          String[]                 // M10 §14 : "inspection_date_suspect", "duplicate_plate"
   notes                     String?
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
@@ -757,7 +761,7 @@ model ReminderRule {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
-enum ReminderType { INSPECTION SERVICE RECEIVABLE APPOINTMENT QUOTE_FOLLOWUP VEHICLE_READY INSURANCE_EXPIRY SATISFACTION CUSTOM }
+enum ReminderType { INSPECTION SERVICE RECEIVABLE APPOINTMENT QUOTE_FOLLOWUP VEHICLE_READY INSURANCE_EXPIRY SATISFACTION RECOMMENDED_WORK CUSTOM }
 
 model Reminder {                                  // une occurrence planifiée
   id              String @id @default(cuid())
@@ -783,13 +787,48 @@ model Reminder {                                  // une occurrence planifiée
   outcome         ReminderOutcome?
   outcomeAt       DateTime?
   dedupeKey       String                        // ex. "INSPECTION:veh_123:2026-11-02:J-30"
+  // M10 §14 — regroupement, priorisation et traçabilité d'envoi
+  sequenceKey       String?                     // "INSPECTION:veh_123:2026-11-02" (sans le palier)
+  groupKey          String?                     // regroupement d'envoi (RG-M10-15)
+  messageId         String?                     // message M11 portant cette relance (partagé dans un groupe)
+  priority          Int @default(5)             // RG-M10-16
+  renderedSubject   String?
+  editedBody        Boolean @default(false)
+  editedById        String?
+  editedContext     Json?
+  supersededById    String?
+  approvalExpiresAt DateTime?
+  deferCount        Int @default(0)             // reports anti-spam
+  isCatchUp         Boolean @default(false)
+  attributedAmount  Int?                        // FCFA récupérés (créances)
+  attributedRevenue Int?                        // CA de l'OR issu de la relance (VT, révision)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   @@unique([organizationId, dedupeKey])
   @@index([organizationId, status, scheduledFor])
+  @@index([organizationId, sequenceKey])
+  @@index([organizationId, customerId, status])
+  @@index([organizationId, groupKey])
 }
 enum ReminderStatus { PLANNED NEEDS_APPROVAL QUEUED SENT FAILED SKIPPED SNOOZED CANCELLED }
-enum ReminderOutcome { APPOINTMENT_BOOKED PAID PARTIALLY_PAID PROMISED REPLIED NO_RESPONSE OPTED_OUT }
+enum ReminderOutcome { APPOINTMENT_BOOKED PAID PARTIALLY_PAID PROMISED REPLIED NO_RESPONSE OPTED_OUT VISITED QUOTE_ACCEPTED VEHICLE_PICKED_UP }
+
+model ReminderSuppression {                      // M10 §14 — suspensions/arrêts de séquence (RG-M10-21/22)
+  id             String @id @default(cuid())
+  organizationId String
+  sequenceKey    String?
+  customerId     String?
+  vehicleId      String?
+  type           ReminderType?
+  until          DateTime?                       // null = permanente
+  reason         String                          // "RDV pris le 24/10/2026", "VT effectuée", "Litige"
+  source         String                          // appointment | inspection_done | staff | collection
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, sequenceKey])
+  @@index([organizationId, customerId, type])
+  @@index([organizationId, vehicleId, type])
+}
 
 model MessageTemplate {
   id                 String @id @default(cuid())
@@ -1085,32 +1124,32 @@ model AiInteraction {                             // trace des appels IA (coût,
 
 ## 3. Règles d'intégrité
 
-| Règle | Où |
-|---|---|
-| `Invoice.number` attribué uniquement à l'émission, séquence sans trou par organisation et par année | `core/numbering` + `DocumentSequence` en transaction |
-| Une facture `ISSUED` n'est plus modifiable ; correction = **avoir** (`CREDIT_NOTE`) | M08 |
-| `Invoice.amountPaid` = somme des `PaymentAllocation.amount` ; `balance = total - amountPaid` ; statut recalculé à chaque allocation | `core/receivables` |
-| `StockLevel.onHand` = somme des `StockMovement.quantity` ; jamais modifié sans mouvement | M07 |
-| `StockLevel.reserved` ≤ `onHand` sauf autorisation de stock négatif | M07 |
-| `Reminder.dedupeKey` unique → impossible d'envoyer deux fois le même palier pour la même échéance | M10 |
-| `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés | M02 |
-| `Customer.phone` normalisé E.164 | `core/phone` |
-| Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt) | M11 |
+| Règle                                                                                                                               | Où                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `Invoice.number` attribué uniquement à l'émission, séquence sans trou par organisation et par année                                 | `core/numbering` + `DocumentSequence` en transaction |
+| Une facture `ISSUED` n'est plus modifiable ; correction = **avoir** (`CREDIT_NOTE`)                                                 | M08                                                  |
+| `Invoice.amountPaid` = somme des `PaymentAllocation.amount` ; `balance = total - amountPaid` ; statut recalculé à chaque allocation | `core/receivables`                                   |
+| `StockLevel.onHand` = somme des `StockMovement.quantity` ; jamais modifié sans mouvement                                            | M07                                                  |
+| `StockLevel.reserved` ≤ `onHand` sauf autorisation de stock négatif                                                                 | M07                                                  |
+| `Reminder.dedupeKey` unique → impossible d'envoyer deux fois le même palier pour la même échéance                                   | M10                                                  |
+| `Vehicle.plate` normalisée (majuscules, espaces simples) et unique **par organisation** parmi les véhicules non supprimés           | M02                                                  |
+| `Customer.phone` normalisé E.164                                                                                                    | `core/phone`                                         |
+| Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
 
 ## 4. Variables de modèles de messages
 
 Disponibles dans `MessageTemplate.body` (moteur **Handlebars**, sans exécution de code) :
 
-| Variable | Exemple |
-|---|---|
-| `{{client.civilite}}` `{{client.nom}}` `{{client.prenom}}` `{{client.nomComplet}}` | M. · Kouassi · Jean-Marc |
-| `{{vehicule.marque}}` `{{vehicule.modele}}` `{{vehicule.plaque}}` | Toyota · Corolla · 2547 GH 01 |
-| `{{vt.dateExpiration}}` `{{vt.joursRestants}}` | 02/11/2026 · 15 |
-| `{{revision.dateEcheance}}` `{{revision.kmEcheance}}` `{{vehicule.kmEstime}}` | 15/12/2026 · 25 000 · 24 200 |
+| Variable                                                                                                        | Exemple                            |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `{{client.civilite}}` `{{client.nom}}` `{{client.prenom}}` `{{client.nomComplet}}`                              | M. · Kouassi · Jean-Marc           |
+| `{{vehicule.marque}}` `{{vehicule.modele}}` `{{vehicule.plaque}}`                                               | Toyota · Corolla · 2547 GH 01      |
+| `{{vt.dateExpiration}}` `{{vt.joursRestants}}`                                                                  | 02/11/2026 · 15                    |
+| `{{revision.dateEcheance}}` `{{revision.kmEcheance}}` `{{vehicule.kmEstime}}`                                   | 15/12/2026 · 25 000 · 24 200       |
 | `{{facture.numero}}` `{{facture.montant}}` `{{facture.solde}}` `{{facture.echeance}}` `{{facture.joursRetard}}` | FAC-2026-000412 · 185 000 FCFA · … |
-| `{{client.soldeTotal}}` `{{client.nbFacturesOuvertes}}` | 1 240 000 FCFA · 3 |
-| `{{lien.paiement}}` `{{lien.devis}}` `{{lien.facture}}` `{{lien.rdv}}` | liens courts du portail |
-| `{{rdv.date}}` `{{rdv.heure}}` | 24/10/2026 · 09:00 |
-| `{{devis.numero}}` `{{devis.montant}}` `{{devis.validite}}` | |
-| `{{garage.nom}}` `{{garage.telephone}}` `{{garage.adresse}}` `{{garage.horaires}}` | |
-| `{{paiement.wave}}` `{{paiement.orangeMoney}}` `{{paiement.mtn}}` | numéros marchands |
+| `{{client.soldeTotal}}` `{{client.nbFacturesOuvertes}}`                                                         | 1 240 000 FCFA · 3                 |
+| `{{lien.paiement}}` `{{lien.devis}}` `{{lien.facture}}` `{{lien.rdv}}`                                          | liens courts du portail            |
+| `{{rdv.date}}` `{{rdv.heure}}`                                                                                  | 24/10/2026 · 09:00                 |
+| `{{devis.numero}}` `{{devis.montant}}` `{{devis.validite}}`                                                     |                                    |
+| `{{garage.nom}}` `{{garage.telephone}}` `{{garage.adresse}}` `{{garage.horaires}}`                              |                                    |
+| `{{paiement.wave}}` `{{paiement.orangeMoney}}` `{{paiement.mtn}}`                                               | numéros marchands                  |

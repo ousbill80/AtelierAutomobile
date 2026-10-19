@@ -132,3 +132,20 @@ export {
   buildReplyPauseSuppression,
   liftSuppressionsForSequence,
 } from "./suppression";
+
+export type { TemplateVariables } from "./render";
+export { renderTemplate, extractTemplateVariables } from "./render";
+
+export type { IndividualRecipientInput, ResolvedRecipient, ResolveChannelsInput } from "./channel";
+export { resolveIndividualRecipient, resolveReminderChannels } from "./channel";
+
+export type { ApprovalMode, InitialStatusInput } from "./approval";
+export {
+  initialReminderStatus,
+  isDispatchPaused,
+  DEFAULT_APPROVAL_MODE,
+  NO_CHANNEL,
+} from "./approval";
+
+export type { ReminderSettings } from "./settings";
+export { DEFAULT_REMINDER_SETTINGS, parseReminderSettings } from "./settings";

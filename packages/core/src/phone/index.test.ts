@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./index";
+import { classifyPhoneCI, convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./index";
 
 describe("normalizePhoneCI — formats tolérés", () => {
   it.each([
@@ -45,5 +45,25 @@ describe("isValidPhoneCI", () => {
     expect(isValidPhoneCI("+2250712345678")).toBe(true);
     expect(isValidPhoneCI("0712345678")).toBe(false);
     expect(isValidPhoneCI("+22507123456")).toBe(false);
+  });
+});
+
+describe("classifyPhoneCI", () => {
+  it.each(["+2252112345678", "+2252512345678", "+2252712345678"])(
+    "classe %s comme FIXED",
+    (e164) => {
+      expect(classifyPhoneCI(e164)).toBe("FIXED");
+    },
+  );
+
+  it.each(["+2250712345678", "+2250112345678", "+2250512345678"])(
+    "classe %s comme MOBILE",
+    (e164) => {
+      expect(classifyPhoneCI(e164)).toBe("MOBILE");
+    },
+  );
+
+  it("traite un numéro mal formé comme MOBILE par prudence", () => {
+    expect(classifyPhoneCI("not-a-phone")).toBe("MOBILE");
   });
 });
