@@ -805,7 +805,7 @@
     },
     "help": {
       "receivables": "Somme des soldes des factures émises non réglées (y compris en litige), à l'instant présent.",
-      "recovered": "Paiements reçus sur une facture dans les 14 jours suivant une relance de créance (dernier contact).",
+      "recovered": "Paiements reçus dans les 14 jours suivant une relance de créance (dernier contact, relance ou appel tracé).",
       "returnRate": "Véhicules revenus (RDV ou visite) entre la première relance et l'échéance + 30 j (VT) ou + 60 j (révision). Les échéances encore dans ce délai sont « en cours ».",
       "dso": "Encours ÷ CA TTC des 90 derniers jours × 90."
     },
@@ -841,10 +841,10 @@
       "aged": "Balance âgée",
       "buckets": {
         "notDue": "Non échu",
-        "d1_30": "1 à 30 j",
-        "d31_60": "31 à 60 j",
-        "d61_90": "61 à 90 j",
-        "d90plus": "Plus de 90 j"
+        "b0_30": "1 à 30 j",
+        "b31_60": "31 à 60 j",
+        "b61_90": "61 à 90 j",
+        "b90p": "Plus de 90 j"
       },
       "overdue": "En retard",
       "disputed": "En litige",
