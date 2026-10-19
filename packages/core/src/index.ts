@@ -23,7 +23,7 @@ export {
   ttcToHt,
 } from "./money";
 
-export type { NormalizedPhone, PhoneStatus } from "./phone";
+export type { NormalizedPhone, PhoneOperator, PhoneStatus, PhoneType } from "./phone";
 export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./phone";
 
 export type { NormalizedPlate, PlateType } from "./plate";

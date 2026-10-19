@@ -1,4 +1,5 @@
-export type PlateType = "STANDARD" | "TEMPORARY" | "DIPLOMATIC" | "OTHER" | "NONE";
+export type PlateType =
+  "STANDARD" | "TEMPORARY" | "DIPLOMATIC" | "GOVERNMENT" | "FOREIGN" | "OTHER" | "NONE";
 
 export interface NormalizedPlate {
   raw: string;
