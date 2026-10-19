@@ -15,6 +15,7 @@ AtelierOS est un logiciel de gestion d'atelier automobile pour la Côte d'Ivoire
 - Jamais de commit ni de push direct sur `main`. Le code n'atteint `main` que par fusion d'une branche d'étape, après `pnpm check` vert et relecture.
 - Avant de committer ou de modifier des fichiers, vérifie `git status` : si une autre session a des changements en cours (sur `main` ou une autre branche) que tu n'as pas toi-même produits, ne commit pas à sa place et ne réécris pas ses fichiers. Attends qu'elle fusionne sa branche, ou prends une étape différente sur une branche séparée.
 - Deux sessions ne travaillent jamais sur la même étape en même temps.
+- **Réserver avant de coder** : une étape se réserve dans `docs/etapes-en-cours.md` (commit fusionné dans `main`, après `git fetch origin main`) avant toute ligne de code. Étape déjà listée = étape prise. Retirer la ligne à la fusion de la branche.
 
 ## Ordre de vérité
 
