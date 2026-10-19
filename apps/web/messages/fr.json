@@ -373,6 +373,9 @@
     "auth.login.failed": "Connexion échouée",
     "auth.login.success": "Connexion réussie",
     "auth.otp_new_device": "Vérification nouvel appareil",
+    "contact.created": "Contact client ajouté",
+    "contact.deleted": "Contact client supprimé",
+    "contact.updated": "Contact client modifié",
     "member.deactivated": "Membre désactivé",
     "member.invited": "Membre invité",
     "member.joined": "Membre a rejoint l'organisation",
@@ -860,5 +863,37 @@
       }
     },
     "dash": "—"
+  },
+  "customers": {
+    "contacts": {
+      "title": "Contacts",
+      "add": "Ajouter un contact",
+      "createTitle": "Nouveau contact",
+      "editTitle": "Modifier le contact",
+      "deleteTitle": "Supprimer le contact",
+      "deleteConfirm": "Supprimer « {name} » ? Les messages déjà envoyés restent dans l'historique.",
+      "loadError": "Impossible de charger les contacts.",
+      "retry": "Réessayer",
+      "empty": {
+        "title": "Aucun contact.",
+        "description": "Sans contact coché, les messages partent au téléphone principal du client."
+      },
+      "badges": {
+        "primary": "Contact principal",
+        "reminders": "Reçoit les relances",
+        "invoices": "Reçoit les factures"
+      },
+      "fields": {
+        "name": "Nom",
+        "role": "Fonction",
+        "rolePlaceholder": "Responsable flotte, Comptabilité…",
+        "phone": "Téléphone",
+        "phone2": "Téléphone 2",
+        "email": "Email",
+        "isPrimary": "Contact principal",
+        "receivesReminders": "Reçoit les relances (visite technique, révision)",
+        "receivesInvoices": "Reçoit les factures et relances de créances"
+      }
+    }
   }
 }

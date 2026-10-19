@@ -143,6 +143,7 @@ export type {
   CustomerListInput,
   MergeCustomerInput,
   SetConsentInput,
+  UpdateContactInput,
   VehicleQuickCreateInput,
 } from "./customer";
 export {
@@ -159,6 +160,7 @@ export {
   deleteContactInputSchema,
   deleteCustomerInputSchema,
   dismissDuplicateInputSchema,
+  listContactsInputSchema,
   mergeCustomerInputSchema,
   mergePreviewInputSchema,
   reactivateRemindersInputSchema,
