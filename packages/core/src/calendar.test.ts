@@ -97,3 +97,15 @@ describe("today — horloge injectable", () => {
     expect(today(clock, TZ)).toBe("25/12/2026");
   });
 });
+
+describe("businessDate", () => {
+  it("renvoie le jour civil local à minuit UTC", async () => {
+    const { businessDate } = await import("./calendar");
+    expect(businessDate(new Date("2026-10-18T23:30:00Z"), "Africa/Abidjan").toISOString()).toBe(
+      "2026-10-18T00:00:00.000Z",
+    );
+    expect(businessDate(new Date("2026-10-18T23:30:00Z"), "Europe/Paris").toISOString()).toBe(
+      "2026-10-19T00:00:00.000Z",
+    );
+  });
+});

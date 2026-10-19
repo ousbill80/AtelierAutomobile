@@ -122,3 +122,8 @@ export function subBusinessDays(
 export function today(clock: Clock, timeZone: string): string {
   return formatDate(clock.now(), timeZone);
 }
+
+/** Jour civil local de `date` dans `timeZone`, exprimé comme un `@db.Date` (minuit UTC). */
+export function businessDate(date: Date, timeZone: string): Date {
+  return new Date(`${toDateKey(date, timeZone)}T00:00:00.000Z`);
+}

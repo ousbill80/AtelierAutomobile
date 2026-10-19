@@ -6,6 +6,7 @@ export { DomainError, isDomainError } from "./errors";
 export type { BusinessDayOptions, HolidayLike, Weekday } from "./calendar";
 export {
   addBusinessDays,
+  businessDate,
   DEFAULT_WEEKLY_CLOSURE,
   formatDate,
   isBusinessDay,
