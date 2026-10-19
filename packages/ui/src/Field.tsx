@@ -46,14 +46,24 @@ export function Field({ label, hint, error, htmlFor, children }: FieldProps) {
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean;
+  /** Raccourci : enveloppe le champ dans un `Field` avec ce libellé (et `hint`). */
+  label?: string;
+  hint?: string;
 }
 
-export function Input({ invalid, className, ...rest }: InputProps) {
-  return (
+export function Input({ invalid, className, label, hint, ...rest }: InputProps) {
+  const input = (
     <input
       className={["input", invalid ? "invalid" : "", className ?? ""].filter(Boolean).join(" ")}
       {...rest}
     />
+  );
+  return label || hint ? (
+    <Field label={label} hint={hint}>
+      {input}
+    </Field>
+  ) : (
+    input
   );
 }
 

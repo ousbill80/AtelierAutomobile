@@ -8,6 +8,7 @@ import type { db } from "@atelieros/db";
 import { writeAuditLog } from "@atelieros/db";
 import {
   mergeFields,
+  normalizePlate,
   resolveVehicleMatchKey,
   type ImportPolicy,
   type RowOutcome,
@@ -133,6 +134,9 @@ export async function applyVehicleRow(input: ApplyVehicleRowInput): Promise<Appl
         model: "Inconnu",
         ...fields,
         plate: plate!,
+        // M02 (RG-M02-05) : unicité par organisation sur plateCompact.
+        plateCompact: normalizePlate(plate!).plateCompact,
+        plateType: normalizePlate(plate!).plateType,
       },
     });
     await writeAuditLog({

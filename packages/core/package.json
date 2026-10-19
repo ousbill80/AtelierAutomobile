@@ -21,7 +21,8 @@
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
     "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0"
+    "date-fns-tz": "^3.2.0",
+    "handlebars": "^4.7.10"
   },
   "devDependencies": {
     "@atelieros/config": "workspace:*",

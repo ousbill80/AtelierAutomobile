@@ -1,16 +1,20 @@
+import type { ReactNode } from "react";
+
 export type StatusTone = "ok" | "warn" | "bad" | "off";
 
 export interface StatusBadgeProps {
   tone: StatusTone;
-  label: string;
+  label?: string;
+  /** Alternative à `label` pour un contenu composé. */
+  children?: ReactNode;
 }
 
 /** Statut toujours couleur + pastille + texte (jamais la couleur seule). */
-export function StatusBadge({ tone, label }: StatusBadgeProps) {
+export function StatusBadge({ tone, label, children }: StatusBadgeProps) {
   return (
     <span className={`pill pill-${tone}`}>
       <span className="dot" />
-      {label}
+      {label ?? children}
     </span>
   );
 }

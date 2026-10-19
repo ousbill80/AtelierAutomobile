@@ -19,16 +19,26 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
+    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
+      : undefined,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "pnpm start",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    // RG-M13-24 : pilote "inline" (traitement synchrone, sans worker séparé)
-    // pour que le serveur de prod lancé par Playwright traite les imports
-    // sans dépendre d'un process `apps/worker` distinct.
-    env: { ...process.env, IMPORT_QUEUE_DRIVER: "inline" },
-  },
+  // M11 (RG-M11-01) : l'envoi réel passe par la file BullMQ, traitée par apps/worker — sans
+  // lui, un message reste QUEUED pour toujours et n'apparaît jamais dans /dev/outbox.
+  webServer: [
+    {
+      command: "pnpm start",
+      url: "http://localhost:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      // RG-M13-24 : pilote "inline" pour les imports, sans worker dédié.
+      env: { ...process.env, IMPORT_QUEUE_DRIVER: "inline" },
+    },
+    {
+      command: "pnpm --filter @atelieros/worker dev",
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+  ],
 });

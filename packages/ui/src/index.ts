@@ -57,3 +57,6 @@ export {
   type TopbarProps,
   type DropdownMenuProps,
 } from "./AppShell";
+// Ajouts M02/M10 (badges plaque et échéance) ; les autres composants existent déjà ci-dessus.
+export { PlateBadge, type PlateBadgeProps } from "./plate-badge";
+export { DueBadge, type DueBadgeProps } from "./due-badge";

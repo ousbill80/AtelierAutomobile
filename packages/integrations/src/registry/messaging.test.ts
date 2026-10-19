@@ -76,13 +76,13 @@ describe("resolveMessagingProvider", () => {
     ).resolves.toMatchObject({ channel: "SMS" });
   });
 
-  it("lève une erreur explicite pour un fournisseur réel pas encore implémenté", async () => {
+  it("lève une erreur explicite pour un fournisseur inconnu", async () => {
     await expect(
       resolveMessagingProvider("org_1", "SMS", {
         store: storeWith([
           {
             channel: "SMS",
-            provider: "orange_sms",
+            provider: "unknown_sms",
             isActive: true,
             priority: 1,
             credentials: encryptSecret(JSON.stringify({ apiKey: "x" }), key),
@@ -92,6 +92,6 @@ describe("resolveMessagingProvider", () => {
         encryptionKey: key,
         outbox: new MessagingOutbox(),
       }),
-    ).rejects.toThrow(/orange_sms.*pas encore implémenté/);
+    ).rejects.toThrow(/unknown_sms.*pas encore implémenté/);
   });
 });

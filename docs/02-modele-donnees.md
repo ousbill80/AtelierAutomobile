@@ -165,25 +165,40 @@ model Customer {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
+  // M02 §14
+  consentUpdatedAt   DateTime?
+  consentSource      String?                   // counter | phone | whatsapp_reply | portal | import | staff
+  mergedIntoId       String?                   // client cible après fusion (RG-M02-08)
+  anonymizedAt       DateTime?
+  lastVisitAt        DateTime?                 // dénormalisé (dernier OR livré ou facture), pour tri/filtre
+  // M10 §14
+  phoneInvalidAt     DateTime?                 // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
   @@index([organizationId, phone])
+  @@index([organizationId, phone2])
+  @@index([organizationId, email])
+  // index trigram : CREATE INDEX customer_display_name_trgm ON "Customer" USING gin ("displayName" gin_trgm_ops);
 }
 enum CustomerType { INDIVIDUAL COMPANY }
 enum Civility { M MME MLLE }
 enum Channel { WHATSAPP SMS EMAIL }
 
 model CustomerContact {                         // interlocuteurs d'une entreprise
-  id             String @id @default(cuid())
-  organizationId String
-  customerId     String
-  name           String
-  role           String?                        // "Responsable flotte", "Comptabilité"
-  phone          String?
-  email          String?
+  id                String @id @default(cuid())
+  organizationId    String
+  customerId        String
+  name              String
+  role              String?                        // "Responsable flotte", "Comptabilité"
+  phone             String?
+  phone2            String?                        // M02 §14
+  email             String?
   receivesInvoices  Boolean @default(false)
   receivesReminders Boolean @default(false)
+  isPrimary         Boolean  @default(false)       // M02 §14
+  createdAt         DateTime @default(now())       // M02 §14
+  deletedAt         DateTime?                      // M02 §14
 }
 
 model Vehicle {
@@ -191,9 +206,14 @@ model Vehicle {
   organizationId            String
   customerId                String
   plate                     String                   // normalisée : majuscules, sans espaces multiples
+  plateCompact              String                   // "2547GH01" — unicité et recherche (RG-M02-05)
+  plateType                 PlateType @default(STANDARD)
+  usage                     VehicleUsage @default(PRIVATE)
   vin                       String?
   make                      String                   // Toyota
   model                     String                   // Corolla
+  makeId                    String?                  // lien catalogue (facultatif, make/model restent la vérité affichée)
+  modelId                   String?
   version                   String?
   year                      Int?
   firstRegistrationDate     DateTime? @db.Date
@@ -209,6 +229,8 @@ model Vehicle {
   currentMileageAt          DateTime?
   avgKmPerDay               Float?                   // calculé à partir des relevés
   estimatedMileage          Int?                     // estimé du jour (worker)
+  odometerOffset            Int     @default(0)      // après remplacement de compteur (RG-M02-09)
+  odometerInMiles           Boolean @default(false)
   // Visite technique
   inspectionLastDate        DateTime? @db.Date
   inspectionExpiryDate      DateTime? @db.Date
@@ -220,20 +242,34 @@ model Vehicle {
   lastServiceMileage        Int?
   nextServiceDueDate        DateTime? @db.Date       // calculé (M10)
   nextServiceDueMileage     Int?                     // calculé
+  nextServiceTrigger        String?                  // "DATE" | "MILEAGE" (RG-M02-13)
+  // M10 §14
+  serviceDueBasis           String?                  // "date" | "km" (laquelle a déterminé l'échéance)
+  inspectionExpiryEstimated Boolean  @default(false) // déduite de la dernière VT (RG-M10-30)
+  dataQualityFlags          String[]                 // "inspection_date_suspect", "duplicate_plate"
   // Assurance
   insuranceCompanyId        String?
   insuranceExpiryDate       DateTime? @db.Date
   insurancePolicyNumber     String?
   notes                     String?
+  mergedIntoId              String?                  // véhicule cible après fusion d'un doublon (RG-M02-08)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   deletedAt                 DateTime?
   @@index([organizationId, plate])
+  @@index([organizationId, plateCompact])
+  @@index([organizationId, vin])
   @@index([organizationId, inspectionExpiryDate])
   @@index([organizationId, nextServiceDueDate])
+  // unicité partielle + index trigram :
+  // CREATE UNIQUE INDEX vehicle_plate_unique ON "Vehicle" ("organizationId","plateCompact")
+  //   WHERE "deletedAt" IS NULL AND "plateType" <> 'NONE';
+  // CREATE INDEX vehicle_plate_compact_trgm ON "Vehicle" USING gin ("plateCompact" gin_trgm_ops);
 }
 enum FuelType { PETROL DIESEL HYBRID ELECTRIC LPG OTHER }
 enum Transmission { MANUAL AUTOMATIC }
+enum PlateType { STANDARD TEMPORARY DIPLOMATIC GOVERNMENT FOREIGN NONE OTHER }     // M02 §14
+enum VehicleUsage { PRIVATE TAXI TRANSPORT UTILITY RENTAL OTHER }                  // M02 §14
 
 model MileageReading {
   id             String @id @default(cuid())
@@ -244,6 +280,8 @@ model MileageReading {
   source         MileageSource
   repairOrderId  String?
   createdById    String?
+  isOutlier      Boolean  @default(false)   // M02 §14
+  createdAt      DateTime @default(now())   // M02 §14
 }
 enum MileageSource { RECEPTION IMPORT CUSTOMER MANUAL INVOICE }
 
@@ -255,6 +293,61 @@ model VehicleEvent {                             // historique libre (VT faite, 
   occurredAt     DateTime
   data           Json @default("{}")
   createdById    String?
+}
+
+model CustomerNote {                             // M02 §14 — notes internes datées (chronologie)
+  id             String @id @default(cuid())
+  organizationId String
+  customerId     String
+  vehicleId      String?
+  body           String
+  pinned         Boolean  @default(false)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  deletedAt      DateTime?
+}
+
+model DuplicateDismissal {                       // M02 §14 — paires de doublons ignorées (RG-M02-07)
+  id             String @id @default(cuid())
+  organizationId String
+  entity         String                          // customer | vehicle
+  idA            String                          // plus petit des deux id (ordre lexical)
+  idB            String
+  dismissedById  String?
+  createdAt      DateTime @default(now())
+  @@unique([organizationId, entity, idA, idB])
+}
+
+model CustomerSegment {                          // M02 §14 — segments enregistrés (campagnes M10, M12)
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  filters        Json                            // mêmes clés que customer.list / vehicle.list
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model VehicleMake {                              // M02 §14 — catalogue marques (RG-M02-20) ; organizationId null = global
+  id             String  @id @default(cuid())
+  organizationId String?
+  name           String                          // "Toyota"
+  isActive       Boolean @default(true)
+  @@unique([organizationId, name])
+}
+
+model VehicleModel {                             // M02 §14
+  id                    String  @id @default(cuid())
+  organizationId        String?
+  makeId                String
+  name                  String                   // "Corolla"
+  yearFrom              Int?
+  yearTo                Int?
+  defaultFuel           FuelType?
+  serviceIntervalKm     Int?                     // 10000
+  serviceIntervalMonths Int?                     // 12
+  isActive              Boolean @default(true)
+  @@unique([makeId, organizationId, name])
 }
 
 // ───────────── Rendez-vous ─────────────
@@ -759,7 +852,7 @@ model ReminderRule {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
-enum ReminderType { INSPECTION SERVICE RECEIVABLE APPOINTMENT QUOTE_FOLLOWUP VEHICLE_READY INSURANCE_EXPIRY SATISFACTION CUSTOM }
+enum ReminderType { INSPECTION SERVICE RECEIVABLE APPOINTMENT QUOTE_FOLLOWUP VEHICLE_READY INSURANCE_EXPIRY SATISFACTION RECOMMENDED_WORK CUSTOM }
 
 model Reminder {                                  // une occurrence planifiée
   id              String @id @default(cuid())
@@ -787,11 +880,49 @@ model Reminder {                                  // une occurrence planifiée
   dedupeKey       String                        // ex. "INSPECTION:veh_123:2026-11-02:J-30"
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  // M10 §14 — regroupement, priorisation et traçabilité d'envoi
+  sequenceKey       String?                     // "INSPECTION:veh_123:2026-11-02" (sans le palier)
+  groupKey          String?                     // regroupement d'envoi (RG-M10-15)
+  messageId         String?                     // message M11 portant cette relance (partagé dans un groupe)
+  priority          Int      @default(5)        // RG-M10-16
+  renderedSubject   String?
+  editedBody        Boolean  @default(false)
+  editedById        String?
+  editedContext     Json?                       // valeurs chiffrées au moment de la modification (RG-M10-25)
+  supersededById    String?
+  approvalExpiresAt DateTime?
+  deferCount        Int      @default(0)        // reports anti-spam
+  isCatchUp         Boolean  @default(false)
+  attributedAmount  Int?                        // FCFA récupérés (créances)
+  attributedRevenue Int?                        // CA de l'OR issu de la relance (VT, révision)
   @@unique([organizationId, dedupeKey])
   @@index([organizationId, status, scheduledFor])
+  @@index([organizationId, sequenceKey])
+  @@index([organizationId, customerId, status])
+  @@index([organizationId, groupKey])
 }
 enum ReminderStatus { PLANNED NEEDS_APPROVAL QUEUED SENT FAILED SKIPPED SNOOZED CANCELLED }
-enum ReminderOutcome { APPOINTMENT_BOOKED PAID PARTIALLY_PAID PROMISED REPLIED NO_RESPONSE OPTED_OUT }
+enum ReminderOutcome {
+  APPOINTMENT_BOOKED PAID PARTIALLY_PAID PROMISED REPLIED NO_RESPONSE OPTED_OUT
+  VISITED QUOTE_ACCEPTED VEHICLE_PICKED_UP        // M10 §14
+}
+
+model ReminderSuppression {                       // M10 §14, RG-M10-21
+  id             String @id @default(cuid())
+  organizationId String
+  sequenceKey    String?
+  customerId     String?
+  vehicleId      String?
+  type           ReminderType?
+  until          DateTime?                     // null = permanente
+  reason         String                        // "RDV pris le 24/10/2026", "VT effectuée", "Litige"
+  source         String                        // appointment | inspection_done | staff | collection
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, sequenceKey])
+  @@index([organizationId, customerId, type])
+  @@index([organizationId, vehicleId, type])
+}
 
 model MessageTemplate {
   id                 String @id @default(cuid())
@@ -805,7 +936,27 @@ model MessageTemplate {
   whatsappLanguage   String? @default("fr")
   whatsappStatus     String?                     // APPROVED | PENDING | REJECTED
   isActive           Boolean @default(true)
+  // M11 §14
+  type                   ReminderType?           // classement dans l'éditeur
+  isTransactional        Boolean  @default(false)
+  whatsappCategory       String?                 // UTILITY | MARKETING | AUTHENTICATION (effective)
+  whatsappParamMap       Json?                   // ["client.salutation","vehicule.marque",…]
+  whatsappRejectedReason String?
+  whatsappVersion        Int      @default(1)
+  isDefault              Boolean  @default(true)  // modèle livré non modifié
+  updatedAt              DateTime @updatedAt
   @@unique([organizationId, key, channel])
+}
+
+model QuickReply {                               // M11 §14 — réponse rapide (RG-M11-22)
+  id             String @id @default(cuid())
+  organizationId String
+  title          String
+  shortcut       String                          // "/prix-vidange"
+  body           String
+  templateKey    String?                         // modèle approuvé équivalent (hors fenêtre 24 h)
+  createdById    String?
+  @@unique([organizationId, shortcut])
 }
 
 model Conversation {
@@ -819,6 +970,11 @@ model Conversation {
   lastMessageAt   DateTime
   unreadCount     Int @default(0)
   lastIntent      String?                       // classé par l'IA (M17)
+  // M11 §14
+  whatsappWindowExpiresAt DateTime?
+  lastInboundAt           DateTime?
+  candidateCustomerIds    String[]               // numéro partagé, à trancher
+  createdAt               DateTime @default(now())
   @@unique([organizationId, channel, externalAddress])
 }
 enum ConversationStatus { OPEN PENDING CLOSED }
@@ -843,15 +999,51 @@ model Message {
   errorMessage       String?
   cost               Int?                        // FCFA
   fallbackOfId       String?                     // message d'origine si repli (WhatsApp → SMS)
+  idempotencyKey     String?                     // unique par organisation/canal
   sentById           String?                     // null = automatique
+  // M11 §14
+  kind                 MessageKind @default(REMINDER)
+  templateKey          String?
+  whatsappTemplateName String?                   // modèle Meta réellement utilisé
+  intent               String?                   // classement M17 (entrants)
+  intentConfidence     Float?
+  attemptCount         Int      @default(0)
+  nextRetryAt          DateTime?
+  failedAt             DateTime?
   createdAt          DateTime @default(now())
   sentAt             DateTime?
   deliveredAt        DateTime?
   readAt             DateTime?
+  @@unique([organizationId, idempotencyKey, channel])
   @@index([organizationId, providerMessageId])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, status, createdAt])
 }
 enum Direction { OUTBOUND INBOUND }
 enum MessageStatus { QUEUED SENDING SENT DELIVERED READ FAILED RECEIVED }
+enum MessageKind { REMINDER TRANSACTIONAL CONVERSATION DIGEST SYSTEM }  // M11 §14
+
+model MessageStatusEvent {                       // M11 §14 — idempotence des webhooks de statut
+  id                String @id @default(cuid())
+  organizationId    String
+  messageId         String
+  providerMessageId String
+  status            MessageStatus
+  occurredAt        DateTime
+  @@unique([providerMessageId, status])
+}
+
+model MessageAttempt {                           // M11 §14 — une tentative d'envoi fournisseur
+  id             String @id @default(cuid())
+  organizationId String
+  messageId      String
+  attempt        Int
+  startedAt      DateTime
+  finishedAt     DateTime?
+  outcome        String                          // OK | TEMPORARY | PERMANENT_RECIPIENT | PERMANENT_TEMPLATE | PERMANENT_CONFIG | RATE_LIMIT
+  providerCode   String?
+  providerRaw    Json?
+}
 
 model ChannelConfig {
   id             String @id @default(cuid())
@@ -865,6 +1057,10 @@ model ChannelConfig {
   status         String?                         // OK | ERROR
   lastCheckedAt  DateTime?
   balance        Int?                            // crédit SMS restant si disponible
+  // M11 §14
+  webhookVerifyToken String?
+  messagingTier      String?                     // palier de messagerie WhatsApp
+  lastError          String?
   @@unique([organizationId, channel, provider])
 }
 
@@ -875,6 +1071,9 @@ model OptOut {
   channel        Channel?
   reason         String?
   createdAt      DateTime @default(now())
+  // M11 §14
+  source         String?                         // keyword | email_link | staff | complaint
+  messageId      String?
   @@unique([organizationId, address, channel])
 }
 

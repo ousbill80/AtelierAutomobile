@@ -7,9 +7,11 @@ describe("createConsoleMessagingProvider", () => {
     const provider = createConsoleMessagingProvider("WHATSAPP", outbox);
 
     const result = await provider.send({
+      organizationId: "org_test",
       to: "+2250708123456",
       channel: "WHATSAPP",
       body: "AtelierOS : votre code est 482913. Il expire dans 5 minutes.",
+      idempotencyKey: "test:1",
     });
 
     expect(result.providerMessageId).toMatch(/^console_whatsapp_/);
@@ -24,9 +26,27 @@ describe("createConsoleMessagingProvider", () => {
     const outbox = new MessagingOutbox();
     const provider = createConsoleMessagingProvider("SMS", outbox);
 
-    await provider.send({ to: "+2250708123456", channel: "SMS", body: "premier" });
-    await provider.send({ to: "+2250708123456", channel: "SMS", body: "second" });
-    await provider.send({ to: "+2250000000000", channel: "SMS", body: "autre destinataire" });
+    await provider.send({
+      organizationId: "org_test",
+      to: "+2250708123456",
+      channel: "SMS",
+      body: "premier",
+      idempotencyKey: "test:1",
+    });
+    await provider.send({
+      organizationId: "org_test",
+      to: "+2250708123456",
+      channel: "SMS",
+      body: "second",
+      idempotencyKey: "test:2",
+    });
+    await provider.send({
+      organizationId: "org_test",
+      to: "+2250000000000",
+      channel: "SMS",
+      body: "autre destinataire",
+      idempotencyKey: "test:3",
+    });
 
     expect(outbox.lastFor("+2250708123456")?.body).toBe("second");
   });
@@ -42,7 +62,13 @@ describe("createConsoleMessagingProvider", () => {
   it("clear() vide l'outbox", async () => {
     const outbox = new MessagingOutbox();
     const provider = createConsoleMessagingProvider("SMS", outbox);
-    await provider.send({ to: "+2250708123456", channel: "SMS", body: "x" });
+    await provider.send({
+      organizationId: "org_test",
+      to: "+2250708123456",
+      channel: "SMS",
+      body: "x",
+      idempotencyKey: "test:1",
+    });
     outbox.clear();
     expect(outbox.list()).toHaveLength(0);
   });

@@ -77,6 +77,7 @@ export async function sendOtp(
     channel,
     body: `AtelierOS : votre code est ${code}. Il expire dans 5 minutes.`,
     templateKey: `otp.${purpose.toLowerCase()}`,
+    idempotencyKey: `otp:${key}:${now.getTime()}`,
   });
 
   return { sentVia: channel, retryAfterSec: OTP_RESEND_COOLDOWN_SECONDS };

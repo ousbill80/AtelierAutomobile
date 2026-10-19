@@ -92,6 +92,32 @@ export function addBusinessDays(
   return current;
 }
 
+/** Soustrait `days` jours ouvrés à `date` (ex. RG-M10-09 : repli d'un palier avant échéance). */
+export function subBusinessDays(
+  date: Date,
+  days: number,
+  timeZone: string,
+  options: BusinessDayOptions = {},
+): Date {
+  if (!Number.isInteger(days) || days <= 0) {
+    throw new DomainError(
+      "calendar.invalid_business_days",
+      "Le nombre de jours ouvrés doit être un entier positif.",
+      { days },
+    );
+  }
+
+  let remaining = days;
+  let current = date;
+  while (remaining > 0) {
+    current = new Date(current.getTime() - 24 * 60 * 60 * 1000);
+    if (isBusinessDay(current, timeZone, options)) {
+      remaining -= 1;
+    }
+  }
+  return current;
+}
+
 /** Date courante formatée pour affichage métier, à partir d'une horloge injectable (jamais `new Date()` direct). */
 export function today(clock: Clock, timeZone: string): string {
   return formatDate(clock.now(), timeZone);

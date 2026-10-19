@@ -8,6 +8,7 @@ import {
   defaultReminderRules,
   defaultSiteBays,
   defaultSiteOpeningHours,
+  normalizePlate,
 } from "@atelieros/core";
 import { adminDb, db, type Prisma } from "@atelieros/db";
 import { createConsoleMessagingProvider, type MessageChannel } from "@atelieros/integrations";
@@ -116,7 +117,9 @@ async function loadDemoDataFor(organizationId: string) {
       data: {
         organizationId,
         customerId: customer.id,
-        plate: demo.plate,
+        plate: normalizePlate(demo.plate).plate,
+        plateCompact: normalizePlate(demo.plate).plateCompact,
+        plateType: normalizePlate(demo.plate).plateType,
         make: demo.make,
         model: demo.model,
       },
@@ -360,6 +363,7 @@ async function saveTeamStep(
       channel: invite.channel as MessageChannel,
       body: `Vous êtes invité(e) à rejoindre ${org.name} sur AtelierOS. Lien d'invitation : /invitation/${token}`,
       templateKey: "invitation.created",
+      idempotencyKey: `inv:${token}:created`,
     });
 
     await writeAuditLog({
@@ -447,6 +451,7 @@ async function saveChannelsStep(
       channel: "WHATSAPP",
       body: "Ceci est un message de test AtelierOS.",
       templateKey: "onboarding.test",
+      idempotencyKey: `onboarding:test:${crypto.randomUUID()}`,
     });
     testSent = true;
   }

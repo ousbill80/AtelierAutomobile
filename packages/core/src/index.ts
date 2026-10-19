@@ -10,6 +10,7 @@ export {
   formatDate,
   isBusinessDay,
   isHoliday,
+  subBusinessDays,
   today,
 } from "./calendar";
 
@@ -23,8 +24,8 @@ export {
   ttcToHt,
 } from "./money";
 
-export type { NormalizedPhone, PhoneStatus } from "./phone";
-export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./phone";
+export type { NormalizedPhone, PhoneLineType, PhoneStatus } from "./phone";
+export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } from "./phone";
 
 export type { NormalizedPlate, PlateType } from "./plate";
 export { normalizePlate } from "./plate";
@@ -127,3 +128,137 @@ export {
 } from "./onboarding/seed";
 
 export * from "./import";
+export type { DisplayNameInput } from "./customers/display-name";
+export { computeDisplayName, titleCaseName } from "./customers/display-name";
+
+export type {
+  DuplicateScoreResult,
+  DuplicateSeverity,
+  DuplicateSignals,
+} from "./customers/duplicates";
+export {
+  DUPLICATE_BLOCK_THRESHOLD,
+  DUPLICATE_SUGGEST_THRESHOLD,
+  duplicateScore,
+  duplicateSeverity,
+} from "./customers/duplicates";
+
+export type { ConsentState, DedupeKeyed, FieldChoice } from "./customers/merge";
+export {
+  defaultFieldChoice,
+  mergeConsent,
+  mergeTags,
+  resolveDedupeKeyCollisions,
+  resolveField,
+} from "./customers/merge";
+
+export type {
+  AvgKmPerDayResult,
+  AvgKmPerDaySource,
+  MileageReadingLike,
+  VehicleUsage,
+} from "./vehicles/mileage";
+export { computeAvgKmPerDay, DEFAULT_AVG_KM_PER_DAY, estimateMileage } from "./vehicles/mileage";
+
+export type { InspectionStatus, ServiceDueStatus } from "./vehicles/status";
+export { inspectionStatus, serviceStatus } from "./vehicles/status";
+
+export type { ServiceDueInput, ServiceDueResult, ServiceDueTrigger } from "./reminders/serviceDue";
+export { computeNextServiceDue } from "./reminders/serviceDue";
+
+export { addDays, diffDays, isoDateOnly } from "./reminders/dates";
+
+export type { GroupKeyInput, RecipientAddress, SequenceKeyInput } from "./reminders/keys";
+export {
+  buildDedupeKey,
+  buildGroupKey,
+  buildManualDedupeKey,
+  buildPromiseBrokenDedupeKey,
+  buildRecipientKey,
+  buildSequenceKey,
+} from "./reminders/keys";
+
+export type {
+  PickStepHistoryEntry,
+  PickStepInput,
+  PickStepResult,
+  PickStepRuleStep,
+} from "./reminders/pickStep";
+export { pickStep, stepsToSupersede, targetDate } from "./reminders/pickStep";
+
+export { approvalExpiry } from "./reminders/approvalExpiry";
+
+export type { PriorityOfOptions, PriorityStep, ReminderTypeLike } from "./reminders/priority";
+export { priorityOf } from "./reminders/priority";
+
+export type { InitialReminderStatus, InitialStatusInput } from "./reminders/initialStatus";
+export { initialStatus } from "./reminders/initialStatus";
+
+export type { AntiSpamCountsInput } from "./reminders/antiSpam";
+export { antiSpamAllows, deferOutcome } from "./reminders/antiSpam";
+
+export type { GroupableReminder, GroupTemplateKeyInput } from "./reminders/grouping";
+export {
+  detectCombo,
+  formatVehicleList,
+  resolveGroupTemplateKey,
+  templateKeyCandidates,
+} from "./reminders/grouping";
+
+export type { ReminderOutcomeLike } from "./reminders/outcome";
+export { strongerOutcome } from "./reminders/outcome";
+
+export type { NextSendSlotInput, SendWindowLike } from "./reminders/nextSendSlot";
+export { nextSendSlot } from "./reminders/nextSendSlot";
+
+export type {
+  ClientNamespaceInput,
+  GarageNamespaceInput,
+  VehicleNamespaceInput,
+} from "./reminders/context";
+export { clientNamespace, garageNamespace, vehicleNamespace } from "./reminders/context";
+
+export type { SmsSegmentsResult } from "./messaging/smsSegments";
+export { isGsm7, nonGsmChars, smsSegments, transliterate } from "./messaging/smsSegments";
+
+export { isStartKeyword, isStopKeyword } from "./messaging/keywords";
+
+export type { OutboundMessageStatus } from "./messaging/status";
+export { nextStatus } from "./messaging/status";
+
+export type {
+  Channel,
+  ChannelCandidate,
+  PickChannelInput,
+  PickChannelResult,
+} from "./messaging/channel";
+export { pickChannel } from "./messaging/channel";
+
+export type {
+  FallbackDecisionInput,
+  FallbackDecisionResult,
+  FallbackSituation,
+} from "./messaging/fallback";
+export { fallbackDecision, whatsappFallbackDelayMinutes } from "./messaging/fallback";
+
+export type { ToWhatsappParamsResult } from "./messaging/whatsapp";
+export { toWhatsappParams, whatsappTemplateName } from "./messaging/whatsapp";
+
+export type {
+  RenderChannel,
+  RenderTemplateInput,
+  RenderTemplateResult,
+} from "./messaging/template";
+export { renderTemplate } from "./messaging/template";
+
+export { buildWaLinkUrl } from "./messaging/waLink";
+
+export {
+  applyJitter,
+  MAX_RETRY_ATTEMPTS,
+  retryBackoffMs,
+  TEMPORARY_ERROR_BACKOFF_MS,
+} from "./messaging/retry";
+
+export type { SendWindow } from "./messaging/sendWindow";
+export { isWithinSendWindow, nextSendWindowStart } from "./messaging/sendWindow";

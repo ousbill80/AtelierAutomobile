@@ -1,4 +1,8 @@
-export type PlateType = "STANDARD" | "TEMPORARY" | "DIPLOMATIC" | "OTHER" | "NONE";
+// GOVERNMENT et FOREIGN (schema M02 §14) ne sont jamais déduits automatiquement par
+// normalizePlate — une plaque étrangère au format libre reste OTHER (cf. tests) ; ces deux
+// valeurs sont réservées à un classement manuel explicite depuis la fiche véhicule.
+export type PlateType =
+  "STANDARD" | "TEMPORARY" | "DIPLOMATIC" | "GOVERNMENT" | "FOREIGN" | "OTHER" | "NONE";
 
 export interface NormalizedPlate {
   raw: string;

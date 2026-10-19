@@ -111,13 +111,18 @@ export const PERMISSIONS = [
   "receivable:manage",
   "receivable:writeoff",
   "receivable:dispute",
+  "receivable:formal_notice",
   // Relances / messages (M10, M11)
   "reminder:read",
   "reminder:approve",
   "reminder:rules_manage",
   "message:read",
   "message:send",
+  "message:assign",
+  "message:history",
   "template:manage",
+  "template:submit",
+  "optout:manage",
   // Pilotage (M12)
   "report:read",
   "report:financial",
@@ -220,8 +225,12 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["reminder:approve", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["reminder:rules_manage", ["MANAGER"]],
   ["template:manage", ["MANAGER"]],
+  ["template:submit", ["MANAGER"]],
+  ["optout:manage", ["MANAGER"]],
   ["message:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["message:send", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
+  ["message:assign", ["MANAGER", "ADVISOR"]],
+  ["message:history", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["report:read", ["MANAGER", "ACCOUNTANT"]],
   ["report:financial", ["ACCOUNTANT"]],
   ["import:run", ["MANAGER", "ACCOUNTANT"]],
@@ -233,7 +242,8 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   // org:update, site:manage, member:deactivate, role:manage, settings:update,
   // settings:channels, settings:payments, settings:fne, settings:billing,
   // repair_order:deliver_unpaid, invoice:void, invoice:price_below_min, payment:refund,
-  // receivable:writeoff, dashboard:owner, integration:manage, ai:configure.
+  // receivable:writeoff, receivable:formal_notice, dashboard:owner, integration:manage,
+  // ai:configure.
 ];
 
 function buildDefaultRolePermissions(): Record<NonOwnerRole, Permission[]> {

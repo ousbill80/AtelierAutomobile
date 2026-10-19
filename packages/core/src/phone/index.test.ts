@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI } from "./index";
+import { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } from "./index";
 
 describe("normalizePhoneCI — formats tolérés", () => {
   it.each([
@@ -45,5 +45,21 @@ describe("isValidPhoneCI", () => {
     expect(isValidPhoneCI("+2250712345678")).toBe(true);
     expect(isValidPhoneCI("0712345678")).toBe(false);
     expect(isValidPhoneCI("+22507123456")).toBe(false);
+  });
+});
+
+describe("phoneLineType — RG-M02-03", () => {
+  it("préfixes 01/05/07 → MOBILE", () => {
+    expect(phoneLineType("+2250712345678")).toBe("MOBILE");
+    expect(phoneLineType("+2250112345678")).toBe("MOBILE");
+    expect(phoneLineType("+2250512345678")).toBe("MOBILE");
+  });
+
+  it("préfixes 21/25/27 → FIXED (jamais WhatsApp ni SMS)", () => {
+    expect(phoneLineType("+2252722415500")).toBe("FIXED");
+  });
+
+  it("hors +225 → FOREIGN", () => {
+    expect(phoneLineType("+22670123456")).toBe("FOREIGN");
   });
 });
