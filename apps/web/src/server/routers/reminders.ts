@@ -26,6 +26,7 @@ import {
   markInspectionDoneInputSchema,
   markWaLinkSentInputSchema,
   previewReminderInputSchema,
+  reminderHistoryInputSchema,
   reminderQueueInputSchema,
   reminderStatsInputSchema,
   retryReminderInputSchema,
@@ -969,5 +970,50 @@ export const remindersRouter = router({
         }),
       ]);
       return { sent, failed, cancelled, skipped, outcomes };
+    }),
+
+  /** Historique détaillé (ligne par relance) — envois, échecs et motifs d'arrêt (M10 §7.3). */
+  history: requirePermission("reminder:stats")
+    .input(reminderHistoryInputSchema)
+    .query(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const where: Record<string, unknown> = {
+        createdAt: { gte: input.from, lte: input.to },
+        status: input.status ? input.status : { in: ["SENT", "FAILED", "CANCELLED", "SKIPPED"] },
+      };
+      if (input.type) where.type = input.type;
+
+      const items = await tenantDb.reminder.findMany({
+        where,
+        include: { customer: true, vehicle: true },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+      });
+
+      return {
+        items: items.map((r) => ({
+          id: r.id,
+          type: r.type,
+          stepKey: r.stepKey,
+          status: r.status,
+          channel: r.channel,
+          outcome: r.outcome,
+          outcomeAt: r.outcomeAt,
+          sentAt: r.sentAt,
+          skippedReason: r.skippedReason,
+          createdAt: r.createdAt,
+          customer: { id: r.customer.id, displayName: r.customer.displayName },
+          vehicle: r.vehicle
+            ? {
+                id: r.vehicle.id,
+                make: r.vehicle.make,
+                model: r.vehicle.model,
+                plate: r.vehicle.plate,
+              }
+            : null,
+        })),
+        nextCursor: items.length === input.limit ? (items[items.length - 1]?.id ?? null) : null,
+      };
     }),
 });

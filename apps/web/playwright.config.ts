@@ -8,6 +8,12 @@ if (existsSync(envPath)) {
   process.loadEnvFile(envPath);
 }
 
+// Plusieurs sessions d'agent (worktrees) peuvent tourner en parallèle sur cette machine ; un
+// port fixe ferait collisionner `pnpm test:e2e` avec le serveur dev d'une autre session.
+// `E2E_PORT` permet à chaque session de choisir son port sans toucher au comportement par défaut.
+const port = process.env.E2E_PORT ?? "3000";
+const baseURL = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -15,13 +21,14 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: "pnpm start",
-    url: "http://localhost:3000",
+    url: baseURL,
+    env: { PORT: port },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

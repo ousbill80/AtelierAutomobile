@@ -176,4 +176,24 @@ describe("reminders router (M10)", () => {
     const callerB = callerFactory(await contextFor(ownerB.token));
     await expect(callerB.reminders.get({ id: reminderA.id })).rejects.toThrow();
   });
+
+  it("reminders.history retourne les relances envoyées/échouées sur la période", async () => {
+    const caller = callerFactory(await contextFor(ownerA.token));
+    await adminDb.reminder.update({
+      where: { id: reminderA.id },
+      data: { status: "SENT", sentAt: new Date() },
+    });
+    const from = new Date(Date.now() - 86_400_000);
+    const to = new Date(Date.now() + 86_400_000);
+    const history = await caller.reminders.history({ from, to });
+    expect(history.items.map((i) => i.id)).toContain(reminderA.id);
+  });
+
+  it("isolation multi-locataire : reminders.history d'une autre organisation ne voit rien", async () => {
+    const callerB = callerFactory(await contextFor(ownerB.token));
+    const from = new Date(Date.now() - 86_400_000);
+    const to = new Date(Date.now() + 86_400_000);
+    const historyB = await callerB.reminders.history({ from, to });
+    expect(historyB.items).toHaveLength(0);
+  });
 });

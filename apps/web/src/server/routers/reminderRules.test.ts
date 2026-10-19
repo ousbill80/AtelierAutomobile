@@ -74,6 +74,9 @@ describe("reminderRules router (M10)", () => {
 
   afterAll(async () => {
     await adminDb.auditLog.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
+    await adminDb.messageTemplate.deleteMany({
+      where: { organizationId: { in: [orgA.id, orgB.id] } },
+    });
     await adminDb.reminderRule.deleteMany({
       where: { organizationId: { in: [orgA.id, orgB.id] } },
     });
@@ -182,5 +185,25 @@ describe("reminderRules router (M10)", () => {
 
     const countAfter = await adminDb.reminderRule.count({ where: { organizationId: orgA.id } });
     expect(countAfter).toBe(countBefore);
+  });
+
+  it("isolation multi-locataire : reminderRules.previewTemplate ne voit pas les modèles d'une autre organisation", async () => {
+    await adminDb.messageTemplate.create({
+      data: {
+        organizationId: orgA.id,
+        key: "preview_test_key",
+        name: "Modèle de test",
+        channel: "WHATSAPP",
+        body: "Bonjour {{client.salutation}}.",
+      },
+    });
+
+    const callerA = callerFactory(await contextFor(ownerA.token));
+    const previewA = await callerA.reminderRules.previewTemplate({ key: "preview_test_key" });
+    expect(previewA.length).toBeGreaterThanOrEqual(1);
+
+    const callerB = callerFactory(await contextFor(ownerB.token));
+    const previewB = await callerB.reminderRules.previewTemplate({ key: "preview_test_key" });
+    expect(previewB).toHaveLength(0);
   });
 });

@@ -103,6 +103,7 @@ export type {
   UpsertReminderRuleInput,
   GetReminderRuleInput,
   ToggleReminderRuleInput,
+  PreviewReminderTemplateInput,
   SimulateReminderRuleInput,
   ReminderQueueTab,
   ReminderQueueInput,
@@ -119,6 +120,7 @@ export type {
   MarkAppointmentTakenInput,
   MarkInspectionDoneInput,
   ReminderStatsInput,
+  ReminderHistoryInput,
   UpdateReminderSettingsInput,
 } from "./reminders";
 export {
@@ -132,6 +134,7 @@ export {
   upsertReminderRuleInputSchema,
   getReminderRuleInputSchema,
   toggleReminderRuleInputSchema,
+  previewReminderTemplateInputSchema,
   simulateReminderRuleInputSchema,
   reminderQueueTabSchema,
   reminderQueueInputSchema,
@@ -150,5 +153,7 @@ export {
   markAppointmentTakenInputSchema,
   markInspectionDoneInputSchema,
   reminderStatsInputSchema,
+  reminderHistoryInputSchema,
+  reminderHistoryStatusFilterSchema,
   updateReminderSettingsInputSchema,
 } from "./reminders";

@@ -98,10 +98,14 @@
   },
   "nav": {
     "dashboard": "Tableau de bord",
+    "reminders": "Relances du jour",
+    "reminderDueDates": "Échéances",
+    "reminderResults": "Résultats",
     "settings": "Paramètres",
     "settingsTeam": "Équipe",
     "settingsRoles": "Rôles et permissions",
     "settingsSites": "Sites",
+    "settingsReminderRules": "Règles de relance",
     "settingsJournal": "Journal d'audit",
     "profile": "Mon profil",
     "profileSecurity": "Sécurité",
@@ -221,6 +225,224 @@
       "export": "Exporter (CSV)",
       "table": { "date": "Date", "user": "Utilisateur", "action": "Action", "entity": "Élément" },
       "filters": { "user": "Utilisateur", "action": "Action", "period": "Période" }
+    }
+  },
+  "reminders": {
+    "types": {
+      "INSPECTION": "Visite technique",
+      "SERVICE": "Révision",
+      "RECEIVABLE": "Créance",
+      "APPOINTMENT": "Rendez-vous",
+      "QUOTE_FOLLOWUP": "Suivi de devis",
+      "VEHICLE_READY": "Véhicule prêt",
+      "INSURANCE_EXPIRY": "Assurance",
+      "SATISFACTION": "Satisfaction"
+    },
+    "status": {
+      "PLANNED": "Planifiée",
+      "NEEDS_APPROVAL": "À valider",
+      "QUEUED": "En file",
+      "SENT": "Envoyée",
+      "FAILED": "Échec",
+      "SKIPPED": "Ignorée",
+      "SNOOZED": "Reportée",
+      "CANCELLED": "Annulée"
+    },
+    "queue": {
+      "title": "Relances du jour",
+      "description": "File d'approbation des relances à envoyer aujourd'hui.",
+      "tabs": {
+        "NEEDS_APPROVAL": "À valider",
+        "CALL_LIST": "À appeler",
+        "PLANNED_TODAY": "Planifiées",
+        "SENT_TODAY": "Envoyées",
+        "FAILED": "Échecs",
+        "EXPIRED": "Ignorées"
+      },
+      "filters": {
+        "type": "Type de relance",
+        "channel": "Canal",
+        "allTypes": "Tous les types",
+        "allChannels": "Tous les canaux"
+      },
+      "table": {
+        "type": "Type",
+        "customer": "Client",
+        "vehicle": "Véhicule",
+        "due": "Échéance",
+        "channel": "Canal",
+        "amount": "Montant"
+      },
+      "noChannel": "Aucun canal",
+      "view": "Voir",
+      "empty": {
+        "title": "Aucune relance dans cette file",
+        "description": "Revenez plus tard ou changez de filtre."
+      },
+      "actions": {
+        "approveSelected": "Approuver ({count})",
+        "snoozeSelected": "Reporter",
+        "skipSelected": "Ignorer"
+      },
+      "snoozeModal": {
+        "title": "Reporter la relance",
+        "untilLabel": "Reporter jusqu'au",
+        "submit": "Reporter"
+      },
+      "skipModal": {
+        "title": "Ignorer la relance",
+        "reasonLabel": "Motif",
+        "stopSequence": "Arrêter toute la séquence pour ce client/véhicule",
+        "submit": "Ignorer"
+      },
+      "detail": {
+        "title": "Détail de la relance",
+        "customer": "Client",
+        "vehicle": "Véhicule",
+        "status": "Statut",
+        "noChannelNote": "Aucun canal automatique disponible : contactez le client par téléphone.",
+        "phoneLabel": "Téléphone",
+        "smsSegments": "{segments} segment(s) SMS ({chars} caractères)",
+        "openWhatsapp": "Ouvrir WhatsApp",
+        "markWaSent": "Marquer comme envoyé",
+        "approve": "Approuver et envoyer",
+        "snooze": "Reporter",
+        "skip": "Ignorer",
+        "retry": "Réessayer",
+        "history": "Historique de la séquence",
+        "historyEmpty": "Aucun historique."
+      }
+    },
+    "dueDates": {
+      "title": "Échéances",
+      "description": "Visites techniques, révisions et assurances à venir ou en retard.",
+      "kinds": {
+        "INSPECTION": "Visites techniques",
+        "SERVICE": "Révisions",
+        "INSURANCE": "Assurances"
+      },
+      "filters": {
+        "all": "Toutes",
+        "DUE_SOON_7": "Dans 7 jours",
+        "DUE_SOON_30": "Dans 30 jours",
+        "OVERDUE": "En retard",
+        "UPCOMING": "Plus tard",
+        "INCOMPLETE_DATA": "Date manquante",
+        "SUSPECT_DATE": "Date suspecte"
+      },
+      "views": {
+        "list": "Liste",
+        "calendar": "Calendrier"
+      },
+      "table": {
+        "vehicle": "Véhicule",
+        "customer": "Client",
+        "due": "Échéance",
+        "countdown": "Délai"
+      },
+      "suspectBadge": "Date suspecte",
+      "empty": {
+        "title": "Aucune échéance",
+        "description": "Rien à signaler pour ce filtre."
+      },
+      "markDoneAction": "Visite technique effectuée",
+      "markDoneModal": {
+        "title": "Enregistrer la visite technique",
+        "expiryLabel": "Nouvelle date d'expiration",
+        "lastDateLabel": "Date de la visite",
+        "centerLabel": "Centre de contrôle",
+        "submit": "Enregistrer"
+      },
+      "markAppointmentAction": "RDV pris",
+      "markAppointmentModal": {
+        "title": "Marquer le RDV comme pris",
+        "dateLabel": "Date du rendez-vous",
+        "createAppointment": "Créer le rendez-vous dans le planning",
+        "submit": "Confirmer"
+      }
+    },
+    "rules": {
+      "title": "Règles de relance",
+      "description": "Paliers, canaux et modèles de message par type de relance.",
+      "createAction": "Nouvelle règle",
+      "table": {
+        "type": "Type",
+        "name": "Nom",
+        "steps": "Paliers",
+        "status": "Statut"
+      },
+      "statusActive": "Active",
+      "statusInactive": "Désactivée",
+      "editor": {
+        "title": "Règle de relance",
+        "nameLabel": "Nom de la règle",
+        "typeLabel": "Type de relance",
+        "activeLabel": "Règle active",
+        "stepsTitle": "Frise des paliers",
+        "addStep": "Ajouter un palier",
+        "removeStep": "Supprimer",
+        "stepKeyLabel": "Clé",
+        "stepLabelLabel": "Libellé",
+        "offsetDaysLabel": "Décalage (jours)",
+        "templateKeyLabel": "Modèle de message",
+        "channelsLabel": "Canaux",
+        "autoSendLabel": "Envoi automatique",
+        "sendAtLabel": "Heure d'envoi",
+        "stopOnLabel": "Événements d'arrêt automatique",
+        "sendWindowTitle": "Fenêtre d'envoi",
+        "fromLabel": "De",
+        "toLabel": "À",
+        "submit": "Enregistrer",
+        "simulateAction": "Simuler l'impact",
+        "simulateResult": "{total} relance(s) sur {days} jours, {grouped} regroupement(s), {noChannel} sans canal.",
+        "previewAction": "Aperçu par canal",
+        "previewEmpty": "Aucun modèle par défaut pour ce canal."
+      }
+    },
+    "results": {
+      "title": "Résultats des relances",
+      "description": "Historique des envois, échecs et motifs d'arrêt sur la période.",
+      "fromLabel": "Du",
+      "toLabel": "Au",
+      "statusFilterLabel": "Statut",
+      "typeFilterLabel": "Type",
+      "allStatuses": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "stats": {
+        "sent": "Envoyées",
+        "failed": "Échecs",
+        "cancelled": "Annulées",
+        "skipped": "Ignorées"
+      },
+      "outcomesTitle": "Résultats attribués",
+      "outcomesEmpty": "Aucun résultat attribué sur la période.",
+      "outcomes": {
+        "APPOINTMENT_BOOKED": "RDV pris",
+        "PAID": "Payé",
+        "PARTIALLY_PAID": "Payé partiellement",
+        "PROMISED": "Promesse de paiement",
+        "REPLIED": "A répondu",
+        "NO_RESPONSE": "Sans réponse",
+        "OPTED_OUT": "Désinscrit",
+        "VISITED": "Visite effectuée",
+        "QUOTE_ACCEPTED": "Devis accepté",
+        "VEHICLE_PICKED_UP": "Véhicule récupéré"
+      },
+      "table": {
+        "type": "Type",
+        "customer": "Client",
+        "vehicle": "Véhicule",
+        "channel": "Canal",
+        "status": "Statut",
+        "when": "Date",
+        "reason": "Motif / résultat"
+      },
+      "noReason": "—",
+      "empty": {
+        "title": "Aucune relance sur cette période",
+        "description": "Ajustez la période ou les filtres pour voir l'historique des envois."
+      },
+      "error": "Impossible de charger l'historique des relances."
     }
   },
   "profile": {

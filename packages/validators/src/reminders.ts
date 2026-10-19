@@ -95,6 +95,12 @@ export const toggleReminderRuleInputSchema = z.object({
 });
 export type ToggleReminderRuleInput = z.infer<typeof toggleReminderRuleInputSchema>;
 
+/** Aperçu par canal d'un modèle par défaut (clé brute, sans rendu de variables) pour l'éditeur de règle. */
+export const previewReminderTemplateInputSchema = z.object({
+  key: z.string().trim().min(1),
+});
+export type PreviewReminderTemplateInput = z.infer<typeof previewReminderTemplateInputSchema>;
+
 export const simulateReminderRuleInputSchema = z.object({
   rule: upsertReminderRuleInputSchema,
   days: z.number().int().min(1).max(90).default(30),
@@ -217,6 +223,18 @@ export const reminderStatsInputSchema = z.object({
   siteId: z.string().trim().min(1).optional(),
 });
 export type ReminderStatsInput = z.infer<typeof reminderStatsInputSchema>;
+
+/** Historique détaillé (ligne par relance) pour l'écran « Résultats des relances » (M10 §7.3). */
+export const reminderHistoryStatusFilterSchema = z.enum(["SENT", "FAILED", "CANCELLED", "SKIPPED"]);
+export const reminderHistoryInputSchema = z.object({
+  from: z.coerce.date(),
+  to: z.coerce.date(),
+  status: reminderHistoryStatusFilterSchema.optional(),
+  type: reminderTypeSchema.optional(),
+  cursor: z.string().trim().min(1).optional(),
+  limit: z.number().int().min(1).max(100).default(50),
+});
+export type ReminderHistoryInput = z.infer<typeof reminderHistoryInputSchema>;
 
 /** `Organization.settings.reminders` (M10 §6) — mise à jour partielle. */
 export const updateReminderSettingsInputSchema = z.object({

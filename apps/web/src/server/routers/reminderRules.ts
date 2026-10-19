@@ -15,6 +15,7 @@ import {
 import { db } from "@atelieros/db";
 import {
   getReminderRuleInputSchema,
+  previewReminderTemplateInputSchema,
   simulateReminderRuleInputSchema,
   toggleReminderRuleInputSchema,
   upsertReminderRuleInputSchema,
@@ -102,6 +103,17 @@ export const reminderRulesRouter = router({
         userAgent: ctx.userAgent,
       });
       return created;
+    }),
+
+  /** Aperçu par canal d'un modèle par défaut (RG-M10-02, Annexe A) — pour l'éditeur de règle. */
+  previewTemplate: requirePermission("reminder:rules_manage")
+    .input(previewReminderTemplateInputSchema)
+    .query(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      return tenantDb.messageTemplate.findMany({
+        where: { key: input.key },
+        orderBy: { channel: "asc" },
+      });
     }),
 
   toggle: requirePermission("reminder:rules_manage")
