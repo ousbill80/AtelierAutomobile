@@ -23,6 +23,10 @@ import { paymentRouter } from "./payment";
 import { quickReplyRouter } from "./quickReply";
 import { inspectionRouter, inspectionTemplateRouter } from "./inspection";
 import { portalRepairOrderRouter } from "./portalRepairOrder";
+import { portalQuoteRouter } from "./portalQuote";
+import { quoteRouter } from "./quote";
+import { quoteLineRouter } from "./quoteLine";
+import { laborOperationRouter } from "./laborOperation";
 import { repairOrderRouter } from "./repairOrder";
 import { repairOrderLineRouter } from "./repairOrderLine";
 import { reminderRulesRouter } from "./reminderRules";
@@ -77,7 +81,10 @@ export const appRouter = router({
   repairOrderLine: repairOrderLineRouter,
   inspection: inspectionRouter,
   inspectionTemplate: inspectionTemplateRouter,
-  portal: router({ repairOrder: portalRepairOrderRouter }),
+  quote: quoteRouter,
+  quoteLine: quoteLineRouter,
+  laborOperation: laborOperationRouter,
+  portal: router({ repairOrder: portalRepairOrderRouter, quote: portalQuoteRouter }),
 });
 
 export type AppRouter = typeof appRouter;

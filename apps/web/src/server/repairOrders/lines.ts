@@ -128,9 +128,12 @@ export async function preAuthorizedTotal(
   return lines.reduce((s, l) => s + lineAmounts(l, vatEnabled).total, 0);
 }
 
+/** Contexte minimal d'un enchaînement automatique (aussi utilisé par le portail devis, M05). */
+export type SystemCtx = Pick<OrgCtx, "organizationId" | "permissions">;
+
 async function trySystemTransition(
   tx: Tx,
-  ctx: OrgCtx,
+  ctx: SystemCtx,
   org: OrgRoContext,
   repairOrderId: string,
   transition: RepairOrderTransition,
@@ -163,7 +166,7 @@ async function trySystemTransition(
  */
 export async function afterLineChange(
   tx: Tx,
-  ctx: OrgCtx,
+  ctx: SystemCtx,
   org: OrgRoContext,
   repairOrderId: string,
   now: Date,
