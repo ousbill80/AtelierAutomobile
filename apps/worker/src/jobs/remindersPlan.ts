@@ -19,11 +19,13 @@ import {
   buildSequenceKey,
   initialStatus,
   nextSendSlot,
+  pickChannel,
   pickStep,
   priorityOf,
   approvalExpiry,
   stepsToSupersede,
   targetDate,
+  type Channel,
   type PickStepHistoryEntry,
   type PickStepRuleStep,
 } from "@atelieros/core";
@@ -37,6 +39,11 @@ import {
 } from "@atelieros/validators";
 import { z } from "zod";
 import { logger } from "../logger";
+import {
+  resolveChannelCandidates,
+  resolveRecipient,
+  type RecipientCustomerLike,
+} from "./reminderChannel";
 
 interface Candidate {
   entityId: string;
@@ -58,6 +65,7 @@ interface EligibilityFacts {
   remindersConsent: boolean;
   doNotRemind: boolean;
   optedOut: boolean;
+  customer: RecipientCustomerLike | null;
 }
 
 const TRANSACTIONAL_TYPES = new Set(["APPOINTMENT", "VEHICLE_READY"]);
@@ -429,6 +437,28 @@ async function planForOrganization(
           maxDataAgeHours: settings.maxDataAgeHours,
         });
 
+        // RG-M10-31 : un canal préliminaire est posé dès la planification (pas seulement à
+        // l'envoi) pour que la relance apparaisse d'emblée dans « À appeler » quand aucun
+        // canal n'est exploitable, plutôt que dans « À valider ». Re-résolu (et prioritaire)
+        // par reminders.dispatch au moment de l'envoi, RG-M10-24.
+        let preliminaryChannel: Channel | null = null;
+        if (!step.internalOnly && step.channels.length > 0 && facts.customer) {
+          const recipient = await resolveRecipient(
+            tenantDb,
+            facts.customer as RecipientCustomerLike,
+            rule.type,
+          );
+          if (recipient) {
+            const { candidates } = await resolveChannelCandidates(
+              tenantDb,
+              recipient,
+              step.channels as Channel[],
+            );
+            const picked = pickChannel({ candidates });
+            preliminaryChannel = picked.channel;
+          }
+        }
+
         try {
           const created = await tenantDb.reminder.create({
             data: {
@@ -444,6 +474,7 @@ async function planForOrganization(
               dueDate: anchor,
               scheduledFor,
               status,
+              channel: preliminaryChannel,
               priority: priorityOf(rule.type as never, step),
               dedupeKey,
               sequenceKey: seqKey,
@@ -490,6 +521,8 @@ async function loadEligibilityFacts(
   const customer = await tenantDb.customer.findFirst({
     where: { id: customerId },
     select: {
+      id: true,
+      type: true,
       deletedAt: true,
       remindersConsent: true,
       doNotRemind: true,
@@ -505,6 +538,7 @@ async function loadEligibilityFacts(
       remindersConsent: false,
       doNotRemind: true,
       optedOut: false,
+      customer: null,
     };
   }
   const addresses = [
@@ -522,6 +556,7 @@ async function loadEligibilityFacts(
     remindersConsent: customer.remindersConsent,
     doNotRemind: customer.doNotRemind,
     optedOut: optOuts.length > 0,
+    customer,
   };
 }
 
