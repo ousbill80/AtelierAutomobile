@@ -314,3 +314,26 @@ export const reminderStatsInputSchema = z.object({
   siteId: z.string().trim().min(1).optional(),
 });
 export type ReminderStatsInput = z.infer<typeof reminderStatsInputSchema>;
+
+/** Statuts « terminés » affichés sur la page Résultats des relances. */
+export const reminderHistoryStatusSchema = z.enum(["SENT", "FAILED", "CANCELLED", "SKIPPED"]);
+
+/**
+ * Page « Résultats des relances » : relances terminées dont la date d'activité (`sentAt`, sinon
+ * dernière mise à jour) tombe dans [from, to].
+ */
+export const reminderHistoryInputSchema = z
+  .object({
+    from: z.coerce.date(),
+    to: z.coerce.date(),
+    status: reminderHistoryStatusSchema.optional(),
+    type: reminderTypeSchema.optional(),
+    channel: messageChannelSchema.optional(),
+    cursor: z.string().optional(),
+    limit: z.number().int().min(1).max(100).default(50),
+  })
+  .refine((input) => input.from <= input.to, {
+    message: "La date de début doit précéder la date de fin.",
+    path: ["from"],
+  });
+export type ReminderHistoryInput = z.infer<typeof reminderHistoryInputSchema>;
