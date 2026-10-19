@@ -65,6 +65,13 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
 
   const mainItems = [
     { href: "/tableau-de-bord", label: t("nav.ownerDashboard"), permission: "dashboard:owner" },
+    {
+      href: "/ordres",
+      label: t("nav.repairOrders"),
+      permission: "repair_order:read",
+      // M15 RG-M15-23 : masqué en mode « Relances seules ».
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
     { href: "/clients", label: t("nav.customers"), permission: "customer:read" },
     { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
     { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },
@@ -73,7 +80,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     { href: "/relances/echeances", label: t("nav.dueDates"), permission: "reminder:read" },
     { href: "/creances", label: t("nav.receivables"), permission: "receivable:read" },
     { href: "/import", label: t("nav.import"), permission: "import:run" },
-  ].filter((item) => has(item.permission));
+  ].filter((item) => has(item.permission) && !("hidden" in item && item.hidden));
 
   const settingsItems = [
     { href: "/parametres/equipe", label: t("nav.settingsTeam"), permission: "member:read" },
@@ -94,6 +101,16 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       href: "/parametres/relances",
       label: t("nav.settingsReminderRules"),
       permission: "reminder:rules_manage",
+    },
+    {
+      href: "/parametres/ordres",
+      label: t("nav.settingsRepairOrders"),
+      permission: "settings:update",
+    },
+    {
+      href: "/parametres/inspection",
+      label: t("nav.settingsInspection"),
+      permission: "inspection:template_manage",
     },
   ].filter((item) => has(item.permission));
 
