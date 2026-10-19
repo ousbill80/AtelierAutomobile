@@ -1,0 +1,87 @@
+export type { CsvDelimiter } from "./csv";
+export { detectCsvDelimiter, detectHeaderRowIndex, filterDataRows, parseCsvLines } from "./csv";
+
+export type { FileDedupeMerge, FileDedupeResult } from "./dedupe";
+export type { CustomerMatchInput, CustomerMatchKey, CustomerMatchStrategy } from "./dedupe";
+export type { VehicleMatchKey, VehicleMatchStrategy } from "./dedupe";
+export type { InvoiceMatchKey, InvoiceMatchStrategy } from "./dedupe";
+export type { PaymentMatchKey, PaymentMatchStrategy } from "./dedupe";
+export {
+  dedupeRowsInFile,
+  resolveCustomerMatchKey,
+  resolveInvoiceMatchKey,
+  resolvePaymentMatchKey,
+  resolveVehicleMatchKey,
+} from "./dedupe";
+
+export type { DetectedEncoding } from "./encoding";
+export { decodeBytes, detectEncoding } from "./encoding";
+
+export { canonicalize, computeRowHash } from "./hash";
+
+export type { ColumnMatch, MappingSource, SplitVehicleName, SuggestedMapping } from "./mapping";
+export {
+  detectCompanyFromName,
+  headerSignature,
+  KNOWN_VEHICLE_MAKES,
+  levenshteinDistance,
+  matchColumn,
+  normalizeHeader,
+  splitVehicleName,
+  suggestColumnMapping,
+} from "./mapping";
+
+export type {
+  AmountNormalizationResult,
+  DateNormalizationOptions,
+  DateNormalizationResult,
+  EmailNormalizationResult,
+  ImportFuelType,
+  ImportPaymentMethod,
+  ImportPhoneResult,
+} from "./normalize";
+export {
+  normalizeImportAmount,
+  normalizeImportDate,
+  normalizeImportEmail,
+  normalizeImportFuelType,
+  normalizeImportName,
+  normalizeImportPaymentMethod,
+  normalizeImportPhone,
+  normalizeImportText,
+} from "./normalize";
+
+export type { BalanceChangeResult, ImportPolicy, MergeResult, RowOutcome } from "./policy";
+export {
+  computeBalanceChange,
+  mergeFields,
+  NEVER_OVERWRITTEN_FIELDS,
+  outcomeForHash,
+} from "./policy";
+
+export type { SimulatedRowResult, SimulationCounts, SimulationSummary } from "./simulate";
+export { summarizeSimulation } from "./simulate";
+
+export type { TargetField } from "./synonyms";
+export { SYNONYMS, TARGET_FIELDS_BY_ENTITY } from "./synonyms";
+
+export type {
+  CustomerRowInput,
+  InvoiceRowInput,
+  IssueSeverity,
+  PaymentRowInput,
+  ProductRowInput,
+  RepairOrderRowInput,
+  RowIssue,
+  VehicleRowInput,
+} from "./validate";
+export {
+  hasBlockingError,
+  validateCustomerRow,
+  validateInvoiceBalanceColumn,
+  validateInvoiceRow,
+  validatePaymentRow,
+  validateProductRow,
+  validateRepairOrderRow,
+  validateVehicleRow,
+} from "./validate";

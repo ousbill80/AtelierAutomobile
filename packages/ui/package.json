@@ -7,10 +7,17 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./src/data-table": "./src/data-table.tsx",
+    "./src/empty-state": "./src/empty-state.tsx",
+    "./src/status-badge": "./src/status-badge.tsx"
   },
   "dependencies": {
-    "@atelieros/core": "workspace:*"
+    "@atelieros/core": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.59.0",
+    "tailwind-merge": "^3.7.0"
   },
   "scripts": {
     "lint": "eslint .",

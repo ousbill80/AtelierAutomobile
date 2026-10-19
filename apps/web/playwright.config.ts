@@ -2,7 +2,9 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-// Monorepo : le `.env` vit à la racine (même convention que `vitest.setup.ts` / `next.config.ts`).
+// Charge le `.env` du monorepo (DATABASE_APP_URL, S3_*...) pour le serveur de
+// prod lancé ci-dessous, comme `vitest.setup.ts` le fait pour les tests
+// d'intégration — sans dépendre d'un shell qui l'aurait déjà sourcé.
 const envPath = path.resolve(__dirname, "../../.env");
 if (existsSync(envPath)) {
   process.loadEnvFile(envPath);
@@ -24,5 +26,9 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // RG-M13-24 : pilote "inline" (traitement synchrone, sans worker séparé)
+    // pour que le serveur de prod lancé par Playwright traite les imports
+    // sans dépendre d'un process `apps/worker` distinct.
+    env: { ...process.env, IMPORT_QUEUE_DRIVER: "inline" },
   },
 });
