@@ -1,4 +1,5 @@
 import { router } from "../trpc";
+import { auditRouter } from "./audit";
 import { authRouter } from "./auth";
 import { deviceRouter } from "./device";
 import { invitationRouter } from "./invitation";
@@ -19,6 +20,7 @@ export const appRouter = router({
   invitation: invitationRouter,
   role: roleRouter,
   device: deviceRouter,
+  audit: auditRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -89,3 +89,6 @@ export {
 
 export type { RegisterSharedDeviceInput } from "./device";
 export { registerSharedDeviceInputSchema } from "./device";
+
+export type { AuditExportInput, AuditListInput } from "./audit";
+export { auditExportInputSchema, auditListInputSchema } from "./audit";
