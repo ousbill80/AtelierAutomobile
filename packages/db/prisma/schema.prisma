@@ -79,6 +79,10 @@ model Organization {
   paymentLinks           PaymentLink[]
   cashSessions           CashSession[]
   expenses               Expense[]
+  cashDrops              CashDrop[]
+  refunds                Refund[]
+  customerCredits        CustomerCredit[]
+  paymentWebhookLogs     PaymentWebhookLog[]
   collectionCases        CollectionCase[]
   paymentPromises        PaymentPromise[]
   collectionNotes        CollectionNote[]
@@ -173,6 +177,8 @@ model Site {
   payments          Payment[]
   cashSessions      CashSession[]
   expenses          Expense[]
+  cashDrops         CashDrop[] // M08 §14
+  refunds           Refund[] // M08 §14
   holidays          Holiday[]
   resourceBlocks    ResourceBlock[]
 
@@ -283,6 +289,10 @@ model Membership {
   cashSessionsOpened          CashSession[]         @relation("CashSessionOpenedBy")
   cashSessionsClosed          CashSession[]         @relation("CashSessionClosedBy")
   expensesCreated             Expense[]             @relation("ExpenseCreatedBy")
+  expensesApproved            Expense[]             @relation("ExpenseApprovedBy")
+  cashSessionsReviewed        CashSession[]         @relation("CashSessionReviewedBy")
+  cashDropsCreated            CashDrop[]            @relation("CashDropCreatedBy")
+  refundsCreated              Refund[]              @relation("RefundCreatedBy")
   collectionCasesAssigned     CollectionCase[]      @relation("CollectionCaseAssignee")
   paymentPromisesCreated      PaymentPromise[]      @relation("PaymentPromiseCreatedBy")
   collectionNotesCreated      CollectionNote[]      @relation("CollectionNoteCreatedBy")
@@ -389,6 +399,8 @@ model Customer {
   quotes          Quote[]
   invoices        Invoice[]
   payments        Payment[]
+  refunds         Refund[] // M08 §14
+  credits         CustomerCredit[] // M08 §14
   collectionCases CollectionCase[]
   creditOverrides CreditOverride[]
   reminders       Reminder[]
@@ -1694,6 +1706,13 @@ model Invoice {
   writeOffReason    String?
   disputedAt        DateTime?
   collectionCaseId  String?
+  // M08 §14
+  creditedAmount    Int           @default(0) // Σ |total| des avoirs émis sur cette facture
+  costTotal         Int           @default(0) // coût pièces + MO (marge, M12), figé à l'émission
+  fneAttempts       Int           @default(0)
+  fneNextRetryAt    DateTime?
+  fneErrorKind      String? // transient | rejected
+  sentAt            DateTime?
 
   organization    Organization        @relation(fields: [organizationId], references: [id])
   site            Site                @relation(fields: [siteId], references: [id])
@@ -1707,6 +1726,7 @@ model Invoice {
   insuranceClaim  InsuranceClaim?     @relation(fields: [insuranceClaimId], references: [id])
   createdBy       Membership?         @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
   lines           InvoiceLine[]
+  depositLines    InvoiceLine[]       @relation("InvoiceLineDeposit") // lignes de déduction de cet acompte
   allocations     PaymentAllocation[]
   paymentLinks    PaymentLink[]
   reminders       Reminder[]
@@ -1742,28 +1762,35 @@ enum FneStatus {
 }
 
 model InvoiceLine {
-  id               String   @id @default(cuid(2))
-  organizationId   String
-  invoiceId        String
-  type             LineType
-  productId        String?
-  laborOperationId String?
-  description      String
-  quantity         Float
-  unitPrice        Int
-  discountRate     Int      @default(0)
-  vatRate          Int
-  lineSubtotal     Int // calculé et figé à l'émission
-  lineVat          Int
-  lineTotal        Int
-  sortOrder        Int      @default(0)
+  id                String   @id @default(cuid(2))
+  organizationId    String
+  invoiceId         String
+  type              LineType
+  productId         String?
+  laborOperationId  String?
+  description       String
+  quantity          Float
+  unitPrice         Int
+  discountRate      Int      @default(0)
+  vatRate           Int
+  lineSubtotal      Int // calculé et figé à l'émission
+  lineVat           Int
+  lineTotal         Int
+  sortOrder         Int      @default(0)
+  // M08 §14
+  costAmount        Int      @default(0) // CMP × qté (pièces) ou coût MO, figé à l'émission
+  depositInvoiceId  String? // ligne de déduction d'acompte
+  payer             Payer    @default(CUSTOMER)
+  repairOrderLineId String?
 
   organization   Organization    @relation(fields: [organizationId], references: [id])
   invoice        Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  depositInvoice Invoice?        @relation("InvoiceLineDeposit", fields: [depositInvoiceId], references: [id])
   product        Product?        @relation(fields: [productId], references: [id])
   laborOperation LaborOperation? @relation(fields: [laborOperationId], references: [id])
 
   @@index([organizationId, invoiceId])
+  @@index([organizationId, depositInvoiceId])
 }
 
 model Payment {
@@ -1785,6 +1812,10 @@ model Payment {
   notes          String?
   origin         RecordOrigin  @default(NATIVE)
   createdAt      DateTime      @default(now())
+  // M08 §14
+  voidedAt       DateTime?
+  voidReason     String?
+  payerPhone     String? // numéro mobile money payeur (rapprochement)
 
   organization Organization        @relation(fields: [organizationId], references: [id])
   site         Site                @relation(fields: [siteId], references: [id])
@@ -1793,9 +1824,11 @@ model Payment {
   receivedBy   Membership?         @relation("PaymentReceivedBy", fields: [receivedById], references: [id])
   allocations  PaymentAllocation[]
   paymentLinks PaymentLink[]
+  refunds      Refund[]
 
   @@unique([organizationId, number])
   @@unique([provider, providerRef])
+  @@index([organizationId, method, reference])
 }
 
 enum PaymentMethod {
@@ -1819,16 +1852,20 @@ enum PaymentStatus {
 }
 
 model PaymentAllocation {
-  id             String @id @default(cuid(2))
-  organizationId String
-  paymentId      String
-  invoiceId      String
-  amount         Int
+  id               String    @id @default(cuid(2))
+  organizationId   String
+  paymentId        String? // M08 §14 : null pour l'affectation d'un crédit client
+  invoiceId        String
+  amount           Int
+  // M08 §14
+  customerCreditId String? // affectation d'un crédit client (avoir payé, trop-perçu)
+  voidedAt         DateTime? // paiement annulé / chèque rejeté : l'affectation ne compte plus
 
-  organization Organization        @relation(fields: [organizationId], references: [id])
-  payment      Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  invoice      Invoice             @relation(fields: [invoiceId], references: [id])
-  attribution  PaymentAttribution?
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  payment        Payment?            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice        Invoice             @relation(fields: [invoiceId], references: [id])
+  customerCredit CustomerCredit?     @relation(fields: [customerCreditId], references: [id])
+  attribution    PaymentAttribution?
 
   @@index([organizationId, paymentId])
   @@index([organizationId, invoiceId])
@@ -1868,20 +1905,30 @@ model CashSession {
   countedCash    Int?
   difference     Int?
   notes          String?
+  // M08 §14
+  denominations  Json? // { "10000": 42, "5000": 30, … }
+  lateClose      Boolean   @default(false)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewComment  String? // M08 (hors §14) : commentaire de validation de l'écart (cash.review)
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
   openedBy     Membership   @relation("CashSessionOpenedBy", fields: [openedById], references: [id])
   closedBy     Membership?  @relation("CashSessionClosedBy", fields: [closedById], references: [id])
+  reviewedBy   Membership?  @relation("CashSessionReviewedBy", fields: [reviewedById], references: [id])
   payments     Payment[]
   expenses     Expense[]
+  drops        CashDrop[]
+  refunds      Refund[]
 
   @@index([organizationId, siteId])
+  @@index([organizationId, siteId, closedAt])
 }
 
 model Expense {
   // décaissements de caisse (petites dépenses)
-  id             String   @id @default(cuid(2))
+  id             String    @id @default(cuid(2))
   organizationId String
   siteId         String
   cashSessionId  String?
@@ -1890,13 +1937,101 @@ model Expense {
   description    String
   paidAt         DateTime
   createdById    String?
+  // M08 (hors §14) : justificatif (US-M08-12) et validation au-delà du seuil (RG-M08-30)
+  attachmentId   String?
+  approvedById   String?
+  approvedAt     DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
   cashSession  CashSession? @relation(fields: [cashSessionId], references: [id])
   createdBy    Membership?  @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  approvedBy   Membership?  @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
 
   @@index([organizationId, siteId])
+}
+
+model CashDrop {
+  // M08 §14 — versement coffre / banque depuis la caisse (RG-M08-28)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  cashSessionId  String
+  amount         Int
+  destination    String // safe | bank
+  reference      String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  site         Site         @relation(fields: [siteId], references: [id])
+  cashSession  CashSession  @relation(fields: [cashSessionId], references: [id])
+  createdBy    Membership?  @relation("CashDropCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, cashSessionId])
+}
+
+model Refund {
+  // M08 §14 — remboursement d'un trop-perçu ou d'un avoir payé (RG-M08-22)
+  id               String        @id @default(cuid(2))
+  organizationId   String
+  siteId           String
+  customerId       String
+  paymentId        String?
+  customerCreditId String?
+  method           PaymentMethod
+  amount           Int
+  reference        String?
+  cashSessionId    String?
+  reason           String
+  createdById      String?
+  createdAt        DateTime      @default(now())
+
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  site           Site            @relation(fields: [siteId], references: [id])
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  payment        Payment?        @relation(fields: [paymentId], references: [id])
+  customerCredit CustomerCredit? @relation(fields: [customerCreditId], references: [id])
+  cashSession    CashSession?    @relation(fields: [cashSessionId], references: [id])
+  createdBy      Membership?     @relation("RefundCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, customerId])
+  @@index([organizationId, cashSessionId])
+}
+
+model CustomerCredit {
+  // M08 §14 — crédit client issu d'un trop-perçu ou d'un avoir payé (RG-M08-12)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  customerId     String
+  sourceType     String // payment | credit_note
+  sourceId       String
+  amount         Int
+  remaining      Int
+  createdAt      DateTime @default(now())
+
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  customer     Customer            @relation(fields: [customerId], references: [id])
+  allocations  PaymentAllocation[]
+  refunds      Refund[]
+
+  @@index([organizationId, customerId])
+}
+
+model PaymentWebhookLog {
+  // M08 §14 — journal des webhooks de paiement (RG-M08-24, étape 4.3)
+  id             String   @id @default(cuid(2))
+  organizationId String?
+  provider       String
+  providerRef    String?
+  signatureValid Boolean
+  payload        Json
+  outcome        String // created | duplicate | rejected | error
+  receivedAt     DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([provider, providerRef])
 }
 
 // ═══════════════════════════════════════════════════════════════

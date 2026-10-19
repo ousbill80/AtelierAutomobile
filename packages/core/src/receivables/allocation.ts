@@ -22,6 +22,8 @@ export interface AllocatePaymentInput {
   invoices: AllocatableInvoice[];
   /** Affectation explicite choisie par l'utilisateur ; sinon plus ancienne échéance d'abord. */
   explicit?: AllocationLine[];
+  /** RG-M08-19 : facture depuis laquelle on encaisse, soldée en premier. */
+  currentInvoiceId?: string | null;
 }
 
 export interface AllocatePaymentResult {
@@ -39,6 +41,7 @@ export function allocatePayment({
   amount,
   invoices,
   explicit,
+  currentInvoiceId,
 }: AllocatePaymentInput): AllocatePaymentResult {
   if (!Number.isInteger(amount) || amount <= 0) {
     throw new DomainError("INVALID_AMOUNT", "Le montant doit être un entier positif en FCFA.");
@@ -70,7 +73,13 @@ export function allocatePayment({
   }
   const eligible = invoices
     .filter((i) => ALLOCATABLE.includes(i.status) && i.balance > 0)
-    .sort((a, b) => sortKey(a) - sortKey(b) || a.id.localeCompare(b.id));
+    .sort(
+      (a, b) =>
+        Number(b.id === currentInvoiceId) - Number(a.id === currentInvoiceId) ||
+        sortKey(a) - sortKey(b) ||
+        issuedKey(a) - issuedKey(b) ||
+        a.id.localeCompare(b.id),
+    );
   let remaining = amount;
   const allocations: AllocationLine[] = [];
   for (const invoice of eligible) {
@@ -84,6 +93,10 @@ export function allocatePayment({
 
 function sortKey(i: AllocatableInvoice): number {
   return (i.dueDate ?? i.issuedAt ?? new Date(8.64e15)).getTime();
+}
+
+function issuedKey(i: AllocatableInvoice): number {
+  return (i.issuedAt ?? new Date(8.64e15)).getTime();
 }
 
 export interface InvoiceBalanceState {

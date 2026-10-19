@@ -21,6 +21,9 @@ import { holidayRouter } from "./holiday";
 import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { paymentRouter } from "./payment";
+import { invoiceRouter } from "./invoice";
+import { cashRouter, refundRouter } from "./cash";
+import { accountingRouter } from "./accounting";
 import { planningRouter, planningSettingsRouter, resourceBlockRouter } from "./planning";
 import { portalAppointmentRouter } from "./portal";
 import { quickReplyRouter } from "./quickReply";
@@ -51,6 +54,10 @@ import { stockTransferRouter } from "./stockTransfer";
 import { supplierRouter } from "./supplier";
 
 export const appRouter = router({
+  invoice: invoiceRouter,
+  cash: cashRouter,
+  refund: refundRouter,
+  accounting: accountingRouter,
   auth: authRouter,
   me: meRouter,
   session: sessionRouter,

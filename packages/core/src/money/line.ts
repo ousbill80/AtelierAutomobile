@@ -81,3 +81,65 @@ export function ttcToHt(ttc: number, vatRatePercent: number): { ht: number; vat:
   const ht = roundHalfUp((ttc * 100) / (100 + vatRatePercent));
   return { ht, vat: ttc - ht };
 }
+
+/** RG-M08-05 : arrondi de la TVA par ligne (défaut) ou par taux sur la somme des HT. */
+export type VatRounding = "line" | "total";
+
+export interface DocumentLineInput extends InvoiceLineInput {
+  /**
+   * Montants figés imposés (acompte saisi TTC, déduction d'acompte, ligne d'avoir reprise à
+   * l'identique) : ils ne sont pas recalculés, pour que la somme TTC tombe juste.
+   */
+  fixed?: { lineSubtotal: number; lineVat: number } | null;
+}
+
+export interface DocumentTotals {
+  lines: InvoiceLineTotals[];
+  totals: InvoiceTotals;
+}
+
+/**
+ * RG-M08-05 — calcule les lignes et les totaux d'une facture / d'un avoir (quantités négatives
+ * acceptées). En mode `total`, la TVA de chaque taux est calculée sur la somme des HT et l'écart
+ * d'arrondi est reporté sur la plus grosse ligne de ce taux, pour que Σ TVA des lignes = TVA totale.
+ */
+export function computeDocumentTotals(
+  inputs: readonly DocumentLineInput[],
+  options: { vatEnabled?: boolean; vatRounding?: VatRounding } = {},
+): DocumentTotals {
+  const vatEnabled = options.vatEnabled ?? true;
+  const lines = inputs.map((input): InvoiceLineTotals => {
+    if (input.fixed) {
+      const { lineSubtotal, lineVat } = input.fixed;
+      return {
+        gross: lineSubtotal,
+        lineSubtotal,
+        lineVat: vatEnabled ? lineVat : 0,
+        lineTotal: lineSubtotal + (vatEnabled ? lineVat : 0),
+      };
+    }
+    return computeLine({ ...input, vatEnabled: (input.vatEnabled ?? true) && vatEnabled });
+  });
+  if (options.vatRounding === "total" && vatEnabled) {
+    const byRate = new Map<number, number[]>();
+    inputs.forEach((input, i) => {
+      if (input.fixed) return;
+      const list = byRate.get(input.vatRate) ?? [];
+      list.push(i);
+      byRate.set(input.vatRate, list);
+    });
+    for (const [rate, indexes] of byRate) {
+      const base = indexes.reduce((s, i) => s + lines[i]!.lineSubtotal, 0);
+      const target = roundHalfUp((base * rate) / 100);
+      const current = indexes.reduce((s, i) => s + lines[i]!.lineVat, 0);
+      const diff = target - current;
+      if (diff === 0) continue;
+      const largest = indexes.reduce((best, i) =>
+        Math.abs(lines[i]!.lineSubtotal) > Math.abs(lines[best]!.lineSubtotal) ? i : best,
+      );
+      const line = lines[largest]!;
+      lines[largest] = { ...line, lineVat: line.lineVat + diff, lineTotal: line.lineTotal + diff };
+    }
+  }
+  return { lines, totals: computeInvoiceTotals(lines) };
+}

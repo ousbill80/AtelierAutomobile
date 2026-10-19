@@ -111,6 +111,13 @@ export const PERMISSIONS = [
   "cash:operate",
   "cash:close",
   "cash:expense",
+  // M08 §10 (A5) : échéance, FNE, annulation de paiement, validation d'écart et de dépense, exports.
+  "invoice:edit_due",
+  "fne:manage",
+  "payment:void",
+  "cash:review",
+  "cash:expense_approve",
+  "accounting:export",
   // Créances (M09)
   "receivable:read",
   "receivable:manage",
@@ -228,6 +235,11 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["cash:operate", ["MANAGER", "CASHIER"]],
   ["cash:close", ["MANAGER", "CASHIER"]],
   ["cash:expense", ["MANAGER", "CASHIER"]],
+  ["invoice:edit_due", ["ACCOUNTANT"]],
+  ["fne:manage", ["ACCOUNTANT"]],
+  ["payment:void", ["ACCOUNTANT"]],
+  ["cash:expense_approve", ["MANAGER"]],
+  ["accounting:export", ["ACCOUNTANT"]],
   ["receivable:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["receivable:manage", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["receivable:dispute", ["MANAGER", "ACCOUNTANT"]],
@@ -254,6 +266,7 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   // org:update, site:manage, member:deactivate, role:manage, settings:update,
   // settings:channels, settings:payments, settings:fne, settings:billing,
   // repair_order:deliver_unpaid, invoice:void, invoice:price_below_min, payment:refund,
+  // cash:review,
   // receivable:writeoff, receivable:formal_notice, dashboard:owner, integration:manage,
   // ai:configure.
 ];
