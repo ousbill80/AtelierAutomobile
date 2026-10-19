@@ -120,7 +120,9 @@
     "profileSecurity": "Sécurité",
     "logout": "Se déconnecter",
     "receivables": "Créances",
-    "ownerDashboard": "Pilotage"
+    "ownerDashboard": "Pilotage",
+    "stock": "Stock",
+    "purchases": "Achats"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -337,6 +339,10 @@
     "purchase:create": "Créer des achats",
     "purchase:approve": "Approuver des achats",
     "supplier:manage": "Gérer les fournisseurs",
+    "stock:reserve": "Réserver des pièces pour un OR",
+    "stock:count": "Compter un inventaire",
+    "stock:count_validate": "Valider un inventaire",
+    "stock:valuation": "Consulter la valorisation du stock",
     "invoice:read": "Consulter les factures",
     "invoice:create": "Créer des factures",
     "invoice:issue": "Émettre des factures",
