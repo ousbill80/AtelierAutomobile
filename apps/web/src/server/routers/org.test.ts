@@ -103,4 +103,44 @@ describe("org router (M01)", () => {
       "Permission manquante",
     );
   });
+
+  it("org.setOperatingMode bascule en REMINDERS_ONLY et journalise org.operating_mode_changed (US-M15-10)", async () => {
+    const caller = callerFactory(await contextFor(ownerToken));
+    const updated = await caller.org.setOperatingMode({
+      mode: "REMINDERS_ONLY",
+      reason: "Garage encore sur son ancien logiciel",
+    });
+    expect(updated.operatingMode).toBe("REMINDERS_ONLY");
+
+    const log = await adminDb.auditLog.findFirst({
+      where: { organizationId: org.id, action: "org.operating_mode_changed" },
+    });
+    expect(log).not.toBeNull();
+    expect(log?.reason).toBe("Garage encore sur son ancien logiciel");
+
+    // Remise à FULL pour ne pas perturber les autres assertions du fichier.
+    await caller.org.setOperatingMode({ mode: "FULL", reason: "Retour en gestion complète" });
+  });
+
+  it("org.setOperatingMode refuse le passage en FULL si une source M13 est encore active (RG-M15-23)", async () => {
+    const caller = callerFactory(await contextFor(ownerToken));
+    await caller.org.setOperatingMode({ mode: "REMINDERS_ONLY", reason: "Test" });
+
+    const dataSource = await adminDb.dataSource.create({
+      data: {
+        organizationId: org.id,
+        type: "FILE_UPLOAD",
+        name: "Export mensuel",
+        config: "{}",
+        isActive: true,
+      },
+    });
+
+    await expect(
+      caller.org.setOperatingMode({ mode: "FULL", reason: "Retour en gestion complète" }),
+    ).rejects.toThrow(/assistant de migration/);
+
+    await adminDb.dataSource.delete({ where: { id: dataSource.id } });
+    await caller.org.setOperatingMode({ mode: "FULL", reason: "Retour en gestion complète" });
+  });
 });
