@@ -6,7 +6,7 @@ const AUTH_PATHS = [
   "/inscription",
   "/verification",
   "/mot-de-passe-oublie",
-  "/atelier",
+  "/tablette/connexion",
 ];
 
 /**
@@ -46,5 +46,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // M06 : le service worker et le manifeste de la PWA tablette restent publics.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest).*)"],
 };

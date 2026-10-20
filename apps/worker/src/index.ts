@@ -58,6 +58,10 @@ async function main(): Promise<void> {
   const { processQuotesExpireJob } = await import("./jobs/quotes");
   const { CASH_JOB_NAMES, CASH_QUEUE_NAME, scheduleCashJobs } = await import("./queues/cash");
   const { processCashCheckUnclosedJob } = await import("./jobs/cashJobs");
+  const { WORKSHOP_JOB_NAMES, WORKSHOP_QUEUE_NAME, scheduleWorkshopJobs } =
+    await import("./queues/workshop");
+  const { processWorkshopCloseStaleJob, processWorkshopLateAlertsJob } =
+    await import("./jobs/workshopJobs");
   const { FNE_JOB_NAMES, FNE_QUEUE_NAME, scheduleFneJobs } = await import("./queues/fne");
   type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
   const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
@@ -257,6 +261,23 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "cash : un job a échoué");
   });
 
+  // M06 §9 : clôtures automatiques des pointages et alertes de retard.
+  await scheduleWorkshopJobs();
+
+  const workshopWorker = new Worker(
+    WORKSHOP_QUEUE_NAME,
+    async (job: Job) => {
+      if (job.name === WORKSHOP_JOB_NAMES.CLOSE_STALE) return processWorkshopCloseStaleJob();
+      if (job.name === WORKSHOP_JOB_NAMES.LATE_ALERTS) return processWorkshopLateAlertsJob();
+      logger.warn({ jobName: job.name }, "workshop : job inconnu, ignoré");
+      return undefined;
+    },
+    { connection: createRedisConnection() },
+  );
+  workshopWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "workshop : un job a échoué");
+  });
+
   // M08 §9 : certification FNE à l'émission et reprises toutes les 10 min (RG-M08-15/16).
   await scheduleFneJobs();
 
@@ -313,6 +334,7 @@ async function main(): Promise<void> {
       stockWorker.close(),
       quotesWorker.close(),
       cashWorker.close(),
+      workshopWorker.close(),
       fneWorker.close(),
       paymentsWorker.close(),
     ]);

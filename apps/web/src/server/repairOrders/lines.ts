@@ -13,6 +13,7 @@ import {
 import type { Customer, Prisma, RepairOrder, ScopedTenantClient } from "@atelieros/db";
 import type { LineInput } from "@atelieros/validators";
 import { writeAuditLog } from "../audit";
+import { emitDomainEvent } from "../events/emit";
 import type { Ctx, CtxMembership, CtxSession, CtxUser } from "../context";
 import {
   applyTransition,
@@ -195,6 +196,11 @@ export async function afterLineChange(
           type: "repair_order.qc_needed",
           title: `Contrôle qualité à faire — ${order.number}`,
           link: `/ordres/${order.id}/controle-qualite`,
+        });
+        // M06 §9 : dernière tâche terminée → « prêt pour contrôle qualité ».
+        await emitDomainEvent(tx as never, ctx.organizationId, "workshop.ro_ready_for_qc", {
+          repairOrderId: order.id,
+          number: order.number,
         });
       }
     }

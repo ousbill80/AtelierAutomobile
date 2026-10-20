@@ -125,6 +125,7 @@ model Membership {
   siteIds        String[]                // vide = tous les sites
   hourlyCost     Int?                    // coût horaire interne (mécaniciens)
   skills         String[]                // "moteur", "électricité", "climatisation", "carrosserie"
+  pinHash        String?                 // M01/M06 §14 : PIN tablette partagée (argon2), créé une seule fois (04 §1)
   isActive       Boolean @default(true)
   createdAt      DateTime @default(now())
   @@unique([organizationId, userId])
@@ -508,8 +509,8 @@ model RepairOrderLine {
   isCustomerSupplied    Boolean  @default(false)  // pièce fournie par le client (unitPrice 0, non garantie)
   costPrice             Int?                      // coût unitaire (sous-traitance, pièce hors stock)
   supplierId            String?                   // sous-traitant / fournisseur ponctuel
-  subcontractStatus     String?                   // TO_SEND | SENT | RETURNED
-  subcontractExpectedAt DateTime?
+  subcontractStatus     String?                   // TO_SEND | SENT | RETURNED | CANCELLED (M06 SubcontractStatus)
+  subcontractExpectedAt DateTime?                 // M06 « subcontractDueAt » (retour prévu)
   approvalSource        String?                   // CHECK_IN | PRE_AUTHORIZED | QUOTE | PHONE | IN_PERSON
   inspectionItemId      String?
   warrantyMonths        Int?
@@ -518,6 +519,9 @@ model RepairOrderLine {
   warrantyUntilMileage  Int?
   completedAt           DateTime?
   completedById         String?                   // Membership.id
+  // M06 §14 — subcontractorId / subcontractCost / subcontractDueAt / subcontractStatus du PRD M06
+  // réutilisent supplierId / costPrice / subcontractExpectedAt / subcontractStatus (M04), sans doublon.
+  subcontractReturnedAt DateTime?                 // M06 §14 : date de retour effective (RETURNED)
   cancelReason          String?                   // M04 (hors §14) : motif d'annulation / refus client
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt       // verrou optimiste (M04 §11)
@@ -580,6 +584,7 @@ model LaborOperation {                         // catalogue de main-d'œuvre
   defaultParts   Json @default("[]")           // kit : [{ productId?, category?, quantity }]
   vehicleOverrides Json @default("[]")         // [{ make, model?, yearFrom?, yearTo?, standardHours }]
   isServiceOperation Boolean @default(false)   // compte comme « révision » (M02 RG-M02-13)
+  requiredSkill  String?                       // M06 §14 : valeur attendue dans Membership.skills (RG-M06-04)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   @@unique([organizationId, code])
@@ -628,7 +633,17 @@ model TimeEntry {                              // pointage mécanicien sur une t
   pauseMinutes     Int @default(0)
   note             String?
   source           String @default("tablet")  // tablet | web | offline-sync
+  // M06 §14
+  kind             TimeEntryKind @default(WORK)
+  pausedAt         DateTime?                  // pause en cours (RG-M06-07)
+  pauseReason      String?                    // parts | lunch | approval | other
+  clientOpId       String? @unique            // idempotence de la synchro hors-ligne
+  deviceId         String?
+  needsReview      Boolean @default(false)    // à revoir (chevauchement, clôture auto, ligne annulée)
+  reviewReason     String?                    // M06 (hors §14) : motif du signalement
+  @@index([organizationId, membershipId, startedAt])
 }
+enum TimeEntryKind { WORK DIAGNOSTIC REWORK }   // M06 §14
 
 model Attendance {                             // présence journalière
   id             String @id @default(cuid())
@@ -637,7 +652,80 @@ model Attendance {                             // présence journalière
   date           DateTime @db.Date
   clockIn        DateTime?
   clockOut       DateTime?
+  // M06 §14
+  siteId         String?
+  breakMinutes   Int @default(60)
+  autoClosed     Boolean @default(false)      // clôturée par le worker (workshop.close_stale)
+  @@unique([organizationId, membershipId, date])
 }
+
+model QualityCheck {                           // M06 §14 — contrôles qualité successifs d'un OR
+  id             String @id @default(cuid())
+  organizationId String
+  repairOrderId  String
+  checkedById    String                       // Membership.id
+  result         QcResult
+  checklist      Json @default("{}")          // { "road_test": true, "wheel_torque": true, … }
+  comment        String?
+  reworkLineIds  String[]
+  createdAt      DateTime @default(now())
+  @@index([organizationId, repairOrderId])
+}
+enum QcResult { PASSED FAILED }
+
+model PartRequest {                            // M06 §14 — demande de pièce tablette → magasin (M07)
+  id                String @id @default(cuid())
+  organizationId    String
+  siteId            String
+  repairOrderId     String
+  repairOrderLineId String?
+  requestedById     String                    // Membership.id
+  productId         String?
+  freeText          String?                   // si produit introuvable
+  quantity          Float
+  urgency           Priority @default(NORMAL)
+  status            PartRequestStatus @default(REQUESTED)
+  handledById       String?
+  purchaseOrderId   String?
+  rejectReason      String?
+  clientOpId        String? @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([organizationId, siteId, status])
+}
+enum PartRequestStatus { REQUESTED PREPARING ORDERED DELIVERED REJECTED CANCELLED }
+
+model WorkNote {                               // M06 §14 — remarques mécanicien sur un OR / une ligne
+  id                String @id @default(cuid())
+  organizationId    String
+  repairOrderId     String
+  repairOrderLineId String?
+  authorId          String                    // Membership.id
+  body              String
+  visibleToCustomer Boolean @default(false)
+  approvedById      String?                   // conseiller ayant validé la diffusion (M14)
+  clientOpId        String? @unique
+  createdAt         DateTime @default(now())
+}
+
+model TechSyncOperation {                      // M06 (hors §14) — journal des opérations tablette appliquées
+  id             String @id @default(cuid())
+  organizationId String
+  clientOpId     String                       // UUID v4 généré par la tablette (RG-M06-14 : idempotence)
+  membershipId   String                       // acteur identifié
+  deviceId       String?
+  type           String                       // task.start | task.pause | inspection.setItem | …
+  status         String                       // ok | rejected
+  error          String?
+  entityId       String?
+  deviceAt       DateTime?                    // heure appareil
+  appliedAt      DateTime                     // heure corrigée de serverOffset
+  createdAt      DateTime @default(now())
+  @@unique([organizationId, clientOpId])
+}
+// Conventions M06 (sans schéma) : Attachment.entity accepte `repair_order_line`, `quality_check`,
+// `part_request` ; Attachment.kind accepte `photo_work`. Organization.settings.atelier :
+// qcRequired, qcChecklist, sharedTablets, keepBayUntilDelivery, photoRequiredOnUrgent.
 
 // ───────────── Devis ─────────────
 
