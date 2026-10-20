@@ -27,6 +27,23 @@ const RESULT_STYLE: Record<Result, string> = {
 };
 const RESULT_ICON: Record<Result, string> = { OK: "✓", WATCH: "!", URGENT: "⚠", NOT_CHECKED: "–" };
 
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+}
+
+function speechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as
+    (new () => SpeechRecognitionLike) | null;
+}
+
 export function InspectionView({ repairOrderId }: { repairOrderId: string }) {
   const router = useRouter();
   const order = trpc.repairOrder.get.useQuery({ id: repairOrderId });
@@ -184,6 +201,7 @@ function ItemEditor({
   const [preview, setPreview] = useState<string | null>(item.photoUrls[0] ?? null);
   const [labor, setLabor] = useState<string[]>(item.recommendedLaborIds);
   const [parts, setParts] = useState<string[]>(item.recommendedProductIds);
+  const [listening, setListening] = useState(false);
   const photoIds = item.photoUrls.map((u) => u.split("/").pop()!);
   const flagged = item.result === "URGENT" || item.result === "WATCH";
 
@@ -197,6 +215,27 @@ function ItemEditor({
       recommendedProductIds: parts,
       ...patch,
     });
+
+  const dictateComment = () => {
+    const Ctor = speechRecognitionCtor();
+    if (!Ctor) return;
+    const recognition = new Ctor();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const text = event.results[0]?.[0]?.transcript ?? "";
+      if (!text) return;
+      setComment((prev) => {
+        const next = [prev, text].filter(Boolean).join(" ");
+        persist({ comment: next || null });
+        return next;
+      });
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    setListening(true);
+    recognition.start();
+  };
 
   return (
     <div className="flex flex-col gap-2 border-t border-border pt-2" data-testid="inspection-item">
@@ -222,15 +261,15 @@ function ItemEditor({
           </button>
         ))}
       </div>
-      {(flagged || item.measurement || item.comment) && (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Input
-            label={t("inspection.measurement")}
-            value={measurement}
-            disabled={readOnly}
-            onChange={(e) => setMeasurement(e.target.value)}
-            onBlur={() => persist({})}
-          />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          label={t("inspection.measurement")}
+          value={measurement}
+          disabled={readOnly}
+          onChange={(e) => setMeasurement(e.target.value)}
+          onBlur={() => persist({})}
+        />
+        <div className="flex flex-col gap-1">
           <Input
             label={t("inspection.comment")}
             value={comment}
@@ -238,9 +277,20 @@ function ItemEditor({
             onChange={(e) => setComment(e.target.value)}
             onBlur={() => persist({})}
           />
+          {!readOnly && speechRecognitionCtor() && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 self-start"
+              disabled={listening}
+              onClick={dictateComment}
+            >
+              {listening ? t("inspection.dictating") : t("inspection.dictate")}
+            </Button>
+          )}
         </div>
-      )}
-      {flagged && !readOnly && (
+      </div>
+      {!readOnly && (
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <PhotoCapture
@@ -269,24 +319,28 @@ function ItemEditor({
               }}
             />
           </div>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-5 w-5"
-              checked={item.shareWithCustomer}
-              onChange={(e) => persist({ shareWithCustomer: e.target.checked })}
-            />
-            {t("inspection.share")}
-          </label>
-          <Recommendations
-            labor={labor}
-            parts={parts}
-            onChange={(nextLabor, nextParts) => {
-              setLabor(nextLabor);
-              setParts(nextParts);
-              persist({ recommendedLaborIds: nextLabor, recommendedProductIds: nextParts });
-            }}
-          />
+          {flagged && (
+            <>
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5"
+                  checked={item.shareWithCustomer}
+                  onChange={(e) => persist({ shareWithCustomer: e.target.checked })}
+                />
+                {t("inspection.share")}
+              </label>
+              <Recommendations
+                labor={labor}
+                parts={parts}
+                onChange={(nextLabor, nextParts) => {
+                  setLabor(nextLabor);
+                  setParts(nextParts);
+                  persist({ recommendedLaborIds: nextLabor, recommendedProductIds: nextParts });
+                }}
+              />
+            </>
+          )}
         </>
       )}
     </div>

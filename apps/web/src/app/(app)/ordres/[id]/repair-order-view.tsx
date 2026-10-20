@@ -20,6 +20,7 @@ import {
   StatusBadge,
   Tabs,
   Textarea,
+  VIEWS,
   type BodyType,
   type BodyView,
 } from "@atelieros/ui";
@@ -958,9 +959,10 @@ function ReceptionTab({ order }: { order: RepairOrderDetail }) {
     }[];
     items?: { key: string; present: boolean }[];
   };
-  const viewLabels = Object.fromEntries(
-    (["TOP", "FRONT", "REAR", "LEFT", "RIGHT"] as const).map((v) => [v, t(`reception.views.${v}`)]),
-  ) as Record<BodyView, string>;
+  const viewLabels = Object.fromEntries(VIEWS.map((v) => [v, t(`reception.views.${v}`)])) as Record<
+    BodyView,
+    string
+  >;
   const photos = order.attachments.filter(
     (a) => a.kind === "photo_checkin" || a.kind === "photo_damage",
   );

@@ -142,6 +142,7 @@ export const techOpSchema = z.discriminatedUnion("type", [
     result: inspectionResultSchema,
     measurement: z.string().trim().max(60).nullable().optional(),
     comment: z.string().trim().max(1000).nullable().optional(),
+    photoAttachmentIds: z.array(id).max(10).optional(),
   }),
   z.object({ ...opBase, type: z.literal("inspection.complete"), inspectionId: id }),
   z.object({ ...opBase, type: z.literal("attendance.in") }),

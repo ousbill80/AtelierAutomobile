@@ -71,6 +71,8 @@ export {
 // M04 — composants tablette de la réception (schéma, jauge, signature, photos).
 export {
   BodyDiagram,
+  VIEWS,
+  VIEW_ZONE_KEYS,
   type BodyDiagramMarker,
   type BodyDiagramProps,
   type BodyType,
