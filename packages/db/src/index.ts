@@ -10,6 +10,8 @@ export {
   type TenantContext,
 } from "./tenant";
 export { buildDigestForMembership } from "./dashboard/digest";
+export * as reportFacts from "./reports";
+export type { SiteScope } from "./reports";
 export * from "@prisma/client";
 export {
   attributeAllocations,

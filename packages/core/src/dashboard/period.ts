@@ -4,11 +4,19 @@
 // 18 du mois précédent).
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
-export const PERIOD_PRESETS = ["today", "7d", "month", "prev_month", "30d"] as const;
+export const PERIOD_PRESETS = [
+  "today",
+  "7d",
+  "month",
+  "prev_month",
+  "30d",
+  "quarter",
+  "year",
+] as const;
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number];
 
 export interface ResolvedPeriod {
-  preset: PeriodPreset;
+  preset: PeriodPreset | "custom";
   /** Dates locales `yyyy-MM-dd`, borne de fin exclusive. */
   fromDate: string;
   toDate: string;
@@ -36,6 +44,19 @@ function firstOfMonth(day: string, monthOffset = 0): string {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + monthOffset, 1))
     .toISOString()
     .slice(0, 10);
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((parseDay(to).getTime() - parseDay(from).getTime()) / MS_PER_DAY);
+}
+
+/**
+ * « À date » (mois, trimestre, année en cours) : la comparaison reprend la même durée depuis
+ * le début de l'unité précédente, bornée au début de l'unité courante (31/03 → 28/02).
+ */
+function toDateComparison(fromDate: string, toDate: string, previousFromDate: string) {
+  const candidate = shiftDay(previousFromDate, daysBetween(fromDate, toDate));
+  return candidate > fromDate ? fromDate : candidate;
 }
 
 /** Jour local `yyyy-MM-dd` de l'instant `now` dans le fuseau `timeZone`. */
@@ -76,12 +97,22 @@ export function resolvePeriod(preset: PeriodPreset, now: Date, timeZone: string)
       fromDate = firstOfMonth(today);
       toDate = tomorrow;
       previousFromDate = firstOfMonth(today, -1);
-      const elapsed = Math.round(
-        (parseDay(toDate).getTime() - parseDay(fromDate).getTime()) / MS_PER_DAY,
-      );
-      const candidate = shiftDay(previousFromDate, elapsed);
-      // Mois précédent plus court (31/03 → 28/02) : on borne au début du mois en cours.
-      previousToDate = candidate > fromDate ? fromDate : candidate;
+      previousToDate = toDateComparison(fromDate, toDate, previousFromDate);
+      break;
+    }
+    case "quarter": {
+      const month = parseDay(today).getUTCMonth();
+      fromDate = firstOfMonth(today, -(month % 3));
+      toDate = tomorrow;
+      previousFromDate = firstOfMonth(fromDate, -3);
+      previousToDate = toDateComparison(fromDate, toDate, previousFromDate);
+      break;
+    }
+    case "year": {
+      fromDate = `${today.slice(0, 4)}-01-01`;
+      toDate = tomorrow;
+      previousFromDate = `${Number(today.slice(0, 4)) - 1}-01-01`;
+      previousToDate = toDateComparison(fromDate, toDate, previousFromDate);
       break;
     }
     case "prev_month":
@@ -103,6 +134,35 @@ export function resolvePeriod(preset: PeriodPreset, now: Date, timeZone: string)
     previousFrom: startOfLocalDay(previousFromDate, timeZone),
     previousTo: startOfLocalDay(previousToDate, timeZone),
   };
+}
+
+/**
+ * Période « Personnalisée » (US-M12-02) : du `from` au `to` **inclus** (dates locales
+ * `yyyy-MM-dd`) ; comparaison = période précédente de même durée.
+ */
+export function resolveCustomPeriod(from: string, to: string, timeZone: string): ResolvedPeriod {
+  const fromDate = from <= to ? from : to;
+  const toDate = shiftDay(from <= to ? to : from, 1);
+  const length = daysBetween(fromDate, toDate);
+  const previousFromDate = shiftDay(fromDate, -length);
+  return {
+    preset: "custom",
+    fromDate,
+    toDate,
+    previousFromDate,
+    previousToDate: fromDate,
+    from: startOfLocalDay(fromDate, timeZone),
+    to: startOfLocalDay(toDate, timeZone),
+    previousFrom: startOfLocalDay(previousFromDate, timeZone),
+    previousTo: startOfLocalDay(fromDate, timeZone),
+  };
+}
+
+/** Jours locaux `yyyy-MM-dd` de `[fromDate, toDate)`. */
+export function daysOf(fromDate: string, toDate: string): string[] {
+  const days: string[] = [];
+  for (let d = fromDate; d < toDate; d = shiftDay(d, 1)) days.push(d);
+  return days;
 }
 
 export type Variation = { kind: "pct"; pct: number } | { kind: "new" } | { kind: "none" };

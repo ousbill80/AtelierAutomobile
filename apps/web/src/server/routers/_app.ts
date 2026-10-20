@@ -9,6 +9,7 @@ import { channelRouter } from "./channel";
 import { contactRouter } from "./contact";
 import { customerRouter } from "./customer";
 import { alertsRouter, dashboardRouter, digestRouter } from "./dashboard";
+import { reportsRouter } from "./reports";
 import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
@@ -107,6 +108,7 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   alerts: alertsRouter,
   digest: digestRouter,
+  reports: reportsRouter,
   // M07 — stock, pièces, fournisseurs, achats
   product: productRouter,
   stock: stockRouter,

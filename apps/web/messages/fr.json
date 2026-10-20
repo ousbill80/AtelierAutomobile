@@ -145,7 +145,8 @@
     "claims": "Sinistres",
     "insurers": "Compagnies d'assurance",
     "claimFollowUps": "Relances assureurs",
-    "settingsPayments": "Paiements"
+    "settingsPayments": "Paiements",
+    "reports": "Rapports"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -445,7 +446,8 @@
     "cash.closed": "Caisse clôturée",
     "cash.reviewed": "Écart de caisse validé",
     "cash.expense": "Dépense de caisse",
-    "cash.drop": "Versement coffre / banque"
+    "cash.drop": "Versement coffre / banque",
+    "report.export": "Export de rapport"
   },
   "import": {
     "list": {
@@ -822,12 +824,19 @@
       "7d": "7 jours",
       "month": "Mois en cours",
       "prev_month": "Mois précédent",
-      "30d": "30 jours"
+      "30d": "30 jours",
+      "quarter": "Trimestre",
+      "year": "Année",
+      "custom": "Personnalisée"
     },
     "tabs": {
       "summary": "Synthèse",
       "reminders": "Relances",
-      "finances": "Finances"
+      "finances": "Finances",
+      "workshop": "Atelier",
+      "frontDesk": "Accueil",
+      "customers": "Clients",
+      "cashier": "Ma caisse"
     },
     "states": {
       "empty": "Pas encore de données sur cette période",
@@ -853,13 +862,27 @@
       "servicesDueThisMonth": "Révisions dues ce mois",
       "remindersSent": "Relances envoyées",
       "returnedCustomers": "Clients revenus après rappel",
-      "notAttributable": "Non disponible pour un site (données non rattachées à un site)"
+      "notAttributable": "Non disponible pour un site (données non rattachées à un site)",
+      "revenueHt": "CA HT",
+      "collected": "Encaissé",
+      "avgTicket": "Panier moyen",
+      "grossMargin": "Marge globale",
+      "acceptance": "Acceptation des devis",
+      "acceptanceValue": "{pct} en valeur",
+      "estimatedCost": "coût estimé"
     },
     "help": {
       "receivables": "Somme des soldes des factures émises non réglées (y compris en litige), à l'instant présent.",
       "recovered": "Paiements reçus dans les 14 jours suivant une relance de créance (dernier contact, relance ou appel tracé).",
       "returnRate": "Véhicules revenus (RDV ou visite) entre la première relance et l'échéance + 30 j (VT) ou + 60 j (révision). Les échéances encore dans ce délai sont « en cours ».",
-      "dso": "Encours ÷ CA TTC des 90 derniers jours × 90."
+      "dso": "Encours ÷ CA TTC des 90 derniers jours × 90.",
+      "revenueHt": "Somme HT des lignes des factures émises sur la période (acomptes exclus), moins les avoirs émis sur la période.",
+      "collected": "Paiements confirmés reçus sur la période, tous modes, moins les remboursements.",
+      "avgTicket": "CA HT ÷ nombre de factures émises (avoirs non comptés).",
+      "grossMargin": "Marge pièces (CA − coût figé à la facture) + marge MO (CA − heures pointées × coût horaire) + frais + sous-traitance, ÷ CA HT.",
+      "acceptance": "Devis (dernière version) acceptés ou convertis ÷ devis décidés ou expirés sur la période.",
+      "occupancy": "Heures pointées (réel) ou réservées (planifié) ÷ capacité des ponts sur les heures d'ouverture.",
+      "efficiency": "Heures vendues ÷ heures pointées sur les lignes facturées. Objectif ≥ 100 %."
     },
     "reminders": {
       "funnel": "Envois sur la période",
@@ -905,7 +928,12 @@
       "topUnpaid": "Principaux impayés",
       "invoices": "{count} facture(s)",
       "daysLate": "{days} j de retard",
-      "notDue": "non échu"
+      "notDue": "non échu",
+      "byMethod": "Encaissements par mode (période)",
+      "fneFailed": "Factures FNE en échec",
+      "noFneFailed": "Aucune facture en échec",
+      "promisesToday": "Promesses du jour",
+      "noPromises": "Aucune promesse attendue aujourd'hui"
     },
     "alerts": {
       "title": "Alertes",
@@ -917,7 +945,72 @@
         "info": "Info"
       }
     },
-    "dash": "—"
+    "dash": "—",
+    "customFrom": "Du",
+    "customTo": "Au",
+    "customApply": "Appliquer",
+    "reportsLink": "Tous les rapports",
+    "summary": {
+      "dailyRevenue": "CA HT par jour",
+      "dailyCurrent": "Période",
+      "dailyPrevious": "Période précédente",
+      "dailyAria": "{day} : {current}, période précédente : {previous}",
+      "byNature": "CA par nature",
+      "natures": {
+        "labor": "Main-d'œuvre",
+        "parts": "Pièces",
+        "subcontract": "Sous-traitance",
+        "fees": "Frais"
+      },
+      "byMethod": "Encaissements par mode"
+    },
+    "workshop": {
+      "statusCounts": "OR en cours par statut",
+      "late": "OR en retard sur la promesse",
+      "waitingParts": "OR en attente de pièces depuis plus de 48 h",
+      "occupancy": "Occupation du jour",
+      "real": "Réel",
+      "planned": "Planifié",
+      "noHours": "Horaires non renseignés : {sites}",
+      "setHours": "Renseigner les horaires",
+      "mechanics": "Mécaniciens (7 jours)",
+      "presence": "Présence",
+      "worked": "Pointé",
+      "billed": "Vendu",
+      "efficiency": "Efficacité",
+      "productivity": "Productivité",
+      "toCheck": "à vérifier",
+      "noPresence": "Présence non pointée",
+      "promisedAt": "promis le {date}",
+      "since": "depuis le {date}",
+      "none": "Aucun"
+    },
+    "frontDesk": {
+      "appointments": "RDV du jour",
+      "noAppointments": "Aucun RDV aujourd'hui",
+      "reminders": "Relances à valider",
+      "seeAll": "Tout voir ({count})",
+      "quotes": "Devis sans réponse depuis plus de 48 h",
+      "ready": "Véhicules prêts non livrés",
+      "unread": "Conversations non lues",
+      "none": "Rien à traiter"
+    },
+    "customersTab": {
+      "active": "Clients actifs",
+      "new": "Nouveaux clients",
+      "lost": "Clients perdus",
+      "topParts": "Top pièces",
+      "quantity": "Qté",
+      "orders": "{count} OR",
+      "margin": "marge {amount}"
+    },
+    "cashier": {
+      "title": "Ma caisse du jour",
+      "noSession": "Aucune caisse ouverte à votre nom.",
+      "openedAt": "Ouverte le {date} — {site}",
+      "total": "Total encaissé"
+    },
+    "mechanicLink": "Ouvrir la tablette atelier"
   },
   "appointments": {
     "title": "Planning",
@@ -3873,5 +3966,196 @@
       "moov": "Moov Money"
     },
     "loadError": "Impossible de charger les paramètres de paiement."
+  },
+  "reports": {
+    "title": "Rapports",
+    "description": "Exportez vos chiffres en Excel, PDF ou CSV : les totaux sont identiques à l'écran.",
+    "back": "Rapports",
+    "compareSites": "Comparaison des sites",
+    "compareSitesDescription": "Indicateurs clés de chaque site, ligne Réseau et classement.",
+    "filters": {
+      "from": "Du",
+      "to": "Au",
+      "asOf": "Situation au",
+      "site": "Site",
+      "allSites": "Tous les sites",
+      "groupBy": "Regrouper par",
+      "apply": "Afficher",
+      "period": "Période"
+    },
+    "groupBy": {
+      "none": "Facture",
+      "day": "Jour",
+      "month": "Mois",
+      "customer": "Client"
+    },
+    "export": {
+      "title": "Exporter",
+      "xlsx": "Excel",
+      "pdf": "PDF",
+      "csv": "CSV",
+      "tooMany": "Réduisez la période (100 000 lignes max par export).",
+      "forbidden": "Permission manquante pour ce rapport.",
+      "failed": "L'export a échoué. Réessayez."
+    },
+    "preview": {
+      "rows": "{count} ligne(s)",
+      "total": "Total",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "page": "Lignes {from} à {to} sur {count}",
+      "empty": "Aucune donnée pour ces filtres.",
+      "error": "Impossible de charger le rapport.",
+      "retry": "Réessayer",
+      "generatedAt": "Généré le {date}",
+      "valuationNote": "Valorisation au CMP actuel.",
+      "estimatedCost": "coût estimé"
+    },
+    "params": {
+      "title": "Paramètres",
+      "report": "Rapport",
+      "period": "Période",
+      "asOf": "Situation au",
+      "site": "Site",
+      "generatedAt": "Généré le",
+      "user": "Utilisateur",
+      "data": "Données",
+      "summary": "Synthèse"
+    },
+    "noAccess": "Vous n'avez accès à aucun rapport.",
+    "list": {
+      "ventes": {
+        "title": "Ventes",
+        "description": "CA par facture, nature (MO, pièces, sous-traitance, frais), TVA et TTC."
+      },
+      "encaissements": {
+        "title": "Encaissements par mode",
+        "description": "Reçus et remboursements par mode de paiement, caissier et factures allouées."
+      },
+      "balance-agee": {
+        "title": "Balance âgée",
+        "description": "Factures ouvertes par tranche de retard à une date donnée, synthèse par client."
+      },
+      "rentabilite-or": {
+        "title": "Rentabilité par OR",
+        "description": "CA et coûts MO / pièces, marge et heures vendues / pointées de chaque OR facturé."
+      },
+      "stock-valorise": {
+        "title": "Stock valorisé",
+        "description": "Quantités et valeur du stock par site et par article, à une date donnée."
+      },
+      "relances": {
+        "title": "Performances des relances",
+        "description": "Envois, lectures, réponses, RDV et paiements par type, palier et canal."
+      },
+      "productivite": {
+        "title": "Productivité",
+        "description": "Présence, temps pointé, heures vendues, efficacité et rendement par mécanicien."
+      },
+      "clients": {
+        "title": "Clients actifs / perdus",
+        "description": "Dernière activité, CA sur 12 mois et statut de chaque client."
+      },
+      "top-pieces": {
+        "title": "Top pièces",
+        "description": "Pièces vendues classées par CA HT, avec quantités et nombre d'OR."
+      }
+    },
+    "columns": {
+      "date": "Date",
+      "number": "N°",
+      "customer": "Client",
+      "site": "Site",
+      "labor": "MO",
+      "parts": "Pièces",
+      "subcontract": "Sous-traitance",
+      "fees": "Frais",
+      "discount": "Remise",
+      "ht": "HT",
+      "vat": "TVA",
+      "ttc": "TTC",
+      "method": "Mode",
+      "reference": "Référence",
+      "amount": "Montant",
+      "cashier": "Caissier",
+      "invoices": "Factures allouées",
+      "issuedAt": "Émission",
+      "dueDate": "Échéance",
+      "total": "Total",
+      "paid": "Payé",
+      "balance": "Solde",
+      "daysLate": "Retard (j)",
+      "bucket": "Tranche",
+      "vehicle": "Véhicule",
+      "laborHt": "CA MO",
+      "laborCost": "Coût MO",
+      "partsHt": "CA pièces",
+      "partsCost": "Coût pièces",
+      "margin": "Marge",
+      "marginRate": "Marge %",
+      "soldHours": "Heures vendues",
+      "workedHours": "Heures pointées",
+      "sku": "Réf.",
+      "name": "Désignation",
+      "category": "Catégorie",
+      "quantity": "Quantité",
+      "averageCost": "CMP",
+      "value": "Valeur",
+      "type": "Type",
+      "step": "Palier",
+      "channel": "Canal",
+      "sent": "Envoyés",
+      "delivered": "Délivrés",
+      "read": "Lus",
+      "replied": "Réponses",
+      "booked": "RDV",
+      "recovered": "Récupéré",
+      "cost": "Coût messages",
+      "mechanic": "Mécanicien",
+      "presenceH": "Présence",
+      "workedH": "Pointé",
+      "billedH": "Vendu",
+      "efficiency": "Efficacité",
+      "productivity": "Productivité",
+      "overall": "Rendement",
+      "repairOrders": "Nb OR",
+      "lastActivity": "Dernière activité",
+      "revenue12m": "CA 12 mois",
+      "status": "Statut",
+      "label": "Pièce"
+    },
+    "documentType": {
+      "INVOICE": "Facture",
+      "CREDIT_NOTE": "Avoir",
+      "REFUND": "Remboursement"
+    },
+    "customerStatus": {
+      "active": "Actif",
+      "lost": "Perdu",
+      "inactive": "Inactif"
+    },
+    "channels": {
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS",
+      "EMAIL": "Email"
+    },
+    "sites": {
+      "network": "Réseau",
+      "best": "Meilleur site",
+      "rank": "rang {rank}",
+      "notEnoughSites": "La comparaison est disponible à partir de 2 sites actifs.",
+      "metrics": {
+        "revenueHt": "CA HT",
+        "grossRate": "Marge globale",
+        "avgTicket": "Panier moyen",
+        "repairOrders": "Nb OR",
+        "acceptanceRate": "Acceptation devis",
+        "occupancy": "Occupation",
+        "efficiency": "Efficacité",
+        "receivables": "Encours",
+        "dso": "DSO"
+      },
+      "sortBy": "Trier par"
+    }
   }
 }

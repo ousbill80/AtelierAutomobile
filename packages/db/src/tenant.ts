@@ -276,6 +276,22 @@ export function forTenant(ctx: TenantContext) {
 
   return Object.assign(extended, {
     /**
+     * Agrégats SQL (M12 : CA par jour local, sommes par type de ligne…) que l'API Prisma ne
+     * sait pas exprimer. La requête tourne sur la connexion restreinte, après
+     * `set_config('app.organization_id', …)` : la RLS Postgres ne laisse voir que les lignes de
+     * l'organisation, même si la requête oublie son filtre `organizationId` (à mettre quand
+     * même, pour les index). Lecture seule : réservé aux `SELECT`.
+     */
+    async queryRaw<T = unknown>(query: Prisma.Sql): Promise<T[]> {
+      if (!/^\s*(with|select)\b/i.test(query.sql)) {
+        throw new Error("db.forTenant().queryRaw() n'accepte que des requêtes SELECT.");
+      }
+      return appDb.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.organization_id', ${organizationId}, true)`;
+        return tx.$queryRaw<T[]>(query);
+      });
+    },
+    /**
      * RG-M02-08 (fusion client/véhicule) et toute opération multi-tables qui doit rester
      * atomique : ouvre UNE transaction sur la connexion restreinte, y positionne
      * `app.organization_id` une seule fois, et expose aux modèles tenant-scopés le même
