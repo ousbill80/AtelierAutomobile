@@ -6,66 +6,38 @@ import { TRPCError } from "@trpc/server";
 import { isConfirmationOverdue } from "@atelieros/core";
 import { db } from "@atelieros/db";
 import { portalInvoicePayInputSchema, portalInvoiceTokenInputSchema } from "@atelieros/validators";
-import {
-  alertUnconfirmedPortalPayment,
-  buildInvoicePublicView,
-  resolveInvoiceToken,
-} from "../billing/portal";
+import { alertUnconfirmedPortalPayment, buildInvoicePublicView } from "../billing/portal";
+import { requirePortalToken } from "../portal/access";
+import { resetPortalRateLimits } from "../portal/rateLimit";
 import { createInvoicePaymentLink, refreshPaymentLink } from "../billing/paymentLinks";
 import { billingNow } from "../billing/service";
 import { publicProcedure, router } from "../trpc";
 
-// RG-M14-06 — 30 requêtes/min par jeton (mémoire du processus).
-const hits = new Map<string, number[]>();
-function rateLimit(key: string, now: number, max = 30): void {
-  if (hits.size > 10_000) {
-    for (const [k, times] of hits) if (times.every((t) => now - t >= 60_000)) hits.delete(k);
-  }
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < 60_000);
-  recent.push(now);
-  hits.set(key, recent);
-  if (recent.length > max) {
-    throw new TRPCError({
-      code: "TOO_MANY_REQUESTS",
-      message: "Trop de requêtes. Réessayez dans une minute.",
-    });
-  }
-}
-
-/** Tests : réinitialise le limiteur. */
+/** Tests : réinitialise le limiteur (désormais partagé par tout le portail, RG-M14-06). */
 export function resetPortalInvoiceRateLimit() {
-  hits.clear();
-}
-
-async function requireToken(token: string, now: Date, count: boolean) {
-  rateLimit(token, now.getTime());
-  const resolved = await resolveInvoiceToken(token, now, count);
-  if (resolved.status === "ACTIVE") return resolved.token;
-  throw new TRPCError({
-    code: "NOT_FOUND",
-    message:
-      resolved.status === "EXPIRED"
-        ? "LINK_EXPIRED : ce lien a expiré. Contactez le garage pour recevoir un nouveau lien."
-        : "Lien expiré ou invalide.",
-  });
+  resetPortalRateLimits();
 }
 
 /** Délai minimal entre deux vérifications auprès du fournisseur depuis la page (polling). */
 const PROVIDER_CHECK_INTERVAL_MS = 15_000;
 
 export const portalInvoiceRouter = router({
-  get: publicProcedure.input(portalInvoiceTokenInputSchema).query(async ({ input }) => {
+  get: publicProcedure.input(portalInvoiceTokenInputSchema).query(async ({ ctx, input }) => {
     const now = billingNow();
-    const token = await requireToken(input.token, now, true);
+    const token = await requirePortalToken(input.token, ["INVOICE"], ctx, { now });
     const view = await buildInvoicePublicView(token, now);
     if (!view) throw new TRPCError({ code: "NOT_FOUND", message: "Lien expiré ou invalide." });
     return view;
   }),
 
   /** RG-M14-14 — « Payer avec Wave / Orange Money / MTN / Moov » : URL du fournisseur. */
-  pay: publicProcedure.input(portalInvoicePayInputSchema).mutation(async ({ input }) => {
+  pay: publicProcedure.input(portalInvoicePayInputSchema).mutation(async ({ ctx, input }) => {
     const now = billingNow();
-    const token = await requireToken(input.token, now, false);
+    const token = await requirePortalToken(input.token, ["INVOICE"], ctx, {
+      now,
+      count: false,
+      action: "pay_click",
+    });
     const view = await buildInvoicePublicView(token, now);
     if (!view || !view.payable || !view.methods.includes(input.method)) {
       throw new TRPCError({
@@ -92,47 +64,54 @@ export const portalInvoiceRouter = router({
    * fournisseur au plus toutes les 15 s ; au-delà de 2 min sans confirmation, le caissier est
    * prévenu et la page affiche « ne repayez pas ».
    */
-  paymentStatus: publicProcedure.input(portalInvoiceTokenInputSchema).query(async ({ input }) => {
-    const now = billingNow();
-    const token = await requireToken(input.token, now, false);
-    const tenantDb = db.forTenant({ organizationId: token.organizationId });
-    const pending = await tenantDb.paymentLink.findFirst({
-      where: {
-        invoiceId: token.targetId,
-        status: "PENDING",
-        createdById: null,
-        expiresAt: { gt: now },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    if (
-      pending &&
-      (!pending.lastCheckedAt ||
-        now.getTime() - pending.lastCheckedAt.getTime() >= PROVIDER_CHECK_INTERVAL_MS)
-    ) {
-      try {
-        await refreshPaymentLink(token.organizationId, pending.id, now, "portal");
-      } catch {
-        // Fournisseur indisponible : le webhook ou le rapprochement prendront le relais.
+  paymentStatus: publicProcedure
+    .input(portalInvoiceTokenInputSchema)
+    .query(async ({ ctx, input }) => {
+      const now = billingNow();
+      // Rafraîchissement (toutes les 3 s) : ni ouverture comptée, ni quota par IP consommé.
+      const token = await requirePortalToken(input.token, ["INVOICE"], ctx, {
+        now,
+        count: false,
+        skipRateLimit: true,
+      });
+      const tenantDb = db.forTenant({ organizationId: token.organizationId });
+      const pending = await tenantDb.paymentLink.findFirst({
+        where: {
+          invoiceId: token.targetId,
+          status: "PENDING",
+          createdById: null,
+          expiresAt: { gt: now },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (
+        pending &&
+        (!pending.lastCheckedAt ||
+          now.getTime() - pending.lastCheckedAt.getTime() >= PROVIDER_CHECK_INTERVAL_MS)
+      ) {
+        try {
+          await refreshPaymentLink(token.organizationId, pending.id, now, "portal");
+        } catch {
+          // Fournisseur indisponible : le webhook ou le rapprochement prendront le relais.
+        }
       }
-    }
-    const invoice = await tenantDb.invoice.findFirstOrThrow({
-      where: { id: token.targetId },
-      select: { number: true, status: true, balance: true, amountPaid: true },
-    });
-    const stillPending = pending
-      ? await tenantDb.paymentLink.findFirst({ where: { id: pending.id, status: "PENDING" } })
-      : null;
-    const overdue = stillPending ? isConfirmationOverdue(stillPending.createdAt, now) : false;
-    if (stillPending && overdue) {
-      await alertUnconfirmedPortalPayment(token.organizationId, stillPending, invoice.number);
-    }
-    return {
-      status: invoice.status,
-      balance: invoice.balance,
-      amountPaid: invoice.amountPaid,
-      paid: invoice.status === "PAID",
-      pending: stillPending ? { since: stillPending.createdAt, overdue } : null,
-    };
-  }),
+      const invoice = await tenantDb.invoice.findFirstOrThrow({
+        where: { id: token.targetId },
+        select: { number: true, status: true, balance: true, amountPaid: true },
+      });
+      const stillPending = pending
+        ? await tenantDb.paymentLink.findFirst({ where: { id: pending.id, status: "PENDING" } })
+        : null;
+      const overdue = stillPending ? isConfirmationOverdue(stillPending.createdAt, now) : false;
+      if (stillPending && overdue) {
+        await alertUnconfirmedPortalPayment(token.organizationId, stillPending, invoice.number);
+      }
+      return {
+        status: invoice.status,
+        balance: invoice.balance,
+        amountPaid: invoice.amountPaid,
+        paid: invoice.status === "PAID",
+        pending: stillPending ? { since: stillPending.createdAt, overdue } : null,
+      };
+    }),
 });

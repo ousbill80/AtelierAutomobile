@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   fneBlockLines,
   fneQrImage,
+  fneQrSvg,
   renderInvoicePdf,
   renderReceiptPdf,
   type InvoicePdfData,
@@ -73,6 +74,10 @@ describe("invoice and receipt PDFs", () => {
     ]);
     expect(await fneQrImage("https://dgi.example/verif/1")).toMatch(/^data:image\/png;base64,/);
     expect(await fneQrImage("data:image/png;base64,AAAA")).toBe("data:image/png;base64,AAAA");
+    // RG-M14-13 : SVG pour le portail ; une image importée reste une image.
+    expect(await fneQrSvg("https://dgi.example/verif/1")).toMatch(/^<svg[\s\S]*<\/svg>\s*$/);
+    expect(await fneQrSvg("data:image/png;base64,AAAA")).toBeNull();
+    expect(await fneQrSvg(null)).toBeNull();
     expect(await fneQrImage(null)).toBeNull();
     const pdf = await renderInvoicePdf({
       ...invoice,

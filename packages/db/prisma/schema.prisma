@@ -38,6 +38,7 @@ model Organization {
   operatingMode         OperatingMode @default(FULL) // REMINDERS_ONLY si le garage garde son ancien logiciel
   settings              Json          @default("{}") // préférences diverses (voir M15) : onboarding { step, skipped[] }, security { otpOnNewDevice: Role[] }
   onboardingCompletedAt DateTime?
+  slug                  String?       @unique // M15 §14 (créé par M14 : /p/connexion?g={slug}) ; requis quand M15 sera livré
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -134,6 +135,10 @@ model Organization {
   automationRuns         AutomationRun[]
   holidays               Holiday[]
   portalTokens           PortalToken[]
+  portalAccesses         PortalAccess[]
+  portalSessions         PortalSession[]
+  portalOtpChallenges    PortalOtpChallenge[]
+  customerFeedbacks      CustomerFeedback[]
   resourceBlocks         ResourceBlock[]
   invitations            Invitation[]
   rolePermissions        RolePermission[]
@@ -200,6 +205,7 @@ model Site {
   resourceBlocks    ResourceBlock[]
   attendances       Attendance[] // M06 §14
   partRequests      PartRequest[] // M06 §14
+  customerFeedbacks CustomerFeedback[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -425,27 +431,28 @@ model Customer {
   // M05 §14
   requiresPurchaseOrder Boolean      @default(false) // flotte : bon de commande client exigé
 
-  organization    Organization      @relation(fields: [organizationId], references: [id])
-  vehicles        Vehicle[]
-  contacts        CustomerContact[]
-  appointments    Appointment[]
-  repairOrders    RepairOrder[]
-  quotes          Quote[]
-  invoices        Invoice[]
-  payments        Payment[]
-  refunds         Refund[] // M08 §14
-  credits         CustomerCredit[] // M08 §14
-  insurer         InsuranceCompany? @relation("InsurerCustomer") // M16 : Customer d'une compagnie
-  collectionCases CollectionCase[]
-  creditOverrides CreditOverride[]
-  reminders       Reminder[]
-  conversations   Conversation[]
-  messages        Message[]
-  insuranceClaims InsuranceClaim[]
-  portalTokens    PortalToken[]
-  customerNotes   CustomerNote[]
+  organization      Organization       @relation(fields: [organizationId], references: [id])
+  vehicles          Vehicle[]
+  contacts          CustomerContact[]
+  appointments      Appointment[]
+  repairOrders      RepairOrder[]
+  quotes            Quote[]
+  invoices          Invoice[]
+  payments          Payment[]
+  refunds           Refund[] // M08 §14
+  credits           CustomerCredit[] // M08 §14
+  insurer           InsuranceCompany?  @relation("InsurerCustomer") // M16 : Customer d'une compagnie
+  collectionCases   CollectionCase[]
+  creditOverrides   CreditOverride[]
+  reminders         Reminder[]
+  conversations     Conversation[]
+  messages          Message[]
+  insuranceClaims   InsuranceClaim[]
+  portalTokens      PortalToken[]
+  customerNotes     CustomerNote[]
   // index trigram (migration SQL) :
   // CREATE INDEX customer_display_name_trgm ON "Customer" USING gin ("displayName" gin_trgm_ops);
+  customerFeedbacks CustomerFeedback[]
 
   @@index([organizationId, displayName])
   @@index([organizationId, phone])
@@ -483,6 +490,7 @@ model CustomerContact {
   receivesInvoices  Boolean   @default(false)
   receivesReminders Boolean   @default(false)
   isPrimary         Boolean   @default(false)
+  portalAccess      Boolean   @default(false) // M14 : accès vue flotte par OTP (US-M14-09)
   createdAt         DateTime  @default(now())
   deletedAt         DateTime?
 
@@ -928,6 +936,7 @@ model RepairOrder {
   comebackOf            RepairOrder?               @relation("RepairOrderComeback", fields: [comebackOfId], references: [id])
   comebacks             RepairOrder[]              @relation("RepairOrderComeback")
   statusHistory         RepairOrderStatusHistory[]
+  customerFeedback      CustomerFeedback?
 
   @@unique([organizationId, number])
   @@unique([organizationId, clientRequestId])
@@ -3646,10 +3655,11 @@ model PortalToken {
   revokeReason   String?
   createdAt      DateTime          @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  customer     Customer     @relation(fields: [customerId], references: [id])
-  createdBy    Membership?  @relation("PortalTokenCreatedBy", fields: [createdById], references: [id])
-  reminder     Reminder?    @relation(fields: [reminderId], references: [id])
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  customer     Customer       @relation(fields: [customerId], references: [id])
+  createdBy    Membership?    @relation("PortalTokenCreatedBy", fields: [createdById], references: [id])
+  reminder     Reminder?      @relation(fields: [reminderId], references: [id])
+  accesses     PortalAccess[]
   // targetId est polymorphe (scope détermine la table cible : Quote, Invoice, RepairOrder, Appointment, Vehicle…) : pas de @relation unique possible.
 
   @@index([organizationId, scope, targetId])
@@ -3670,4 +3680,75 @@ enum PortalTokenStatus {
   ACTIVE
   EXPIRED
   REVOKED
+}
+
+model PortalAccess {
+  // M14 §14 — journal des ouvertures et actions du portail (purgé après 12 mois)
+  id              String   @id @default(cuid(2))
+  organizationId  String
+  portalTokenId   String?
+  portalSessionId String?
+  action          String // open | quote_decide | pay_click | book | cancel | feedback | new_link_request | otp_login | document_open
+  ipPrefix        String? // IP tronquée /24 (IPv6 /48)
+  userAgent       String?
+  createdAt       DateTime @default(now())
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  portalToken   PortalToken?   @relation(fields: [portalTokenId], references: [id], onDelete: Cascade)
+  portalSession PortalSession? @relation(fields: [portalSessionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([portalTokenId, action, createdAt])
+}
+
+model PortalSession {
+  // M14 §14 — accès « Mon espace » par OTP téléphone (RG-M14-22)
+  id             String    @id @default(cuid(2))
+  organizationId String
+  phone          String // E.164
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  lastSeenAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  accesses     PortalAccess[]
+
+  @@index([organizationId, phone])
+}
+
+model PortalOtpChallenge {
+  // M14 RG-M14-22 — défi OTP (code haché, 5 min, 5 essais) ; hors §14 : stockage nécessaire à l'OTP
+  id             String    @id @default(cuid(2))
+  organizationId String
+  phone          String // E.164
+  codeHash       String
+  expiresAt      DateTime
+  attempts       Int       @default(0)
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, phone, createdAt])
+}
+
+model CustomerFeedback {
+  // M14 §14 — avis après restitution (RG-M14-21) : un seul par OR
+  id             String   @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  customerId     String
+  repairOrderId  String   @unique
+  rating         Int // 1-5
+  comment        String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  site         Site         @relation(fields: [siteId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  repairOrder  RepairOrder  @relation(fields: [repairOrderId], references: [id])
+
+  @@index([organizationId, createdAt])
 }

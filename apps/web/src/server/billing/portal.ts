@@ -6,8 +6,8 @@ import {
   isInvoicePayable,
   portalPaymentMethods,
 } from "@atelieros/core";
-import { adminDb, db, hashPortalToken, notifyMembers, type PortalToken } from "@atelieros/db";
-import { fneQrImage } from "@atelieros/pdf";
+import { adminDb, db, notifyMembers, resolvePortalToken, type PortalToken } from "@atelieros/db";
+import { fneQrSvg } from "@atelieros/pdf";
 
 export type ResolvedInvoiceToken =
   { status: "ACTIVE"; token: PortalToken } | { status: "EXPIRED" | "REVOKED" | "NOT_FOUND" };
@@ -21,27 +21,9 @@ export async function resolveInvoiceToken(
   now: Date,
   count: boolean,
 ): Promise<ResolvedInvoiceToken> {
-  const record = await adminDb.portalToken.findUnique({
-    where: { tokenHash: hashPortalToken(token) },
-  });
-  if (!record || record.scope !== "INVOICE") return { status: "NOT_FOUND" };
-  if (record.status === "REVOKED") return { status: "REVOKED" };
-  if (record.status === "EXPIRED" || record.expiresAt.getTime() <= now.getTime()) {
-    if (record.status !== "EXPIRED") {
-      await adminDb.portalToken.update({ where: { id: record.id }, data: { status: "EXPIRED" } });
-    }
-    return { status: "EXPIRED" };
-  }
-  if (!count) return { status: "ACTIVE", token: record };
-  const updated = await adminDb.portalToken.update({
-    where: { id: record.id },
-    data: {
-      openCount: { increment: 1 },
-      lastOpenedAt: now,
-      firstOpenedAt: record.firstOpenedAt ?? now,
-    },
-  });
-  return { status: "ACTIVE", token: updated };
+  const resolved = await resolvePortalToken(token, ["INVOICE"], now, { count });
+  if (resolved.status === "ACTIVE") return { status: "ACTIVE", token: resolved.row };
+  return { status: resolved.status };
 }
 
 /** QR FNE affichable : contenu texte seulement (l'image importée reste dans le PDF). */
@@ -138,9 +120,9 @@ export async function buildInvoicePublicView(token: PortalToken, now: Date) {
       ? {
           certified: true as const,
           number: invoice.fneNumber,
-          qrImage: await fneQrImage(qrContent(invoice.fneQrCode)).catch(() => null),
+          qrSvg: await fneQrSvg(qrContent(invoice.fneQrCode)).catch(() => null),
         }
-      : { certified: false as const, number: null, qrImage: null },
+      : { certified: false as const, number: null, qrSvg: null },
     voided: invoice.status === "VOID",
     payable: isInvoicePayable(invoice) && methods.length > 0,
     methods,
