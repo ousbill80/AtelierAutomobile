@@ -10,6 +10,8 @@ describe("Web middleware security headers (Étape 7.1)", () => {
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(res.headers.get("X-Frame-Options")).toBe("DENY");
     expect(res.headers.get("Content-Security-Policy")).toContain("default-src 'self'");
+    expect(res.headers.get("Content-Security-Policy")).toContain("media-src 'self' blob:");
+    expect(res.headers.get("Permissions-Policy")).toContain("camera=(self)");
   });
 
   it("applique les règles de protection du portail pour /p/token", () => {

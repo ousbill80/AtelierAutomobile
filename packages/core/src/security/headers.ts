@@ -40,7 +40,9 @@ export function buildContentSecurityPolicy(config: SecurityHeadersConfig = {}): 
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
+    "media-src 'self' blob:",
     `connect-src ${connectSrc.join(" ")}`,
+    "worker-src 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
@@ -84,4 +86,23 @@ export function getSecurityHeaders(config: SecurityHeadersConfig = {}): Record<s
   }
 
   return headers;
+}
+
+/**
+ * Origines à autoriser dans `connect-src` sans casser les uploads S3, Sentry, ni le local.
+ * Les URL invalides sont ignorées : mieux vaut omettre que bloquer le middleware.
+ */
+export function connectSourcesFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
+  const sources = new Set<string>();
+  for (const raw of [env.S3_ENDPOINT, env.S3_PUBLIC_ENDPOINT, env.SENTRY_DSN]) {
+    if (!raw) continue;
+    try {
+      sources.add(new URL(raw).origin);
+    } catch {
+      // URL mal formée : on n'ajoute rien
+    }
+  }
+  return [...sources];
 }

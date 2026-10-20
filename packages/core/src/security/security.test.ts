@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildContentSecurityPolicy, getSecurityHeaders } from "./headers";
+import { buildContentSecurityPolicy, connectSourcesFromEnv, getSecurityHeaders } from "./headers";
 import { isSensitiveKey, sanitizeLogData, scrubLogMessage } from "./sanitizer";
 import { InMemoryRateLimiter, checkSlidingWindowRateLimit } from "./rateLimit";
 
@@ -22,6 +22,17 @@ describe("Security module (Étape 7.1)", () => {
       });
       expect(csp).toContain("https://api.excellence-auto.ci");
       expect(csp).toContain("https://sentry.io");
+      expect(csp).toContain("media-src 'self' blob:");
+      expect(csp).toContain("worker-src 'self'");
+    });
+
+    it("extrait les origines S3 et Sentry depuis l'environnement", () => {
+      expect(
+        connectSourcesFromEnv({
+          S3_ENDPOINT: "http://localhost:9000",
+          SENTRY_DSN: "https://key@o123.ingest.sentry.io/456",
+        }),
+      ).toEqual(["http://localhost:9000", "https://o123.ingest.sentry.io"]);
     });
   });
 
