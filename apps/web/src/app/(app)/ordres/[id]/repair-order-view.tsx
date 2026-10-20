@@ -42,6 +42,7 @@ import {
 import { LineForm } from "@/components/repair-orders/line-form";
 import type { RepairOrderDetail, RepairOrderLineDetail } from "@/components/repair-orders/types";
 import { QuoteStatusBadge } from "@/components/quotes/badges";
+import { QuoteDraftPanel } from "@/components/ai-quotes/quote-draft-panel";
 
 const TAB_KEYS = [
   "work",
@@ -1268,6 +1269,7 @@ function QuotesTab({ order, perms }: { order: RepairOrderDetail; perms: Set<stri
           </Button>
         </div>
       )}
+      {canCreate && perms.has("ai:use") && <QuoteDraftPanel repairOrderId={order.id} />}
       {error && (
         <p role="alert" className="text-status-bad">
           ⚠ {error}
