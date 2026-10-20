@@ -41,6 +41,7 @@
   },
   "auth": {
     "brand": "AtelierOS",
+    "brandMark": "AO",
     "tagline": "Gestion d'atelier automobile",
     "signIn": {
       "title": "Connexion",

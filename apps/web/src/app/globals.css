@@ -53,6 +53,14 @@
   --sidebar-w-collapsed: 76px;
   --topbar-h: 64px;
   --bottomtab-h: 64px;
+
+  /* Filet de sécurité : next/font remplace ces valeurs sur <html>. */
+  --font-sora: system-ui, sans-serif;
+  --font-inter: system-ui, sans-serif;
+  --font-jetbrains-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-display: var(--font-sora);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 .dark {
@@ -135,9 +143,9 @@
   --radius-lg: var(--radius-lg);
   --radius-full: var(--radius-full);
 
-  --font-display: var(--font-sora);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-display: var(--font-sora), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
 body {

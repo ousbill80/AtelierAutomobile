@@ -61,7 +61,7 @@ function ConnexionForm() {
 
   return (
     <>
-      <h1>{t("auth.signIn.title")}</h1>
+      <h2 className="login-screen-title">{t("auth.signIn.title")}</h2>
       {lockedUntil ? (
         <p className="error">{t("auth.signIn.locked")}</p>
       ) : (
@@ -99,18 +99,20 @@ function ConnexionForm() {
             {needsOtp ? t("auth.verifyOtp.submit") : t("auth.signIn.submit")}
           </Button>
           {!needsOtp ? (
-            <Link href="/mot-de-passe-oublie" className="link-btn">
-              {t("auth.signIn.forgotPassword")}
-            </Link>
+            <div className="login-forgot">
+              <Link href="/mot-de-passe-oublie" className="link-btn">
+                {t("auth.signIn.forgotPassword")}
+              </Link>
+            </div>
           ) : null}
         </form>
       )}
       <hr className="sep" />
-      <p>
+      <p className="login-foot">
         {t("auth.signIn.noAccount")}{" "}
         <Link href="/inscription">{t("auth.signIn.createAccount")}</Link>
       </p>
-      <p>
+      <p className="login-foot">
         <Link href="/tablette/connexion">{t("auth.signIn.useAtelierMode")}</Link>
       </p>
     </>
