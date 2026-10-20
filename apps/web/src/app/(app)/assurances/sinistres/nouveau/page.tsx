@@ -1,7 +1,8 @@
 "use client";
 
 // M16 §7 — /assurances/sinistres/nouveau (US-M16-01) : depuis un OR (`?or=`) ou en cherchant le
-// véhicule par sa plaque ; compagnie, police, accident, franchise prévue.
+// véhicule par sa plaque ; compagnie, police, accident, franchise prévue. M17 : « Photographier
+// un document » lit le constat amiable et pré-remplit le dossier (suggestion à vérifier).
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,6 +19,12 @@ import {
 import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { t } from "@/components/claims/i18n";
+import {
+  DocumentCapture,
+  ExtractedHint,
+  extractedClass,
+  type ExtractedFields,
+} from "@/components/ai/document-capture";
 
 function NewClaimForm() {
   const router = useRouter();
@@ -43,10 +50,46 @@ function NewClaimForm() {
   const [deductible, setDeductible] = useState<number | null>(null);
   const [vatPaidBy, setVatPaidBy] = useState<"INSURANCE" | "CUSTOMER">("INSURANCE");
   const [error, setError] = useState<string | null>(null);
+  const [extracted, setExtracted] = useState<ExtractedFields>({});
+  const [suggestionId, setSuggestionId] = useState<string | null>(null);
+  const acceptSuggestion = trpc.ai.suggestion.accept.useMutation();
   const create = trpc.claim.create.useMutation({
-    onSuccess: (res) => router.push(`/assurances/sinistres/${res.claim.id}`),
+    onSuccess: async (res) => {
+      if (suggestionId) {
+        await acceptSuggestion
+          .mutateAsync({
+            suggestionId,
+            editedPayload: {
+              fields: { policyNumber, accidentDate, accidentPlace, circumstances, plate },
+            },
+          })
+          .catch(() => null);
+      }
+      router.push(`/assurances/sinistres/${res.claim.id}`);
+    },
     onError: (e) => setError(e.message),
   });
+
+  function applyExtraction(fields: ExtractedFields, id: string | null) {
+    const text = (name: string) =>
+      fields[name] === undefined ? undefined : String(fields[name]!.value);
+    if (text("policyNumber")) setPolicyNumber(text("policyNumber")!);
+    if (text("accidentDate")) setAccidentDate(text("accidentDate")!);
+    if (text("accidentPlace")) setAccidentPlace(text("accidentPlace")!);
+    if (text("circumstances")) setCircumstances(text("circumstances")!);
+    if (text("plate") && !repairOrderId) setPlate(text("plate")!);
+    const insurerName = text("insurerName")?.toLowerCase();
+    const insurer = insurerName
+      ? insurers.data?.find(
+          (i) =>
+            insurerName.includes(i.name.toLowerCase()) ||
+            i.name.toLowerCase().includes(insurerName.split(" ")[0] ?? insurerName),
+        )
+      : undefined;
+    if (insurer) setInsurerId(insurer.id);
+    setExtracted(fields);
+    setSuggestionId(id);
+  }
 
   if (insurers.isLoading) return <ListSkeleton rows={3} />;
   if (insurers.isError || !insurers.data) {
@@ -94,6 +137,10 @@ function NewClaimForm() {
   return (
     <form onSubmit={submit} className="flex max-w-xl flex-col gap-3">
       <h1 className="text-xl font-semibold">{t("new")}</h1>
+      <DocumentCapture
+        kinds={["CLAIM_REPORT"]}
+        onExtracted={(result) => applyExtraction(result.fields, result.suggestionId)}
+      />
       {repairOrderId ? (
         <p className="text-sm">
           {t("fields.repairOrder")} : <strong>{order.data?.number ?? "…"}</strong>
@@ -142,21 +189,37 @@ function NewClaimForm() {
           ))}
         </Select>
       </Field>
-      <Field label={t("fields.policyNumber")}>
-        <Input value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} />
-      </Field>
+      <div className={extractedClass(extracted.policyNumber)}>
+        <Field label={t("fields.policyNumber")}>
+          <Input value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} />
+        </Field>
+        <ExtractedHint field={extracted.policyNumber} />
+      </div>
       <Field label={t("fields.claimNumber")}>
         <Input value={claimNumber} onChange={(e) => setClaimNumber(e.target.value)} />
       </Field>
-      <Field label={t("fields.accidentDate")}>
-        <Input type="date" value={accidentDate} onChange={(e) => setAccidentDate(e.target.value)} />
-      </Field>
-      <Field label={t("fields.accidentPlace")}>
-        <Input value={accidentPlace} onChange={(e) => setAccidentPlace(e.target.value)} />
-      </Field>
-      <Field label={t("fields.circumstances")}>
-        <Textarea value={circumstances} onChange={(e) => setCircumstances(e.target.value)} />
-      </Field>
+      <div className={extractedClass(extracted.accidentDate)}>
+        <Field label={t("fields.accidentDate")}>
+          <Input
+            type="date"
+            value={accidentDate}
+            onChange={(e) => setAccidentDate(e.target.value)}
+          />
+        </Field>
+        <ExtractedHint field={extracted.accidentDate} />
+      </div>
+      <div className={extractedClass(extracted.accidentPlace)}>
+        <Field label={t("fields.accidentPlace")}>
+          <Input value={accidentPlace} onChange={(e) => setAccidentPlace(e.target.value)} />
+        </Field>
+        <ExtractedHint field={extracted.accidentPlace} />
+      </div>
+      <div className={extractedClass(extracted.circumstances)}>
+        <Field label={t("fields.circumstances")}>
+          <Textarea value={circumstances} onChange={(e) => setCircumstances(e.target.value)} />
+        </Field>
+        <ExtractedHint field={extracted.circumstances} />
+      </div>
       <Field label={t("fields.deductible")}>
         <MoneyInput value={deductible} onChange={setDeductible} />
       </Field>

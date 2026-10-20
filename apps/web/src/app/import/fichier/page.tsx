@@ -12,6 +12,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { TARGET_FIELDS_BY_ENTITY, type TargetField } from "@atelieros/core/import";
+import { StatusBadge } from "@atelieros/ui";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,8 @@ interface Suggestion {
   field: TargetField | null;
   confidence: number;
   source: "synonym" | "ai" | "memory" | null;
+  /** M17 / RG-M13-07 — proposition de l'assistant, toujours à confirmer. */
+  aiProposal?: { field: TargetField; confidence: number };
 }
 
 interface AnalyzeData {
@@ -494,6 +497,34 @@ export default function ImportFichierPage() {
                       <span className="text-xs text-muted">
                         {sample?.samples.filter(Boolean).slice(0, 3).join(" · ") || "—"}
                       </span>
+                      {suggestion.aiProposal && (
+                        <span className="flex flex-wrap items-center gap-2 text-xs">
+                          <StatusBadge tone="warn" label={t("aiExtraction.import.proposed")} />
+                          <span className="text-muted">
+                            {t("aiExtraction.import.proposedHint", {
+                              pct: Math.round(suggestion.aiProposal.confidence * 100),
+                            })}
+                          </span>
+                          {columnMapping[suggestion.column] !== suggestion.aiProposal.field && (
+                            <button
+                              type="button"
+                              className="min-h-11 underline"
+                              onClick={() =>
+                                setColumnMapping((prev) => ({
+                                  ...prev,
+                                  [suggestion.column]: suggestion.aiProposal!.field,
+                                }))
+                              }
+                            >
+                              {t("aiExtraction.import.useProposal", {
+                                field: t(
+                                  `import.wizard.step3.fields.${suggestion.aiProposal.field}`,
+                                ),
+                              })}
+                            </button>
+                          )}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span

@@ -37,3 +37,23 @@ export type {
 // Prompts versionnés (RG-M17-05) — boîte de réception.
 export * from "./prompts/intent_classification/v1";
 export * from "./prompts/reply_draft/v1";
+// Prompts versionnés — extraction de documents et correspondance de colonnes (RG-M17-05).
+export {
+  documentExtractionConsoleOutput,
+  documentExtractionMessages,
+  documentExtractionOutputSchema,
+  documentExtractionSystem,
+  DOCUMENT_EXTRACTION_PROMPT_VERSION,
+} from "./prompts/document_extraction/v1";
+export type {
+  DocumentExtractionOutput,
+  ExtractionDocumentKind,
+} from "./prompts/document_extraction/v1";
+export {
+  COLUMN_MAPPING_PROMPT_VERSION,
+  COLUMN_MAPPING_SYSTEM,
+  columnMappingConsoleOutput,
+  columnMappingMessages,
+  columnMappingOutputSchema,
+} from "./prompts/column_mapping/v1";
+export type { ColumnMappingInput, ColumnMappingOutput } from "./prompts/column_mapping/v1";
