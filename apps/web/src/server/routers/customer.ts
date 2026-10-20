@@ -29,6 +29,8 @@ import {
 } from "@atelieros/validators";
 import { requirePermission, router } from "../trpc";
 import { writeAuditLog } from "../audit";
+import { requestAutomationDispatch } from "../automations/queue";
+import { emitDomainEvent } from "../events/emit";
 import { findSimilarCustomerNames } from "../customers/trigram";
 import { normalizePhoneOrThrow } from "../phone";
 
@@ -304,6 +306,15 @@ export const customerRouter = router({
         ip: ctx.ip,
         userAgent: ctx.userAgent,
         reason: input.duplicateOverrideReason ?? null,
+      });
+      // M17 RG-M17-23 : déclencheur des automatisations « nouveau client ».
+      await emitDomainEvent(tenantDb, ctx.organizationId, "customer.created", {
+        customerId: customer.id,
+        type: customer.type,
+      });
+      await requestAutomationDispatch({
+        organizationId: ctx.organizationId,
+        trigger: "customer.created",
       });
 
       return { customer, vehicle: customer.vehicles[0] ?? null };

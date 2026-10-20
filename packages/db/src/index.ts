@@ -45,3 +45,10 @@ export {
 } from "./billing/paymentLinks";
 export { aiCreditsUsedThisMonth, createDbAiStore } from "./ai";
 export type { DbAiInteractionRecord, DbAiOrgContext } from "./ai";
+export {
+  automationMessageContext,
+  automationRecipientAddress,
+  enrichAutomationContext,
+  previewAutomationActions,
+} from "./automations";
+export type { ActionPreview, AutomationContext, GarageLike } from "./automations";

@@ -3873,5 +3873,171 @@
       "moov": "Moov Money"
     },
     "loadError": "Impossible de charger les paramètres de paiement."
+  },
+  "automations": {
+    "nav": "Automatisations",
+    "title": "Automatisations",
+    "description": "Quand un événement se produit, l'application agit pour vous : message au client, notification à l'équipe, tag… Sans IA, avec validation si vous le souhaitez.",
+    "loadError": "Impossible de charger les automatisations.",
+    "retry": "Réessayer",
+    "sections": {
+      "templates": "Modèles prêts à l'emploi",
+      "rules": "Mes règles",
+      "approvals": "À valider",
+      "runs": "Historique des exécutions"
+    },
+    "templates": {
+      "activate": "Activer",
+      "active": "Activé",
+      "unavailable": "Bientôt disponible",
+      "activated": "Modèle « {name} » activé."
+    },
+    "rules": {
+      "empty": "Aucune règle pour l'instant.",
+      "emptyHint": "Activez un modèle ci-dessus ou créez votre propre règle.",
+      "new": "Nouvelle règle",
+      "edit": "Modifier",
+      "test": "Tester sur un exemple",
+      "delete": "Supprimer",
+      "confirmDelete": "Supprimer la règle « {name} » et son historique ?",
+      "activeLabel": "Active",
+      "lastRun": "Dernière exécution : {date}",
+      "neverRun": "Jamais exécutée",
+      "delay": "après {minutes} min",
+      "unavailableTrigger": "Déclencheur pas encore disponible"
+    },
+    "mode": {
+      "AUTO": "Automatique",
+      "PROPOSE": "Proposer (validation)"
+    },
+    "status": {
+      "PENDING": "En attente",
+      "SUCCEEDED": "Réussie",
+      "FAILED": "Échec",
+      "SKIPPED": "Ignorée",
+      "AWAITING": "À valider"
+    },
+    "triggers": {
+      "repair_order.status_changed": "Un OR change de statut",
+      "repair_order.ready": "Un OR passe à « Prêt »",
+      "quote.viewed": "Un devis est consulté par le client",
+      "invoice.issued": "Une facture est émise",
+      "payment.received": "Un paiement est reçu",
+      "appointment.no_show": "Un RDV n'est pas honoré",
+      "customer.created": "Un client est créé",
+      "portal.feedback_received": "Un avis client est reçu"
+    },
+    "ops": {
+      "eq": "est égal à",
+      "neq": "est différent de",
+      "gt": "est supérieur à",
+      "gte": "est supérieur ou égal à",
+      "lt": "est inférieur à",
+      "lte": "est inférieur ou égal à",
+      "in": "fait partie de (séparés par des virgules)",
+      "contains": "contient"
+    },
+    "fields": {
+      "repairOrder.status": "Statut de l'OR",
+      "repairOrder.totalEstimate": "Montant estimé de l'OR",
+      "customer.type": "Type de client",
+      "customer.tags": "Tags du client",
+      "invoice.balance": "Solde de la facture",
+      "invoice.total": "Total de la facture",
+      "quote.status": "Statut du devis",
+      "payment.amount": "Montant du paiement",
+      "payment.method": "Moyen de paiement",
+      "site.code": "Code du site",
+      "event.to": "Nouveau statut (événement)"
+    },
+    "actions": {
+      "send_template": "Envoyer un modèle de message",
+      "create_payment_link": "Créer un lien de paiement",
+      "notify_members": "Notifier des membres",
+      "assign_conversation": "Assigner la conversation",
+      "add_customer_tag": "Ajouter un tag au client",
+      "create_task": "Créer une tâche",
+      "schedule_reminder": "Programmer une relance",
+      "call_webhook": "Appeler un webhook",
+      "unavailable": "(non disponible en v1)"
+    },
+    "roles": {
+      "OWNER": "Gérant",
+      "MANAGER": "Chef d'atelier",
+      "ADVISOR": "Réceptionniste",
+      "MECHANIC": "Mécanicien",
+      "STOREKEEPER": "Magasinier",
+      "CASHIER": "Caissier",
+      "ACCOUNTANT": "Comptable"
+    },
+    "editor": {
+      "titleNew": "Nouvelle règle",
+      "titleEdit": "Modifier la règle",
+      "name": "Nom de la règle",
+      "when": "Quand…",
+      "if": "Si…",
+      "then": "Alors…",
+      "addCondition": "Ajouter une condition",
+      "noCondition": "Aucune condition : la règle s'applique à chaque événement.",
+      "remove": "Retirer",
+      "field": "Champ",
+      "op": "Opérateur",
+      "value": "Valeur",
+      "addAction": "Ajouter une action",
+      "actionType": "Action",
+      "templateKey": "Modèle de message",
+      "channel": "Canal",
+      "withPaymentLink": "Inclure le lien de paiement",
+      "title": "Titre",
+      "body": "Message",
+      "rolesLabel": "Destinataires",
+      "tag": "Tag",
+      "membershipId": "Identifiant du membre",
+      "mode": "Mode",
+      "delay": "Délai avant exécution (minutes)",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "saved": "Règle enregistrée.",
+      "warning": "Attention : la règle « {names} » envoie déjà un message pour ce déclencheur (le client ne recevra qu'un message par modèle).",
+      "selectTemplate": "Choisir un modèle",
+      "saveError": "Enregistrement impossible : vérifiez les champs."
+    },
+    "test": {
+      "title": "Tester sur un exemple",
+      "type": "Type d'élément",
+      "pick": "Élément",
+      "run": "Simuler (sans envoi)",
+      "matched": "Les conditions sont remplies : ces actions seraient exécutées.",
+      "notMatched": "Les conditions ne sont pas remplies : rien ne serait exécuté.",
+      "siteExcluded": "Site hors du périmètre de la règle.",
+      "none": "Aucun élément de ce type.",
+      "close": "Fermer",
+      "types": {
+        "repair_order": "Ordre de réparation",
+        "invoice": "Facture",
+        "quote": "Devis",
+        "customer": "Client",
+        "payment": "Paiement",
+        "appointment": "Rendez-vous"
+      }
+    },
+    "approvals": {
+      "empty": "Aucune proposition en attente.",
+      "approve": "Valider et exécuter",
+      "dismiss": "Refuser",
+      "rule": "Règle : {name}"
+    },
+    "runs": {
+      "empty": "Aucune exécution pour l'instant.",
+      "more": "Voir plus",
+      "attempts": "{count} tentative(s)",
+      "executedAt": "Exécutée le {date}",
+      "scheduledFor": "Prévue le {date}"
+    },
+    "channels": {
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS",
+      "EMAIL": "Email"
+    }
   }
 }
