@@ -118,6 +118,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
     { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },
     { href: "/messages", label: t("nav.messages"), permission: "message:read" },
+    { href: "/assistant", label: t("nav.assistant"), permission: "ai:use" },
     { href: "/relances", label: t("nav.reminders"), permission: "reminder:read" },
     { href: "/relances/echeances", label: t("nav.dueDates"), permission: "reminder:read" },
     {

@@ -33,3 +33,11 @@ export type {
   AiToolLoopResult,
   AiToolLoopRun,
 } from "./service";
+export {
+  ASSISTANT_DENIED_TEXT,
+  ASSISTANT_MAX_TOOL_CALLS,
+  ASSISTANT_NOT_FOUND_CUSTOMER_TEXT,
+  ASSISTANT_PROMPT_VERSION,
+  ASSISTANT_TOOLS,
+  assistantSystemPrompt,
+} from "./prompts/assistant/v1";
