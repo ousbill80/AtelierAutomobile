@@ -2,6 +2,7 @@
 // - `ai.anomalies` (06:00) : détection déterministe (RG-M17-22) → alerte au gérant (OWNER),
 //   dédoublonnée par objet, visible dans les alertes du tableau de bord (`alert.anomaly.*`).
 // - `ai.suggestions_expire` (horaire) : suggestions en attente depuis 48 h → EXPIRED (§5).
+// - `ai.learn_reminder_timing` (dimanche 03:00) : meilleur créneau/canal par client (RG-M17-16).
 // - `ai.purge_outputs` (quotidienne) : sorties des AiInteraction de plus de 180 j vidées,
 //   métadonnées conservées (RG-M17-06).
 import {
@@ -13,7 +14,9 @@ import {
   detectPriceBelowCostAnomalies,
   detectStockShrinkAnomalies,
   detectVoidSpikeAnomalies,
+  learnSendPreference,
   type Anomaly,
+  type OutboundStat,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
 import { logger } from "../logger";
@@ -335,4 +338,84 @@ export async function processAiPurgeOutputsJob(now = new Date()): Promise<number
     data: { output: {} },
   });
   return result.count;
+}
+
+const POSITIVE_OUTCOMES = new Set(["APPOINTMENT_BOOKED", "PAID", "PARTIALLY_PAID", "PROMISED"]);
+
+/**
+ * RG-M17-16 — `ai.learn_reminder_timing` (hebdomadaire) : par client, créneau de 2 h et canal
+ * préférés appris des messages sortants des 12 derniers mois (lecture ou résultat positif de
+ * la relance). Renseigne `Customer.bestSendHour` / `bestChannel` (jamais `preferredChannel`,
+ * réservé au choix manuel).
+ */
+export async function learnReminderTimingForOrganization(
+  organizationId: string,
+  timeZone: string,
+  now: Date,
+): Promise<number> {
+  const tx = db.forTenant({ organizationId });
+  const messages = await tx.message.findMany({
+    where: {
+      direction: "OUTBOUND",
+      customerId: { not: null },
+      sentAt: { gte: new Date(now.getTime() - 365 * DAY_MS) },
+    },
+    select: {
+      customerId: true,
+      channel: true,
+      sentAt: true,
+      readAt: true,
+      status: true,
+      reminder: { select: { outcome: true } },
+    },
+  });
+  const byCustomer = new Map<string, OutboundStat[]>();
+  for (const m of messages) {
+    const stat: OutboundStat = {
+      channel: m.channel as OutboundStat["channel"],
+      sentAt: m.sentAt!,
+      positive:
+        m.readAt !== null ||
+        m.status === "READ" ||
+        (m.reminder?.outcome ? POSITIVE_OUTCOMES.has(m.reminder.outcome) : false),
+    };
+    byCustomer.set(m.customerId!, [...(byCustomer.get(m.customerId!) ?? []), stat]);
+  }
+  let updated = 0;
+  for (const [customerId, stats] of byCustomer) {
+    const preference = learnSendPreference(stats, timeZone, now);
+    const current = await tx.customer.findFirst({
+      where: { id: customerId },
+      select: { bestSendHour: true, bestChannel: true },
+    });
+    if (
+      current &&
+      (current.bestSendHour !== preference.bestHour ||
+        current.bestChannel !== preference.bestChannel)
+    ) {
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { bestSendHour: preference.bestHour, bestChannel: preference.bestChannel },
+      });
+      updated += 1;
+    }
+  }
+  return updated;
+}
+
+export async function processAiLearnReminderTimingJob(now = new Date()): Promise<void> {
+  const orgs = await adminDb.organization.findMany({
+    where: { onboardingCompletedAt: { not: null } },
+    select: { id: true, timezone: true },
+  });
+  for (const org of orgs) {
+    try {
+      await learnReminderTimingForOrganization(org.id, org.timezone, now);
+    } catch (error) {
+      logger.error(
+        { organizationId: org.id, error: error instanceof Error ? error.message : error },
+        "ai.learn_reminder_timing : échec pour une organisation",
+      );
+    }
+  }
 }

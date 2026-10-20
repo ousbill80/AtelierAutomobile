@@ -3916,7 +3916,9 @@
     "promiseDetail": "Montant : {amount} · Date : {date}",
     "promiseUnknown": "non précisé",
     "promiseOpen": "Noter la promesse",
-    "error": "L'action n'a pas abouti : {message}"
+    "error": "L'action n'a pas abouti : {message}",
+    "timeOptimized": "Heure optimisée {time}",
+    "timeOptimizedHint": "Heure décalée selon les habitudes de lecture du client (initialement {time})."
   },
   "aiSettings": {
     "title": "Intelligence artificielle",

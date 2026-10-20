@@ -240,3 +240,61 @@ describe("ai jobs (M17)", () => {
     });
   });
 });
+
+describe("ai.learn_reminder_timing (RG-M17-16)", () => {
+  let org: { id: string };
+  let kone: { id: string };
+
+  beforeAll(async () => {
+    org = await adminDb.organization.create({
+      data: { name: "M17 timing", onboardingCompletedAt: new Date() },
+    });
+    kone = await adminDb.customer.create({
+      data: { organizationId: org.id, displayName: "Koné Ibrahim", phone: "+2250701010101" },
+    });
+    const sends: [string, string, boolean][] = [
+      ["WHATSAPP", "2026-09-01T19:10:00Z", true],
+      ["WHATSAPP", "2026-09-08T20:05:00Z", true],
+      ["WHATSAPP", "2026-09-15T19:40:00Z", true],
+      ["WHATSAPP", "2026-09-22T20:30:00Z", true],
+      ["WHATSAPP", "2026-09-29T09:00:00Z", false],
+      ["SMS", "2026-08-01T09:00:00Z", false],
+      ["SMS", "2026-08-08T09:00:00Z", false],
+      ["SMS", "2026-08-15T10:00:00Z", false],
+    ];
+    for (const [channel, sentAt, read] of sends) {
+      await adminDb.message.create({
+        data: {
+          organizationId: org.id,
+          customerId: kone.id,
+          direction: "OUTBOUND",
+          channel: channel as "WHATSAPP" | "SMS",
+          to: "+2250701010101",
+          body: "Relance",
+          status: read ? "READ" : "DELIVERED",
+          provider: "console",
+          kind: "REMINDER",
+          sentAt: new Date(sentAt),
+          readAt: read ? new Date(sentAt) : null,
+        },
+      });
+    }
+  });
+
+  afterAll(async () => {
+    await adminDb.message.deleteMany({ where: { organizationId: org.id } });
+    await adminDb.customer.deleteMany({ where: { organizationId: org.id } });
+    await adminDb.organization.delete({ where: { id: org.id } });
+  });
+
+  it("US-M17-09 — apprend 19 h sur WhatsApp pour Koné", async () => {
+    const { learnReminderTimingForOrganization } = await import("./aiJobs");
+    expect(await learnReminderTimingForOrganization(org.id, "Africa/Abidjan", NOW)).toBe(1);
+    expect(await adminDb.customer.findUniqueOrThrow({ where: { id: kone.id } })).toMatchObject({
+      bestSendHour: 19,
+      bestChannel: "WHATSAPP",
+      preferredChannel: null,
+    });
+    expect(await learnReminderTimingForOrganization(org.id, "Africa/Abidjan", NOW)).toBe(0);
+  });
+});

@@ -8,6 +8,7 @@ import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
 import { Button, EmptyState, StatusBadge } from "@atelieros/ui";
 import { REMINDER_SKIP_REASONS, type ReminderTypeInput } from "@atelieros/validators";
+import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/react";
 import type { AppRouter } from "@/server/routers/_app";
 import {
@@ -255,6 +256,22 @@ function ReminderRow({
         </div>
         <div className="text-right text-sm text-muted">
           <p>{formatDateTime(reminder.scheduledFor)}</p>
+          {/* M17 RG-M17-16 / US-M17-09 : heure décalée selon les habitudes du client. */}
+          {reminder.timeOptimized && reminder.originalScheduledFor && (
+            <p
+              className="text-xs text-accent"
+              title={t("aiInbox.timeOptimizedHint", {
+                time: formatDateTime(reminder.originalScheduledFor),
+              })}
+            >
+              {t("aiInbox.timeOptimized", {
+                time: new Date(reminder.scheduledFor).toLocaleTimeString("fr-FR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              })}
+            </p>
+          )}
           <p>{reminder.channel ? REMINDER_CHANNEL_LABELS[reminder.channel] : "Sans canal"}</p>
         </div>
       </div>

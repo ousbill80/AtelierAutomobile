@@ -70,8 +70,12 @@ async function main(): Promise<void> {
   type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
   const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
   const { AI_JOB_NAMES, AI_QUEUE_NAME, scheduleAiJobs } = await import("./queues/ai");
-  const { processAiAnomaliesJob, processAiPurgeOutputsJob, processAiSuggestionsExpireJob } =
-    await import("./jobs/aiJobs");
+  const {
+    processAiAnomaliesJob,
+    processAiLearnReminderTimingJob,
+    processAiPurgeOutputsJob,
+    processAiSuggestionsExpireJob,
+  } = await import("./jobs/aiJobs");
   const { processAiAssistantPurgeJob } = await import("./jobs/aiAssistantPurge");
   const { PAYMENTS_JOB_NAMES, PAYMENTS_QUEUE_NAME, schedulePaymentJobs } =
     await import("./queues/payments");
@@ -360,6 +364,8 @@ async function main(): Promise<void> {
           return processAiSuggestionsExpireJob();
         case AI_JOB_NAMES.PURGE_OUTPUTS:
           return processAiPurgeOutputsJob();
+        case AI_JOB_NAMES.LEARN_REMINDER_TIMING:
+          return processAiLearnReminderTimingJob();
         case AI_JOB_NAMES.ASSISTANT_PURGE:
           return processAiAssistantPurgeJob();
         default:

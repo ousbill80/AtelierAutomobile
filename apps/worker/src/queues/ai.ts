@@ -10,6 +10,7 @@ export const AI_JOB_NAMES = {
   SUGGESTIONS_EXPIRE: "ai.suggestions_expire",
   PURGE_OUTPUTS: "ai.purge_outputs",
   ASSISTANT_PURGE: "ai.assistant_purge",
+  LEARN_REMINDER_TIMING: "ai.learn_reminder_timing",
 } as const;
 
 let queue: Queue | undefined;
@@ -35,6 +36,11 @@ export async function scheduleAiJobs(): Promise<void> {
     AI_JOB_NAMES.PURGE_OUTPUTS,
     { pattern: "30 4 * * *", tz: "Africa/Abidjan" },
     { name: AI_JOB_NAMES.PURGE_OUTPUTS },
+  );
+  await q.upsertJobScheduler(
+    AI_JOB_NAMES.LEARN_REMINDER_TIMING,
+    { pattern: "0 3 * * 0", tz: "Africa/Abidjan" },
+    { name: AI_JOB_NAMES.LEARN_REMINDER_TIMING },
   );
   await q.upsertJobScheduler(
     AI_JOB_NAMES.ASSISTANT_PURGE,
