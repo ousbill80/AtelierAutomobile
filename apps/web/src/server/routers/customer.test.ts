@@ -65,6 +65,10 @@ describe("customer router (M02)", () => {
     await adminDb.vehicle.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.customer.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.site.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
+    // M17 : `customer.create` émet `customer.created` (déclencheur d'automatisations).
+    await adminDb.domainEvent.deleteMany({
+      where: { organizationId: { in: [orgA.id, orgB.id] } },
+    });
     await adminDb.organization.deleteMany({ where: { id: { in: [orgA.id, orgB.id] } } });
   });
 

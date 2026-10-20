@@ -40,6 +40,7 @@ import {
   type RepairOrder,
   type ScopedTenantClient,
 } from "@atelieros/db";
+import { requestAutomationDispatch } from "../automations/queue";
 import { syncClaimFromRepairOrder } from "../claims/sync";
 import { emitDomainEvent } from "../events/emit";
 
@@ -321,6 +322,12 @@ export async function applyTransition(tx: Tx, input: ApplyTransitionInput): Prom
     byMembershipId: input.membershipId,
   };
   await emitDomainEvent(tx as never, order.organizationId, "repair_order.status_changed", payload);
+  // M17 RG-M17-24 : passage immédiat des automatisations (appelé dans la transaction de
+  // l'appelant : léger délai pour le commit ; le passage de chaque minute rattrape sinon).
+  await requestAutomationDispatch(
+    { organizationId: order.organizationId, trigger: "repair_order.status_changed" },
+    { delayMs: 1500 },
+  );
   if (to === "READY")
     await emitDomainEvent(tx as never, order.organizationId, "repair_order.ready", payload);
   if (to === "DELIVERED") {

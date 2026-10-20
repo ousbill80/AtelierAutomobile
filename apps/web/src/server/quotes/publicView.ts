@@ -41,6 +41,11 @@ export async function buildQuotePublicView(
   const totals = totalsFor(quote, lines, org.vatEnabled);
   const groups = groupQuoteLines(lines, totals.lines);
   const labelOf = new Map(groups.map((g) => [g.key, g.label]));
+  // M17 RG-M17-19 / RG-M14-08 : seule l'explication validée par le conseiller est affichée.
+  const validated =
+    quote.customerExplanation && typeof quote.customerExplanation === "object"
+      ? (quote.customerExplanation as Record<string, unknown>)
+      : {};
   const showLinePrices = org.quotes.showLinePricesToCustomer;
   const today = businessDate(now, org.timeZone);
   const alreadyApproved = quote.repairOrderId
@@ -95,6 +100,7 @@ export async function buildQuotePublicView(
       requiresGroupKey: g.requiresGroupKey,
       requiresLabel: g.requiresGroupKey ? (labelOf.get(g.requiresGroupKey) ?? null) : null,
       explanation: g.explanation,
+      simpleExplanation: typeof validated[g.key] === "string" ? (validated[g.key] as string) : null,
       photoIds: g.photoIds,
       total: g.total,
       accepted: g.accepted,

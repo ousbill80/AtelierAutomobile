@@ -24,6 +24,7 @@ import {
   ttcToHt,
   type QuoteStatus,
   type Role,
+  isUnpricedPlaceholder,
 } from "@atelieros/core";
 import { adminDb, db, type Prisma, type Quote } from "@atelieros/db";
 import {
@@ -1250,6 +1251,13 @@ export const quoteRouter = router({
         });
         if (discount.reasonRequired && !quote.discountReason) {
           blockers.push("Indiquez le motif de la remise (au-delà de 5 %).");
+        }
+        // US-M17-03 : une ligne « À chiffrer » du pré-devis IA doit être complétée avant l'envoi.
+        const unpriced = lines.filter(isUnpricedPlaceholder);
+        if (unpriced.length > 0) {
+          blockers.push(
+            `Complétez le prix des lignes « À chiffrer » (${unpriced.length}) ou supprimez-les avant l'envoi.`,
+          );
         }
         if (blockers.length > 0) bad(blockers.join(" "));
         const recipient = await recipientOf(tx, quote, input.recipient);

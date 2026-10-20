@@ -102,5 +102,7 @@ test("parcours client + véhicule : création, km, révision, VT, doublon, fusio
   await adminDb.membership.deleteMany({ where: { organizationId: organization.id } });
   await adminDb.user.deleteMany({ where: { id: { in: members.map((m) => m.userId) } } });
   await adminDb.auditLog.deleteMany({ where: { organizationId: organization.id } });
+  // M17 : `customer.create` émet `customer.created` (déclencheur d'automatisations).
+  await adminDb.domainEvent.deleteMany({ where: { organizationId: organization.id } });
   await adminDb.organization.delete({ where: { id: organization.id } });
 });

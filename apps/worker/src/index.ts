@@ -69,10 +69,22 @@ async function main(): Promise<void> {
   const { FNE_JOB_NAMES, FNE_QUEUE_NAME, scheduleFneJobs } = await import("./queues/fne");
   type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
   const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
+  const { AI_JOB_NAMES, AI_QUEUE_NAME, scheduleAiJobs } = await import("./queues/ai");
+  const {
+    processAiAnomaliesJob,
+    processAiLearnReminderTimingJob,
+    processAiPurgeOutputsJob,
+    processAiSuggestionsExpireJob,
+  } = await import("./jobs/aiJobs");
+  const { processAiAssistantPurgeJob } = await import("./jobs/aiAssistantPurge");
   const { PAYMENTS_JOB_NAMES, PAYMENTS_QUEUE_NAME, schedulePaymentJobs } =
     await import("./queues/payments");
   const { processPaymentLinksExpireJob, processPaymentsReconcileJob } =
     await import("./jobs/payments");
+
+  const { AUTOMATIONS_JOB_NAMES, AUTOMATIONS_QUEUE_NAME, scheduleAutomationJobs } =
+    await import("./queues/automations");
+  const { processAutomationsDispatchJob } = await import("./jobs/automations");
 
   logger.info("AtelierOS worker démarré");
 
@@ -344,6 +356,50 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "payments : un job a échoué");
   });
 
+  // M17 §9 : anomalies, expiration des suggestions, purges (sorties IA, fils d'assistant).
+  await scheduleAiJobs();
+  const aiWorker = new Worker(
+    AI_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case AI_JOB_NAMES.ANOMALIES:
+          return processAiAnomaliesJob();
+        case AI_JOB_NAMES.SUGGESTIONS_EXPIRE:
+          return processAiSuggestionsExpireJob();
+        case AI_JOB_NAMES.PURGE_OUTPUTS:
+          return processAiPurgeOutputsJob();
+        case AI_JOB_NAMES.LEARN_REMINDER_TIMING:
+          return processAiLearnReminderTimingJob();
+        case AI_JOB_NAMES.ASSISTANT_PURGE:
+          return processAiAssistantPurgeJob();
+        default:
+          logger.warn({ jobName: job.name }, "ai : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  aiWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "ai : un job a échoué");
+  });
+
+  // M17 RG-M17-24 : automatisations « si… alors… » (chaque minute + jobs immédiats).
+  await scheduleAutomationJobs();
+
+  const automationsWorker = new Worker(
+    AUTOMATIONS_QUEUE_NAME,
+    async (job: Job) => {
+      if (job.name === AUTOMATIONS_JOB_NAMES.DISPATCH) return processAutomationsDispatchJob();
+      logger.warn({ jobName: job.name }, "automations : job inconnu, ignoré");
+      return undefined;
+    },
+    // Un seul traitement à la fois : les jobs immédiats et le cron ne se chevauchent pas.
+    { connection: createRedisConnection(), concurrency: 1 },
+  );
+  automationsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "automations : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -360,6 +416,8 @@ async function main(): Promise<void> {
       claimsWorker.close(),
       fneWorker.close(),
       paymentsWorker.close(),
+      aiWorker.close(),
+      automationsWorker.close(),
     ]);
     process.exit(0);
   }

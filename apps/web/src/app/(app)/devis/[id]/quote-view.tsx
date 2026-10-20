@@ -21,6 +21,7 @@ import {
 } from "@atelieros/ui";
 import type { AppRouter } from "@/server/routers/_app";
 import { trpc } from "@/trpc/react";
+import { QuoteExplanationPanel } from "@/components/ai-quotes/quote-explanation-panel";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDateTime, formatDay } from "@/components/repair-orders/i18n";
 import { PriorityBadge, QuoteStatusBadge } from "@/components/quotes/badges";
@@ -89,6 +90,19 @@ export function QuoteView({ id }: { id: string }) {
       )}
       <Lines quote={quote} editable={editable} onDone={refresh} onError={onError} />
       <Totals quote={quote} editable={editable} onDone={refresh} onError={onError} />
+      {quote.lines.length > 0 && (
+        <QuoteExplanationPanel
+          quoteId={quote.id}
+          validated={(quote.customerExplanation ?? null) as Record<string, string> | null}
+          canGenerate={
+            !quote.supersededAt &&
+            perms.has("ai:use") &&
+            perms.has("quote:create") &&
+            perms.has("quote:update")
+          }
+          onSaved={refresh}
+        />
+      )}
       <div className="max-w-full overflow-x-auto">
         <Tabs
           items={(["timeline", "versions", "reminders"] as const).map((key) => ({
