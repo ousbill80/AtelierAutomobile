@@ -1,18 +1,26 @@
-# Étape 2.5 — CI : `pnpm check` (lint + typecheck + tests) puis E2E Playwright, sur chaque
-# pull request et chaque push sur main. Les services reprennent docker/docker-compose.yml (mêmes
-# ports et identifiants que .env.example), pour que la CI tourne comme un poste de dev.
+# Étape 2.5 — CI : `pnpm check` (lint + typecheck + tests) puis E2E Playwright. Les services
+# reprennent docker/docker-compose.yml (mêmes ports et identifiants que .env.example), pour que la
+# CI tourne comme un poste de dev.
 #
-# Une seule exécution par changement : avant, un push sur une branche ayant une PR lançait la CI
-# deux fois (événements push et pull_request), ce qui doublait la consommation de minutes Actions.
+# Économie de minutes GitHub Actions (arbitrage A16, docs/04) :
+# - une seule exécution par changement : uniquement sur les pull requests prêtes, jamais sur push
+#   (la session d'intégration ne fusionne qu'une PR dont la tête contient déjà `main` : la CI de la
+#   PR a donc testé exactement l'arbre qui arrive dans `main`) ;
+# - les PR en brouillon ne lancent rien ; la CI part au passage « Ready for review » ;
+# - un push qui ne touche que la documentation (docs/, *.md) ne lance rien ;
+# - un nouveau push annule l'exécution en cours de la même PR ;
+# - E2E seulement si « Lint, types, tests » est vert ; caches pnpm, Turborepo, Next.js, Playwright ;
+# - lancement manuel possible (workflow_dispatch), par exemple pour revérifier `main`.
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: ["docs/**", "**/*.md"]
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -33,8 +41,9 @@ env:
 jobs:
   check:
     name: Lint, types, tests
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16-alpine
@@ -63,13 +72,19 @@ jobs:
         run: ./scripts/ci-s3.sh
       - name: Migrations
         run: pnpm db:migrate
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-check-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: turbo-check-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: pnpm check
-        run: pnpm check
+        run: pnpm check --cache-dir=.turbo
 
   e2e:
     name: E2E Playwright
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
     needs: check
     services:
       postgres:
@@ -99,8 +114,24 @@ jobs:
         run: ./scripts/ci-s3.sh
       - name: Migrations
         run: pnpm db:migrate
+      - name: Cache navigateur Playwright
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Navigateur Playwright
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @atelieros/web exec playwright install --with-deps chromium
+      - name: Dépendances système Playwright
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @atelieros/web exec playwright install-deps chromium
+      - name: Cache build Next.js
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: Build web
         run: pnpm --filter @atelieros/web build
       - name: E2E
