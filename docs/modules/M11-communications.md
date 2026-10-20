@@ -8,39 +8,46 @@ M11 est la **couche unique d'envoi et de réception** de tous les messages du ga
 
 ## 2. Utilisateurs et cas d'usage
 
-| Rôle | Ce qu'il fait | Fréquence |
-|---|---|---|
-| ADVISOR | Répond aux clients dans la boîte de réception, envoie devis / véhicule prêt, utilise les réponses rapides | Continue |
-| ACCOUNTANT / CASHIER | Envoie factures, reçus, relevés ; traite les réponses « j'ai payé » | Quotidienne |
-| OWNER | Reçoit le résumé quotidien, configure les canaux, suit les coûts | Quotidienne / mensuelle |
-| MANAGER | Édite les modèles, soumet les modèles WhatsApp à Meta, assigne les conversations | Hebdomadaire |
-| Système | Envoie, réessaie, replie, met à jour les statuts, classe les réponses | Continue |
+| Rôle                 | Ce qu'il fait                                                                                             | Fréquence               |
+| -------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------- |
+| ADVISOR              | Répond aux clients dans la boîte de réception, envoie devis / véhicule prêt, utilise les réponses rapides | Continue                |
+| ACCOUNTANT / CASHIER | Envoie factures, reçus, relevés ; traite les réponses « j'ai payé »                                       | Quotidienne             |
+| OWNER                | Reçoit le résumé quotidien, configure les canaux, suit les coûts                                          | Quotidienne / mensuelle |
+| MANAGER              | Édite les modèles, soumet les modèles WhatsApp à Meta, assigne les conversations                          | Hebdomadaire            |
+| Système              | Envoie, réessaie, replie, met à jour les statuts, classe les réponses                                     | Continue                |
 
 ## 3. User stories
 
 **US-M11-01 — En tant que système, je veux envoyer par WhatsApp avec repli SMS afin que le message arrive même si le client n'a pas WhatsApp.**
+
 - Étant donné une relance VT pour M. Kouassi (`+2250747218890`, `hasWhatsapp = null`), canaux `[WHATSAPP, SMS]`, quand le job `messages.send` envoie via WhatsApp Cloud API et que Meta renvoie l'erreur « destinataire non WhatsApp » (code 131026 ou équivalent mappé `NOT_ON_WHATSAPP`), alors le `Message` passe `FAILED` (`errorCode = NOT_ON_WHATSAPP`), `Customer.hasWhatsapp = false`, un `Message` SMS est créé avec `fallbackOfId` et envoyé **immédiatement**, et l'historique affiche « Numéro non WhatsApp, renvoyé par SMS ».
 - Étant donné un message WhatsApp `SENT` mais jamais `DELIVERED` après 6 h (`fallbackAfterMinutes = 360`), pour un type non transactionnel, alors un SMS de repli est envoyé (dans la fenêtre d'envoi), une seule fois.
 
 **US-M11-02 — En tant qu'ADVISOR sans API WhatsApp, je veux un bouton « Ouvrir dans WhatsApp » afin d'envoyer en un clic.**
+
 - Étant donné un canal WhatsApp configuré en `wa_link`, quand je clique « Ouvrir dans WhatsApp » sur une relance, alors l'URL `https://wa.me/2250747218890?text=<message encodé>` s'ouvre (WhatsApp Web ou application), et au retour une question « Message envoyé ? Oui / Non » ; « Oui » enregistre le `Message` `SENT` (`provider = wa_link`, sans statut de lecture).
 
 **US-M11-03 — En tant qu'ADVISOR, je veux une boîte de réception unifiée afin de répondre à tous les clients au même endroit.**
+
 - Étant donné que M. Kouassi répond « Oui samedi matin » à la relance VT, quand le webhook WhatsApp arrive, alors un `Message` `INBOUND` est créé, rattaché à la `Conversation` (WHATSAPP, `+2250747218890`) liée au client, `unreadCount++`, la conversation remonte en tête, l'intention IA « veut un RDV » s'affiche avec le bouton « Créer le RDV », et la relance d'origine reçoit `outcome = REPLIED`.
 - Quand je réponds dans les 24 h, alors j'écris un message libre ; après 24 h, l'éditeur impose un modèle approuvé (« La fenêtre de 24 h est fermée : choisissez un modèle »).
 
 **US-M11-04 — En tant que client, je veux pouvoir dire STOP afin de ne plus recevoir de rappels.**
+
 - Étant donné que M. Traoré envoie « stop » par SMS ou « Arrêter » par WhatsApp, alors une `OptOut` (adresse, canal = null : tous canaux pour les rappels) est créée, `Customer.optedOutAt` renseigné, un accusé unique est envoyé (« Vous ne recevrez plus de rappels de Garage Excellence Auto. Pour les réactiver, écrivez START. »), toutes ses relances non transactionnelles sont annulées (M10), et la conversation affiche le badge « Désinscrit ».
 - Il recevra encore, s'il vient à l'atelier, « véhicule prêt » et sa facture (transactionnels, `02` §3).
 
 **US-M11-05 — En tant que MANAGER, je veux éditer un modèle avec aperçu et compteur SMS afin de maîtriser le coût.**
+
 - Étant donné le modèle `cr_jp3` SMS, quand je tape « Réglement » (avec é), alors le compteur affiche « 112 caractères · 1 SMS · GSM-7 » ; si j'ajoute « ê », il affiche « UCS-2 : 112/70 → 2 SMS » en orange avec la suggestion « Remplacer ê par e ».
 - Quand je soumets le modèle WhatsApp `vt_j30` à Meta, alors `whatsappStatus = PENDING`, et le webhook `message_template_status_update` le passe à `APPROVED` ou `REJECTED` (motif affiché).
 
 **US-M11-06 — En tant qu'OWNER, je veux un résumé chaque matin afin de savoir où agir.**
+
 - Étant donné le 19/10/2026 à 07:30, alors je reçois sur WhatsApp : « Bonjour M. Diallo, voici Garage Excellence Auto ce lundi 19/10 : 23 relances à traiter, 4 850 000 FCFA dus (1 920 000 à +30 j), hier 315 000 FCFA encaissés dont 185 000 grâce aux relances, 6 RDV aujourd'hui, 2 promesses à vérifier (SOTRA Logistique 600 000). 3 envois ont échoué. Détails : <lien> ».
 
 **US-M11-07 — En tant que développeur, je veux voir tous les messages en local sans compte fournisseur.**
+
 - Étant donné `NODE_ENV=development` et des canaux `console`, quand un message est envoyé, alors il apparaît dans `/dev/outbox` (rendu WhatsApp/SMS/email) et dans les logs ; un bouton « Simuler une réponse » injecte un message entrant comme un webhook réel ; des boutons simulent `DELIVERED`, `READ`, `FAILED(NOT_ON_WHATSAPP)`.
 
 ## 4. Règles métier
@@ -48,22 +55,30 @@ M11 est la **couche unique d'envoi et de réception** de tous les messages du ga
 ### 4.1 Mise en file et idempotence
 
 **RG-M11-01 — Point d'entrée unique.** `messaging.enqueue(tx, req)` (fonction serveur, appelée dans la transaction de l'appelant) :
+
 ```ts
 type EnqueueRequest = {
-  idempotencyKey: string;          // "rem:<groupKey>", "inv:<invoiceId>:issued", "rcpt:<paymentId>"
+  idempotencyKey: string; // "rem:<groupKey>", "inv:<invoiceId>:issued", "rcpt:<paymentId>"
   kind: "reminder" | "transactional" | "conversation" | "digest" | "system";
-  customerId?: string; conversationId?: string;
+  customerId?: string;
+  conversationId?: string;
   to: { phone?: string; whatsapp?: string; email?: string; name?: string };
-  channels: Channel[];             // ordre de préférence (repli)
-  templateKey?: string; context?: TemplateContext; bodyOverride?: string; subjectOverride?: string;
-  attachments?: { kind: "pdf"|"image"; storageKey: string; filename: string }[];
-  reminderIds?: string[]; sentById?: string | null;
-  notBefore?: Date;                // respect de la fenêtre d'envoi de l'appelant
+  channels: Channel[]; // ordre de préférence (repli)
+  templateKey?: string;
+  context?: TemplateContext;
+  bodyOverride?: string;
+  subjectOverride?: string;
+  attachments?: { kind: "pdf" | "image"; storageKey: string; filename: string }[];
+  reminderIds?: string[];
+  sentById?: string | null;
+  notBefore?: Date; // respect de la fenêtre d'envoi de l'appelant
 };
 ```
+
 Crée un `Message` `QUEUED` pour le **premier canal disponible** (RG-M11-05), puis, **après commit**, ajoute le job BullMQ `messages.send` (`jobId = message.id`). `idempotencyKey` unique par organisation : un second appel renvoie le message existant sans rien créer.
 
 **RG-M11-02 — Conformité avant tout envoi** (dans `messages.send`, juste avant l'appel fournisseur) :
+
 1. Adresse ∈ `OptOut` (canal exact ou `null`) et `kind ≠ transactional` → `FAILED` `OPTED_OUT`, pas de repli.
 2. `Customer.remindersConsent = false` et `kind = reminder` → `FAILED` `NO_CONSENT`.
 3. `Customer.phoneInvalidAt` non nul pour ce numéro → passer au canal suivant.
@@ -76,25 +91,25 @@ Crée un `Message` `QUEUED` pour le **premier canal disponible** (RG-M11-05), pu
 
 **RG-M11-04 — Fournisseurs** (interface `MessagingProvider`, `01` §10), configurés par organisation dans `ChannelConfig` :
 
-| Canal | `provider` | Notes |
-|---|---|---|
-| WHATSAPP | `whatsapp_cloud` | Numéro WhatsApp Business vérifié chez Meta ; credentials : `phoneNumberId`, `wabaId`, `accessToken`, `appSecret`, `verifyToken` |
-| WHATSAPP | `wa_link` | Pas d'API : envoi humain via `wa.me` ; aucun envoi automatique possible, aucun statut |
-| SMS | `orange_sms` | Orange SMS API Côte d'Ivoire (OAuth2 client credentials, nom d'expéditeur à faire valider par l'opérateur) |
-| SMS | `twilio` | Expéditeur alphanumérique selon disponibilité pays |
-| SMS | `http_sms` | Agrégateur local générique : URL, méthode, gabarit de corps JSON/form, mapping de réponse, URL de rapport de livraison |
-| EMAIL | `resend` / `smtp` | Domaine expéditeur avec SPF/DKIM vérifiés (assistant M15) |
-| * | `console` | Développement et tests |
+| Canal    | `provider`        | Notes                                                                                                                           |
+| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| WHATSAPP | `whatsapp_cloud`  | Numéro WhatsApp Business vérifié chez Meta ; credentials : `phoneNumberId`, `wabaId`, `accessToken`, `appSecret`, `verifyToken` |
+| WHATSAPP | `wa_link`         | Pas d'API : envoi humain via `wa.me` ; aucun envoi automatique possible, aucun statut                                           |
+| SMS      | `orange_sms`      | Orange SMS API Côte d'Ivoire (OAuth2 client credentials, nom d'expéditeur à faire valider par l'opérateur)                      |
+| SMS      | `twilio`          | Expéditeur alphanumérique selon disponibilité pays                                                                              |
+| SMS      | `http_sms`        | Agrégateur local générique : URL, méthode, gabarit de corps JSON/form, mapping de réponse, URL de rapport de livraison          |
+| EMAIL    | `resend` / `smtp` | Domaine expéditeur avec SPF/DKIM vérifiés (assistant M15)                                                                       |
+| *        | `console`         | Développement et tests                                                                                                          |
 
 **RG-M11-05 — Choix et repli.** Ordre reçu de l'appelant (M10 RG-M10-12), filtré par RG-M11-02. Déclencheurs de repli vers le canal suivant :
 
-| Situation | Repli | Délai |
-|---|---|---|
-| Erreur définitive (numéro non WhatsApp, numéro invalide, modèle non approuvé, adresse email rejetée) | Oui | Immédiat |
-| Erreurs temporaires épuisées (RG-M11-07) | Oui | Immédiat |
-| WhatsApp `SENT` sans `DELIVERED` après `fallbackAfterMinutes` (défaut 360 ; 30 pour `VEHICLE_READY`, `APPOINTMENT`) | Oui (une fois) | Délai paramétrable |
-| SMS sans accusé de livraison | Non (les accusés SMS sont peu fiables) | — |
-| `DELIVERED`/`READ` | Jamais | — |
+| Situation                                                                                                           | Repli                                  | Délai              |
+| ------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------ |
+| Erreur définitive (numéro non WhatsApp, numéro invalide, modèle non approuvé, adresse email rejetée)                | Oui                                    | Immédiat           |
+| Erreurs temporaires épuisées (RG-M11-07)                                                                            | Oui                                    | Immédiat           |
+| WhatsApp `SENT` sans `DELIVERED` après `fallbackAfterMinutes` (défaut 360 ; 30 pour `VEHICLE_READY`, `APPOINTMENT`) | Oui (une fois)                         | Délai paramétrable |
+| SMS sans accusé de livraison                                                                                        | Non (les accusés SMS sont peu fiables) | —                  |
+| `DELIVERED`/`READ`                                                                                                  | Jamais                                 | —                  |
 
 Un repli crée un **nouveau** `Message` (`fallbackOfId` = message d'origine) ; un même `idempotencyKey` produit au plus **un message par canal**. Le repli d'une relance utilise le modèle du même `templateKey` pour le nouveau canal. Si tous les canaux échouent : événement `message.failed_all` → M10 met la relance `FAILED`, notification à l'ADVISOR.
 
@@ -136,6 +151,8 @@ Un repli crée un **nouveau** `Message` (`fallbackOfId` = message d'origine) ; u
 
 **RG-M11-20 — Intention (M17).** Chaque message entrant texte (hors mots-clés) est classé par le service `ai` : `APPOINTMENT_REQUEST` (« veut un RDV »), `PAID_CLAIM` (« a payé »), `DISPUTE` (« conteste »), `PRICE_REQUEST` (« demande prix »), `PROMISE` (« paiera le… », avec date/montant extraits), `ALREADY_DONE` (« VT déjà faite », date extraite), `WRONG_PERSON` (« ce n'est pas moi / j'ai vendu la voiture »), `OPT_OUT_LIKELY`, `THANKS`, `OTHER`. Sortie : `{ intent, confidence, entities }`, stockée dans `Message.intent` et `Conversation.lastIntent`, tracée dans `AiInteraction`. **L'IA propose, l'humain valide** : chaque intention affiche une action suggérée (Créer le RDV pré-rempli, Vérifier le paiement, Ouvrir un litige, Noter la promesse, Saisir la nouvelle date de VT, Détacher le véhicule) ; aucune action à effet n'est exécutée seule. Seuls effets automatiques : pause de séquence (M10 RG-M10-22, M09 RG-M09-08). Confiance < 0,6 → `OTHER`. Sans IA configurée : pas de classement, tout reste manuel.
 
+> Étape 6.2 (M17) : le catalogue d'intentions retenu est celui de M17 RG-M17-11 (`BOOK_APPOINTMENT`, `PAYMENT_DONE`, `PAYMENT_PROMISE`, `OPT_OUT`, `COMPLAINT`…), propriétaire du classement ; les intentions M11 `DISPUTE`, `ALREADY_DONE` et `WRONG_PERSON` ne sont pas distinguées (classées `COMPLAINT`/`OTHER`). Sans IA (désactivée, hors quota, en panne), un repli par mots-clés classe quand même le message. Effets automatiques sans effet externe : intention, assignation d'une réclamation au gérant, tâche « Vérifier le paiement annoncé » ; désinscription et promesse restent des suggestions. La pause de séquence reste celle de M10 (`reminders.on_event`).
+
 **RG-M11-21 — Assignation et statuts.** Nouvelle conversation entrante → assignée au conseiller de la dernière relance/OR du client, sinon non assignée (file commune). `Conversation.status` : `OPEN` (à traiter), `PENDING` (en attente du client), `CLOSED`. Message entrant sur `PENDING`/`CLOSED` → `OPEN`. Notification interne au destinataire assigné ; si non lue depuis 2 h ouvrées → rappel au MANAGER.
 
 **RG-M11-22 — Réponses rapides.** `QuickReply` (titre, texte avec variables, raccourci `/prix-vidange`) partagées dans l'organisation ; insérables dans la zone de saisie ; hors fenêtre 24 h, seules les réponses rapides liées à un modèle approuvé sont proposées.
@@ -144,15 +161,15 @@ Un repli crée un **nouveau** `Message` (`fallbackOfId` = message d'origine) ; u
 
 **RG-M11-23 — Messages transactionnels** (`kind = transactional`, non soumis à `remindersConsent` ni à OptOut « rappels », mais soumis à une OptOut explicite de canal demandée via l'équipe) :
 
-| Clé | Déclencheur | Contenu | Pièce jointe |
-|---|---|---|---|
-| `tx_devis` | `quote.sent` (M05) | Devis n°, montant, lien d'acceptation | PDF devis (WhatsApp/email) |
-| `tx_facture` | `invoice.issued` (M08) | Facture n°, montant, solde, lien paiement | PDF facture FNE |
-| `tx_recu` | `payment.received` | « Nous avons bien reçu 185 000 FCFA par Wave. Merci ! » + solde restant | PDF reçu |
-| `tx_pret` | OR → `READY` | = M10 `pret_j0` | — |
-| `tx_rdv` | `appointment.created` | = M10 `rdv_confirm` | — |
-| `tx_releve` | M09 relevé | Lien relevé | PDF relevé |
-| `tx_otp` | Auth / portail | Code à 6 chiffres | — |
+| Clé          | Déclencheur            | Contenu                                                                 | Pièce jointe               |
+| ------------ | ---------------------- | ----------------------------------------------------------------------- | -------------------------- |
+| `tx_devis`   | `quote.sent` (M05)     | Devis n°, montant, lien d'acceptation                                   | PDF devis (WhatsApp/email) |
+| `tx_facture` | `invoice.issued` (M08) | Facture n°, montant, solde, lien paiement                               | PDF facture FNE            |
+| `tx_recu`    | `payment.received`     | « Nous avons bien reçu 185 000 FCFA par Wave. Merci ! » + solde restant | PDF reçu                   |
+| `tx_pret`    | OR → `READY`           | = M10 `pret_j0`                                                         | —                          |
+| `tx_rdv`     | `appointment.created`  | = M10 `rdv_confirm`                                                     | —                          |
+| `tx_releve`  | M09 relevé             | Lien relevé                                                             | PDF relevé                 |
+| `tx_otp`     | Auth / portail         | Code à 6 chiffres                                                       | —                          |
 
 `idempotencyKey` = `{clé}:{entityId}:{version}` (une facture réémise après avoir = nouvelle version).
 
@@ -167,15 +184,16 @@ Un repli crée un **nouveau** `Message` (`fallbackOfId` = message d'origine) ; u
 ## 5. Machine à états
 
 ### 5.1 `Message.status` (sortant)
+
 `QUEUED → SENDING → SENT → DELIVERED → READ` ; `QUEUED|SENDING|SENT → FAILED`. Entrant : `RECEIVED`.
 
-| Transition | Déclencheur | Effets |
-|---|---|---|
-| `QUEUED → SENDING` | worker prend le job | tentative journalisée |
-| `SENDING → SENT` | réponse fournisseur OK (`providerMessageId`) | `sentAt`, `message.status_changed` (M10 : Reminder `SENT`) |
-| `SENDING → QUEUED` | erreur temporaire | retry planifié |
-| `→ FAILED` | erreur définitive / retries épuisés / conformité | repli éventuel (RG-M11-05) |
-| `SENT → DELIVERED → READ` | webhooks | `deliveredAt`, `readAt` ; `hasWhatsapp = true` |
+| Transition                | Déclencheur                                      | Effets                                                     |
+| ------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| `QUEUED → SENDING`        | worker prend le job                              | tentative journalisée                                      |
+| `SENDING → SENT`          | réponse fournisseur OK (`providerMessageId`)     | `sentAt`, `message.status_changed` (M10 : Reminder `SENT`) |
+| `SENDING → QUEUED`        | erreur temporaire                                | retry planifié                                             |
+| `→ FAILED`                | erreur définitive / retries épuisés / conformité | repli éventuel (RG-M11-05)                                 |
+| `SENT → DELIVERED → READ` | webhooks                                         | `deliveredAt`, `readAt` ; `hasWhatsapp = true`             |
 
 ### 5.2 `Conversation.status` : `OPEN ⇄ PENDING → CLOSED` ; entrant → `OPEN`.
 
@@ -184,17 +202,26 @@ Un repli crée un **nouveau** `Message` (`fallbackOfId` = message d'origine) ; u
 ## 6. Données
 
 Entités de `02` : `Message`, `Conversation`, `MessageTemplate`, `ChannelConfig`, `OptOut`, `Customer` (`hasWhatsapp`, `whatsappPhone`, `preferredChannel`, `remindersConsent`, `optedOutAt`), `CustomerContact`, `Attachment`, `Notification`, `AiInteraction`, `DomainEvent`. Paramètres `Organization.settings.messaging` :
+
 ```json
-{ "fallbackAfterMinutes": 360, "smsTransliterate": true, "maxSmsSegments": 3,
-  "quietHours": { "from": "21:00", "to": "07:00" }, "monthlyBudget": null,
+{
+  "fallbackAfterMinutes": 360,
+  "smsTransliterate": true,
+  "maxSmsSegments": 3,
+  "quietHours": { "from": "21:00", "to": "07:00" },
+  "monthlyBudget": null,
   "costs": { "smsPerSegment": null, "whatsappUtility": null, "whatsappMarketing": null },
-  "lowSmsBalance": 200, "digest": { "time": "07:30", "channel": "WHATSAPP", "saturday": false, "includeManagers": false } }
+  "lowSmsBalance": 200,
+  "digest": { "time": "07:30", "channel": "WHATSAPP", "saturday": false, "includeManagers": false }
+}
 ```
+
 Ajouts : §14.
 
 ## 7. Écrans et interface
 
 ### 7.1 Messages (boîte de réception) — `/messages`
+
 - 3 colonnes (PC) : liste des conversations (filtres : Toutes, Non lues, Assignées à moi, Non assignées, par intention, par canal ; recherche nom/téléphone/plaque) · fil de discussion (bulles, statuts ✓ envoyé / ✓✓ délivré / ✓✓ bleu lu, échec en rouge avec motif ; relances système affichées avec leur badge type/palier ; pièces jointes) · panneau client (fiche résumée, véhicules, solde dû, relances en cours, OR ouvert, actions rapides : Créer RDV, Enregistrer un paiement, Noter une promesse, Ne plus relancer).
 - Bandeau d'intention IA au-dessus du dernier message entrant : « Veut un RDV — samedi matin » [Créer le RDV] [Ignorer].
 - Zone de saisie : texte, réponses rapides (`/`), variables, pièce jointe, choix du canal ; indicateur « Fenêtre WhatsApp ouverte encore 18 h » ou « Fenêtre fermée : modèle requis » (sélecteur de modèles approuvés).
@@ -203,43 +230,47 @@ Ajouts : §14.
 - États vides : « Aucun message. Les réponses de vos clients arriveront ici. »
 
 ### 7.2 Historique des envois — `/messages/historique`
+
 Tableau : date/heure, client, type (relance + palier / transactionnel / conversation), canal, statut, coût, envoyé par (ou « Automatique »), repli (« → SMS »). Filtres : période, canal, statut, type, client. Détail : corps exact envoyé, tentatives, codes d'erreur traduits en français (« Numéro non WhatsApp », « Crédit SMS épuisé », « Modèle non approuvé par Meta »), chaîne de repli. Totaux du mois et coût par canal. Export Excel.
 
 ### 7.3 Modèles — `/parametres/modeles`
+
 - Liste par type et palier (« VT — J-30 », « Créance — relance ferme ») avec pastilles des canaux et statut Meta.
 - Éditeur : onglets WhatsApp / SMS / Email (objet + corps) ; **puces de variables** cliquables issues du catalogue (`02` §4 + M10 §14) ; aperçu réaliste (bulle WhatsApp, écran SMS avec compteur « 138 car. · 1 SMS · GSM-7 », email rendu) avec données d'exemple choisissables (« Kouassi Jean-Marc / 2547 GH 01 ») ; alertes : variable inconnue, SMS > 1 segment, caractère UCS-2, lien manquant dans une relance de créance, « répondez » dans un SMS.
 - Statut Meta : Non soumis / En attente / Approuvé (catégorie) / Refusé (motif) ; bouton « Soumettre à Meta » ; versions.
 - Bouton « Réinitialiser au modèle par défaut » ; « Envoyer un test à mon numéro ».
 
 ### 7.4 Canaux — `/parametres/canaux`
+
 Cartes WhatsApp, SMS, Email : statut (Connecté / Non configuré / Erreur + motif), fournisseur, expéditeur, solde SMS, palier de messagerie WhatsApp, « Configurer » (assistant : identifiants, URL de webhook à copier, `verify_token` généré), « Envoyer un test », « Vérifier maintenant ». Ordre de repli global par défaut. Barème des coûts et budget mensuel.
 
 ## 8. API
 
 Routeur `messaging` :
 
-| Procédure | Entrée | Sortie |
-|---|---|---|
-| `messaging.conversations.list` | `{ filter, channel?, intent?, assignedToMe?, search?, cursor }` | `{ items, nextCursor, unreadTotal }` |
-| `messaging.conversations.get` | `{ id, cursor? }` | conversation + messages paginés + `windowExpiresAt` + client |
-| `messaging.conversations.reply` | `{ conversationId, body?, templateKey?, quickReplyId?, attachments? }` | Message |
-| `messaging.conversations.assign` / `setStatus` / `linkCustomer` / `markRead` | … | Conversation |
-| `messaging.send` | `{ customerId, channel?, templateKey?, body?, context?, attachments? }` (envoi manuel ad hoc) | Message |
-| `messaging.waLink` | `{ reminderId? , customerId, body }` | `{ url }` |
-| `messaging.waLinkConfirm` | `{ reminderId?, customerId, body, sent: boolean }` | Message? |
-| `messaging.history` | `{ from, to, channel?, status?, kind?, customerId?, cursor }` | `{ items, totals }` |
-| `messaging.message.get` | `{ id }` | Message + tentatives + chaîne de repli |
-| `messaging.estimateCost` | `{ items: [{ channel, body }] }` | `{ perChannel, total, segments }` |
-| `templates.list` / `get` / `upsert` / `reset` | … | MessageTemplate |
-| `templates.preview` | `{ key, channel, sampleCustomerId?, body? }` | `{ rendered, sms: { chars, segments, encoding, nonGsmChars[] }, warnings[] }` |
-| `templates.submitWhatsapp` | `{ templateId, category }` | MessageTemplate (`PENDING`) |
-| `templates.sendTest` | `{ templateId, to }` | Message |
-| `quickReplies.list` / `upsert` / `delete` | … | QuickReply |
-| `channels.list` / `upsert` / `test` / `healthCheck` | `{ channel, provider, credentials, senderId }` … | ChannelConfig (sans secrets) |
-| `optOuts.list` / `add` / `remove` | `{ address, channel?, reason }` | OptOut |
-| `digest.preview` | — | texte du résumé du jour |
+| Procédure                                                                    | Entrée                                                                                        | Sortie                                                                        |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `messaging.conversations.list`                                               | `{ filter, channel?, intent?, assignedToMe?, search?, cursor }`                               | `{ items, nextCursor, unreadTotal }`                                          |
+| `messaging.conversations.get`                                                | `{ id, cursor? }`                                                                             | conversation + messages paginés + `windowExpiresAt` + client                  |
+| `messaging.conversations.reply`                                              | `{ conversationId, body?, templateKey?, quickReplyId?, attachments? }`                        | Message                                                                       |
+| `messaging.conversations.assign` / `setStatus` / `linkCustomer` / `markRead` | …                                                                                             | Conversation                                                                  |
+| `messaging.send`                                                             | `{ customerId, channel?, templateKey?, body?, context?, attachments? }` (envoi manuel ad hoc) | Message                                                                       |
+| `messaging.waLink`                                                           | `{ reminderId? , customerId, body }`                                                          | `{ url }`                                                                     |
+| `messaging.waLinkConfirm`                                                    | `{ reminderId?, customerId, body, sent: boolean }`                                            | Message?                                                                      |
+| `messaging.history`                                                          | `{ from, to, channel?, status?, kind?, customerId?, cursor }`                                 | `{ items, totals }`                                                           |
+| `messaging.message.get`                                                      | `{ id }`                                                                                      | Message + tentatives + chaîne de repli                                        |
+| `messaging.estimateCost`                                                     | `{ items: [{ channel, body }] }`                                                              | `{ perChannel, total, segments }`                                             |
+| `templates.list` / `get` / `upsert` / `reset`                                | …                                                                                             | MessageTemplate                                                               |
+| `templates.preview`                                                          | `{ key, channel, sampleCustomerId?, body? }`                                                  | `{ rendered, sms: { chars, segments, encoding, nonGsmChars[] }, warnings[] }` |
+| `templates.submitWhatsapp`                                                   | `{ templateId, category }`                                                                    | MessageTemplate (`PENDING`)                                                   |
+| `templates.sendTest`                                                         | `{ templateId, to }`                                                                          | Message                                                                       |
+| `quickReplies.list` / `upsert` / `delete`                                    | …                                                                                             | QuickReply                                                                    |
+| `channels.list` / `upsert` / `test` / `healthCheck`                          | `{ channel, provider, credentials, senderId }` …                                              | ChannelConfig (sans secrets)                                                  |
+| `optOuts.list` / `add` / `remove`                                            | `{ address, channel?, reason }`                                                               | OptOut                                                                        |
+| `digest.preview`                                                             | —                                                                                             | texte du résumé du jour                                                       |
 
 Webhooks (route handlers, sans session, signature vérifiée, réponse rapide puis file `webhooks.inbound`) :
+
 - `GET|POST /api/webhooks/whatsapp` — statuts, messages entrants, `message_template_status_update`, alertes de qualité.
 - `POST /api/webhooks/sms/[provider]` — accusés de livraison, SMS entrants.
 - `POST /api/webhooks/email/[provider]` — livré, rebond, plainte, email entrant (P1).
@@ -247,49 +278,49 @@ Webhooks (route handlers, sans session, signature vérifiée, réponse rapide pu
 
 ## 9. Automatisations et événements
 
-| Job / file | Fréquence | Rôle |
-|---|---|---|
-| `messages.send` (file `messages`) | à la demande | Conformité, rendu, appel fournisseur, statut, repli |
-| `messages.fallback_check` | 5 min | WhatsApp `SENT` non délivrés au-delà du délai → repli |
-| `webhooks.inbound` | à la demande | Statuts monotones, entrants, rattachement, STOP, intention |
-| `channels.health` | horaire | `healthCheck`, solde SMS, alertes |
-| `digest.owner` | 07:30 | RG-M11-24 |
-| `messages.retention` | mensuel | Anonymisation > 24 mois |
+| Job / file                        | Fréquence    | Rôle                                                       |
+| --------------------------------- | ------------ | ---------------------------------------------------------- |
+| `messages.send` (file `messages`) | à la demande | Conformité, rendu, appel fournisseur, statut, repli        |
+| `messages.fallback_check`         | 5 min        | WhatsApp `SENT` non délivrés au-delà du délai → repli      |
+| `webhooks.inbound`                | à la demande | Statuts monotones, entrants, rattachement, STOP, intention |
+| `channels.health`                 | horaire      | `healthCheck`, solde SMS, alertes                          |
+| `digest.owner`                    | 07:30        | RG-M11-24                                                  |
+| `messages.retention`              | mensuel      | Anonymisation > 24 mois                                    |
 
 Émet : `message.status_changed`, `message.failed_all`, `message.inbound_received` (avec `intent`), `customer.opted_out`, `customer.opted_in`, `channel.error`. Consomme : `quote.sent`, `invoice.issued`, `payment.received`, `repair_order.status_changed`, `appointment.created/updated/cancelled` (messages transactionnels).
 
 ## 10. Permissions
 
-| Action | Permission | OWNER | MANAGER | ADVISOR | ACCOUNTANT | CASHIER |
-|---|---|:-:|:-:|:-:|:-:|:-:|
-| Lire la boîte de réception | `message:read` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Répondre / envoyer un message | `message:send` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Assigner / fermer | `message:assign` | ✅ | ✅ | ✅ | — | — |
-| Historique et coûts | `message:history` | ✅ | ✅ | ✅ | ✅ | — |
-| Modèles, réponses rapides | `template:manage` | ✅ | ✅ | — | — | — |
-| Soumettre à Meta | `template:submit` | ✅ | ✅ | — | — | — |
-| Canaux, identifiants, budget | `settings:channels` | ✅ | — | — | — | — |
-| Gérer les désinscriptions | `optout:manage` | ✅ | ✅ | — | — | — |
+| Action                        | Permission          | OWNER | MANAGER | ADVISOR | ACCOUNTANT | CASHIER |
+| ----------------------------- | ------------------- | :---: | :-----: | :-----: | :--------: | :-----: |
+| Lire la boîte de réception    | `message:read`      |  ✅   |   ✅    |   ✅    |     ✅     |   ✅    |
+| Répondre / envoyer un message | `message:send`      |  ✅   |   ✅    |   ✅    |     ✅     |   ✅    |
+| Assigner / fermer             | `message:assign`    |  ✅   |   ✅    |   ✅    |     —      |    —    |
+| Historique et coûts           | `message:history`   |  ✅   |   ✅    |   ✅    |     ✅     |    —    |
+| Modèles, réponses rapides     | `template:manage`   |  ✅   |   ✅    |    —    |     —      |    —    |
+| Soumettre à Meta              | `template:submit`   |  ✅   |   ✅    |    —    |     —      |    —    |
+| Canaux, identifiants, budget  | `settings:channels` |  ✅   |    —    |    —    |     —      |    —    |
+| Gérer les désinscriptions     | `optout:manage`     |  ✅   |   ✅    |    —    |     —      |    —    |
 
 ## 11. Cas limites et erreurs
 
-| Situation | Comportement |
-|---|---|
-| Job rejoué après crash pendant l'appel fournisseur | `providerMessageId` déjà présent → aucun renvoi ; état `SENDING` > 10 min sans id → vérification par API de statut si disponible, sinon `FAILED` `UNKNOWN_STATE` avec revue manuelle (on préfère ne pas risquer un double envoi) |
-| Webhook dupliqué ou désordonné | Idempotence + statut monotone |
-| Webhook à signature invalide | 401, journalisé, aucun traitement |
-| Jeton WhatsApp expiré | `PERMANENT_CONFIG` → canal en erreur, bandeau rouge, repli SMS |
-| Modèle WhatsApp refusé | Envois WhatsApp hors fenêtre de ce modèle → SMS ; alerte sur l'écran Modèles |
-| Client répond sur WhatsApp à un SMS | Conversation WhatsApp distincte, même client ; le panneau client montre les deux canaux |
-| Numéro partagé (famille, chauffeur) | RG-M11-18 : choix manuel |
-| Numéro saisi `0708123456` (ancien format 8 chiffres ou 10 chiffres) | `core/phone` normalise en `+2250708123456` ; numéro à 8 chiffres → rejet à la saisie « Numéro ivoirien à 10 chiffres attendu » |
-| Message entrant d'un inconnu « Prix vidange Corolla ? » | Conversation non rattachée, intention `PRICE_REQUEST`, action « Créer le client » |
-| Note vocale entrante | Stockée, lisible ; pas de classement IA (P2 : transcription) |
-| Crédit SMS épuisé pendant un envoi groupé | Messages restants repliés vers email ou mis `FAILED` ; alerte |
-| Variable `{{lien.paiement}}` vide | Blocage RG-M11-03, motif clair |
-| Budget mensuel atteint | Relances passées en validation ; transactionnels envoyés |
-| Email du client invalide (rebond) | `emailInvalidAt`, plus d'envoi email jusqu'à correction |
-| `console` actif en production | Démarrage refusé |
+| Situation                                                           | Comportement                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Job rejoué après crash pendant l'appel fournisseur                  | `providerMessageId` déjà présent → aucun renvoi ; état `SENDING` > 10 min sans id → vérification par API de statut si disponible, sinon `FAILED` `UNKNOWN_STATE` avec revue manuelle (on préfère ne pas risquer un double envoi) |
+| Webhook dupliqué ou désordonné                                      | Idempotence + statut monotone                                                                                                                                                                                                    |
+| Webhook à signature invalide                                        | 401, journalisé, aucun traitement                                                                                                                                                                                                |
+| Jeton WhatsApp expiré                                               | `PERMANENT_CONFIG` → canal en erreur, bandeau rouge, repli SMS                                                                                                                                                                   |
+| Modèle WhatsApp refusé                                              | Envois WhatsApp hors fenêtre de ce modèle → SMS ; alerte sur l'écran Modèles                                                                                                                                                     |
+| Client répond sur WhatsApp à un SMS                                 | Conversation WhatsApp distincte, même client ; le panneau client montre les deux canaux                                                                                                                                          |
+| Numéro partagé (famille, chauffeur)                                 | RG-M11-18 : choix manuel                                                                                                                                                                                                         |
+| Numéro saisi `0708123456` (ancien format 8 chiffres ou 10 chiffres) | `core/phone` normalise en `+2250708123456` ; numéro à 8 chiffres → rejet à la saisie « Numéro ivoirien à 10 chiffres attendu »                                                                                                   |
+| Message entrant d'un inconnu « Prix vidange Corolla ? »             | Conversation non rattachée, intention `PRICE_REQUEST`, action « Créer le client »                                                                                                                                                |
+| Note vocale entrante                                                | Stockée, lisible ; pas de classement IA (P2 : transcription)                                                                                                                                                                     |
+| Crédit SMS épuisé pendant un envoi groupé                           | Messages restants repliés vers email ou mis `FAILED` ; alerte                                                                                                                                                                    |
+| Variable `{{lien.paiement}}` vide                                   | Blocage RG-M11-03, motif clair                                                                                                                                                                                                   |
+| Budget mensuel atteint                                              | Relances passées en validation ; transactionnels envoyés                                                                                                                                                                         |
+| Email du client invalide (rebond)                                   | `emailInvalidAt`, plus d'envoi email jusqu'à correction                                                                                                                                                                          |
+| `console` actif en production                                       | Démarrage refusé                                                                                                                                                                                                                 |
 
 ## 12. Tests
 

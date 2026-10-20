@@ -335,7 +335,7 @@ Paramètres (`Organization.settings.appointments` et `settings.planning`, édit�
 
 - Portail général sans jeton (nom + téléphone + OTP) non livré : reporté à M14. Limitation de débit en mémoire (10 réservations/h/IP) + 3 RDV actifs par client ; pas de limite 3/jour/téléphone.
 - REST public (`/api/v1/appointments`, `/availability`) non livré : reporté à M13 (API publique).
-- `planning.suggestSlot` : heuristique déterministe (jour, matin/après-midi) journalisée dans `AiInteraction`, pas encore d'appel IA (M17) ; pas d'estimation de durée ni de risque de no-show par IA.
+- `planning.suggestSlot` : heuristique déterministe (jour, matin/après-midi) journalisée dans `AiInteraction`, pas encore d'appel IA (M17) ; pas d'estimation de durée ni de risque de no-show par IA. _Étape 6.2 : le calcul est partagé (`appointments/slotSuggestions.ts`) avec la boîte de réception M17, où l'intention et les entités (jour, période) viennent de la classification IA d'un message entrant ; le créneau reste calculé par le code. Estimation de durée et risque de no-show toujours non livrés._
 - Pause de midi : non appliquée par défaut (`planning.lunchBreak = null`, « si configurée »).
 - Charge des OR en cours (travaux restants) non comptée dans la capacité (données M04/M06 absentes).
 - Consommés non branchés : `member.deactivated`, `quote.accepted` (M05) ; réception M04 : `linkRepairOrderToAppointment` exportée (routers/appointment.ts) + consommateur `repair_order.created/status_changed`.
