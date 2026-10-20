@@ -358,11 +358,11 @@ describe("étape 4.3 — liens de paiement, webhooks, portail facture", () => {
     ).toBe(1);
     const logs = await adminDb.paymentWebhookLog.findMany({
       where: { organizationId: orgA.id, providerRef: link.providerRef },
-      orderBy: { receivedAt: "asc" },
     });
-    expect(logs.map((l) => [l.signatureValid, l.outcome])).toEqual([
-      [true, "created"],
-      [true, "duplicate"],
+    // Même horodatage (horloge figée) : comparaison sans ordre.
+    expect(logs.map((l) => `${l.signatureValid}:${l.outcome}`).sort()).toEqual([
+      "true:created",
+      "true:duplicate",
     ]);
   });
 
