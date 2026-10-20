@@ -1,0 +1,38 @@
+# ==============================================================================
+# Caddyfile — AtelierOS
+# Reverse proxy HTTPS automatique, compression et durcissement des en-têtes
+# ==============================================================================
+
+{$APP_DOMAIN:localhost} {
+    # Encodage et compression des réponses
+    encode zstd gzip
+
+    # En-têtes de sécurité recommandés (01 §8 et RGPD / bonnes pratiques)
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # Journalisation d'accès au format JSON pour supervision
+    log {
+        output stdout
+        format json
+    }
+
+    # Reverse proxy vers l'application Next.js
+    reverse_proxy web:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Détection active des pannes
+        health_uri /api/health
+        health_interval 15s
+        health_timeout 5s
+    }
+}

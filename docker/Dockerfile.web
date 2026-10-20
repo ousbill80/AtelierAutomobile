@@ -1,0 +1,84 @@
+# ==============================================================================
+# Dockerfile.web — AtelierOS (Next.js 16 standalone multi-étapes)
+# Conforme aux règles d'exploitation (non-root, healthcheck, image minimale)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Base commune
+# ------------------------------------------------------------------------------
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
+WORKDIR /app
+
+# ------------------------------------------------------------------------------
+# 2. Dépendances complètes pour le build
+# ------------------------------------------------------------------------------
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/config/package.json ./packages/config/
+COPY packages/core/package.json ./packages/core/
+COPY packages/db/package.json ./packages/db/
+COPY packages/emails/package.json ./packages/emails/
+COPY packages/import/package.json ./packages/import/
+COPY packages/integrations/package.json ./packages/integrations/
+COPY packages/pdf/package.json ./packages/pdf/
+COPY packages/sync-agent/package.json ./packages/sync-agent/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/validators/package.json ./packages/validators/
+COPY apps/web/package.json ./apps/web/
+COPY apps/worker/package.json ./apps/worker/
+
+RUN pnpm install --frozen-lockfile
+
+# ------------------------------------------------------------------------------
+# 3. Étape de compilation
+# ------------------------------------------------------------------------------
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/apps ./apps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY packages ./packages
+COPY apps/web ./apps/web
+
+# Variables d'environnement fictives nécessaires lors de l'analyse statique Next.js au build
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV DATABASE_APP_URL="postgresql://build:build@localhost:5432/build"
+ENV AUTH_SECRET="0000000000000000000000000000000000000000000000000000000000000000"
+ENV ENCRYPTION_KEY="0000000000000000000000000000000000000000000="
+
+RUN pnpm --filter @atelieros/db exec prisma generate
+RUN pnpm --filter @atelieros/web build
+
+# ------------------------------------------------------------------------------
+# 4. Image finale de production (runner non-root)
+# ------------------------------------------------------------------------------
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Les artefacts standalone Next.js conservent la structure du monorepo
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+
+CMD ["node", "apps/web/server.js"]
