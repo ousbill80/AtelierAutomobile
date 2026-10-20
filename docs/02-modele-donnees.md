@@ -1671,8 +1671,43 @@ model DataSource {
   isActive       Boolean @default(true)
   lastRunAt      DateTime?
   lastStatus     String?
+  // M13 partie 2 (étape 6.4) — synchronisations planifiées (RG-M13-26/27)
+  lastSuccessAt       DateTime?                  // base de :since (− 1 jour de recouvrement)
+  consecutiveFailures Int @default(0)            // notification OWNER au 3e échec
+  lastError           String?                    // message traduit, jamais le message brut du pilote
+  createdAt           DateTime @default(now())
 }
 enum DataSourceType { FILE_UPLOAD WATCHED_FOLDER SQL_DATABASE REST_API WEBHOOK }
+
+model SyncAgent {                                 // M13 §14 — agent local (RG-M13-28), étape 6.4
+  id               String @id @default(cuid())
+  organizationId   String
+  dataSourceId     String?
+  name             String                        // "PC Comptabilité"
+  tokenHash        String? @unique               // sha256 du jeton sync:push (null avant appairage)
+  status           String @default("PAIRING")    // PAIRING | ONLINE | OFFLINE | REVOKED
+  version          String?
+  hostname         String?
+  lastSeenAt       DateTime?
+  lastError        String?
+  pairingCode      String? @unique
+  pairingExpiresAt DateTime?
+  createdAt        DateTime @default(now())
+  revokedAt        DateTime?
+}
+
+model SyncBatch {                                 // M13 partie 2 — lot reçu de l'agent local (RG-M13-28)
+  id             String @id @default(cuid())
+  organizationId String
+  agentId        String
+  idempotencyKey String                          // sha256(lot) ; renvoi = réponse rejouée
+  entity         String
+  rowCount       Int
+  importJobId    String?
+  response       Json
+  createdAt      DateTime @default(now())
+  @@unique([agentId, idempotencyKey])
+}
 
 model ImportJob {
   id              String @id @default(cuid())
@@ -1740,18 +1775,76 @@ model ApiKey {
   keyHash        String @unique
   prefix         String                          // affiché : "ak_live_3f9a…"
   scopes         String[]
-  lastUsedAt     DateTime?
+  lastUsedAt     DateTime?                       // mis à jour au plus 1 fois/min (RG-M13-30)
   revokedAt      DateTime?
   createdAt      DateTime @default(now())
+  // M13 §14 (partie 3, étape 6.4)
+  createdById    String?
+  expiresAt      DateTime?
+  siteIds        String[]                        // vide = tous les sites
+  environment    String @default("live")         // live | test (clés ak_test_)
 }
 
 model WebhookEndpoint {                           // webhooks sortants vers d'autres systèmes
   id             String @id @default(cuid())
   organizationId String
-  url            String
-  secret         String
+  url            String                          // https public uniquement (anti-SSRF)
+  secret         String                          // JSON chiffré { current, previous?, previousUntil? }
   events         String[]
   isActive       Boolean @default(true)
+  // M13 §14 (partie 3, étape 6.4)
+  description         String?
+  consecutiveFailures Int @default(0)            // 50 → désactivé + notification OWNER
+  disabledAt          DateTime?
+  createdAt           DateTime @default(now())
+  // hors §14 : curseur de diffusion (webhooks.fanout) et auteur
+  fanoutCursor        DateTime?
+  createdById         String?
+}
+
+model WebhookDelivery {                           // M13 §14 — une livraison par (endpoint, événement)
+  id             String @id @default(cuid())
+  organizationId String
+  endpointId     String
+  eventId        String                          // evt_<DomainEvent.id>
+  eventType      String
+  payload        Json                            // hors §14 : corps envoyé, rejoué à chaque reprise
+  attempt        Int @default(0)                 // 8 tentatives : 0, 1 min, 5 min, 30 min, 2 h, 5 h, 10 h, 24 h
+  status         String @default("PENDING")      // PENDING | SUCCEEDED | FAILED
+  responseCode   Int?
+  responseBody   String?                         // tronqué à 2 Ko
+  lastError      String?                         // hors §14
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?                       // hors §14
+  createdAt      DateTime @default(now())
+  @@unique([endpointId, eventId])
+  @@index([endpointId, createdAt])
+  @@index([status, nextAttemptAt])
+}
+
+model IdempotencyKey {                            // M13 §14 — POST rejoués 24 h (RG-M13-33)
+  id             String @id @default(cuid())
+  organizationId String
+  apiKeyId       String
+  key            String
+  requestHash    String                          // sha256(méthode, chemin, corps)
+  responseStatus Int
+  responseBody   Json
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  @@unique([apiKeyId, key])
+}
+
+model ApiRequestLog {                             // hors §14 (étape 6.4) — journal d'accès, 90 j
+  id             String @id @default(cuid())
+  organizationId String
+  apiKeyId       String
+  method         String
+  path           String
+  status         Int
+  durationMs     Int
+  ip             String?                         // tronquée /24
+  createdAt      DateTime @default(now())
 }
 
 // ───────────── Assurances ─────────────

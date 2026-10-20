@@ -72,6 +72,17 @@ export {
 } from "./automations";
 export type { ActionPreview, AutomationContext, GarageLike } from "./automations";
 export {
+  deliverDueWebhooks,
+  deliverWebhook,
+  dueWebhookDeliveryIds,
+  fanoutWebhookEvents,
+  publicEventData,
+  purgeApiState,
+  type DeliverOutcome,
+  type WebhookDeliveryDeps,
+  type WebhookTransport,
+} from "./webhooks";
+export {
   computePlanUsage,
   countUsage,
   enforcePlanLimit,

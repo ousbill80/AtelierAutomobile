@@ -120,6 +120,34 @@ describe("evaluateAlerts (RG-M12-27)", () => {
   });
 });
 
+describe("evaluateAlerts — agent local hors ligne (US-M13-07)", () => {
+  it("lève import_stale pour un agent sans battement depuis plus de 24 h", () => {
+    const alerts = evaluateAlerts({
+      ...base,
+      agents: [
+        {
+          id: "a1",
+          name: "PC Compta",
+          status: "ONLINE",
+          lastSeenAt: new Date("2026-10-17T07:00:00Z"),
+        },
+        {
+          id: "a2",
+          name: "PC Accueil",
+          status: "OFFLINE",
+          lastSeenAt: new Date("2026-10-17T09:00:00Z"),
+        },
+        { id: "a3", name: "Révoqué", status: "REVOKED", lastSeenAt: null },
+        { id: "a4", name: "En appairage", status: "PAIRING", lastSeenAt: null },
+      ],
+    });
+    expect(alerts.map((a) => [a.code, a.objectId, a.link])).toEqual([
+      ["import_stale", "a1", "/import/agent"],
+    ]);
+    expect(alerts[0]!.params).toEqual({ name: "PC Compta", kind: "agent" });
+  });
+});
+
 describe("sortAlerts (RG-M12-28)", () => {
   it("non lues, sévérité puis date décroissante, 5 max", () => {
     const n = (id: string, severity: string | null, iso: string, read = false) => ({

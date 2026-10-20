@@ -373,6 +373,20 @@ export {
   reportPreviewInputSchema,
   reportSlugSchema,
 } from "./dashboard";
+
+export type { DataSourceCreateInput } from "./dataSources";
+export {
+  dataSourceCreateInputSchema,
+  dataSourceIdInputSchema,
+  dataSourcePreviewQueryInputSchema,
+  dataSourceTestInputSchema,
+  dataSourceUpdateInputSchema,
+  syncDbTypeSchema,
+  syncEntitySchema,
+  syncPolicySchema,
+  watchRulesSchema,
+} from "./dataSources";
+
 export * from "./stock";
 export * from "./appointment";
 export * from "./repairOrder";
@@ -445,4 +459,5 @@ export {
 export * from "./paymentLinks";
 export * from "./portal";
 export * from "./automations";
+export * from "./publicApi";
 export * from "./subscription";

@@ -37,10 +37,15 @@ export function alertTexts(alert: AlertCandidate): { title: string; body: string
         body: "Rechargez votre crédit SMS pour que les relances continuent de partir.",
       };
     case "import_stale":
-      return {
-        title: `Import « ${p.name} » sans succès depuis plus de 3 jours`,
-        body: "Vérifiez la connexion à votre ancien logiciel.",
-      };
+      return p.kind === "agent"
+        ? {
+            title: `Agent local « ${p.name} » hors ligne depuis plus de 24 h`,
+            body: "Vérifiez que le PC du garage est allumé et connecté à internet.",
+          }
+        : {
+            title: `Import « ${p.name} » sans succès depuis plus de 3 jours`,
+            body: "Vérifiez la connexion à votre ancien logiciel.",
+          };
     case "receivable_45d":
       return {
         title: `Facture ${p.number} en retard de ${p.days} j — ${p.customer}`,
@@ -86,6 +91,7 @@ export async function scanOrganizationAlerts(organizationId: string, now: Date):
     total,
     failed,
     dataSources,
+    agents,
     invoices,
     promises,
     outstanding,
@@ -107,7 +113,12 @@ export async function scanOrganizationAlerts(organizationId: string, now: Date):
       where: { direction: "OUTBOUND", createdAt: { gte: since24h }, status: "FAILED" },
     }),
     tenantDb.dataSource.findMany({
+      // Les sources d'agent sont surveillées par le battement de l'agent (ci-dessous).
+      where: { syncAgents: { none: {} } },
       select: { id: true, name: true, isActive: true, lastRunAt: true, lastStatus: true },
+    }),
+    tenantDb.syncAgent.findMany({
+      select: { id: true, name: true, status: true, lastSeenAt: true },
     }),
     tenantDb.invoice.findMany({
       where: {
@@ -200,6 +211,7 @@ export async function scanOrganizationAlerts(organizationId: string, now: Date):
     channels,
     messages24h: { total, failed },
     dataSources,
+    agents,
     overdueInvoices: invoices.map((i) => ({ ...i, customerName: i.customer.displayName })),
     brokenPromises: promises.map((p) => ({
       id: p.id,

@@ -154,7 +154,8 @@
     "settingsHolidays": "Jours fériés",
     "settingsDocuments": "Documents et numérotation",
     "settingsSubscription": "Abonnement",
-    "settingsData": "Données"
+    "settingsData": "Données",
+    "settingsApi": "API et webhooks"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -509,7 +510,10 @@
         "FAILED": "Échoué",
         "CANCELLED": "Annulé",
         "ROLLED_BACK": "Annulé (retour arrière)"
-      }
+      },
+      "syncCardTitle": "Synchronisation automatique",
+      "syncCardDescription": "Connectez AtelierOS à la base de votre logiciel actuel : clients, véhicules et factures se mettent à jour tout seuls, sans ressaisie.",
+      "syncCardCta": "Gérer les sources"
     },
     "wizard": {
       "title": "Importer un fichier",
@@ -628,6 +632,137 @@
         "downloadErrorReport": "Télécharger le rapport d'erreurs",
         "backToList": "Retour aux imports"
       }
+    },
+    "sources": {
+      "title": "Sources de synchronisation",
+      "description": "Connexion directe, en lecture seule, à la base de votre logiciel de gestion.",
+      "new": "Nouvelle source",
+      "back": "Retour aux sources",
+      "emptyTitle": "Aucune source de synchronisation",
+      "emptyDescription": "Ajoutez la connexion à la base de votre logiciel pour importer automatiquement vos données chaque jour.",
+      "error": "Impossible de charger les sources.",
+      "retry": "Réessayer",
+      "columns": {
+        "name": "Nom",
+        "type": "Base",
+        "schedule": "Planning",
+        "lastRun": "Dernière exécution",
+        "status": "Statut"
+      },
+      "never": "Jamais",
+      "status": {
+        "SUCCESS": "Réussie",
+        "FAILED": "En échec",
+        "NONE": "Jamais lancée",
+        "INACTIVE": "Désactivée"
+      },
+      "dbTypes": {
+        "postgres": "PostgreSQL",
+        "mysql": "MySQL / MariaDB",
+        "mssql": "SQL Server",
+        "memory": "Démonstration",
+        "agent": "Agent local"
+      },
+      "schedules": {
+        "0 2 * * *": "Tous les jours à 02:00",
+        "0 * * * *": "Toutes les heures",
+        "*/15 * * * *": "Toutes les 15 minutes",
+        "custom": "Personnalisé (cron)"
+      },
+      "form": {
+        "titleNew": "Nouvelle source",
+        "titleEdit": "Source « {name} »",
+        "sectionConnection": "Connexion",
+        "sectionQueries": "Requêtes par type de donnée",
+        "sectionSchedule": "Planning",
+        "name": "Nom de la source",
+        "namePlaceholder": "Logiciel de l'atelier",
+        "dbType": "Type de base",
+        "host": "Hôte",
+        "port": "Port",
+        "database": "Base",
+        "user": "Utilisateur",
+        "password": "Mot de passe",
+        "passwordSaved": "•••• enregistré (laisser vide pour le conserver)",
+        "ssl": "Connexion chiffrée (SSL)",
+        "readOnlyHint": "Utilisez un compte en lecture seule : AtelierOS n'écrit jamais dans votre base.",
+        "queriesHint": "Une seule requête SELECT par type. Utilisez :since pour ne lire que les lignes modifiées depuis la dernière synchronisation. Nommez les colonnes comme les champs AtelierOS (displayName, phone, plate, externalNumber, total…).",
+        "queryPlaceholder": "SELECT … FROM … WHERE DateModif >= :since",
+        "schedule": "Fréquence",
+        "cron": "Expression cron",
+        "active": "Synchronisation active",
+        "policy": "Mise à jour des fiches existantes",
+        "policies": {
+          "UPSERT": "Compléter sans effacer (recommandé)",
+          "UPSERT_OVERWRITE": "Écraser avec les valeurs de la base",
+          "CREATE_ONLY": "Créer seulement, ne jamais modifier"
+        },
+        "save": "Enregistrer",
+        "saved": "Source enregistrée.",
+        "test": "Tester la connexion",
+        "testOk": "Connexion réussie — {tables} tables visibles",
+        "testCanWrite": "Ce compte a des droits d'écriture : créez un compte en lecture seule.",
+        "preview": "Prévisualiser 20 lignes",
+        "previewEmpty": "La requête ne renvoie aucune ligne.",
+        "runNow": "Synchroniser maintenant",
+        "runQueued": "Synchronisation lancée.",
+        "runDone": "Synchronisation terminée.",
+        "deactivate": "Désactiver la source",
+        "deactivated": "Source désactivée.",
+        "lastError": "Dernière erreur",
+        "failures": "{count} échec(s) consécutif(s)",
+        "agentSourceHint": "Cette source est alimentée par l'agent local installé au garage : la connexion à la base reste sur ce PC. Réglez ici les requêtes et le planning.",
+        "sectionWatch": "Dossier surveillé",
+        "watchHint": "Si votre logiciel dépose des exports (CSV, Excel) dans un dossier du PC, indiquez quels fichiers lire et ce qu'ils contiennent. Chaque fichier stable depuis 1 minute est lu sur le PC, puis rangé dans traites/ (ou erreurs/).",
+        "watchPattern": "Fichiers (motif)",
+        "watchPatternPlaceholder": "clients*.csv",
+        "watchEntity": "Contenu",
+        "watchAdd": "Ajouter une règle",
+        "watchRemove": "Retirer",
+        "watchEmpty": "Aucune règle : le dossier n'est pas surveillé."
+      },
+      "runs": {
+        "title": "Journal des 30 dernières exécutions",
+        "empty": "Aucune exécution pour le moment.",
+        "date": "Date",
+        "entity": "Type",
+        "created": "Créés",
+        "updated": "Mis à jour",
+        "unchanged": "Inchangés",
+        "errors": "Erreurs",
+        "status": "Statut"
+      },
+      "agentLink": "Agent local"
+    },
+    "agent": {
+      "title": "Agent local",
+      "description": "Pour une base qui n'est pas accessible depuis internet : un petit programme installé sur le PC du garage lit la base et envoie les changements à AtelierOS (connexion sortante uniquement).",
+      "back": "Retour aux sources",
+      "pairTitle": "Appairer un nouvel agent",
+      "pairDescription": "Donnez un nom au PC, générez un code puis saisissez-le dans l'agent (commande « pair »). Le code est valable 15 minutes.",
+      "name": "Nom du PC",
+      "namePlaceholder": "PC Comptabilité",
+      "generate": "Générer un code",
+      "codeLabel": "Code d'appairage",
+      "codeExpires": "Valable jusqu'à {time}",
+      "configureQueries": "Régler les requêtes",
+      "listTitle": "Agents",
+      "empty": "Aucun agent appairé.",
+      "error": "Impossible de charger les agents.",
+      "retry": "Réessayer",
+      "status": {
+        "ONLINE": "En ligne",
+        "OFFLINE": "Hors ligne",
+        "PAIRING": "En attente d'appairage",
+        "REVOKED": "Révoqué",
+        "EXPIRED": "Code expiré"
+      },
+      "lastSeen": "Vu le {date}",
+      "neverSeen": "Jamais vu",
+      "lastSync": "Dernière synchro : {date}",
+      "version": "Version {version}",
+      "revoke": "Révoquer",
+      "revoked": "Agent révoqué : il ne peut plus envoyer de données."
     }
   },
   "receivables": {
@@ -5073,5 +5208,70 @@
     "fixErrors": "Corrigez les champs signalés avant d'enregistrer.",
     "saved": "Numérotation « {type} » enregistrée.",
     "save": "Enregistrer"
+  },
+  "apiSettings": {
+    "title": "API et webhooks",
+    "description": "Connectez votre logiciel de gestion ou votre ERP à AtelierOS : clés d'accès à l'API publique et notifications envoyées à vos serveurs.",
+    "docs": "Documentation OpenAPI",
+    "loadError": "Impossible de charger les paramètres de l'API.",
+    "keys": {
+      "title": "Clés API",
+      "new": "Nouvelle clé",
+      "empty": "Aucune clé API.",
+      "name": "Nom de la clé",
+      "namePlaceholder": "ERP comptabilité",
+      "environment": "Environnement",
+      "environments": {
+        "live": "Production",
+        "test": "Test (bac à sable)"
+      },
+      "scopes": "Droits",
+      "expiresAt": "Expire le (facultatif)",
+      "create": "Créer la clé",
+      "createdTitle": "Clé créée",
+      "copyOnce": "Copiez cette clé maintenant : elle ne sera plus jamais affichée.",
+      "copy": "Copier",
+      "copied": "Copiée",
+      "revoke": "Révoquer",
+      "revoked": "Révoquée",
+      "active": "Active",
+      "expired": "Expirée",
+      "lastUsed": "Dernière utilisation : {date}",
+      "neverUsed": "Jamais utilisée",
+      "requests": "{count} requête(s) sur 24 h",
+      "logs": "Journal d'accès",
+      "noLogs": "Aucune requête enregistrée."
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "new": "Nouveau webhook",
+      "empty": "Aucun webhook.",
+      "url": "URL de destination (https)",
+      "description": "Description (facultatif)",
+      "events": "Événements",
+      "create": "Créer le webhook",
+      "secretTitle": "Secret de signature",
+      "secretOnce": "Copiez ce secret maintenant : il signe chaque envoi (en-tête X-AtelierOS-Signature) et ne sera plus affiché.",
+      "test": "Tester",
+      "rotate": "Changer le secret",
+      "rotateHint": "L'ancien secret reste valable 24 h.",
+      "disable": "Désactiver",
+      "enable": "Réactiver",
+      "delete": "Supprimer",
+      "active": "Actif",
+      "inactive": "Désactivé",
+      "failures": "{count} échec(s) consécutif(s)",
+      "deliveries": "Dernières livraisons",
+      "noDeliveries": "Aucune livraison.",
+      "redeliver": "Renvoyer",
+      "attempt": "tentative {count}",
+      "nextAttempt": "prochain essai le {date}",
+      "status": {
+        "pending": "En attente",
+        "succeeded": "Livré",
+        "failed": "Échec"
+      },
+      "testResult": "Test : {status}"
+    }
   }
 }

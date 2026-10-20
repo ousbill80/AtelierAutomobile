@@ -115,11 +115,16 @@ model Organization {
   paymentProviderConfigs PaymentProviderConfig[]
   fneConfig              FneConfig?
   dataSources            DataSource[]
+  syncAgents             SyncAgent[]
+  syncBatches            SyncBatch[]
   importJobs             ImportJob[]
   importRowErrors        ImportRowError[]
   externalRefs           ExternalRef[]
   apiKeys                ApiKey[]
   webhookEndpoints       WebhookEndpoint[]
+  webhookDeliveries      WebhookDelivery[]
+  idempotencyKeys        IdempotencyKey[]
+  apiRequestLogs         ApiRequestLog[]
   insuranceCompanies     InsuranceCompany[]
   insuranceClaims        InsuranceClaim[]
   claimActivities        ClaimActivity[]
@@ -349,6 +354,7 @@ model Membership {
   invoicesCreated             Invoice[]             @relation("InvoiceCreatedBy")
   portalTokensCreated         PortalToken[]         @relation("PortalTokenCreatedBy")
   paymentLinksCreated         PaymentLink[]         @relation("PaymentLinkCreatedBy")
+  apiKeysCreated              ApiKey[]              @relation("ApiKeyCreatedBy")
   customerNotesCreated        CustomerNote[]        @relation("CustomerNoteCreatedBy")
   duplicateDismissalsCreated  DuplicateDismissal[]  @relation("DuplicateDismissalDismissedBy")
   customerSegmentsCreated     CustomerSegment[]     @relation("CustomerSegmentCreatedBy")
@@ -2841,22 +2847,72 @@ model FneConfig {
 // ═══════════════════════════════════════════════════════════════
 
 model DataSource {
-  id             String         @id @default(cuid(2))
-  organizationId String
-  type           DataSourceType
-  name           String
-  config         String // JSON chiffré : chemin, connexion SQL, requêtes, mapping
-  mapping        Json           @default("{}")
-  schedule       String? // cron
-  isActive       Boolean        @default(true)
-  lastRunAt      DateTime?
-  lastStatus     String?
+  id                  String         @id @default(cuid(2))
+  organizationId      String
+  type                DataSourceType
+  name                String
+  config              String // JSON chiffré : chemin, connexion SQL, requêtes, mapping
+  mapping             Json           @default("{}")
+  schedule            String? // cron
+  isActive            Boolean        @default(true)
+  lastRunAt           DateTime?
+  lastStatus          String?
+  // M13 partie 2 (étape 6.4) — suivi des synchronisations planifiées (RG-M13-26/27)
+  lastSuccessAt       DateTime? // base du paramètre :since (− 1 jour de recouvrement)
+  consecutiveFailures Int            @default(0) // notification OWNER au 3e échec
+  lastError           String? // message traduit, jamais le message brut du pilote
+  createdAt           DateTime       @default(now())
 
   organization Organization  @relation(fields: [organizationId], references: [id])
   importJobs   ImportJob[]
   externalRefs ExternalRef[]
+  syncAgents   SyncAgent[]
 
   @@index([organizationId])
+}
+
+model SyncAgent {
+  // M13 §14 — agent local installé sur le PC du garage (RG-M13-28)
+  id               String    @id @default(cuid(2))
+  organizationId   String
+  dataSourceId     String?
+  name             String // "PC Comptabilité"
+  tokenHash        String?   @unique // sha256 du jeton (scope sync:push), null tant que non appairé
+  status           String    @default("PAIRING") // PAIRING | ONLINE | OFFLINE | REVOKED
+  version          String?
+  hostname         String?
+  lastSeenAt       DateTime?
+  lastError        String?
+  pairingCode      String?   @unique
+  pairingExpiresAt DateTime?
+  createdAt        DateTime  @default(now())
+  revokedAt        DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  dataSource   DataSource?  @relation(fields: [dataSourceId], references: [id])
+  batches      SyncBatch[]
+
+  @@index([organizationId])
+}
+
+model SyncBatch {
+  // M13 partie 2 (étape 6.4) — lot reçu de l'agent local (RG-M13-28) : idempotence par
+  // `Idempotency-Key = sha256(lot)` ; un renvoi du même lot rejoue la réponse enregistrée.
+  id             String   @id @default(cuid(2))
+  organizationId String
+  agentId        String
+  idempotencyKey String
+  entity         String
+  rowCount       Int
+  importJobId    String?
+  response       Json
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  agent        SyncAgent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, idempotencyKey])
+  @@index([organizationId, createdAt])
 }
 
 enum DataSourceType {
@@ -2969,24 +3025,104 @@ model ApiKey {
   lastUsedAt     DateTime?
   revokedAt      DateTime?
   createdAt      DateTime  @default(now())
+  // M13 §14 (partie 3, étape 6.4)
+  createdById    String?
+  expiresAt      DateTime?
+  siteIds        String[] // vide = tous les sites
+  environment    String    @default("live") // live | test
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  createdBy       Membership?      @relation("ApiKeyCreatedBy", fields: [createdById], references: [id])
+  idempotencyKeys IdempotencyKey[]
+  requestLogs     ApiRequestLog[]
 
   @@index([organizationId])
 }
 
 model WebhookEndpoint {
   // webhooks sortants vers d'autres systèmes
-  id             String   @id @default(cuid(2))
-  organizationId String
-  url            String
-  secret         String
-  events         String[]
-  isActive       Boolean  @default(true)
+  id                  String    @id @default(cuid(2))
+  organizationId      String
+  url                 String
+  secret              String // JSON chiffré { current, previous?, previousUntil? } (RG-M13-39)
+  events              String[]
+  isActive            Boolean   @default(true)
+  // M13 §14 (partie 3, étape 6.4)
+  description         String?
+  consecutiveFailures Int       @default(0)
+  disabledAt          DateTime?
+  createdAt           DateTime  @default(now())
+  // Hors §14 : curseur de diffusion des événements (webhooks.fanout) et auteur
+  fanoutCursor        DateTime?
+  createdById         String?
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  deliveries   WebhookDelivery[]
 
   @@index([organizationId])
+}
+
+model WebhookDelivery {
+  // M13 §14 — une livraison par (point de terminaison, événement) ; tentatives et prochain essai
+  id             String    @id @default(cuid(2))
+  organizationId String
+  endpointId     String
+  eventId        String // evt_… (= DomainEvent.id préfixé)
+  eventType      String
+  payload        Json // corps envoyé (hors §14 : nécessaire aux reprises)
+  attempt        Int       @default(0)
+  status         String    @default("PENDING") // PENDING | SUCCEEDED | FAILED
+  responseCode   Int?
+  responseBody   String? // tronqué à 2 Ko
+  lastError      String?
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  endpoint     WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@unique([endpointId, eventId])
+  @@index([endpointId, createdAt])
+  @@index([status, nextAttemptAt])
+}
+
+model IdempotencyKey {
+  // M13 §14 — RG-M13-33 : POST rejoués pendant 24 h
+  id             String   @id @default(cuid(2))
+  organizationId String
+  apiKeyId       String
+  key            String
+  requestHash    String
+  responseStatus Int
+  responseBody   Json
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  apiKey       ApiKey       @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@unique([apiKeyId, key])
+  @@index([expiresAt])
+}
+
+model ApiRequestLog {
+  // Hors §14 (étape 6.4) — journal d'accès de l'API publique (90 j)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  apiKeyId       String
+  method         String
+  path           String
+  status         Int
+  durationMs     Int
+  ip             String? // tronquée /24
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  apiKey       ApiKey       @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([apiKeyId, createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════

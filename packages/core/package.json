@@ -25,6 +25,7 @@
     "./portal/tracking": "./src/portal/tracking.ts",
     "./ai": "./src/ai/index.ts",
     "./automations": "./src/automations/index.ts",
+    "./api": "./src/api/index.ts",
     "./calendar": "./src/calendar.ts"
   },
   "scripts": {
@@ -34,6 +35,7 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
+    "cron-parser": "4.9.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "handlebars": "^4.7.10"

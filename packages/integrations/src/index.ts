@@ -88,8 +88,45 @@ export type { FneRegistryDeps } from "./registry/fne";
 
 export { assertUploadable, createS3ObjectStorage, S3ObjectStorage } from "./storage";
 export type { S3ObjectStorageConfig, UploadInput } from "./storage";
+
+export type {
+  ExternalDatabase,
+  ExternalDbConfig,
+  ExternalDbType,
+  ExternalQueryResult,
+  ExternalTestResult,
+  MemoryQueryHandler,
+} from "./externalDb";
+export {
+  cellToText,
+  createExternalDatabase,
+  createMemoryExternalDatabase,
+  friendlyExternalDbError,
+} from "./externalDb";
+
 export { LocalObjectStorage } from "./storage-local";
 export type { BinaryObjectStorage } from "./storage-local";
 
 export * from "./ai";
+
+export {
+  FakeWebhookSender,
+  generateApiKey,
+  generateWebhookSecret,
+  HttpWebhookSender,
+  requestFingerprint,
+  resolveWebhookSender,
+  sha256Hex,
+  signWebhook,
+  webhookHmac,
+} from "./webhooks";
+export type {
+  FakeResponder,
+  FakeWebhookRecord,
+  HostResolver,
+  WebhookRequest,
+  WebhookResponse,
+  WebhookSender,
+} from "./webhooks";
+
 export * from "./subscription";

@@ -38,6 +38,16 @@ async function main(): Promise<void> {
   const { REPORTS_JOB_NAMES, REPORTS_QUEUE_NAME, scheduleReportJobs } =
     await import("./queues/reports");
   const { processDigestOwnerJob } = await import("./jobs/digestOwner");
+  const {
+    SYNC_JOB_NAMES,
+    SYNC_QUEUE_NAME,
+    SYNC_RETRY_DELAYS_MS,
+    enqueueSyncRun,
+    scheduleSyncJobs,
+  } = await import("./queues/sync");
+  type SyncRunJobData = import("./queues/sync").SyncRunJobData;
+  const { findDueSqlSources, processAgentsHealthJob, processSyncRunJob } =
+    await import("./jobs/syncWatch");
   const { processAlertsScanJob } = await import("./jobs/alertsScan");
   const { APPOINTMENTS_JOB_NAMES, APPOINTMENTS_QUEUE_NAME, scheduleAppointmentJobs } =
     await import("./queues/appointments");
@@ -72,6 +82,10 @@ async function main(): Promise<void> {
   const { FNE_JOB_NAMES, FNE_QUEUE_NAME, scheduleFneJobs } = await import("./queues/fne");
   type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
   const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
+  const { WEBHOOKS_JOB_NAMES, WEBHOOKS_QUEUE_NAME, scheduleWebhookJobs } =
+    await import("./queues/webhooks");
+  const { processIdempotencyPurgeJob, processWebhooksDispatchJob } =
+    await import("./jobs/webhooks");
   const { AI_JOB_NAMES, AI_QUEUE_NAME, scheduleAiJobs } = await import("./queues/ai");
   const {
     processAiAnomaliesJob,
@@ -184,6 +198,40 @@ async function main(): Promise<void> {
   );
   reportsWorker.on("failed", (job, error) => {
     logger.error({ jobName: job?.name, error: error.message }, "reports : un job a échoué");
+  });
+
+  // M13 §9 (partie 2, étape 6.4) : synchronisation planifiée des bases externes.
+  await scheduleSyncJobs();
+
+  const syncWorker = new Worker(
+    SYNC_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case SYNC_JOB_NAMES.WATCH: {
+          const due = await findDueSqlSources(new Date());
+          for (const { data, runKey } of due) await enqueueSyncRun(data, runKey);
+          return undefined;
+        }
+        case SYNC_JOB_NAMES.RUN:
+          return processSyncRunJob(job.data as SyncRunJobData);
+        case SYNC_JOB_NAMES.AGENTS_HEALTH:
+          return processAgentsHealthJob();
+        default:
+          logger.warn({ jobName: job.name }, "sync : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    {
+      connection: createRedisConnection(),
+      concurrency: 1,
+      settings: {
+        backoffStrategy: (attemptsMade: number) =>
+          SYNC_RETRY_DELAYS_MS[Math.min(attemptsMade, SYNC_RETRY_DELAYS_MS.length) - 1] ?? 60_000,
+      },
+    },
+  );
+  syncWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "sync : un job a échoué");
   });
 
   // M03 §9 : absences automatiques, agenda du jour, confirmations à obtenir.
@@ -427,6 +475,28 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "automations : un job a échoué");
   });
 
+  // M13 §9 : webhooks sortants (diffusion + livraisons échues chaque minute) et purge horaire.
+  await scheduleWebhookJobs();
+
+  const webhooksWorker = new Worker(
+    WEBHOOKS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case WEBHOOKS_JOB_NAMES.DISPATCH:
+          return processWebhooksDispatchJob();
+        case WEBHOOKS_JOB_NAMES.PURGE:
+          return processIdempotencyPurgeJob();
+        default:
+          logger.warn({ jobName: job.name }, "webhooks : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection(), concurrency: 1 },
+  );
+  webhooksWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "webhooks : un job a échoué");
+  });
+
   // M15 RG-M15-21/22 : export complet, expiration des liens (48 h), purge J+30.
   await scheduleExportJobs();
   const exportDeps = {
@@ -464,6 +534,8 @@ async function main(): Promise<void> {
       messagesWorker.close(),
       remindersWorker.close(),
       reportsWorker.close(),
+      syncWorker.close(),
+      webhooksWorker.close(),
       appointmentsWorker.close(),
       repairOrdersWorker.close(),
       stockWorker.close(),

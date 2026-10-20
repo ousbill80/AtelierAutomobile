@@ -37,6 +37,11 @@ function isBlank(value: unknown): boolean {
  * séparément en amont (voir `outcomeForHash`), cette fonction suppose déjà
  * qu'une écriture est nécessaire.
  */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+  return a === b;
+}
+
 export function mergeFields(
   existing: Record<string, unknown> | null,
   incoming: Record<string, unknown>,
@@ -59,8 +64,9 @@ export function mergeFields(
     // valeur existante.
     if (policy === "UPSERT" && isBlank(value)) continue;
 
-    // Valeur identique à l'existant : aucune écriture réelle nécessaire.
-    if (existing[field] === value) continue;
+    // Valeur identique à l'existant : aucune écriture réelle nécessaire. Les dates se
+    // comparent par instant (deux `Date` égales ne sont jamais `===`).
+    if (sameValue(existing[field], value)) continue;
 
     patch[field] = value;
   }

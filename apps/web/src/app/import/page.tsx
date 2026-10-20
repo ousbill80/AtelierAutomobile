@@ -7,6 +7,7 @@ import {
   Ban,
   CheckCircle2,
   Clock,
+  Database,
   Download,
   FileSpreadsheet,
   Loader2,
@@ -79,6 +80,21 @@ export default function ImportPage() {
         <CardContent>
           <Button asChild>
             <Link href="/import/fichier">{t("import.list.fileImportCardCta")}</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="size-5 text-accent" />
+            {t("import.list.syncCardTitle")}
+          </CardTitle>
+          <CardDescription>{t("import.list.syncCardDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/import/sources">{t("import.list.syncCardCta")}</Link>
           </Button>
         </CardContent>
       </Card>

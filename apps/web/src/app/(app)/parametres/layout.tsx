@@ -131,6 +131,13 @@ const NAV = [
     label: "automations.nav",
     permission: "ai:configure",
   },
+  // M13 §7 — clés de l'API publique et webhooks sortants (étape 6.4).
+  {
+    key: "api",
+    href: "/parametres/api",
+    label: "nav.settingsApi",
+    permission: "integration:manage",
+  },
   // M15 RG-M15-19..22 — abonnement, export complet, suppression du compte.
   {
     key: "abonnement",

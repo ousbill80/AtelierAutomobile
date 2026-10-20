@@ -36,6 +36,7 @@ export const DEFAULT_ALERT_THRESHOLDS = {
   channelFailureMinSends: 20,
   smsBalanceMin: 500,
   importStaleDays: 3,
+  agentOfflineHours: 24,
   receivableDays: 45,
   /** `settings.discounts.maxRateWithoutApproval` (M08), défaut 15 %. */
   maxDiscountRate: 15,
@@ -83,6 +84,8 @@ export interface AlertScanInput {
     dueDate: Date | null;
   }[];
   brokenPromises: readonly { id: string; amount: number; customerName: string }[];
+  /** M13 (US-M13-07) : agents locaux ; hors ligne depuis > 24 h → `import_stale`. */
+  agents?: readonly { id: string; name: string; status: string; lastSeenAt: Date | null }[];
   /** Clients dont l'encours dépasse `Customer.creditLimit`. */
   creditLimits?: readonly {
     customerId: string;
@@ -192,6 +195,23 @@ export function evaluateAlerts(input: AlertScanInput): AlertCandidate[] {
           input.today,
           { name: source.name },
           "/parametres",
+        ),
+      );
+    }
+  }
+
+  const agentOfflineMs = t.agentOfflineHours * 60 * 60 * 1000;
+  for (const agent of input.agents ?? []) {
+    if (agent.status === "REVOKED" || agent.status === "PAIRING") continue;
+    if (!agent.lastSeenAt || input.now.getTime() - agent.lastSeenAt.getTime() > agentOfflineMs) {
+      alerts.push(
+        candidate(
+          "import_stale",
+          "warning",
+          agent.id,
+          input.today,
+          { name: agent.name, kind: "agent" },
+          "/import/agent",
         ),
       );
     }

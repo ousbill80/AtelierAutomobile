@@ -340,3 +340,4 @@ export { analyzeSearchQuery, loosenPlate, matchRank, SEARCH_DOCUMENT_PREFIXES } 
 export * from "./portal";
 export * from "./ai";
 export * from "./automations";
+export * from "./api";

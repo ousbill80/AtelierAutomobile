@@ -85,3 +85,49 @@ export {
   validateRepairOrderRow,
   validateVehicleRow,
 } from "./validate";
+
+export type { SqlDialect, SyncEntity } from "./sync";
+export {
+  assertReadOnlySelect,
+  assertSyncSchedule,
+  bindSince,
+  DEFAULT_SYNC_SCHEDULE,
+  isSyncDue,
+  mapSyncColumns,
+  shouldNotifySyncFailure,
+  sinceFor,
+  SYNC_ENTITY_ORDER,
+  SYNC_QUERY_MAX_ROWS,
+  SYNC_QUERY_TIMEOUT_MS,
+} from "./sync";
+
+export type { AgentStatus } from "./agent";
+export {
+  AGENT_CLOCK_SKEW_WARNING_MS,
+  AGENT_HEARTBEAT_INTERVAL_MS,
+  AGENT_OFFLINE_AFTER_MS,
+  AGENT_QUEUE_RETENTION_MS,
+  batchIdempotencyKey,
+  chunkRows,
+  effectiveAgentStatus,
+  generateAgentToken,
+  generatePairingCode,
+  hashAgentToken,
+  hashSourceRow,
+  isClockSkewed,
+  normalizePairingCode,
+  PAIRING_CODE_LENGTH,
+  pairingExpiresAt,
+  AGENT_SYNC_BATCH_SIZE,
+} from "./agent";
+
+export type { WatchRule } from "./watch";
+export {
+  ERROR_FOLDER,
+  isFileStable,
+  matchesFilePattern,
+  processedFolder,
+  ruleForFile,
+  WATCH_MAX_RULES,
+  WATCH_STABLE_MS,
+} from "./watch";
