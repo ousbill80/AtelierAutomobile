@@ -10,6 +10,7 @@ import { Button, SignaturePad } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { formatDateTime, formatDay } from "@/components/repair-orders/i18n";
 import { t } from "@/components/quotes/i18n";
+import { tAi } from "@/components/ai-quotes/i18n";
 
 type Choice = boolean | undefined;
 
@@ -167,6 +168,14 @@ export function QuotePortalView({ token }: { token: string }) {
                 <h2 className="font-semibold">{g.label}</h2>
               </div>
               {g.explanation && <p className="text-sm">{g.explanation}</p>}
+              {g.simpleExplanation && (
+                <details className="rounded-md border border-border p-2 text-sm">
+                  <summary className="min-h-11 cursor-pointer content-center font-medium">
+                    {tAi("portal.why")}
+                  </summary>
+                  <p className="pt-1">{g.simpleExplanation}</p>
+                </details>
+              )}
               {g.photoIds.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {g.photoIds.map((id) => (

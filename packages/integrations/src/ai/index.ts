@@ -33,3 +33,24 @@ export type {
   AiToolLoopResult,
   AiToolLoopRun,
 } from "./service";
+
+export {
+  buildQuoteDraftMessages,
+  QUOTE_DRAFT_PROMPT_VERSION,
+  QUOTE_DRAFT_SYSTEM,
+  quoteDraftConsoleOutput,
+  quoteDraftOutputSchema,
+} from "./prompts/quote_draft/v1";
+export type { QuoteDraftOutput, QuoteDraftPromptInput } from "./prompts/quote_draft/v1";
+export {
+  buildQuoteExplanationMessages,
+  QUOTE_EXPLANATION_PROMPT_VERSION,
+  QUOTE_EXPLANATION_SYSTEM,
+  quoteExplanationConsoleOutput,
+  quoteExplanationOutputSchema,
+} from "./prompts/quote_explanation/v1";
+export type {
+  QuoteExplanationGroup,
+  QuoteExplanationOutput,
+  QuoteExplanationPromptInput,
+} from "./prompts/quote_explanation/v1";

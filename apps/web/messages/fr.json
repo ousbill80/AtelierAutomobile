@@ -3873,5 +3873,50 @@
       "moov": "Moov Money"
     },
     "loadError": "Impossible de charger les paramètres de paiement."
+  },
+  "aiQuotes": {
+    "proposedBy": "Proposé par l'assistant",
+    "fallback": "Proposition sans IA ({reason}) : lignes recommandées par l'inspection.",
+    "unavailable": "Fonction IA indisponible : {reason}",
+    "preparing": "L'assistant prépare une proposition…",
+    "cancel": "Annuler",
+    "draft": {
+      "button": "Proposer un devis",
+      "title": "Devis proposé",
+      "intro": "Lignes issues uniquement de votre catalogue. Les prix sont calculés par le logiciel.",
+      "compatibilityUnchecked": "Compatibilité non vérifiée : marque ou modèle du véhicule inconnu.",
+      "rejected": "{count} proposition(s) hors catalogue écartée(s).",
+      "toPrice": "À chiffrer",
+      "toPriceHint": "Prix à compléter : le devis ne pourra pas être envoyé avant.",
+      "optional": "Optionnelle",
+      "priority": {
+        "URGENT": "Urgent",
+        "WATCH": "À surveiller"
+      },
+      "hours": "{value} h",
+      "quantity": "× {value}",
+      "estimated": "Estimation HT : {amount}",
+      "create": "Créer le brouillon",
+      "creating": "Création…",
+      "dismiss": "Ignorer",
+      "created": "Brouillon {number} créé.",
+      "open": "Ouvrir le devis",
+      "empty": "Aucune ligne proposée.",
+      "error": "La proposition n'a pas pu être générée. Réessayez."
+    },
+    "explanation": {
+      "button": "Générer l'explication client",
+      "title": "Explication pour le client",
+      "intro": "Deux phrases au plus par groupe, sans prix. Seule la version validée est visible sur le portail.",
+      "validate": "Valider",
+      "validating": "Enregistrement…",
+      "dismiss": "Ignorer",
+      "saved": "Explication validée : elle apparaît sur le portail.",
+      "current": "Explication validée affichée au client",
+      "error": "L'explication n'a pas pu être générée. Réessayez."
+    },
+    "portal": {
+      "why": "Pourquoi ce travail ?"
+    }
   }
 }

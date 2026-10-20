@@ -57,3 +57,16 @@ export function assertAcceptPermissions(ctx: AcceptContext, handler: AcceptHandl
     });
   }
 }
+
+/**
+ * Appelle la procédure métier normale avec le contexte tRPC de l'utilisateur (RG-M17-02 :
+ * mêmes permissions, mêmes validations, même audit qu'un appel direct depuis l'interface).
+ * `ctx` est le contexte de la procédure `ai.suggestion.accept` (objet tRPC complet).
+ */
+export async function businessCaller(ctx: AcceptContext) {
+  const [{ appRouter }, { createCallerFactory }] = await Promise.all([
+    import("../routers/_app"),
+    import("../trpc"),
+  ]);
+  return createCallerFactory(appRouter)(ctx as never);
+}
