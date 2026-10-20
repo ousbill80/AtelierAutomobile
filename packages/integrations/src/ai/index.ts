@@ -33,3 +33,7 @@ export type {
   AiToolLoopResult,
   AiToolLoopRun,
 } from "./service";
+
+// Prompts versionnés (RG-M17-05) — boîte de réception.
+export * from "./prompts/intent_classification/v1";
+export * from "./prompts/reply_draft/v1";

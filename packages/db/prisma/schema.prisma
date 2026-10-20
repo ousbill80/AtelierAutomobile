@@ -3327,8 +3327,10 @@ model AiInteraction {
   model          String? // valeur de AI_MODEL utilisée (null = repli sans IA)
   editDistance   Int?
 
-  organization Organization   @relation(fields: [organizationId], references: [id])
-  createdBy    Membership?    @relation("AiInteractionCreatedBy", fields: [createdById], references: [id])
+  // M17 : suppression en cascade avec l'organisation (journal technique, jamais supprimé en
+  // production — l'organisation y est anonymisée), membre supprimé → auteur effacé.
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    Membership?    @relation("AiInteractionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   suggestions  AiSuggestion[]
 
   @@index([organizationId, feature])
@@ -3356,9 +3358,9 @@ model AiSuggestion {
   expiresAt      DateTime
   createdAt      DateTime           @default(now())
 
-  organization Organization   @relation(fields: [organizationId], references: [id])
-  interaction  AiInteraction? @relation(fields: [interactionId], references: [id])
-  decidedBy    Membership?    @relation("AiSuggestionDecidedBy", fields: [decidedById], references: [id])
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  interaction  AiInteraction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  decidedBy    Membership?    @relation("AiSuggestionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId, targetEntity, targetId, status])
   @@index([organizationId, status, expiresAt])
@@ -3382,8 +3384,8 @@ model AiAssistantThread {
   updatedAt      DateTime @updatedAt
   expiresAt      DateTime // +30 j
 
-  organization Organization         @relation(fields: [organizationId], references: [id])
-  membership   Membership           @relation(fields: [membershipId], references: [id])
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  membership   Membership           @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   messages     AiAssistantMessage[]
 
   @@index([organizationId, membershipId, updatedAt])
@@ -3400,7 +3402,7 @@ model AiAssistantMessage {
   interactionId  String?
   createdAt      DateTime @default(now())
 
-  organization Organization      @relation(fields: [organizationId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   thread       AiAssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, threadId, createdAt])
@@ -3425,8 +3427,8 @@ model AutomationRule {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  organization Organization    @relation(fields: [organizationId], references: [id])
-  createdBy    Membership?     @relation("AutomationRuleCreatedBy", fields: [createdById], references: [id])
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    Membership?     @relation("AutomationRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   runs         AutomationRun[]
 
   @@index([organizationId, isActive, trigger])
@@ -3452,7 +3454,7 @@ model AutomationRun {
   executedAt     DateTime?
   createdAt      DateTime  @default(now())
 
-  organization Organization   @relation(fields: [organizationId], references: [id])
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   rule         AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@unique([ruleId, eventId])

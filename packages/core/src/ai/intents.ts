@@ -120,22 +120,19 @@ function extractPeriod(value: string): IntentEntities {
   return {};
 }
 
-/** Libellé court affiché dans la boîte de réception (badge, §7). */
-export const INTENT_BADGE: Record<
-  MessageIntent,
-  { label: string; tone: "ok" | "warn" | "danger" | "info" | "neutral" }
-> = {
-  BOOK_APPOINTMENT: { label: "Veut un RDV", tone: "info" },
-  RESCHEDULE: { label: "Veut décaler", tone: "warn" },
-  CANCEL_APPOINTMENT: { label: "Annule", tone: "warn" },
-  CONFIRM: { label: "Confirme", tone: "ok" },
-  PAYMENT_DONE: { label: "Dit avoir payé", tone: "ok" },
-  PAYMENT_PROMISE: { label: "Promesse de paiement", tone: "info" },
-  ASK_PRICE: { label: "Demande un prix", tone: "info" },
-  ASK_STATUS: { label: "Demande l'avancement", tone: "info" },
-  ASK_BALANCE: { label: "Demande son solde", tone: "info" },
-  COMPLAINT: { label: "Réclamation", tone: "danger" },
-  OPT_OUT: { label: "Veut se désinscrire", tone: "danger" },
-  THANKS: { label: "Remerciement", tone: "ok" },
-  OTHER: { label: "À lire", tone: "neutral" },
+/** Tonalité du badge d'intention (§7 : couleur + icône + texte, libellés dans fr.json). */
+export const INTENT_TONE: Record<MessageIntent, "ok" | "warn" | "bad" | "off"> = {
+  BOOK_APPOINTMENT: "ok",
+  RESCHEDULE: "warn",
+  CANCEL_APPOINTMENT: "warn",
+  CONFIRM: "ok",
+  PAYMENT_DONE: "ok",
+  PAYMENT_PROMISE: "warn",
+  ASK_PRICE: "off",
+  ASK_STATUS: "off",
+  ASK_BALANCE: "off",
+  COMPLAINT: "bad",
+  OPT_OUT: "bad",
+  THANKS: "ok",
+  OTHER: "off",
 };

@@ -3,7 +3,6 @@
 import { TRPCError } from "@trpc/server";
 import {
   DomainError,
-  REQUIRED_BAY_TYPES,
   addDaysToKey,
   availableSlots,
   defaultDuration,
@@ -11,12 +10,10 @@ import {
   formatDayFr,
   formatTimeFr,
   halfDayLoad,
-  isBayCompatible,
   localDateKey,
   occupancyTone,
   parsePreferredSlotText,
   resolvePlanningConfig,
-  type AppointmentTypeKey,
   type HalfDay,
 } from "@atelieros/core";
 import { adminDb, db, writeAuditLog, type Prisma } from "@atelieros/db";
@@ -30,6 +27,7 @@ import {
   suggestSlotInputSchema,
 } from "@atelieros/validators";
 import { requirePermission, requireSite, router } from "../trpc";
+import { computeSlotSuggestions, needsBay } from "../appointments/slotSuggestions";
 import {
   asTx,
   dayBounds,
@@ -39,14 +37,6 @@ import {
   planningConfigOf,
   resolveSite,
 } from "../appointments/service";
-
-/** Exiger un pont compatible : le type en demande un ET le site en possède au moins un. */
-function needsBay(type: AppointmentTypeKey, bays: Array<{ type: string; isActive: boolean }>) {
-  return (
-    REQUIRED_BAY_TYPES[type] !== null &&
-    bays.some((b) => b.isActive && isBayCompatible(type, b.type as never))
-  );
-}
 
 export const planningRouter = router({
   /** US-M03-02 — les N prochains créneaux libres compatibles (staff, sans plafond par demi-journée). */
@@ -142,7 +132,6 @@ export const planningRouter = router({
       const tx = asTx(tenantDb);
       const now = new Date();
       const org = await loadOrganization(ctx.organizationId);
-      const config = planningConfigOf(org);
       const site = await resolveSite(tx, ctx, null);
       let text = input.preferredText ?? "";
       if (!text && input.conversationId) {
@@ -154,36 +143,13 @@ export const planningRouter = router({
         text = lastInbound?.body ?? "";
       }
       const preference = parsePreferredSlotText(text, now, org.timezone);
-      const fromDate = preference.date ?? localDateKey(now, org.timezone);
-      const days = preference.date ? 1 : 14;
-      const { from } = dayBounds(fromDate, org.timezone);
-      const { to } = dayBounds(addDaysToKey(fromDate, days - 1), org.timezone);
-      const planning = await loadPlanning(tx, { org, site, from, to, now });
-      const duration = defaultDuration(input.type, [], config.appointments.durations);
-      const groups = availableSlots({
-        snapshot: planning.snapshot,
-        now,
+      const suggestions = await computeSlotSuggestions(tx, {
+        org,
+        site,
         type: input.type,
-        durationMinutes: duration,
-        fromDate,
-        days,
-        stepMinutes: config.appointments.slotStepMinutes,
-        minLeadMinutes: 0,
-        requireBay: needsBay(input.type, planning.bays),
-      }).filter((g) => !preference.halfDay || g.halfDay === preference.halfDay);
-      const suggestions = groups
-        .flatMap((g) => g.slots)
-        .slice(0, 3)
-        .map((s) => ({
-          startsAt: s.startsAt,
-          bayId: s.bayId ?? null,
-          reason: preference.label
-            ? `Créneau libre le plus proche de « ${preference.label} »`
-            : "Prochain créneau libre",
-          label: `${formatDayFr(s.startsAt, org.timezone)} à ${formatTimeFr(s.startsAt, org.timezone)}${
-            s.bayId ? `, ${planning.bays.find((b) => b.id === s.bayId)?.name ?? ""}` : ""
-          }`,
-        }));
+        preference,
+        now,
+      });
       const interaction = await tenantDb.aiInteraction.create({
         data: {
           organizationId: ctx.organizationId,

@@ -19,7 +19,8 @@
     "./quotes": "./src/quotes/index.ts",
     "./billing": "./src/billing/index.ts",
     "./workshop": "./src/workshop/index.ts",
-    "./claims": "./src/claims/index.ts"
+    "./claims": "./src/claims/index.ts",
+    "./ai": "./src/ai/index.ts"
   },
   "scripts": {
     "lint": "eslint .",
