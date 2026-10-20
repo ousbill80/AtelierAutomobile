@@ -50,3 +50,20 @@ export { formatFCFA as fmtFCFA } from "@atelieros/core/money";
 export function fmtKm(km: number): string {
   return km.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
+
+export type Messages = { [key: string]: string | Messages };
+
+/**
+ * Traducteur sur un sous-ensemble de fr.json passé en props par la page serveur (le fichier
+ * complet n'est pas embarqué dans le JavaScript du portail, RG-M14-24).
+ */
+export function makeT(dict: Messages) {
+  return (key: string, vars?: Record<string, string | number>): string => {
+    let node: string | Messages | undefined = dict;
+    for (const part of key.split(".")) {
+      node = typeof node === "object" ? node[part] : undefined;
+    }
+    if (typeof node !== "string") return key;
+    return vars ? tpl(node, vars) : node;
+  };
+}

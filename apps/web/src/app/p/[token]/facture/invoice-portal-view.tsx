@@ -8,15 +8,23 @@ import { useState } from "react";
 import { formatFCFA } from "@atelieros/core/money";
 import { Button, StatusBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
-import { formatDay } from "@/components/repair-orders/i18n";
-import { t } from "@/i18n/t";
+import { fmtDay as formatDay, makeT, type Messages } from "../../_components/format";
 import type { PortalLabels } from "../../_components/labels";
 import { linkProblemOf, PortalLinkState } from "../../_components/link-state";
 
 // US-M14-03 : interrogation toutes les 3 s (le webhook fait foi, RG-M14-15).
 const POLL_MS = 3_000;
 
-export function InvoicePortalView({ token, labels }: { token: string; labels: PortalLabels }) {
+export function InvoicePortalView({
+  token,
+  labels,
+  messages,
+}: {
+  token: string;
+  labels: PortalLabels;
+  messages: Messages;
+}) {
+  const t = makeT(messages);
   const query = trpc.portal.invoice.get.useQuery(
     { token },
     { retry: false, refetchOnWindowFocus: false },

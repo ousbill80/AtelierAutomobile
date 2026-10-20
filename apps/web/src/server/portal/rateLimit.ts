@@ -145,7 +145,9 @@ export async function recordInvalidPortalToken(ip: string, now: Date): Promise<b
     windowKey("portal:invalid", subject, now, PORTAL_RATE_LIMITS.invalidWindowMs),
     windowTtlMs(now, PORTAL_RATE_LIMITS.invalidWindowMs),
   );
-  if (shouldBlockAfterInvalid(count)) {
+  // Seuil relatif, comme le quota par minute (surcharge E2E : une seule IP pour tous les specs).
+  const scaled = Math.ceil((count * PORTAL_RATE_LIMITS.requestsPerMinute) / requestsPerMinute());
+  if (shouldBlockAfterInvalid(scaled)) {
     await store.set(`portal:block:${subject}`, "1", PORTAL_RATE_LIMITS.blockMs);
     return true;
   }

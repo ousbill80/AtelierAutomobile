@@ -54,7 +54,10 @@ export function PortalLinksPanel({
   const error = create.error ?? send.error ?? revoke.error;
 
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-border p-3 text-sm">
+    <section
+      className="flex flex-col gap-2 rounded-lg border border-border p-3 text-sm"
+      data-testid={`portal-links-${scope}`}
+    >
       <h3 className="font-semibold">
         {t("portal.links.title")} — {t(`portal.links.scopes.${scope}`)}
       </h3>

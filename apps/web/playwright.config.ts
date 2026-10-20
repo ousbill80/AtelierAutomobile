@@ -32,8 +32,9 @@ export default defineConfig({
       url: "http://localhost:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      // RG-M13-24 : pilote "inline" pour les imports, sans worker dédié.
-      env: { ...process.env, IMPORT_QUEUE_DRIVER: "inline" },
+      // RG-M13-24 : pilote "inline" pour les imports, sans worker dédié. M14 RG-M14-06 : les
+      // specs parallèles partagent une seule IP (127.0.0.1) ; quota par minute relevé en E2E.
+      env: { ...process.env, IMPORT_QUEUE_DRIVER: "inline", PORTAL_RATE_LIMIT_PER_MINUTE: "600" },
     },
     {
       command: "pnpm --filter @atelieros/worker dev",

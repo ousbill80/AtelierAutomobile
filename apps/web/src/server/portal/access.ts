@@ -3,7 +3,8 @@
 // messages d'état normalisés (expiré / révoqué / introuvable) lus par les pages.
 import { TRPCError } from "@trpc/server";
 import { systemClock, type Clock, type PortalAccessAction } from "@atelieros/core";
-import { resolvePortalToken, type PortalScope, type PortalToken } from "@atelieros/db";
+import { db, resolvePortalToken, type PortalScope, type PortalToken } from "@atelieros/db";
+import { emitDomainEvent } from "../events/emit";
 import { checkPortalRequest, recordInvalidPortalToken } from "./rateLimit";
 
 let clock: Clock = systemClock;
@@ -105,7 +106,23 @@ export async function requirePortalToken(
     count,
     access: action ? { action, ip: ctx.ip, userAgent: ctx.userAgent } : undefined,
   });
-  if (resolved.status === "ACTIVE") return resolved.row;
+  if (resolved.status === "ACTIVE") {
+    // M14 §9 : `portal.opened` à la première ouverture (M10 : résultat de la relance, M12).
+    if (count && resolved.row.openCount === 1) {
+      await emitDomainEvent(
+        db.forTenant({ organizationId: resolved.row.organizationId }),
+        resolved.row.organizationId,
+        "portal.opened",
+        {
+          scope: resolved.row.scope,
+          targetId: resolved.row.targetId,
+          customerId: resolved.row.customerId,
+          reminderId: resolved.row.reminderId,
+        },
+      );
+    }
+    return resolved.row;
+  }
   if (resolved.status === "NOT_FOUND") {
     await recordInvalidPortalToken(ctx.ip, now);
     linkError("NOT_FOUND");

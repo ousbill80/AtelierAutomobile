@@ -8,14 +8,27 @@ import { useMemo, useState } from "react";
 import { formatFCFA } from "@atelieros/core/money";
 import { Button, SignaturePad } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
-import { formatDateTime, formatDay } from "@/components/repair-orders/i18n";
-import { t } from "@/components/quotes/i18n";
+import {
+  fmtDateTime as formatDateTime,
+  fmtDay as formatDay,
+  makeT,
+  type Messages,
+} from "../../_components/format";
 import type { PortalLabels } from "../../_components/labels";
 import { linkProblemOf, PortalLinkState } from "../../_components/link-state";
 
 type Choice = boolean | undefined;
 
-export function QuotePortalView({ token, labels }: { token: string; labels: PortalLabels }) {
+export function QuotePortalView({
+  token,
+  labels,
+  messages,
+}: {
+  token: string;
+  labels: PortalLabels;
+  messages: Messages;
+}) {
+  const t = makeT(messages);
   const query = trpc.portal.quote.get.useQuery(
     { token },
     { retry: false, refetchOnWindowFocus: false },
