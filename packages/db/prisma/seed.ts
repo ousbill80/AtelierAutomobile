@@ -368,6 +368,33 @@ async function main() {
     ),
   );
 
+  // M16 : compagnies d'assurance partenaires, chacune avec son Customer de facturation.
+  console.log("Seed — compagnies d'assurance (M16)...");
+  for (const [i, insurer] of [
+    { name: "NSIA Assurances", claimsEmail: "sinistres@nsia.example", paymentTermsDays: 60 },
+    { name: "SUNU Assurances", claimsEmail: "sinistres@sunu.example", paymentTermsDays: 90 },
+  ].entries()) {
+    const billing = await adminDb.customer.create({
+      data: {
+        organizationId: organization.id,
+        type: "COMPANY",
+        displayName: insurer.name,
+        source: "assureur",
+        paymentTermsDays: insurer.paymentTermsDays,
+        remindersConsent: false,
+        doNotRemind: true,
+      },
+    });
+    await adminDb.insuranceCompany.create({
+      data: {
+        organizationId: organization.id,
+        ...insurer,
+        customerId: billing.id,
+        claimsPhone: phoneFor(900 + i),
+      },
+    });
+  }
+
   console.log("Seed — catalogue main-d'œuvre...");
   const laborCatalog = [
     ["VID", "Vidange moteur + filtre", 0.5],

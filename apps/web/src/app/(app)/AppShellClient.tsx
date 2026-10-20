@@ -118,6 +118,13 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     },
     { href: "/factures", label: t("nav.invoices"), permission: "invoice:read" },
     {
+      href: "/assurances",
+      label: t("nav.insurance"),
+      permission: "insurance:read",
+      // M16 : dossiers sinistre rattachés aux OR → gestion complète seulement.
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
+    {
       href: "/caisse",
       label: t("nav.cash"),
       permission: "payment:read",

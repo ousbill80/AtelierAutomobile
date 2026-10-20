@@ -216,7 +216,7 @@ async function currentDraftForOrder(tx: Tx, repairOrderId: string) {
   });
 }
 
-async function createQuoteRecord(
+export async function createQuoteRecord(
   tx: Tx,
   ctx: OrgCtx,
   org: OrgQuoteContext,

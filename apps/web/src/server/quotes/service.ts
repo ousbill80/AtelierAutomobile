@@ -202,7 +202,9 @@ export async function buildQuoteLineData(
   tx: Tx,
   actor: PricingActor,
   org: OrgQuoteContext,
-  quote: Pick<Quote, "id" | "organizationId" | "vehicleId">,
+  quote: Pick<Quote, "id" | "organizationId" | "vehicleId"> & {
+    insuranceClaimId?: string | null;
+  },
   line: QuoteLineInput,
   priceReason?: string,
 ): Promise<Omit<Prisma.QuoteLineUncheckedCreateInput, "sortOrder">> {
@@ -258,7 +260,8 @@ export async function buildQuoteLineData(
     unitPrice,
     discountRate: line.discountRate ?? 0,
     vatRate,
-    payer: line.payer ?? "CUSTOMER",
+    // US-M16-04 : sur un devis assurance, les lignes sont à la charge de l'assureur par défaut.
+    payer: line.payer ?? (quote.insuranceClaimId ? "INSURANCE" : "CUSTOMER"),
     isOptional: Boolean(line.isOptional),
     priority: line.priority ?? null,
     groupKey: line.groupKey ?? null,

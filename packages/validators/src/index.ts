@@ -417,4 +417,27 @@ export {
   fneProviderSchema,
   fneSetManualInputSchema,
 } from "./fne";
+
+export type { InsurerInput } from "./claims";
+export {
+  claimActivityInputSchema,
+  claimAttachmentKindSchema,
+  claimFollowUpsInputSchema,
+  claimIdInputSchema,
+  claimListInputSchema,
+  claimReasonInputSchema,
+  claimStatusSchema,
+  createClaimInputSchema,
+  insurerInputSchema,
+  insurerStatsInputSchema,
+  recordApprovalInputSchema,
+  recordExpertVisitInputSchema,
+  scheduleExpertInputSchema,
+  sendEstimateInputSchema,
+  sendFollowUpInputSchema,
+  snoozeFollowUpInputSchema,
+  updateClaimInputSchema,
+  updateInsurerInputSchema,
+  uploadClaimDocumentInputSchema,
+} from "./claims";
 export * from "./paymentLinks";

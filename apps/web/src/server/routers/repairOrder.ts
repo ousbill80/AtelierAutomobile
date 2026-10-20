@@ -62,6 +62,7 @@ import {
   type LineInput,
 } from "@atelieros/validators";
 import { z } from "zod";
+import { claimsSettingsFrom } from "../claims/service";
 import { writeAuditLog } from "../audit";
 import { searchCustomers, searchVehicles } from "../customers/trigram";
 import { emitDomainEvent } from "../events/emit";
@@ -307,9 +308,20 @@ function listWhere(
 
 /** Données de restitution (RG-M04-14) : solde client, encours, motif de blocage. */
 async function deliveryFacts(tx: Tx, org: OrgRoContext, order: RepairOrder, now: Date) {
+  // M16 RG-M16-10 : sur un OR sinistre, seule la part client (franchise…) bloque la restitution.
+  const claim = order.insuranceClaimId
+    ? await tx.insuranceClaim.findFirst({
+        where: { id: order.insuranceClaimId },
+        select: { deductible: true, gapAmount: true },
+      })
+    : null;
   const [invoices, customer, lines] = await Promise.all([
     tx.invoice.findMany({
-      where: { repairOrderId: order.id, status: { notIn: ["DRAFT", "VOID"] } },
+      where: {
+        repairOrderId: order.id,
+        status: { notIn: ["DRAFT", "VOID"] },
+        ...(claim ? { billTo: "CUSTOMER" as const } : {}),
+      },
       select: { id: true, number: true, status: true, balance: true, total: true },
     }),
     tx.customer.findFirstOrThrow({ where: { id: order.customerId } }),
@@ -317,9 +329,14 @@ async function deliveryFacts(tx: Tx, org: OrgRoContext, order: RepairOrder, now:
   ]);
   const totals = repairOrderTotals(lines, org.vatEnabled);
   const invoiceIssued = invoices.length > 0;
-  const customerBalance = invoiceIssued
-    ? invoices.reduce((s, i) => s + i.balance, 0)
-    : totals.totalEstimate;
+  const claimRelease = claim ? claimsSettingsFrom(org.rawSettings).releaseBeforeDeductible : false;
+  const customerBalance = claimRelease
+    ? 0
+    : invoiceIssued
+      ? invoices.reduce((s, i) => s + i.balance, 0)
+      : claim
+        ? claim.deductible + claim.gapAmount
+        : totals.totalEstimate;
   const open = await tx.invoice.findMany({
     where: {
       customerId: order.customerId,
@@ -1448,7 +1465,9 @@ export const repairOrderRouter = router({
           cashOnly: order.cashOnly,
           creditHold: facts.customer.creditHold,
           forceUnpaidReason: input.forceUnpaidReason,
-          canForceUnpaid: ctx.permissions.has("repair_order:deliver_unpaid"),
+          canForceUnpaid:
+            ctx.permissions.has("repair_order:deliver_unpaid") ||
+            (Boolean(order.insuranceClaimId) && ctx.permissions.has("claim:release_unpaid")),
         });
         if (!check.ok) {
           throw new TRPCError({
