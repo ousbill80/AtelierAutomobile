@@ -6,7 +6,6 @@ import { TRPCError } from "@trpc/server";
 import {
   allowedColumns,
   assertSubcontractTransition,
-  attributeBilledHours,
   availableHoursToday,
   BAY_OCCUPYING_STATUSES,
   businessDate,
@@ -16,9 +15,7 @@ import {
   DomainError,
   isSubcontractLoss,
   isSubcontractOverdue,
-  laborCost,
   presenceMinutes,
-  productivityMetrics,
   rankAssignees,
   taskProgress,
   timeEntryState,
@@ -28,7 +25,6 @@ import {
   type OpeningHours,
   type SubcontractStatusValue,
   type TransitionContext,
-  type WorkedMinutes,
 } from "@atelieros/core";
 import { db, type Prisma, type ScopedTenantClient } from "@atelieros/db";
 import {
@@ -59,6 +55,7 @@ import {
   roNow,
   transitionFacts,
 } from "../repairOrders/helpers";
+import { loadProductivity } from "../workshop/productivity";
 import { requirePermission, requireSite, router } from "../trpc";
 import type { Ctx, CtxMembership, CtxSession, CtxUser } from "../context";
 
@@ -682,94 +679,16 @@ export const workshopRouter = router({
       const org = await loadOrgRoContext(ctx.organizationId);
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const now = roNow();
-      return tenantDb.transaction(async (tx) => {
-        const sw = siteWhere(ctx, input.siteId);
-        const [members, attendances, entries, invoiceLines] = await Promise.all([
-          tx.membership.findMany({
-            where: {
-              OR: [
-                { role: "MECHANIC", isActive: true },
-                { timeEntries: { some: { startedAt: { gte: input.from, lt: input.to } } } },
-              ],
-            },
-            include: { user: { select: { name: true } } },
-          }),
-          tx.attendance.findMany({
-            where: {
-              date: {
-                gte: businessDate(input.from, org.timeZone),
-                lte: businessDate(new Date(input.to.getTime() - 1), org.timeZone),
-              },
-              ...(input.siteId ? { siteId: input.siteId } : {}),
-            },
-          }),
-          tx.timeEntry.findMany({
-            where: { startedAt: { gte: input.from, lt: input.to }, repairOrder: sw },
-          }),
-          tx.invoiceLine.findMany({
-            where: {
-              type: "LABOR",
-              repairOrderLineId: { not: null },
-              invoice: {
-                type: "INVOICE",
-                status: { notIn: ["DRAFT", "VOID"] },
-                issuedAt: { gte: input.from, lt: input.to },
-                ...(input.siteId ? { siteId: input.siteId } : {}),
-              },
-            },
-            select: { repairOrderLineId: true, quantity: true },
-          }),
-        ]);
-        const soldByLine = new Map<string, number>();
-        for (const l of invoiceLines) {
-          soldByLine.set(
-            l.repairOrderLineId!,
-            (soldByLine.get(l.repairOrderLineId!) ?? 0) + l.quantity,
-          );
-        }
-        const billedLines = await tx.repairOrderLine.findMany({
-          where: { id: { in: [...soldByLine.keys()] } },
-          select: { id: true, assignedToId: true, payer: true },
-        });
-        const lineEntries = await tx.timeEntry.findMany({
-          where: { repairOrderLineId: { in: [...soldByLine.keys()] } },
-        });
-        const attributed = attributeBilledHours(
-          billedLines.map((l) => ({ ...l, quantity: soldByLine.get(l.id) ?? 0 })),
-          lineEntries.map<WorkedMinutes>((e) => ({
-            repairOrderLineId: e.repairOrderLineId,
-            membershipId: e.membershipId,
-            minutes: computeDurationMinutes(e, now),
-            kind: e.kind,
-          })),
-        );
-        return members
-          .map((m) => {
-            const own = entries.filter((e) => e.membershipId === m.id);
-            const minutes = own.map((e) => computeDurationMinutes(e, now));
-            const worked = minutes.reduce((s, x) => s + x, 0);
-            const rework = own
-              .filter((e) => e.kind === "REWORK")
-              .reduce((s, e) => s + computeDurationMinutes(e, now), 0);
-            const presence = attendances
-              .filter((a) => a.membershipId === m.id)
-              .reduce((s, a) => s + presenceMinutes(a, now), 0);
-            const billed = attributed.get(m.id);
-            return {
-              membershipId: m.id,
-              name: m.user.name,
-              ...productivityMetrics({
-                presenceMinutes: presence,
-                workedMinutes: worked,
-                reworkMinutes: rework,
-                billedHours: billed?.billedHours ?? 0,
-                laborCost: laborCost(minutes, m.hourlyCost),
-              }),
-              nonCustomerH: Math.round((billed?.nonCustomerHours ?? 0) * 100) / 100,
-            };
-          })
-          .sort((a, b) => a.name.localeCompare(b.name));
-      });
+      return tenantDb.transaction((tx) =>
+        loadProductivity(tx, {
+          timeZone: org.timeZone,
+          from: input.from,
+          to: input.to,
+          siteId: input.siteId,
+          repairOrderWhere: siteWhere(ctx, input.siteId),
+          now,
+        }),
+      );
     }),
 
   /** /atelier/controle-qualite — OR en attente de contrôle, contrôles précédents. */

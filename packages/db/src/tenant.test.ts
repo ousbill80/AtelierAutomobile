@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { adminDb } from "./client";
 import { db, forTenant, MissingTenantContextError, TenantIsolationViolationError } from "./tenant";
@@ -203,5 +203,14 @@ describe("db.forTenant — isolation multi-locataire A/B", () => {
     } finally {
       await rawAppDb.$disconnect();
     }
+  });
+
+  it("queryRaw() — agrégat SQL sous RLS : une requête sans filtre ne voit que l'organisation courante (M12)", async () => {
+    const clientA = db.forTenant({ organizationId: orgA.id });
+    const rows = await clientA.queryRaw<{ id: string }>(
+      Prisma.sql`SELECT id FROM "Customer" WHERE id IN (${customerA.id}, ${customerB.id})`,
+    );
+    expect(rows).toEqual([{ id: customerA.id }]);
+    await expect(clientA.queryRaw(Prisma.sql`DELETE FROM "Customer"`)).rejects.toThrow(/SELECT/);
   });
 });

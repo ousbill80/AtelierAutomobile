@@ -1,10 +1,10 @@
 "use client";
 
-// M12 §7 — `/tableau-de-bord`, partie 1 (étape 2.4) : onglets Synthèse (version AutoRappel,
-// US-M12-10), Relances et Finances (créances), bloc Alertes (RG-M12-28). Période et site dans
-// l'URL (`?periode=mois&site=…`, US-M12-02). Les onglets Atelier / Accueil / Clients et les
-// cartes CA / Encaissé arrivent avec la partie 2 (étape 6.1).
-import { Suspense, type ReactNode } from "react";
+// M12 §7 — `/tableau-de-bord` : onglets selon le rôle et les permissions (Synthèse, Atelier,
+// Accueil, Finances, Relances, Clients ; CASHIER : « Ma caisse du jour »), version AutoRappel
+// en mode REMINDERS_ONLY (US-M12-10), bloc Alertes (RG-M12-28). Période (dont personnalisée)
+// et site dans l'URL (`?periode=mois&site=…`, US-M12-02).
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -12,27 +12,61 @@ import { Button, EmptyState, StatusBadge, type StatusTone } from "@atelieros/ui"
 import { trpc } from "@/trpc/react";
 import { AssistantFab } from "@/components/assistant-fab";
 import type { AppRouter } from "@/server/routers/_app";
-import { fmt, formatAmount, formatDay, L, reminderTypeLabel } from "./labels";
+import { fmt, formatAmount, formatDay, L, methodLabel, reminderTypeLabel } from "./labels";
+import {
+  BarList,
+  CardsSkeleton,
+  ErrorState,
+  formatDateTime,
+  KpiCard,
+  Section,
+  Stat,
+} from "./parts";
+import {
+  CashierCard,
+  CustomersTab,
+  FrontDeskTab,
+  PERIODS,
+  ReceivablesCard,
+  SummaryFull,
+  WorkshopTab,
+  type Period,
+  type TabInput,
+} from "./tabs";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-type Variation = RouterOutputs["dashboard"]["reminders"]["sentVariation"];
-type Tab = "summary" | "reminders" | "finances";
+type Tab =
+  "summary" | "workshop" | "frontDesk" | "finances" | "reminders" | "customers" | "cashier";
 
-const PERIODS = ["today", "7d", "month", "prev_month", "30d"] as const;
-type Period = (typeof PERIODS)[number];
 // Valeurs d'URL en français (US-M12-02 : `?periode=mois`).
-const PERIOD_URL: Record<Period, string> = {
+const PERIOD_URL: Record<Period | "custom", string> = {
   today: "aujourdhui",
   "7d": "7j",
   month: "mois",
   prev_month: "mois-precedent",
   "30d": "30j",
+  quarter: "trimestre",
+  year: "annee",
+  custom: "perso",
 };
 const TAB_URL: Record<Tab, string> = {
   summary: "synthese",
-  reminders: "relances",
+  workshop: "atelier",
+  frontDesk: "accueil",
   finances: "finances",
+  reminders: "relances",
+  customers: "clients",
+  cashier: "caisse",
 };
+/** M12 §7 : onglet par défaut selon le rôle. */
+const DEFAULT_TAB: Record<string, Tab> = {
+  OWNER: "summary",
+  MANAGER: "workshop",
+  ADVISOR: "frontDesk",
+  ACCOUNTANT: "finances",
+  CASHIER: "cashier",
+};
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function fromUrl<T extends string>(map: Record<T, string>, value: string | null): T | undefined {
   return (Object.keys(map) as T[]).find((key) => map[key] === value);
@@ -53,18 +87,49 @@ function Dashboard() {
   const me = trpc.me.get.useQuery();
 
   const permissions = new Set(me.data?.permissions ?? []);
+  const role = me.data?.membership?.role ?? "";
+  const mode = me.data?.activeOrganization?.operatingMode ?? "FULL";
+  const timeZone = me.data?.activeOrganization?.timezone ?? "Africa/Abidjan";
+  const full = mode === "FULL";
   const tabs: Tab[] = [];
-  if (permissions.has("dashboard:owner")) tabs.push("summary");
-  if (permissions.has("reminder:read")) tabs.push("reminders");
-  if (permissions.has("report:financial")) tabs.push("finances");
+  // M12 §10 : MECHANIC sans accès (redirigé vers la tablette).
+  if (role !== "MECHANIC") {
+    if (permissions.has("dashboard:owner")) tabs.push("summary");
+    if (full && permissions.has("repair_order:read")) tabs.push("workshop");
+    if (
+      full &&
+      (["appointment:read", "reminder:read", "quote:read"] as const).some((p) => permissions.has(p))
+    ) {
+      tabs.push("frontDesk");
+    }
+    if (permissions.has("report:financial")) tabs.push("finances");
+    if (permissions.has("reminder:read")) tabs.push("reminders");
+    if (full && permissions.has("dashboard:owner")) tabs.push("customers");
+    if (full && permissions.has("cash:operate")) tabs.push("cashier");
+  }
 
-  const period = fromUrl(PERIOD_URL, params.get("periode")) ?? "month";
+  const urlPeriod = fromUrl(PERIOD_URL, params.get("periode"));
+  const du = params.get("du") ?? "";
+  const au = params.get("au") ?? "";
+  const custom =
+    urlPeriod === "custom" && ISO_DAY.test(du) && ISO_DAY.test(au) && du <= au
+      ? { from: du, to: au }
+      : undefined;
+  const period: Period = urlPeriod && urlPeriod !== "custom" ? urlPeriod : "month";
   const requestedTab = fromUrl(TAB_URL, params.get("onglet"));
-  const tab = requestedTab && tabs.includes(requestedTab) ? requestedTab : tabs[0];
+  const defaultTab = DEFAULT_TAB[role];
+  const tab =
+    requestedTab && tabs.includes(requestedTab)
+      ? requestedTab
+      : defaultTab && tabs.includes(defaultTab)
+        ? defaultTab
+        : tabs[0];
   const sites = me.data?.allowedSites ?? [];
   const restricted = (me.data?.membership?.siteIds.length ?? 0) > 0;
   const siteParam = params.get("site") ?? undefined;
   const siteId = siteParam ?? (restricted ? sites[0]?.id : undefined);
+  const [draft, setDraft] = useState({ from: du, to: au });
+  const showCustom = urlPeriod === "custom";
 
   function update(next: Record<string, string | undefined>) {
     const search = new URLSearchParams(params.toString());
@@ -77,24 +142,50 @@ function Dashboard() {
 
   if (me.isLoading) return <CardsSkeleton />;
   if (me.isError) return <ErrorState onRetry={() => me.refetch()} />;
+  if (role === "MECHANIC") {
+    return (
+      <EmptyState
+        title={L.states.noAccess}
+        action={
+          <Link href="/tablette" className="underline">
+            {L.mechanicLink}
+          </Link>
+        }
+      />
+    );
+  }
   if (!tab) return <EmptyState title={L.states.noAccess} />;
 
-  const input = { period, siteId };
+  const input: TabInput = { period, custom, siteId };
+  const periodOptions: (Period | "custom")[] = [...PERIODS, "custom"];
 
   return (
     <div className="flex min-w-0 flex-col gap-4 pb-20">
-      <h1 className="text-2xl font-semibold">{L.title}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold">{L.title}</h1>
+        {(permissions.has("report:read") || permissions.has("report:financial")) && (
+          <Link href="/rapports" className="flex min-h-11 items-center text-sm underline">
+            {L.reportsLink}
+          </Link>
+        )}
+      </div>
 
       <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-end gap-2 bg-background px-1 py-2">
         <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
           {L.periodLabel}
           <select
             aria-label={L.periodLabel}
-            value={period}
-            onChange={(e) => update({ periode: PERIOD_URL[e.target.value as Period] })}
+            value={showCustom ? "custom" : period}
+            onChange={(e) => {
+              const value = e.target.value as Period | "custom";
+              update({
+                periode: PERIOD_URL[value],
+                ...(value === "custom" ? {} : { du: undefined, au: undefined }),
+              });
+            }}
             className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
           >
-            {PERIODS.map((p) => (
+            {periodOptions.map((p) => (
               <option key={p} value={p}>
                 {L.periods[p]}
               </option>
@@ -119,10 +210,43 @@ function Dashboard() {
             </select>
           </label>
         ) : null}
+        {showCustom && (
+          <form
+            className="flex w-full flex-wrap items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (ISO_DAY.test(draft.from) && ISO_DAY.test(draft.to) && draft.from <= draft.to) {
+                update({ du: draft.from, au: draft.to });
+              }
+            }}
+          >
+            <label className="flex min-w-0 flex-1 flex-col text-xs text-muted">
+              {L.customFrom}
+              <input
+                type="date"
+                value={draft.from}
+                onChange={(e) => setDraft({ ...draft, from: e.target.value })}
+                className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+              />
+            </label>
+            <label className="flex min-w-0 flex-1 flex-col text-xs text-muted">
+              {L.customTo}
+              <input
+                type="date"
+                value={draft.to}
+                onChange={(e) => setDraft({ ...draft, to: e.target.value })}
+                className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+              />
+            </label>
+            <Button type="submit" variant="secondary">
+              {L.customApply}
+            </Button>
+          </form>
+        )}
       </div>
 
       {tabs.length > 1 && (
-        <div role="tablist" className="flex gap-2 overflow-x-auto text-sm">
+        <div role="tablist" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 text-sm">
           {tabs.map((t) => (
             <button
               key={t}
@@ -138,8 +262,12 @@ function Dashboard() {
       )}
 
       {tab === "summary" && <SummaryTab input={input} />}
+      {tab === "workshop" && <WorkshopTab input={input} timeZone={timeZone} />}
+      {tab === "frontDesk" && <FrontDeskTab input={input} />}
       {tab === "reminders" && <RemindersTab input={input} />}
-      {tab === "finances" && <FinancesTab input={input} />}
+      {tab === "finances" && <FinancesTab input={input} timeZone={timeZone} />}
+      {tab === "customers" && <CustomersTab input={input} />}
+      {tab === "cashier" && <CashierCard timeZone={timeZone} />}
 
       <AlertsBlock />
       <AssistantFab />
@@ -147,29 +275,29 @@ function Dashboard() {
   );
 }
 
-type TabInput = { period: Period; siteId?: string };
-
-// ─── Onglet Synthèse (version AutoRappel) ─────────────────────────────────────
+// ─── Onglet Synthèse (gestion complète ou version AutoRappel) ─────────────────
 
 function SummaryTab({ input }: { input: TabInput }) {
   const q = trpc.dashboard.overview.useQuery(input);
   if (q.isLoading) return <CardsSkeleton />;
   if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
   const d = q.data;
+  if (d.sales) {
+    return (
+      <div className="flex flex-col gap-4">
+        <SummaryFull data={d} />
+        {d.topUnpaid.length > 0 && <TopUnpaid entries={d.topUnpaid} />}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard
-          label={L.cards.receivables}
-          value={d.hasInvoices ? formatAmount(d.receivables.total) : L.dash}
-          sub={
-            d.hasInvoices
-              ? fmt(L.cards.receivablesOver30, { amount: formatAmount(d.receivables.over30) })
-              : undefined
-          }
-          help={L.help.receivables}
-          href="/creances?filtre=en-retard"
-        />
+        {d.hasInvoices ? (
+          <ReceivablesCard receivables={d.receivables} />
+        ) : (
+          <KpiCard label={L.cards.receivables} value={L.dash} help={L.help.receivables} />
+        )}
         <KpiCard
           label={L.cards.recovered}
           value={formatAmount(d.recovered.value)}
@@ -323,7 +451,7 @@ function WeeklyBars({ weeks }: { weeks: RouterOutputs["dashboard"]["reminders"][
 
 // ─── Onglet Finances (créances) ──────────────────────────────────────────────
 
-function FinancesTab({ input }: { input: TabInput }) {
+function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string }) {
   const q = trpc.dashboard.finances.useQuery(input);
   if (q.isLoading) return <CardsSkeleton />;
   if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
@@ -367,6 +495,66 @@ function FinancesTab({ input }: { input: TabInput }) {
           ))}
         </ul>
       </Section>
+      <Section title={L.finances.byMethod}>
+        {Object.keys(d.collected.byMethod).length === 0 ? (
+          <p className="text-sm text-muted">{L.states.empty}</p>
+        ) : (
+          <BarList
+            items={Object.entries(d.collected.byMethod)
+              .sort((a, b) => b[1] - a[1])
+              .map(([method, amount]) => ({
+                key: method,
+                label: methodLabel(method),
+                value: amount,
+              }))}
+          />
+        )}
+      </Section>
+      <Section title={L.finances.fneFailed}>
+        {d.fneFailed.count === 0 ? (
+          <p className="text-sm text-muted">{L.finances.noFneFailed}</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {d.fneFailed.invoices.map((i) => (
+              <li key={i.id}>
+                <Link
+                  href={`/factures/${i.id}`}
+                  className="flex min-h-11 items-center justify-between gap-2 py-2 text-sm hover:underline"
+                >
+                  <span className="min-w-0">
+                    <StatusBadge tone="bad">{i.number ?? L.dash}</StatusBadge>
+                    <span className="block truncate text-xs text-muted">
+                      {formatDateTime(i.issuedAt, timeZone)} · {i.fneError ?? ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-medium">{formatAmount(i.total)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+      {d.promisesToday && (
+        <Section title={L.finances.promisesToday}>
+          {d.promisesToday.length === 0 ? (
+            <p className="text-sm text-muted">{L.finances.noPromises}</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {d.promisesToday.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/creances/${p.caseId}`}
+                    className="flex min-h-11 items-center justify-between gap-2 py-2 text-sm hover:underline"
+                  >
+                    <span className="truncate">{p.customerName}</span>
+                    <span className="shrink-0 font-medium">{formatAmount(p.amount)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      )}
       <TopUnpaid entries={d.topUnpaid} />
     </div>
   );
@@ -455,115 +643,5 @@ function AlertsBlock() {
         </ul>
       )}
     </Section>
-  );
-}
-
-// ─── Briques d'affichage ─────────────────────────────────────────────────────
-
-function VariationText({ variation }: { variation: Variation }) {
-  if (variation.kind === "none") return null;
-  if (variation.kind === "new") {
-    return <span className="text-xs text-muted">↗ {L.variation.new}</span>;
-  }
-  const { pct } = variation;
-  if (pct === 0) return <span className="text-xs text-muted">→ {L.variation.flat}</span>;
-  const up = pct > 0;
-  return (
-    <span className={`text-xs ${up ? "text-status-ok" : "text-status-bad"}`}>
-      {up ? "▲" : "▼"} {fmt(up ? L.variation.up : L.variation.down, { pct: Math.abs(pct) })}
-    </span>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  sub,
-  variation,
-  help,
-  href,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  variation?: Variation;
-  help?: string;
-  href?: string;
-}) {
-  const content = (
-    <>
-      <span className="flex items-start justify-between gap-1 text-xs text-muted">
-        {label}
-        {help && (
-          <span title={help} aria-label={help} className="cursor-help">
-            ⓘ
-          </span>
-        )}
-      </span>
-      <span className="text-lg font-semibold leading-tight sm:text-xl">{value}</span>
-      {sub && <span className="text-xs text-muted">{sub}</span>}
-      {variation && <VariationText variation={variation} />}
-    </>
-  );
-  const className =
-    "flex min-h-24 min-w-0 flex-col gap-1 break-words rounded-lg border border-border bg-surface p-3";
-  return href ? (
-    <Link href={href} className={`${className} hover:bg-surface-2`} data-testid="kpi-card">
-      {content}
-    </Link>
-  ) : (
-    <div className={className} data-testid="kpi-card">
-      {content}
-    </div>
-  );
-}
-
-function Stat({ label, value, tone }: { label: string; value: number; tone?: StatusTone }) {
-  return (
-    <div className="rounded-md bg-surface-2 p-2">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="text-lg font-semibold">
-        {tone ? <StatusBadge tone={tone}>{value}</StatusBadge> : value}
-      </dd>
-    </div>
-  );
-}
-
-function Section({ title, help, children }: { title: string; help?: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-border bg-surface p-4">
-      <h2 className="mb-3 flex items-center gap-1 font-semibold">
-        {title}
-        {help && (
-          <span title={help} aria-label={help} className="cursor-help text-xs text-muted">
-            ⓘ
-          </span>
-        )}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function CardsSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true">
-      {Array.from({ length: 4 }, (_, i) => (
-        <div key={i} className="h-24 animate-pulse rounded-lg bg-surface-2" />
-      ))}
-    </div>
-  );
-}
-
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-  return (
-    <EmptyState
-      title={L.states.error}
-      action={
-        <Button variant="secondary" onClick={onRetry}>
-          {L.states.retry}
-        </Button>
-      }
-    />
   );
 }

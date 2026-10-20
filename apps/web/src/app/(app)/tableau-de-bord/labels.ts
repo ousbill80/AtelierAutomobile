@@ -24,3 +24,12 @@ export function formatDay(day: string): string {
 export function reminderTypeLabel(type: string): string {
   return (L.reminders.types as Record<string, string>)[type] ?? type;
 }
+
+export const roStatusLabel = (status: string) =>
+  (fr.repairOrders.status as Record<string, string>)[status] ?? status;
+
+export const appointmentStatusLabel = (status: string) =>
+  (fr.appointments.statuses as Record<string, string>)[status] ?? status;
+
+export const methodLabel = (method: string) =>
+  (fr.billing.method as Record<string, string>)[method] ?? method;

@@ -12,6 +12,6 @@
 
 | Étape                                                            | Branche                 | Session / responsable  | Réservée le | Statut                                                                                                 |
 | ---------------------------------------------------------------- | ----------------------- | ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
-| 6.1 — Rapports complets (M12)                                    | `etape-6.1-rapports`    | session de l'étape 6.1 | 20/10/2026  | en cours — migration `20261020003000_m12_rapports`                                                     |
-| 5.3 — Assurances et sinistres (M16)                              | `etape-5.3-assurances`  | session de l'étape 4.1 | 20/10/2026  | en cours — migration `20261020002000_m16_assurances`                                                   |
+| 6.3 — Portail client complet (M14) et suivi d'OR en temps réel   | `etape-6.3-portail`     | session de l'étape 6.3 | 20/10/2026  | en cours — migration `20261020005000_m14_portail`                                                      |
+| 6.2 — IA et automatisations (M17)                                | `etape-6.2-ia`          | session de l'étape 6.2 | 20/10/2026  | en cours — migration `20261020004000_m17_ia`                                                           |
 | 6.4 (partie 2 seulement) — Synchronisation base externe (M13 §2) | `etape-6.4-synchro-api` | session de l'étape 2.4 | 19/10/2026  | **en pause** (A15 point 5 : au plus 2 sessions de développement) — migration `20261019190000_m13_sync` |

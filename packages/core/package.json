@@ -19,6 +19,7 @@
     "./quotes": "./src/quotes/index.ts",
     "./billing": "./src/billing/index.ts",
     "./workshop": "./src/workshop/index.ts",
+    "./reports": "./src/reports/index.ts",
     "./claims": "./src/claims/index.ts",
     "./ai": "./src/ai/index.ts",
     "./automations": "./src/automations/index.ts"

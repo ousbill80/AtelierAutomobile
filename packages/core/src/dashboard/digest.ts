@@ -1,7 +1,7 @@
 // RG-M12-30 — résumé quotidien gérant (`digest.owner`). Sections omises si vides ;
-// WhatsApp ≤ 1 000 caractères. Partie 1 (étape 2.4) : lignes créances, promesses,
-// relances, récupéré, alertes, et version REMINDERS_ONLY. Les lignes CA / OR / RDV
-// (« HIER », « OR », « AUJOURD'HUI ») arrivent avec M04/M07 (étape 6.1).
+// WhatsApp ≤ 1 000 caractères. Lignes créances, promesses, relances, récupéré, alertes
+// (étape 2.4), lignes « HIER », « OR », « AUJOURD'HUI » du mode FULL (étape 6.1), et version
+// REMINDERS_ONLY.
 import { fr } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatFCFA } from "../money";
@@ -18,9 +18,27 @@ export interface DigestInput {
   reminders: { toApprove: number; failed: number };
   recovered: { yesterday: number; last30Days: number };
   remindersOnly?: { inspectionsDue30: number; servicesDueThisMonth: number };
+  /** Mode FULL : CA HT et encaissements de la veille (jour local précédent). */
+  yesterday?: { revenueHt: number; collected: number; byMethod: Record<string, number> };
+  orders?: { opened: number; delivered: number; inProgress: number };
+  today?: { appointments: number; promised: number; blockedParts: number };
   alerts: readonly string[];
   link: string;
 }
+
+/** Libellés courts des modes de paiement dans le résumé (« Wave 520 000 · Espèces 310 000 »). */
+const METHOD_SHORT: Record<string, string> = {
+  CASH: "Espèces",
+  WAVE: "Wave",
+  ORANGE_MONEY: "OM",
+  MTN_MOMO: "MoMo",
+  MOOV_MONEY: "Moov",
+  CARD: "Carte",
+  BANK_TRANSFER: "Virement",
+  CHEQUE: "Chèque",
+  INSURANCE: "Assurance",
+  OTHER: "Autre",
+};
 
 function plain(amount: number): string {
   return formatFCFA(amount).replace(/ FCFA$/, "");
@@ -36,6 +54,32 @@ export function buildDigestText(input: DigestInput): string {
     `☀️ ${input.garageName} — ${digestDateLabel(input.now, input.timeZone)}`,
   ];
 
+  if (input.mode === "FULL" && input.yesterday) {
+    const { revenueHt, collected, byMethod } = input.yesterday;
+    if (revenueHt !== 0 || collected !== 0) {
+      const methods = Object.entries(byMethod)
+        .filter(([, amount]) => amount > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([method, amount]) => `${METHOD_SHORT[method] ?? method} ${plain(amount)}`);
+      lines.push(
+        `HIER : CA ${formatFCFA(revenueHt)} HT · encaissé ${formatFCFA(collected)}${methods.length ? ` (${methods.join(" · ")})` : ""}`,
+      );
+    }
+  }
+  if (input.mode === "FULL" && input.orders) {
+    const o = input.orders;
+    if (o.opened + o.delivered + o.inProgress > 0) {
+      lines.push(`OR : ${o.opened} ouverts · ${o.delivered} livrés · ${o.inProgress} en cours`);
+    }
+  }
+  if (input.mode === "FULL" && input.today) {
+    const d = input.today;
+    if (d.appointments + d.promised + d.blockedParts > 0) {
+      lines.push(
+        `AUJOURD'HUI : ${d.appointments} RDV · ${d.promised} véhicules promis · ${d.blockedParts} OR bloqués (pièces > 48 h)`,
+      );
+    }
+  }
   if (input.mode === "REMINDERS_ONLY" && input.remindersOnly) {
     lines.push(
       `VT sous 30 j : ${input.remindersOnly.inspectionsDue30} · Révisions dues ce mois : ${input.remindersOnly.servicesDueThisMonth}`,

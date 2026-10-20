@@ -1,5 +1,6 @@
-// M12 §9 — `alerts.scan` (toutes les 15 min) : RG-M12-27, partie 1 (étape 2.4) —
-// channel_error, sms_balance_low, import_stale, receivable_45d, promise_broken. Chaque alerte
+// M12 §9 — `alerts.scan` (toutes les 15 min) : RG-M12-27 — channel_error, sms_balance_low,
+// import_stale, receivable_45d, promise_broken (étape 2.4), credit_limit, discount_high,
+// stock_below_min (étape 6.1). Chaque alerte
 // devient une `Notification` (type `alert.<code>`) par destinataire, dédoublonnée par
 // `(organizationId, membershipId, dedupeKey)` : une fois par objet et par jour.
 import {
@@ -50,20 +51,47 @@ export function alertTexts(alert: AlertCandidate): { title: string; body: string
         title: `Promesse non tenue — ${p.customer}`,
         body: `Montant promis : ${formatFCFA(Number(p.amount))}.`,
       };
+    case "credit_limit":
+      return {
+        title: `Plafond de crédit dépassé — ${p.customer}`,
+        body: `Encours ${formatFCFA(Number(p.outstanding))} pour un plafond de ${formatFCFA(Number(p.creditLimit))}.`,
+      };
+    case "discount_high":
+      return {
+        title: `Remise de ${p.rate} % sur la facture ${p.number} — ${p.customer}`,
+        body: "Remise supérieure au seuil autorisé sans validation : vérifiez-la.",
+      };
+    case "stock_below_min":
+      return {
+        title: `Stock sous le minimum — ${p.product}`,
+        body: `Disponible prévisionnel : ${p.available}. Pensez à réapprovisionner.`,
+      };
   }
 }
 
 export async function scanOrganizationAlerts(organizationId: string, now: Date): Promise<number> {
   const org = await adminDb.organization.findUniqueOrThrow({
     where: { id: organizationId },
-    select: { timezone: true },
+    select: { timezone: true, settings: true },
   });
+  const discountSetting = (org.settings as { discounts?: { maxRateWithoutApproval?: unknown } })
+    ?.discounts?.maxRateWithoutApproval;
   const tenantDb = db.forTenant({ organizationId });
   const today = localDay(now, org.timezone);
   const overdueBefore = startOfLocalDay(shiftDay(today, -45), org.timezone);
   const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  const [channels, total, failed, dataSources, invoices, promises] = await Promise.all([
+  const [
+    channels,
+    total,
+    failed,
+    dataSources,
+    invoices,
+    promises,
+    outstanding,
+    discountLines,
+    stockEvents,
+  ] = await Promise.all([
     tenantDb.channelConfig.findMany({
       select: {
         id: true,
@@ -110,7 +138,61 @@ export async function scanOrganizationAlerts(organizationId: string, now: Date):
         collectionCase: { select: { customer: { select: { displayName: true } } } },
       },
     }),
+    // credit_limit : encours client (créances ouvertes) des clients ayant un plafond.
+    tenantDb.invoice.groupBy({
+      by: ["customerId"],
+      where: {
+        type: "INVOICE",
+        billTo: "CUSTOMER",
+        status: { in: [...OPEN_INVOICE_STATUSES] },
+        balance: { gt: 0 },
+        customer: { creditLimit: { gt: 0 } },
+      },
+      _sum: { balance: true },
+    }),
+    // discount_high : plus forte remise de ligne des factures émises sur 24 h.
+    tenantDb.invoiceLine.groupBy({
+      by: ["invoiceId"],
+      where: {
+        discountRate: { gt: 0 },
+        invoice: {
+          type: "INVOICE",
+          status: { notIn: ["DRAFT", "VOID"] },
+          issuedAt: { gte: since24h },
+        },
+      },
+      _max: { discountRate: true },
+    }),
+    tenantDb.domainEvent.findMany({
+      where: { type: "stock.below_minimum", occurredAt: { gte: since24h } },
+      select: { payload: true },
+    }),
   ]);
+
+  const limitedCustomers = outstanding.length
+    ? await tenantDb.customer.findMany({
+        where: { id: { in: outstanding.map((o) => o.customerId) } },
+        select: { id: true, displayName: true, creditLimit: true },
+      })
+    : [];
+  const discountedIds = discountLines.map((d) => d.invoiceId);
+  const discounted = discountedIds.length
+    ? await tenantDb.invoice.findMany({
+        where: { id: { in: discountedIds } },
+        select: { id: true, number: true, customer: { select: { displayName: true } } },
+      })
+    : [];
+  const stockPayloads = stockEvents
+    .map((e) => e.payload as { productId?: string; siteId?: string; projected?: number })
+    .filter((p): p is { productId: string; siteId: string; projected?: number } =>
+      Boolean(p.productId && p.siteId),
+    );
+  const products = stockPayloads.length
+    ? await tenantDb.product.findMany({
+        where: { id: { in: stockPayloads.map((p) => p.productId) } },
+        select: { id: true, name: true },
+      })
+    : [];
 
   const alerts = evaluateAlerts({
     today,
@@ -124,6 +206,26 @@ export async function scanOrganizationAlerts(organizationId: string, now: Date):
       amount: p.amount,
       customerName: p.collectionCase.customer.displayName,
     })),
+    creditLimits: limitedCustomers.map((c) => ({
+      customerId: c.id,
+      customerName: c.displayName,
+      creditLimit: c.creditLimit,
+      outstanding: outstanding.find((o) => o.customerId === c.id)?._sum.balance ?? 0,
+    })),
+    discountedInvoices: discounted.map((i) => ({
+      id: i.id,
+      number: i.number,
+      customerName: i.customer.displayName,
+      maxDiscountRate: discountLines.find((d) => d.invoiceId === i.id)?._max.discountRate ?? 0,
+    })),
+    stockBelowMinimum: stockPayloads.map((p) => ({
+      productId: p.productId,
+      siteId: p.siteId,
+      productName: products.find((x) => x.id === p.productId)?.name ?? "Article",
+      available: p.projected ?? 0,
+    })),
+    thresholds:
+      typeof discountSetting === "number" ? { maxDiscountRate: discountSetting } : undefined,
   });
   if (alerts.length === 0) return 0;
 
