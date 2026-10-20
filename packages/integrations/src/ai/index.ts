@@ -64,7 +64,7 @@ export {
   ASSISTANT_PROMPT_VERSION,
   ASSISTANT_TOOLS,
   assistantSystemPrompt,
-} from "./prompts/assistant/v1";
+} from "./prompts/assistant/v2";
 export {
   buildQuoteDraftMessages,
   QUOTE_DRAFT_PROMPT_VERSION,

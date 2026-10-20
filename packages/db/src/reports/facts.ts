@@ -8,6 +8,7 @@ import {
   daysOf,
   normalizeDescription,
   OPENING_PAYMENT_REFERENCES,
+  OPEN_INVOICE_STATUSES,
   QUOTE_DECIDED_STATUSES,
   VALID_INVOICE_STATUSES,
   type CollectedSummary,
@@ -15,6 +16,7 @@ import {
   type OpeningHours,
   type PartAggregate,
   type QuoteDecisionAggregate,
+  type ReceivableInvoiceLike,
   type RevenueAggregateRow,
   type WorkedMinutesByMechanic,
 } from "@atelieros/core";
@@ -447,5 +449,60 @@ export async function partAggregates(
     ht: num(r.ht),
     cost: num(r.cost),
     repairOrders: num(r.repairOrders),
+  }));
+}
+
+/** RG-M12-17 : factures clients ouvertes (créances) du périmètre, nom du client inclus. */
+export async function loadReceivableInvoices(
+  t: TenantDb,
+  scope: SiteScope,
+): Promise<ReceivableInvoiceLike[]> {
+  const rows = await t.invoice.findMany({
+    where: {
+      ...siteWhere(scope),
+      type: "INVOICE",
+      billTo: "CUSTOMER",
+      status: { in: [...OPEN_INVOICE_STATUSES] },
+      balance: { gt: 0 },
+    },
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      billTo: true,
+      balance: true,
+      dueDate: true,
+      number: true,
+      customerId: true,
+      customer: { select: { displayName: true } },
+    },
+  });
+  return rows.map((r) => ({ ...r, customerName: r.customer.displayName }));
+}
+
+/**
+ * RG-M12-22 (A10) : attributions M09 (`PaymentAttribution`) des paiements confirmés reçus dans
+ * `[from, to)`. Chaque allocation compte sur le site de sa facture (M12 §11).
+ */
+export async function loadAttributions(t: TenantDb, scope: SiteScope, from: Date, to: Date) {
+  const rows = await t.paymentAttribution.findMany({
+    where: {
+      source: "reminder",
+      paymentAllocation: {
+        payment: { status: "CONFIRMED", receivedAt: { gte: from, lt: to } },
+        ...(scope.siteIds ? { invoice: { siteId: { in: scope.siteIds } } } : {}),
+      },
+    },
+    select: {
+      source: true,
+      amount: true,
+      paymentAllocation: { select: { payment: { select: { receivedAt: true } } } },
+    },
+  });
+  return rows.map((r) => ({
+    source: r.source,
+    amount: r.amount,
+    // Filtré sur `payment` ci-dessus : une attribution vient toujours d'un paiement (jamais d'un crédit).
+    receivedAt: r.paymentAllocation.payment!.receivedAt,
   }));
 }
