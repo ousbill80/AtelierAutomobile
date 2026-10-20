@@ -13,7 +13,8 @@ import {
   pageOf,
   parseBearerApiKey,
   parseUpdatedSince,
-  rateLimitFor,
+  assertScopesAllowedByPlan,
+  isWriteScope,
   shouldTouchLastUsed,
   slidingWindowDecision,
   truncateClientIp,
@@ -136,11 +137,18 @@ describe("idempotence (RG-M13-33)", () => {
 });
 
 describe("limitation de débit (RG-M13-34)", () => {
-  it("plafonds par offre", () => {
-    expect(rateLimitFor("STARTER")).toBe(60);
-    expect(rateLimitFor("PRO")).toBe(300);
-    expect(rateLimitFor("NETWORK")).toBe(1_200);
-    expect(rateLimitFor(null)).toBe(60);
+  it("offre en lecture seule (STARTER) : droits d'écriture refusés", () => {
+    expect(isWriteScope("customers:write")).toBe(true);
+    expect(isWriteScope("webhooks:manage")).toBe(false);
+    const starter = { tier: "STARTER", features: { publicApi: "read" as const } };
+    expect(() =>
+      assertScopesAllowedByPlan(["customers:read", "webhooks:manage"], starter),
+    ).not.toThrow();
+    const e = errorOf(() => assertScopesAllowedByPlan(["customers:write"], starter));
+    expect(isDomainError(e) && e.code).toBe("PLAN_API_READ_ONLY");
+    expect(() =>
+      assertScopesAllowedByPlan(["customers:write"], { tier: "PRO", features: { publicApi: "full" } }),
+    ).not.toThrow();
   });
 
   it("fenêtre glissante d'une minute : 60e requête acceptée, 61e refusée avec délai", () => {

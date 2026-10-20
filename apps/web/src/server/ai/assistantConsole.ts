@@ -94,7 +94,25 @@ function planFor(question: string): Plan {
       input: { kind: /revision|vidange/.test(q) ? "SERVICE" : "VT", period },
     };
   }
-  if (/\b(ca|chiffre d'affaires?)\b/.test(q)) {
+  // Indicateurs M12 (`dashboard.kpi`) : « CA » = HT (M12 RG-M12-05), « TTC » explicite.
+  const kpi = /\bmarges? (des )?pieces\b/.test(q)
+    ? "parts_margin"
+    : /\bmarges? (de la )?(main[- ]d'?(oe|œ)uvre|mo)\b/.test(q)
+      ? "labor_margin"
+      : /\bmarges?\b/.test(q)
+        ? "gross_margin"
+        : /panier moyen/.test(q)
+          ? "avg_ticket"
+          : /encaiss/.test(q)
+            ? "collected"
+            : /acceptation|devis acceptes/.test(q)
+              ? "quote_acceptance"
+              : /\b(ca|chiffre d'affaires?)\b/.test(q)
+                ? /\bttc\b/.test(q)
+                  ? "revenue_ttc"
+                  : "revenue_ht"
+                : null;
+  if (kpi) {
     const period = /hier/.test(q)
       ? "yesterday"
       : /aujourd'?hui/.test(q)
@@ -102,7 +120,12 @@ function planFor(question: string): Plan {
         : /mois (dernier|precedent)/.test(q)
           ? "prev_month"
           : "month";
-    return { kind: "tool", name: "get_kpi", input: { metric: "revenue", period } };
+    const compare = /compar|par rapport|evolution/.test(q);
+    return {
+      kind: "tool",
+      name: "get_kpi",
+      input: { metric: kpi, period, ...(compare ? { compare: true } : {}) },
+    };
   }
   if (/\bstock\b/.test(q)) {
     const query = q
@@ -217,7 +240,9 @@ function formatOne(trace: ToolTrace): string {
         .join(" ; ")}.`;
     }
     case "get_kpi":
-      return `${str(r.label)} : ${str(r.valueLabel)}.`;
+      return `${str(r.label)} : ${str(r.valueLabel)}${
+        r.previousLabel !== undefined ? ` (période précédente : ${str(r.previousLabel)})` : ""
+      }${r.estimated ? " — coût estimé" : ""}.`;
     case "list_repair_orders": {
       const list = (r.repairOrders as Row[]) ?? [];
       if (!r.count) return "Aucun ordre de réparation en cours.";

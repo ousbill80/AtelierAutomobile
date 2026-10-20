@@ -1,6 +1,5 @@
 import { TRPCError } from "@trpc/server";
 import {
-  canAddMember,
   canInviteRole,
   hashPassword as hashSecret,
   isTrivialPin,
@@ -24,6 +23,7 @@ import {
 import { createConsoleMessagingProvider, type MessageChannel } from "@atelieros/integrations";
 import { requirePermission, router } from "../trpc";
 import { writeAuditLog } from "../audit";
+import { assertPlanLimit } from "../plan/limits";
 import {
   computeInvitationExpiry,
   generateInvitationToken,
@@ -103,16 +103,7 @@ export const memberRouter = router({
         where: { id: ctx.organizationId },
       });
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      const activeMemberCount = await tenantDb.membership.count({ where: { isActive: true } });
-      if (!canAddMember(org.plan, activeMemberCount)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            org.plan === "STARTER"
-              ? "Votre offre STARTER permet 5 utilisateurs actifs."
-              : "Limite d'utilisateurs atteinte pour votre offre actuelle.",
-        });
-      }
+      await assertPlanLimit(ctx.organizationId, "activeMembers");
 
       const email = input.email?.toLowerCase().trim();
       const phone = input.phone?.trim();
@@ -362,20 +353,8 @@ export const memberRouter = router({
   reactivate: requirePermission("member:deactivate")
     .input(reactivateMemberInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const org = await adminDb.organization.findUniqueOrThrow({
-        where: { id: ctx.organizationId },
-      });
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      const activeMemberCount = await tenantDb.membership.count({ where: { isActive: true } });
-      if (!canAddMember(org.plan, activeMemberCount)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            org.plan === "STARTER"
-              ? "Votre offre STARTER permet 5 utilisateurs actifs."
-              : "Limite d'utilisateurs atteinte pour votre offre actuelle.",
-        });
-      }
+      await assertPlanLimit(ctx.organizationId, "activeMembers");
 
       const after = await tenantDb.membership.update({
         where: { id: input.membershipId },

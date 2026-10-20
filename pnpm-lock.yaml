@@ -202,12 +202,18 @@ importers:
       '@atelieros/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
+      '@atelieros/pdf':
+        specifier: workspace:*
+        version: link:../../packages/pdf
       '@atelieros/validators':
         specifier: workspace:*
         version: link:../../packages/validators
       bullmq:
         specifier: ^5.34.4
         version: 5.81.5
+      fflate:
+        specifier: 0.8.2
+        version: 0.8.2
       ioredis:
         specifier: ^5.4.2
         version: 5.11.1
@@ -3290,6 +3296,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
 
   fflate@0.8.3:
     resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
@@ -8153,6 +8162,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
+
+  fflate@0.8.2: {}
 
   fflate@0.8.3: {}
 

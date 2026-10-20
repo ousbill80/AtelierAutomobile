@@ -5,11 +5,12 @@ import { TRPCError } from "@trpc/server";
 import {
   API_SCOPES,
   apiKeyPrefix,
+  assertScopesAllowedByPlan,
   isDomainError,
   normalizeScopes,
   WEBHOOK_EVENTS,
 } from "@atelieros/core";
-import { db, writeAuditLog, type ScopedTenantClient } from "@atelieros/db";
+import { db, loadOrgPlan, writeAuditLog, type ScopedTenantClient } from "@atelieros/db";
 import { generateApiKey, sha256Hex } from "@atelieros/integrations";
 import {
   apiKeyCreateInputSchema,
@@ -18,6 +19,7 @@ import {
   webhookDeliveriesInputSchema,
   webhookUpdateInputSchema,
 } from "@atelieros/validators";
+import { assertPlanLimit } from "../plan/limits";
 import { apiNow } from "../publicApi/http";
 import {
   createEndpoint,
@@ -104,13 +106,16 @@ export const apiKeysRouter = router({
   create: requirePermission("integration:manage")
     .input(apiKeyCreateInputSchema)
     .mutation(async ({ ctx, input }) => {
+      const now = apiNow();
       let scopes;
       try {
         scopes = normalizeScopes(input.scopes);
+        // M15 RG-M15-19/20 : API en lecture seule selon l'offre, nombre de clés plafonné.
+        assertScopesAllowedByPlan(scopes, (await loadOrgPlan(ctx.organizationId)).plan);
       } catch (error) {
         bad(error);
       }
-      const now = apiNow();
+      await assertPlanLimit(ctx.organizationId, "apiKeys", 1, now);
       if (input.expiresAt && input.expiresAt.getTime() <= now.getTime()) {
         throw new TRPCError({
           code: "BAD_REQUEST",

@@ -7,6 +7,13 @@ import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 
 const NAV = [
+  // M15 RG-M15-01/02/03 — identité légale, TVA, mentions.
+  {
+    key: "garage",
+    href: "/parametres/garage",
+    label: "nav.settingsGarage",
+    permission: "settings:read",
+  },
   {
     key: "equipe",
     href: "/parametres/equipe",
@@ -24,6 +31,45 @@ const NAV = [
     href: "/parametres/sites",
     label: "nav.settingsSites",
     permission: "site:manage",
+  },
+  // M15 RG-M15-08 — jours fériés et fermetures exceptionnelles.
+  {
+    key: "jours-feries",
+    href: "/parametres/jours-feries",
+    label: "nav.settingsHolidays",
+    permission: "site:manage",
+  },
+  // M15 RG-M15-12 — numérotation des documents.
+  {
+    key: "documents",
+    href: "/parametres/documents",
+    label: "nav.settingsDocuments",
+    permission: "settings:read",
+  },
+  // M11/M10 — canaux, modèles de messages et règles de relance (écrans existants).
+  {
+    key: "canaux",
+    href: "/parametres/canaux",
+    label: "nav.settingsChannels",
+    permission: "settings:channels",
+  },
+  {
+    key: "modeles",
+    href: "/parametres/modeles",
+    label: "nav.settingsTemplates",
+    permission: "message:read",
+  },
+  {
+    key: "relances",
+    href: "/parametres/relances",
+    label: "nav.settingsReminderRules",
+    permission: "reminder:read",
+  },
+  {
+    key: "planning",
+    href: "/parametres/planning",
+    label: "nav.settingsPlanning",
+    permission: "appointment:read",
   },
   {
     key: "journal",
@@ -91,6 +137,19 @@ const NAV = [
     href: "/parametres/api",
     label: "nav.settingsApi",
     permission: "integration:manage",
+  },
+  // M15 RG-M15-19..22 — abonnement, export complet, suppression du compte.
+  {
+    key: "abonnement",
+    href: "/parametres/abonnement",
+    label: "nav.settingsSubscription",
+    permission: "settings:billing",
+  },
+  {
+    key: "donnees",
+    href: "/parametres/donnees",
+    label: "nav.settingsData",
+    permission: "settings:billing",
   },
 ] as const;
 

@@ -71,6 +71,9 @@ export {
   getFixedHolidays,
 } from "./ci-holidays";
 
+export * from "./organization/lifecycle";
+export * from "./organization/data-export";
+export * from "./organization/usage-period";
 export type { OpeningHours, WeekdayKey } from "./organization/opening-hours";
 export { validateOpeningHours, WEEKDAY_KEYS } from "./organization/opening-hours";
 

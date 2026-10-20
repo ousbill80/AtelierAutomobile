@@ -4,21 +4,25 @@
 // montants sont déjà formatés par le code (`…Label`, jamais par le modèle) avec des liens
 // profonds. Un refus de permission est un résultat `{ denied: true }`, jamais une exception.
 import {
-  computeReceivables,
+  canReadKpi,
   daysOverdue,
   formatDate,
   formatFCFA,
   localDay,
   OPEN_INVOICE_STATUSES,
-  recoveredByReminders,
+  KPI_UNIT,
+  resolveCustomPeriod,
   resolvePeriod,
   shiftDay,
   startOfLocalDay,
+  type KpiCode,
   type Permission,
 } from "@atelieros/core";
-import { db, type Prisma } from "@atelieros/db";
+import { db, reportFacts, type Prisma } from "@atelieros/db";
+import { kpiCodeSchema } from "@atelieros/validators";
 import type { AiToolCall } from "@atelieros/integrations";
 import { z } from "zod";
+import { loadOrgReportContext } from "../reports/context";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
 
@@ -91,9 +95,11 @@ const inputs = {
       .optional(),
   }),
   get_kpi: z.object({
-    metric: z.enum(["revenue", "receivables", "recovered"]),
+    // Codes M12 (`dashboard.kpi`) ; anciens noms du prompt v1 acceptés (fils existants).
+    metric: z.union([kpiCodeSchema, z.enum(["revenue", "recovered"])]),
     period: periodSchema.optional(),
     siteId: z.string().optional(),
+    compare: z.boolean().optional(),
   }),
   list_repair_orders: z.object({ status: z.string().optional(), siteId: z.string().optional() }),
   list_appointments: z.object({ date: z.string().optional() }),
@@ -118,7 +124,7 @@ const PERMISSIONS: Record<AssistantToolName, Permission | null> = {
   get_customer_balance: "receivable:read",
   list_receivables: "receivable:read",
   list_vehicle_due_dates: "vehicle:read",
-  get_kpi: null, // selon l'indicateur (M12 §10)
+  get_kpi: null, // selon l'indicateur (`core/reports/kpi`, M12 §10)
   list_repair_orders: "repair_order:read",
   list_appointments: "appointment:read",
   get_stock: "stock:read",
@@ -126,12 +132,35 @@ const PERMISSIONS: Record<AssistantToolName, Permission | null> = {
   propose_action: null, // ne fait que construire un lien ; l'écran cible vérifie ses droits
 };
 
-/** M12 §10 : CA et encours = `report:financial` ; récupéré par relances = `reminder:read`. */
-const KPI_PERMISSIONS: Record<"revenue" | "receivables" | "recovered", Permission> = {
-  revenue: "report:financial",
-  receivables: "report:financial",
-  recovered: "reminder:read",
+/** Anciens noms d'indicateurs (prompt v1) → codes M12. */
+const KPI_ALIASES: Record<string, KpiCode> = {
+  revenue: "revenue_ttc",
+  recovered: "recovered_by_reminders",
 };
+
+const KPI_LABELS: Record<KpiCode, string> = {
+  revenue_ht: "Chiffre d'affaires HT facturé",
+  revenue_ttc: "Chiffre d'affaires TTC facturé",
+  parts_margin: "Marge pièces",
+  labor_margin: "Marge main-d'œuvre",
+  gross_margin: "Marge globale",
+  avg_ticket: "Panier moyen",
+  collected: "Encaissements",
+  receivables: "Créances clients (à ce jour)",
+  recovered_by_reminders: "Encaissé grâce aux relances",
+  quote_acceptance: "Taux d'acceptation des devis",
+};
+
+const KPI_LINKS: Partial<Record<KpiCode, ToolLink>> = {
+  receivables: { label: "Créances", href: "/tableau-de-bord?onglet=finances" },
+  recovered_by_reminders: { label: "Résultats des relances", href: "/relances/resultats" },
+};
+
+function kpiValueLabel(metric: KpiCode, value: number | null): string {
+  if (value === null) return "—";
+  if (KPI_UNIT[metric] === "rate") return `${(value * 100).toFixed(1).replace(".", ",")} %`;
+  return formatFCFA(value);
+}
 
 const PERIOD_LABELS: Record<z.infer<typeof periodSchema>, string> = {
   today: "aujourd'hui",
@@ -142,16 +171,13 @@ const PERIOD_LABELS: Record<z.infer<typeof periodSchema>, string> = {
   "30d": "30 derniers jours",
 };
 
-function periodBounds(period: z.infer<typeof periodSchema>, ctx: AssistantToolContext) {
+/** Période M12 (avec la période précédente, pour la comparaison). « Hier » = jour local précédent. */
+function resolvedPeriodOf(period: z.infer<typeof periodSchema>, ctx: AssistantToolContext) {
   if (period === "yesterday") {
-    const today = localDay(ctx.now, ctx.timezone);
-    return {
-      from: startOfLocalDay(shiftDay(today, -1), ctx.timezone),
-      to: startOfLocalDay(today, ctx.timezone),
-    };
+    const yesterday = shiftDay(localDay(ctx.now, ctx.timezone), -1);
+    return resolveCustomPeriod(yesterday, yesterday, ctx.timezone);
   }
-  const resolved = resolvePeriod(period, ctx.now, ctx.timezone);
-  return { from: resolved.from, to: resolved.to };
+  return resolvePeriod(period, ctx.now, ctx.timezone);
 }
 
 const handlers: { [K in AssistantToolName]: Handler<K> } = {
@@ -353,91 +379,37 @@ const handlers: { [K in AssistantToolName]: Handler<K> } = {
   },
 
   async get_kpi(tx, ctx, input) {
-    if (!ctx.permissions.has(KPI_PERMISSIONS[input.metric])) return DENIED;
+    // M12 §8 `dashboard.kpi` : mêmes faits et mêmes formules que le tableau de bord.
+    const metric: KpiCode = KPI_ALIASES[input.metric] ?? (input.metric as KpiCode);
+    if (!canReadKpi(metric, ctx.permissions)) return DENIED;
     const sites = siteScope(ctx, input.siteId);
     if (sites === "DENIED") return DENIED;
     const period = input.period ?? "month";
-    if (input.metric === "receivables") {
-      const rows = await tx.invoice.findMany({
-        where: openInvoiceWhere(sites),
-        select: {
-          id: true,
-          customerId: true,
-          type: true,
-          status: true,
-          billTo: true,
-          balance: true,
-          dueDate: true,
-        },
-      });
-      const summary = computeReceivables(rows as never, localDay(ctx.now, ctx.timezone));
-      return {
-        metric: "receivables",
-        label: "Créances clients (à ce jour)",
-        value: summary.total,
-        valueLabel: formatFCFA(summary.total),
-        invoicesCount: summary.count,
-        overdueLabel: formatFCFA(summary.overdue),
-        link: { label: "Créances", href: "/tableau-de-bord?onglet=finances" },
-      };
-    }
-    const { from, to } = periodBounds(period, ctx);
-    if (input.metric === "revenue") {
-      // RG-M12-03 (même formule que M12 `dashboard.finances`) : CA TTC facturé, avoirs déduits.
-      const groups = await tx.invoice.groupBy({
-        by: ["type"],
-        where: {
-          ...siteWhere(sites),
-          type: { in: ["INVOICE", "CREDIT_NOTE"] },
-          status: {
-            in: ["ISSUED", "PARTIALLY_PAID", "PAID", "OVERDUE", "DISPUTED", "WRITTEN_OFF"],
-          },
-          issuedAt: { gte: from, lt: to },
-        },
-        _sum: { total: true },
-      });
-      const value = groups.reduce(
-        (s, g) =>
-          s + (g.type === "CREDIT_NOTE" ? -Math.abs(g._sum.total ?? 0) : (g._sum.total ?? 0)),
-        0,
-      );
-      return {
-        metric: "revenue",
-        label: `Chiffre d'affaires TTC facturé (${PERIOD_LABELS[period]})`,
-        value,
-        valueLabel: formatFCFA(value),
-        link: { label: "Tableau de bord", href: "/tableau-de-bord" },
-      };
-    }
-    const attributions = await tx.paymentAttribution.findMany({
-      where: {
-        source: "reminder",
-        paymentAllocation: {
-          payment: { status: "CONFIRMED", receivedAt: { gte: from, lt: to } },
-          ...(sites ? { invoice: { siteId: { in: sites } } } : {}),
-        },
-      },
-      select: {
-        source: true,
-        amount: true,
-        paymentAllocation: { select: { payment: { select: { receivedAt: true } } } },
-      },
+    const org = await loadOrgReportContext(ctx.organizationId);
+    const result = await reportFacts.computeKpi(tx, {
+      organizationId: ctx.organizationId,
+      org,
+      metric,
+      scope: { siteIds: sites },
+      period: resolvedPeriodOf(period, ctx),
+      now: ctx.now,
+      compare: input.compare ?? false,
     });
-    const value = recoveredByReminders(
-      attributions.map((a) => ({
-        source: a.source,
-        amount: a.amount,
-        receivedAt: a.paymentAllocation.payment!.receivedAt,
-      })),
-      from,
-      to,
-    );
+    const snapshot = metric === "receivables";
     return {
-      metric: "recovered",
-      label: `Encaissé grâce aux relances (${PERIOD_LABELS[period]})`,
-      value,
-      valueLabel: formatFCFA(value),
-      link: { label: "Résultats des relances", href: "/relances/resultats" },
+      metric,
+      label: snapshot ? KPI_LABELS[metric] : `${KPI_LABELS[metric]} (${PERIOD_LABELS[period]})`,
+      value: result.value,
+      valueLabel: kpiValueLabel(metric, result.value),
+      ...(result.estimated ? { estimated: true, note: "coût estimé" } : {}),
+      ...(result.previous !== undefined
+        ? {
+            previous: result.previous,
+            previousLabel: kpiValueLabel(metric, result.previous),
+            ...(result.delta?.kind === "pct" ? { deltaPct: result.delta.pct } : {}),
+          }
+        : {}),
+      link: KPI_LINKS[metric] ?? { label: "Tableau de bord", href: "/tableau-de-bord" },
     };
   },
 

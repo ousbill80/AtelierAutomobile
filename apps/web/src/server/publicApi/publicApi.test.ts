@@ -124,11 +124,12 @@ describe("étape 6.4 — API publique v1 et webhooks sortants", () => {
         return respond(request);
       },
     });
+    // Offre PRO : API en écriture (M15 RG-M15-19) ; l'offre STARTER est testée à part.
     orgA = await adminDb.organization.create({
-      data: { name: "Garage API A", onboardingCompletedAt: NOW },
+      data: { name: "Garage API A", onboardingCompletedAt: NOW, plan: "PRO" },
     });
     orgB = await adminDb.organization.create({
-      data: { name: "Garage API B", onboardingCompletedAt: NOW },
+      data: { name: "Garage API B", onboardingCompletedAt: NOW, plan: "PRO" },
     });
     orgIds.push(orgA.id, orgB.id);
     owner = await member(orgA.id, "OWNER");
@@ -235,7 +236,7 @@ describe("étape 6.4 — API publique v1 et webhooks sortants", () => {
       json: {
         organization: { id: orgA.id, name: "Garage API A" },
         api_key: { name: "ERP comptable", environment: "live" },
-        rate_limit: { requests_per_minute: 60 },
+        rate_limit: { requests_per_minute: 300 },
       },
     });
     const forbidden = await call(customersRoute.POST, readOnlyKey, {
@@ -521,25 +522,79 @@ describe("étape 6.4 — API publique v1 et webhooks sortants", () => {
     expect((await call(meRoute.GET, readOnlyKey, { path: "/api/v1/me" })).status).toBe(401);
   });
 
-  it("limitation de débit : 60 requêtes/min (STARTER), la 61e → 429 avec Retry-After", async () => {
+  it("offre STARTER (catalogue M15) : 60 requêtes/min, API en lecture seule, 2 clés au plus", async () => {
     setRateLimitStore(new MemoryRateLimitStore());
+    const orgC = await adminDb.organization.create({
+      data: { name: "Garage API STARTER", onboardingCompletedAt: NOW, plan: "STARTER" },
+    });
+    orgIds.push(orgC.id);
+    const ownerC = await member(orgC.id, "OWNER");
+    await expect(
+      ownerC.apiKeys.create({
+        name: "Écriture",
+        environment: "live",
+        scopes: ["customers:write"],
+        siteIds: [],
+      }),
+    ).rejects.toThrow(/lecture seule/);
     const key = (
-      await owner.apiKeys.create({
+      await ownerC.apiKeys.create({
         name: "Débit",
         environment: "live",
         scopes: ["customers:read"],
         siteIds: [],
       })
     ).key;
+    await ownerC.apiKeys.create({
+      name: "Deuxième",
+      environment: "live",
+      scopes: ["customers:read"],
+      siteIds: [],
+    });
+    await expect(
+      ownerC.apiKeys.create({
+        name: "Troisième",
+        environment: "live",
+        scopes: ["customers:read"],
+        siteIds: [],
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
     let last;
     for (let i = 0; i < 60; i++) last = await call(meRoute.GET, key, { path: "/api/v1/me" });
-    expect(last).toMatchObject({ status: 200 });
+    expect(last).toMatchObject({ status: 200, json: { rate_limit: { requests_per_minute: 60 } } });
     expect(last!.headers.get("x-ratelimit-remaining")).toBe("0");
     const limited = await call(meRoute.GET, key, { path: "/api/v1/me" });
     expect(limited).toMatchObject({ status: 429, json: { error: { code: "rate_limited" } } });
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
     // Une autre clé n'est pas affectée.
     expect((await call(meRoute.GET, keyA, { path: "/api/v1/me" })).status).toBe(200);
+  });
+
+  it("offre STARTER : une écriture avec une clé héritée est refusée (plan_read_only)", async () => {
+    setRateLimitStore(new MemoryRateLimitStore());
+    const orgC = await adminDb.organization.findFirstOrThrow({
+      where: { name: "Garage API STARTER" },
+    });
+    // Clé créée avant une rétrogradation de PRO à STARTER.
+    const { generateApiKey, sha256Hex } = await import("@atelieros/integrations");
+    const raw = generateApiKey("live");
+    await adminDb.apiKey.create({
+      data: {
+        organizationId: orgC.id,
+        name: "Héritée",
+        keyHash: sha256Hex(raw),
+        prefix: raw.slice(0, 12),
+        scopes: ["customers:write"],
+      },
+    });
+    const res = await call(customersRoute.POST, raw, {
+      method: "POST",
+      path: "/api/v1/customers",
+      body: { last_name: "Interdit" },
+      idem: "starter-write",
+    });
+    expect(res).toMatchObject({ status: 403, json: { error: { code: "plan_read_only" } } });
   });
 
   it("webhooks : https public obligatoire, secret montré une fois, jamais relu", async () => {

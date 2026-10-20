@@ -226,14 +226,30 @@ export function decideIdempotency(
 
 // ───────────── Limitation de débit (RG-M13-34) ─────────────
 
-export const RATE_LIMITS_PER_MINUTE: Record<string, number> = {
-  STARTER: 60,
-  PRO: 300,
-  NETWORK: 1_200,
-};
+// Le plafond par minute vient du catalogue des plans (M15, `PLAN_CATALOG[…].quotas.apiRatePerMinute`,
+// surcharges comprises) : un seul référentiel, lu par l'appelant via le plan effectif.
 
-export function rateLimitFor(plan: string | null | undefined): number {
-  return RATE_LIMITS_PER_MINUTE[plan ?? ""] ?? RATE_LIMITS_PER_MINUTE.STARTER!;
+export function isWriteScope(scope: string): boolean {
+  return scope.endsWith(":write");
+}
+
+/**
+ * M15 RG-M15-19 — `features.publicApi = "read"` (offre STARTER) : aucun droit d'écriture
+ * (`*:write`). Les webhooks sortants et l'agent local restent disponibles.
+ */
+export function assertScopesAllowedByPlan(
+  scopes: readonly string[],
+  plan: { tier: string; features: { publicApi: "read" | "full" } },
+): void {
+  if (plan.features.publicApi === "full") return;
+  const write = scopes.filter(isWriteScope);
+  if (write.length > 0) {
+    throw new DomainError(
+      "PLAN_API_READ_ONLY",
+      `Votre offre ${plan.tier} donne accès à l'API en lecture seule (${write.join(", ")} indisponible). Passez à l'offre PRO.`,
+      { scopes: write, plan: plan.tier },
+    );
+  }
 }
 
 export interface RateLimitDecision {

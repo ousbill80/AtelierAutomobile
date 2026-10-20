@@ -5,3 +5,4 @@ export * from "./aging";
 export * from "./sites";
 export * from "./catalog";
 export { shiftMonths, frenchDay, isIsoDate } from "./dates";
+export * from "./kpi";

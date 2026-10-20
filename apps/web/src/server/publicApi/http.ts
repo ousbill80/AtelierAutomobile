@@ -11,7 +11,8 @@ import {
   isApiKeyUsable,
   isDomainError,
   parseBearerApiKey,
-  rateLimitFor,
+  isWriteScope,
+  type PlanDefinition,
   shouldTouchLastUsed,
   systemClock,
   truncateClientIp,
@@ -19,7 +20,7 @@ import {
   type ApiScope,
   type Clock,
 } from "@atelieros/core";
-import { adminDb, db, type ApiKey, type Prisma } from "@atelieros/db";
+import { adminDb, db, loadOrgPlan, type ApiKey, type Prisma } from "@atelieros/db";
 import { requestFingerprint, sha256Hex } from "@atelieros/integrations";
 import { ZodError, type z, type ZodTypeAny } from "zod";
 import { rateLimitStore } from "./rateLimit";
@@ -37,6 +38,8 @@ export function apiNow(): Date {
 
 export interface ApiContext {
   apiKey: ApiKey;
+  /** Plan effectif (catalogue M15 + surcharges) : débit et accès en écriture. */
+  plan: PlanDefinition;
   organizationId: string;
   tenantDb: ReturnType<typeof db.forTenant>;
   url: URL;
@@ -133,12 +136,9 @@ export async function runApi(
   let result: ApiResult;
   try {
     apiKey = await authenticate(req, now);
-    const org = await adminDb.organization.findUniqueOrThrow({
-      where: { id: apiKey.organizationId },
-      select: { plan: true },
-    });
+    const { plan } = await loadOrgPlan(apiKey.organizationId);
     const decision = await rateLimitStore()
-      .hit(apiKey.id, rateLimitFor(org.plan), now.getTime())
+      .hit(apiKey.id, plan.quotas.apiRatePerMinute, now.getTime())
       .catch(() => null);
     if (decision) {
       rateHeaders = {
@@ -154,6 +154,14 @@ export async function runApi(
           "Trop de requêtes : réessayez dans quelques secondes.",
         );
       }
+    }
+    // M15 : offre en lecture seule → aucune écriture, même avec une clé créée sous une offre supérieure.
+    if (options.scope && isWriteScope(options.scope) && plan.features.publicApi === "read") {
+      throw new ApiError(
+        403,
+        "plan_read_only",
+        `Votre offre ${plan.tier} donne accès à l'API en lecture seule. Passez à l'offre PRO.`,
+      );
     }
     if (options.scope && !hasScope(apiKey.scopes, options.scope)) {
       throw new ApiError(
@@ -175,6 +183,7 @@ export async function runApi(
     const tenantDb = db.forTenant({ organizationId: apiKey.organizationId });
     const ctx: ApiContext = {
       apiKey,
+      plan,
       organizationId: apiKey.organizationId,
       tenantDb,
       url,

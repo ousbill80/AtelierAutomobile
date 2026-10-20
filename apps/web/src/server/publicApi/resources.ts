@@ -11,7 +11,6 @@ import {
   normalizePlate,
   pageOf,
   parseUpdatedSince,
-  rateLimitFor,
 } from "@atelieros/core";
 import {
   adminDb,
@@ -664,7 +663,7 @@ export async function me(ctx: ApiContext): Promise<ApiResult> {
         scopes: ctx.apiKey.scopes,
         expires_at: iso(ctx.apiKey.expiresAt),
       },
-      rate_limit: { requests_per_minute: rateLimitFor(org.plan) },
+      rate_limit: { requests_per_minute: ctx.plan.quotas.apiRatePerMinute },
     },
   };
 }

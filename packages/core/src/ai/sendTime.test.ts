@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { learnSendPreference, optimizeSendTime, type OutboundStat } from "./sendTime";
+import {
+  learnSendPreference,
+  optimizeSendTime,
+  orderChannelsByPreference,
+  type OutboundStat,
+} from "./sendTime";
 
 const TZ = "Africa/Abidjan";
 const NOW = new Date("2026-10-20T08:00:00Z");
@@ -68,5 +73,51 @@ describe("RG-M17-16 — meilleur moment et canal", () => {
     expect(
       optimizeSendTime({ ...base, scheduledFor: at("2026-10-21T15:00:00Z"), bestHour: 9 }),
     ).toBeNull();
+  });
+});
+
+describe("RG-M17-16 — canal préféré", () => {
+  const base = {
+    stepChannels: ["WHATSAPP", "SMS"] as const,
+    preferredChannel: null,
+    bestChannel: null,
+    hasWhatsapp: null,
+    useLearned: true,
+  };
+
+  it("canal appris en tête, l'ordre de la règle reste en repli", () => {
+    expect(orderChannelsByPreference({ ...base, bestChannel: "SMS" })).toEqual(["SMS", "WHATSAPP"]);
+    expect(orderChannelsByPreference(base)).toEqual(["WHATSAPP", "SMS"]);
+  });
+
+  it("le choix manuel prime sur le canal appris", () => {
+    expect(
+      orderChannelsByPreference({ ...base, preferredChannel: "WHATSAPP", bestChannel: "SMS" }),
+    ).toEqual(["WHATSAPP", "SMS"]);
+  });
+
+  it("jamais un canal absent du palier ; WhatsApp non avancé si le numéro n'est pas WhatsApp", () => {
+    expect(orderChannelsByPreference({ ...base, bestChannel: "EMAIL" })).toEqual([
+      "WHATSAPP",
+      "SMS",
+    ]);
+    expect(
+      orderChannelsByPreference({
+        ...base,
+        stepChannels: ["SMS", "WHATSAPP"],
+        bestChannel: "WHATSAPP",
+        hasWhatsapp: false,
+      }),
+    ).toEqual(["SMS", "WHATSAPP"]);
+  });
+
+  it("optimisation désactivée : canal appris ignoré, choix manuel conservé", () => {
+    expect(orderChannelsByPreference({ ...base, bestChannel: "SMS", useLearned: false })).toEqual([
+      "WHATSAPP",
+      "SMS",
+    ]);
+    expect(
+      orderChannelsByPreference({ ...base, preferredChannel: "SMS", useLearned: false }),
+    ).toEqual(["SMS", "WHATSAPP"]);
   });
 });

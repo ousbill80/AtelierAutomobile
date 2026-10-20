@@ -35,6 +35,29 @@ export const dashboardInputSchema = z.object({
 });
 export type DashboardInput = z.infer<typeof dashboardInputSchema>;
 
+/**
+ * M12 §8 `dashboard.kpi` — un indicateur isolé (utilisé par l'assistant M17). Liste alignée
+ * sur `KPI_CODES` de `@atelieros/core` (vérifiée par le test du routeur `dashboard.kpi`).
+ */
+export const kpiCodeSchema = z.enum([
+  "revenue_ht",
+  "revenue_ttc",
+  "parts_margin",
+  "labor_margin",
+  "gross_margin",
+  "avg_ticket",
+  "collected",
+  "receivables",
+  "recovered_by_reminders",
+  "quote_acceptance",
+]);
+
+export const dashboardKpiInputSchema = dashboardInputSchema.extend({
+  metric: kpiCodeSchema,
+  compare: z.boolean().default(false),
+});
+export type DashboardKpiInput = z.infer<typeof dashboardKpiInputSchema>;
+
 export const alertsListInputSchema = z.object({
   unreadOnly: z.boolean().default(true),
   limit: z.number().int().min(1).max(50).default(5),

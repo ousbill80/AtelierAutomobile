@@ -514,6 +514,12 @@ export async function processAutomationsDispatchJob(now: Date = new Date()): Pro
     }),
   ]);
   const ids = new Set([...ruleOrgs, ...runOrgs].map((r) => r.organizationId));
+  // M15 RG-M15-22 : automatisations suspendues hors état ACTIVE (suppression programmée…).
+  const inactive = await adminDb.organization.findMany({
+    where: { id: { in: [...ids] }, lifecycleStatus: { not: "ACTIVE" } },
+    select: { id: true },
+  });
+  for (const org of inactive) ids.delete(org.id);
   for (const organizationId of ids) {
     try {
       await dispatchAutomationsForOrganization(organizationId, now);

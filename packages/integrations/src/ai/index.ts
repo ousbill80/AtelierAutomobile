@@ -64,7 +64,7 @@ export {
   ASSISTANT_PROMPT_VERSION,
   ASSISTANT_TOOLS,
   assistantSystemPrompt,
-} from "./prompts/assistant/v1";
+} from "./prompts/assistant/v2";
 export {
   buildQuoteDraftMessages,
   QUOTE_DRAFT_PROMPT_VERSION,
@@ -85,3 +85,12 @@ export type {
   QuoteExplanationOutput,
   QuoteExplanationPromptInput,
 } from "./prompts/quote_explanation/v1";
+// Prompt versionné — phrase « faits marquants » du résumé quotidien (RG-M17-21).
+export {
+  buildDigestMessage,
+  DIGEST_PROMPT_VERSION,
+  DIGEST_SYSTEM,
+  digestConsoleOutput,
+  digestOutputSchema,
+} from "./prompts/daily_digest/v1";
+export type { DigestOutput } from "./prompts/daily_digest/v1";

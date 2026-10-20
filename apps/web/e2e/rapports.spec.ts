@@ -116,14 +116,22 @@ test("gérant mobile : tableau de bord, période, rapport Ventes filtré, export
   await page.getByLabel("Du", { exact: true }).fill(from);
   await page.getByLabel("Au", { exact: true }).fill(to);
   await page.getByRole("button", { name: "Afficher" }).click();
+  // La période par défaut (mois en cours) contient aussi les factures : le total seul ne prouve
+  // pas que la période personnalisée est appliquée. On attend qu'elle soit dans l'URL avant de
+  // changer de site, sinon le filtre « Site » repart des paramètres précédents (sans du/au).
+  await expect(page).toHaveURL(new RegExp(`du=${from}&au=${to}`));
   await expect(page.getByTestId("report-totals")).toContainText("400 000 FCFA");
   await page.getByLabel("Site", { exact: true }).selectOption({ label: "Yopougon" });
-  await expect(page).toHaveURL(new RegExp(`site=${yop.id}`));
+  await expect(page).toHaveURL(new RegExp(`du=${from}&au=${to}.*site=${yop.id}`));
   await expect(page.getByTestId("report-totals")).toContainText("250 000 FCFA");
   await expect(page.getByTestId("report-count")).toContainText("sur 1");
   await noHorizontalScroll(page);
 
   // 3. Export Excel : nom de fichier §7, total HT identique à l'écran.
+  await expect(page.getByRole("link", { name: "Excel" })).toHaveAttribute(
+    "href",
+    new RegExp(`from=${from}&to=${to}`),
+  );
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("link", { name: "Excel" }).click(),

@@ -25,7 +25,8 @@
     "./portal/tracking": "./src/portal/tracking.ts",
     "./ai": "./src/ai/index.ts",
     "./automations": "./src/automations/index.ts",
-    "./api": "./src/api/index.ts"
+    "./api": "./src/api/index.ts",
+    "./calendar": "./src/calendar.ts"
   },
   "scripts": {
     "lint": "eslint .",

@@ -356,11 +356,13 @@ export {
 } from "./settings";
 export * from "./receivables";
 
-export type { DashboardInput, DigestSettings, ReportFilters } from "./dashboard";
+export type { DashboardInput, DashboardKpiInput, DigestSettings, ReportFilters } from "./dashboard";
 export {
   alertsListInputSchema,
   alertsMarkReadInputSchema,
   dashboardInputSchema,
+  dashboardKpiInputSchema,
+  kpiCodeSchema,
   DEFAULT_DIGEST_SETTINGS,
   digestSettingsSchema,
   digestUpdateSettingsInputSchema,
@@ -458,3 +460,4 @@ export * from "./paymentLinks";
 export * from "./portal";
 export * from "./automations";
 export * from "./publicApi";
+export * from "./subscription";

@@ -22,6 +22,8 @@ test("API publique : clé → création et lecture d'un client → webhook test�
   const organization = await adminDb.organization.create({
     data: {
       name: `E2E Garage API ${randomBytes(3).toString("hex")}`,
+      // Offre PRO : API publique en écriture (M15 RG-M15-19).
+      plan: "PRO",
       onboardingCompletedAt: new Date(),
     },
   });
@@ -89,7 +91,7 @@ test("API publique : clé → création et lecture d'un client → webhook test�
   expect((await replay.json()).id).toBe(customer.id);
   const list = await page.request.get("/api/v1/customers?limit=10", { headers });
   expect(list.status()).toBe(200);
-  expect(list.headers()["x-ratelimit-limit"]).toBe("60");
+  expect(list.headers()["x-ratelimit-limit"]).toBe("300");
   expect((await list.json()).data.map((c: { id: string }) => c.id)).toEqual([customer.id]);
   const forbidden = await page.request.get("/api/v1/invoices", { headers });
   expect(forbidden.status()).toBe(403);
