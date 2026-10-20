@@ -4,6 +4,7 @@ export type { WriteAuditLogInput } from "./audit";
 export {
   db,
   forTenant,
+  pingDatabases,
   MissingTenantContextError,
   TenantIsolationViolationError,
   type ScopedTenantClient,

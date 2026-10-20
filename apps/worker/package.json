@@ -17,6 +17,7 @@
     "@atelieros/integrations": "workspace:*",
     "@atelieros/pdf": "workspace:*",
     "@atelieros/validators": "workspace:*",
+    "@sentry/node": "11.5.0",
     "bullmq": "^5.34.4",
     "fflate": "0.8.2",
     "ioredis": "^5.4.2",

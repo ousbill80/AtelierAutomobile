@@ -1,6 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
-import { assertUploadable, S3ObjectStorage } from "./storage";
+import { assertUploadable, createS3ObjectStorage, S3ObjectStorage } from "./storage";
 
 describe("assertUploadable", () => {
   it("accepte un type MIME supporté sous la limite de taille", () => {
@@ -78,5 +78,40 @@ describe("S3ObjectStorage.getSignedDownloadUrl", () => {
     expect(url).toContain("atelieros-dev");
     expect(url).toContain("X-Amz-Signature");
     expect(url).toContain("X-Amz-Expires=120");
+  });
+});
+
+describe("createS3ObjectStorage — adresse publique (étape 7.2)", () => {
+  const config = {
+    endpoint: "http://s3:8333",
+    bucket: "atelieros",
+    accessKeyId: "k",
+    secretAccessKey: "s",
+  };
+
+  it("signe les URL avec l'adresse publique quand elle est fournie", async () => {
+    const storage = createS3ObjectStorage({
+      ...config,
+      publicEndpoint: "https://s3.garage.example.ci",
+    });
+    const download = await storage.getSignedDownloadUrl("a.pdf");
+    const upload = await storage.getSignedUploadUrl("b.csv", "text/csv");
+    expect(download.startsWith("https://s3.garage.example.ci/atelieros/a.pdf?")).toBe(true);
+    expect(upload.startsWith("https://s3.garage.example.ci/atelieros/b.csv?")).toBe(true);
+  });
+
+  it("garde l'adresse interne sans adresse publique", async () => {
+    const url = await createS3ObjectStorage(config).getSignedDownloadUrl("a.pdf");
+    expect(url.startsWith("http://s3:8333/atelieros/a.pdf?")).toBe(true);
+  });
+});
+
+describe("S3ObjectStorage.ping", () => {
+  it("interroge le bucket configuré", async () => {
+    const send = vi.fn().mockResolvedValue({});
+    const storage = new S3ObjectStorage({ send } as unknown as S3Client, "atelieros");
+    await storage.ping();
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]?.[0].input).toEqual({ Bucket: "atelieros" });
   });
 });

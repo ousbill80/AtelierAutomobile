@@ -323,3 +323,12 @@ export function forTenant(ctx: TenantContext) {
 }
 
 export const db = { forTenant };
+
+/**
+ * Sonde de santé (étape 7.2, `/api/health` et battement du worker) : les deux connexions —
+ * propriétaire (`DATABASE_URL`) et rôle applicatif sans BYPASSRLS (`DATABASE_APP_URL`) —
+ * répondent. Une erreur de mot de passe après rotation du rôle applicatif est ainsi visible.
+ */
+export async function pingDatabases(): Promise<void> {
+  await Promise.all([adminDb.$queryRaw`SELECT 1`, appDb.$queryRaw`SELECT 1`]);
+}
