@@ -27,6 +27,7 @@ export {
 export {
   fneBlockLines,
   fneQrImage,
+  fneQrSvg,
   InvoiceDocument,
   ReceiptDocument,
   renderInvoicePdf,

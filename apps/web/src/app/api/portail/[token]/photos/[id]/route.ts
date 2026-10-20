@@ -9,7 +9,7 @@ import { getAttachmentStorage } from "@/server/storage";
 const SHARED_KINDS = new Set(["photo_checkin", "photo_damage", "photo_inspection", "photo_work"]);
 
 async function quotePhoto(token: string, id: string) {
-  const resolved = await resolveQuoteToken(token, roNow());
+  const resolved = await resolveQuoteToken(token, roNow(), { count: false });
   if (resolved.status !== "ACTIVE") return null;
   const tenantDb = db.forTenant({ organizationId: resolved.token.organizationId });
   const target = await tenantDb.quote.findFirst({ where: { id: resolved.token.targetId } });

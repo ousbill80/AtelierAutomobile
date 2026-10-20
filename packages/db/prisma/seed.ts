@@ -173,6 +173,8 @@ async function main() {
       operatingMode: "FULL",
       // Garage de démo déjà configuré : l'espace applicatif ne renvoie pas vers /bienvenue.
       onboardingCompletedAt: new Date(),
+      // M14 : lien « Mon espace » client (/p/connexion?g=excellence-auto).
+      slug: "excellence-auto",
     },
   });
 

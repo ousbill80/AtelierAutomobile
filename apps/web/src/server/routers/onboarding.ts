@@ -10,6 +10,7 @@ import {
   defaultSiteBays,
   defaultSiteOpeningHours,
   normalizePlate,
+  organizationSlug,
 } from "@atelieros/core";
 import { adminDb, db, type Prisma } from "@atelieros/db";
 import { createConsoleMessagingProvider, type MessageChannel } from "@atelieros/integrations";
@@ -151,6 +152,11 @@ async function saveGarageStep(
           onboarding: { step: 2, skipped: [], completedAt: null },
         } as Prisma.InputJsonValue,
       },
+    });
+    // M14 : slug du lien « Mon espace » (/p/connexion?g={slug}).
+    await tx.organization.update({
+      where: { id: org.id },
+      data: { slug: organizationSlug(org.name, org.id) },
     });
     const membership = await tx.membership.create({
       data: { organizationId: org.id, userId: ctx.user.id, role: "OWNER", siteIds: [] },
