@@ -2,7 +2,9 @@
 
 // RG-M11 §7.1 : fil de discussion (version minimale) — bulles, statuts, zone de saisie.
 import { useEffect, useState } from "react";
-import { Button, StatusBadge } from "@atelieros/ui";
+import { Button } from "@atelieros/ui";
+import { InboxSuggestions } from "@/components/ai/inbox-suggestions";
+import { IntentBadge } from "@/components/ai/intent-badge";
 import { trpc } from "@/trpc/react";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -45,6 +47,7 @@ export function ConversationView({ conversationId }: { conversationId: string })
           {data.conversation.customer?.displayName ?? data.conversation.externalAddress}
         </h1>
         <p className="text-sm text-muted">{data.conversation.externalAddress}</p>
+        <IntentBadge intent={data.conversation.lastIntent} />
         {data.conversation.channel === "WHATSAPP" && (
           <p className="text-sm text-muted">
             {windowOpen ? "Fenêtre WhatsApp ouverte" : "Fenêtre fermée : modèle approuvé requis"}
@@ -74,6 +77,9 @@ export function ConversationView({ conversationId }: { conversationId: string })
         ))}
       </div>
 
+      {/* M17 §7 : suggestions sous le dernier message entrant (rien n'est envoyé sans clic). */}
+      <InboxSuggestions conversationId={conversationId} />
+
       <div className="flex gap-2">
         <input
           className="min-h-11 flex-1 rounded-md border px-3 text-sm"
@@ -88,10 +94,6 @@ export function ConversationView({ conversationId }: { conversationId: string })
           Envoyer
         </Button>
       </div>
-
-      {data.conversation.lastIntent && (
-        <StatusBadge tone="warn">Intention : {data.conversation.lastIntent}</StatusBadge>
-      )}
     </div>
   );
 }

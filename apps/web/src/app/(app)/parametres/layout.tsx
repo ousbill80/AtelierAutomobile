@@ -71,6 +71,20 @@ const NAV = [
     label: "nav.settingsPayments",
     permission: "settings:payments",
   },
+  // M17 RG-M17-10 — fonctions IA, consommation et journal.
+  {
+    key: "ia",
+    href: "/parametres/ia",
+    label: "nav.settingsAi",
+    permission: "ai:configure",
+  },
+  // M17 RG-M17-23 — automatisations « si… alors… » (ai:configure + reminder:rules_manage).
+  {
+    key: "automatisations",
+    href: "/parametres/automatisations",
+    label: "automations.nav",
+    permission: "ai:configure",
+  },
 ] as const;
 
 export default function ParametresLayout({ children }: { children: ReactNode }) {

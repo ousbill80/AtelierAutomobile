@@ -442,3 +442,4 @@ export {
 } from "./claims";
 export * from "./paymentLinks";
 export * from "./portal";
+export * from "./automations";

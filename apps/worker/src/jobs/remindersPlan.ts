@@ -11,6 +11,7 @@
 //   « Entretien » n'est pas implémenté (nécessiterait une convention de catégorie M08/M07
 //   non normalisée à ce stade).
 import { adminDb, db } from "@atelieros/db";
+import { optimizeSendTime, resolveAiSettings } from "@atelieros/core";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
 import {
@@ -333,6 +334,17 @@ export async function processRemindersPlanJob(): Promise<void> {
   }
 }
 
+/** RG-M17-16 : le décalage horaire ne s'applique pas aux messages transactionnels. */
+const NON_TRANSACTIONAL_TYPES: ReadonlySet<string> = new Set([
+  "INSPECTION",
+  "SERVICE",
+  "RECEIVABLE",
+  "QUOTE_FOLLOWUP",
+  "INSURANCE_EXPIRY",
+  "SATISFACTION",
+  "RECOMMENDED_WORK",
+]);
+
 async function planForOrganization(
   organizationId: string,
   timeZone: string,
@@ -347,6 +359,13 @@ async function planForOrganization(
   const inWarmup = settings.warmupUntil ? new Date(settings.warmupUntil) > now : false;
 
   const rules = await tenantDb.reminderRule.findMany({ where: { isActive: true } });
+  // M17 RG-M17-16 : décalage horaire par client (désactivable, `settings.ai.autoTimeOptimization`).
+  const orgRow = await adminDb.organization.findUnique({
+    where: { id: organizationId },
+    select: { settings: true },
+  });
+  const aiSettings = resolveAiSettings(orgRow?.settings);
+  const timeOptimization = aiSettings.enabled && aiSettings.autoTimeOptimization;
 
   for (const rule of rules) {
     const steps = stepsSchema.parse(rule.steps);
@@ -413,7 +432,7 @@ async function planForOrganization(
 
         const step = groupSteps.find((s) => s.key === pick.step.key)!;
         const dedupeKey = buildDedupeKey(seqKey, step.key);
-        const scheduledFor = nextSendSlot({
+        const plannedFor = nextSendSlot({
           target: pick.notBefore ?? targetDate(anchor, step),
           offsetDays: step.offsetDays,
           sendWindow,
@@ -421,6 +440,29 @@ async function planForOrganization(
           timeZone,
           now,
         });
+        // RG-M17-16 : heure optimisée dans la fenêtre de la règle, jamais > 12 h, hors
+        // messages transactionnels (types non transactionnels uniquement).
+        let scheduledFor = plannedFor;
+        let originalScheduledFor: Date | null = null;
+        if (timeOptimization && NON_TRANSACTIONAL_TYPES.has(rule.type) && !step.sendAt) {
+          const learned = await tenantDb.customer.findFirst({
+            where: { id: candidate.customerId },
+            select: { bestSendHour: true },
+          });
+          const optimized =
+            learned?.bestSendHour != null
+              ? optimizeSendTime({
+                  scheduledFor: plannedFor,
+                  bestHour: learned.bestSendHour,
+                  timeZone,
+                  sendWindow,
+                })
+              : null;
+          if (optimized) {
+            scheduledFor = optimized;
+            originalScheduledFor = plannedFor;
+          }
+        }
         const status = initialStatus({
           step: {
             internalOnly: step.internalOnly,
@@ -474,6 +516,8 @@ async function planForOrganization(
               quoteId: candidate.quoteId,
               dueDate: anchor,
               scheduledFor,
+              timeOptimized: originalScheduledFor !== null,
+              originalScheduledFor,
               status,
               channel: preliminaryChannel,
               priority: priorityOf(rule.type as never, step),

@@ -10,6 +10,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
 import { Button, EmptyState, StatusBadge, type StatusTone } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { AssistantFab } from "@/components/assistant-fab";
 import type { AppRouter } from "@/server/routers/_app";
 import { fmt, formatAmount, formatDay, L, methodLabel, reminderTypeLabel } from "./labels";
 import {
@@ -269,6 +270,7 @@ function Dashboard() {
       {tab === "cashier" && <CashierCard timeZone={timeZone} />}
 
       <AlertsBlock />
+      <AssistantFab />
     </div>
   );
 }

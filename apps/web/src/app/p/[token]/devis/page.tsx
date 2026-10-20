@@ -20,6 +20,7 @@ export default async function QuotePortalPage({ params }: { params: Promise<{ to
         decision: fr.quotes.decision,
         lines: fr.quotes.lines,
         alreadyApproved: fr.quotes.alreadyApproved,
+        ai: fr.aiQuotes.portal,
       }}
     />
   );
