@@ -62,6 +62,8 @@ model Organization {
   operatingMode   OperatingMode @default(FULL)   // REMINDERS_ONLY si le garage garde son ancien logiciel
   settings        Json     @default("{}")        // préférences diverses (voir M15) ; `stock` : allowNegative, dormantDays, countApprovalThreshold, autoIssueOnInvoice, customerPartFee (M07)
                                                  // M05 : settings.quotes = { validityDays 15, validityDaysCompany 30, requireSignature, discountCaps, depositRule, followupWhenVehicleOnSite, showLinePricesToCustomer, termsText }
+                                                 // M14 : settings.portal = { enabled, domain, primaryColor, requireSignature, allowPartialPayment, minPartialAmount, showMeasurements, showTechnicianName, bookingEnabled, bookingHorizonDays, cancelCutoffHours, googleReviewUrl, otpLoginEnabled }
+  slug            String?  @unique               // M15 §14, créé par M14 (/p/connexion?g={slug}) ; nullable jusqu'à M15
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   sites           Site[]
@@ -206,6 +208,7 @@ model CustomerContact {                         // interlocuteurs d'une entrepri
   receivesInvoices  Boolean @default(false)
   receivesReminders Boolean @default(false)
   isPrimary         Boolean  @default(false)       // M02 §14
+  portalAccess      Boolean  @default(false)       // M14 §14 — vue flotte par OTP (US-M14-09)
   createdAt         DateTime @default(now())       // M02 §14
   deletedAt         DateTime?                      // M02 §14
 }
@@ -1887,6 +1890,80 @@ model Holiday {                                   // jours fériés — source u
   @@unique([organizationId, siteId, date])
 }
 
+// ───────────── Portail client (M14 §14, A2) ─────────────
+
+model PortalToken {                               // liens publics — mécanisme unique (A2) ; créé en phase 0 (04 §3)
+  id             String @id @default(cuid())
+  organizationId String
+  tokenHash      String @unique                  // sha256 du jeton clair (32 octets base64url, 43 car.)
+  shortCode      String? @unique                 // alias SMS /l/{code} (8 car. base62)
+  scope          PortalScope
+  targetId       String                          // ressource ciblée (polymorphe selon scope)
+  customerId     String
+  status         PortalTokenStatus @default(ACTIVE)
+  expiresAt      DateTime
+  createdById    String?                         // null = automatique (relance, renvoi demandé par le client)
+  reminderId     String?
+  firstOpenedAt  DateTime?
+  lastOpenedAt   DateTime?
+  openCount      Int @default(0)
+  revokedAt      DateTime?
+  revokeReason   String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, scope, targetId])
+}
+enum PortalScope { QUOTE INVOICE REPAIR_ORDER APPOINTMENT BOOKING VEHICLE STATEMENT SURVEY }
+enum PortalTokenStatus { ACTIVE EXPIRED REVOKED }
+
+model PortalAccess {                              // M14 §14 — journal des ouvertures et actions (purge 12 mois)
+  id              String @id @default(cuid())
+  organizationId  String
+  portalTokenId   String?
+  portalSessionId String?
+  action          String                         // open | quote_decide | pay_click | book | cancel | feedback | new_link_request | otp_login | document_open
+  ipPrefix        String?                        // IP tronquée /24 (IPv6 /48)
+  userAgent       String?
+  createdAt       DateTime @default(now())
+  @@index([organizationId, createdAt])
+  @@index([portalTokenId, action, createdAt])
+}
+
+model PortalSession {                             // M14 §14 — accès « Mon espace » par OTP (RG-M14-22), 30 jours
+  id             String @id @default(cuid())
+  organizationId String
+  phone          String                          // E.164
+  tokenHash      String @unique
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  lastSeenAt     DateTime?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, phone])
+}
+
+model PortalOtpChallenge {                        // M14 RG-M14-22 (hors §14) — défi OTP : code haché, 5 min, 5 essais
+  id             String @id @default(cuid())
+  organizationId String
+  phone          String
+  codeHash       String
+  expiresAt      DateTime
+  attempts       Int @default(0)
+  consumedAt     DateTime?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, phone, createdAt])
+}
+
+model CustomerFeedback {                          // M14 §14 — avis après restitution (RG-M14-21)
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String
+  customerId     String
+  repairOrderId  String @unique                  // un seul avis par OR
+  rating         Int                             // 1-5
+  comment        String?                         // ≤ 1 000 caractères
+  createdAt      DateTime @default(now())
+  @@index([organizationId, createdAt])
+}
+
 model AuditLog {
   id             String @id @default(cuid())
   organizationId String
@@ -2032,6 +2109,8 @@ model AutomationRun {
 > Les relations (`@relation`) et les clés étrangères sont à compléter à l'implémentation selon les champs `…Id` ci-dessus. Chaque champ `…Id` pointant vers une autre table **doit** avoir sa relation et un index.
 
 > **M12 §14 (étape 6.1, migration `20261020003000_m12_rapports`)** — les rapports et le tableau de bord agrègent en SQL à la demande (`GROUP BY` via `db.forTenant(ctx).queryRaw`, sous RLS) : les modèles `KpiDaily` et `ReportExport` du PRD **ne sont pas créés** à cette étape (pas de rollup journalier ni d'export asynchrone ; exports synchrones limités à 100 000 lignes, journalisés dans `AuditLog` action `report.export`). Index ajoutés pour les filtres de période : `Invoice(organizationId, issuedAt)`, `Payment(organizationId, receivedAt)`, `Refund(organizationId, createdAt)`, `RepairOrder(organizationId, createdAt)` et `(organizationId, deliveredAt)`, `Quote(organizationId, decidedAt)`, `TimeEntry(organizationId, startedAt)`, `Reminder(organizationId, sentAt)`. Les champs `Notification.severity` / `dedupeKey` (alertes) existent depuis l'étape 2.4.
+
+> **M14 §14 (étape 6.3, migration `20261020005000_m14_portail`)** — `PortalAccess`, `PortalSession`, `CustomerFeedback`, `CustomerContact.portalAccess` créés tels que M14 §14 (RLS sur les nouvelles tables). Ajouts hors §14 : `PortalOtpChallenge` (stockage du défi OTP de RG-M14-22, le PRD n'en définit pas) et `Organization.slug` repris de M15 §14 mais **nullable** (renseigné pour les organisations existantes par la migration et à la création) jusqu'à la livraison de M15. `PortalToken` existait depuis la phase 0 (04 §3) : aucun champ recréé. Les jetons émis depuis cette étape font 32 octets (43 caractères) ; ceux de 24 octets déjà envoyés restent valides.
 
 ## 3. Règles d'intégrité
 

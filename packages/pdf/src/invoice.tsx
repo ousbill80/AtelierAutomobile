@@ -261,6 +261,15 @@ export async function fneQrImage(qrCode: string | null | undefined): Promise<str
   return QRCode.toDataURL(qrCode, { margin: 1, width: 240, errorCorrectionLevel: "M" });
 }
 
+/**
+ * RG-M14-13 — QR FNE en SVG pour la page portail (net à toute taille, plus léger qu'un PNG).
+ * Le SVG ne contient que des tracés générés : aucun texte de la facture n'y est recopié.
+ */
+export async function fneQrSvg(qrCode: string | null | undefined): Promise<string | null> {
+  if (!qrCode || qrCode.startsWith("data:image")) return null;
+  return QRCode.toString(qrCode, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+}
+
 export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
   const certified = data.fne.status === "CERTIFIED" || data.fne.status === "MANUAL";
   const qrCode = certified ? await fneQrImage(data.fne.qrCode) : null;

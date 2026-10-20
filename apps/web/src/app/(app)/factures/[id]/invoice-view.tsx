@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { amountInWords, formatFCFA } from "@atelieros/core/money";
 import { Button, CheckboxRow, Modal, PlateBadge, Textarea } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { PortalLinksPanel } from "@/components/portal/portal-links-panel";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDay } from "@/components/repair-orders/i18n";
 import { FneBadge, InvoiceStatusBadge } from "@/components/billing/badges";
@@ -282,6 +283,13 @@ export function InvoiceView({ id }: { id: string }) {
           timeZone={d.timeZone}
           canManage={perms.has("message:send")}
           onChanged={refresh}
+        />
+      )}
+      {!isDraft && !isCredit && (
+        <PortalLinksPanel
+          scope="INVOICE"
+          targetId={inv.id}
+          canWrite={perms.has("invoice:read") && perms.has("message:send")}
         />
       )}
 

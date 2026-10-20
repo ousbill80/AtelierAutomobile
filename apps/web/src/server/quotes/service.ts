@@ -32,8 +32,9 @@ import {
   type VehicleOverride,
 } from "@atelieros/core";
 import {
-  adminDb,
+  resolvePortalToken as resolvePortalTokenRow,
   tenantSequenceStore,
+  type ResolvePortalTokenOptions,
   type Prisma,
   type Quote,
   type QuoteLine,
@@ -432,27 +433,21 @@ export type ResolvedQuoteToken =
   | { status: "EXPIRED" | "REVOKED" | "NOT_FOUND"; organizationId?: string; targetId?: string };
 
 /** Résout un jeton public de portée QUOTE (hors contexte locataire, lecture par hash). */
-export async function resolveQuoteToken(token: string, now: Date): Promise<ResolvedQuoteToken> {
-  const record = await adminDb.portalToken.findUnique({ where: { tokenHash: hashToken(token) } });
-  if (!record || record.scope !== "QUOTE") return { status: "NOT_FOUND" };
-  if (record.status === "REVOKED") {
-    return { status: "REVOKED", organizationId: record.organizationId, targetId: record.targetId };
+export async function resolveQuoteToken(
+  token: string,
+  now: Date,
+  options: ResolvePortalTokenOptions = {},
+): Promise<ResolvedQuoteToken> {
+  const resolved = await resolvePortalTokenRow(token, ["QUOTE"], now, options);
+  if (resolved.status === "NOT_FOUND") return { status: "NOT_FOUND" };
+  if (resolved.status !== "ACTIVE") {
+    return {
+      status: resolved.status,
+      organizationId: resolved.row.organizationId,
+      targetId: resolved.row.targetId,
+    };
   }
-  if (record.status === "EXPIRED" || record.expiresAt.getTime() <= now.getTime()) {
-    if (record.status !== "EXPIRED") {
-      await adminDb.portalToken.update({ where: { id: record.id }, data: { status: "EXPIRED" } });
-    }
-    return { status: "EXPIRED", organizationId: record.organizationId, targetId: record.targetId };
-  }
-  await adminDb.portalToken.update({
-    where: { id: record.id },
-    data: {
-      openCount: { increment: 1 },
-      lastOpenedAt: now,
-      firstOpenedAt: record.firstOpenedAt ?? now,
-    },
-  });
-  return { status: "ACTIVE", token: record };
+  return { status: "ACTIVE", token: resolved.row };
 }
 
 /** RG-M05-09 : le jeton couvre « ce devis et ses versions suivantes par redirection ». */

@@ -7,7 +7,6 @@
 // instance unique, à déplacer dans Redis avec M14.
 import { TRPCError } from "@trpc/server";
 import {
-  DomainError,
   addDaysToKey,
   assertTransition,
   availableSlots,
@@ -24,7 +23,7 @@ import {
   type AppointmentStatusKey,
   type AppointmentTypeKey,
 } from "@atelieros/core";
-import { db, resolvePortalToken, type PortalToken } from "@atelieros/db";
+import { db, type PortalToken } from "@atelieros/db";
 import {
   portalBookInputSchema,
   portalRescheduleInputSchema,
@@ -32,6 +31,12 @@ import {
   portalAppointmentTokenInputSchema,
 } from "@atelieros/validators";
 import { emitDomainEvent } from "../events/emit";
+import {
+  requirePortalToken,
+  type PortalRequestCtx,
+  type RequirePortalTokenOptions,
+} from "../portal/access";
+import { resetPortalRateLimits } from "../portal/rateLimit";
 import { publicProcedure, router } from "../trpc";
 import {
   assertBookable,
@@ -75,19 +80,17 @@ function rateLimit(ip: string, now: Date) {
 /** Réinitialise le limiteur (tests). */
 export function resetPortalRateLimit() {
   bookingsByIp.clear();
+  resetPortalRateLimits();
 }
 
-async function requireToken(token: string, now: Date): Promise<PortalToken> {
-  const resolved = await resolvePortalToken(token, ["APPOINTMENT", "BOOKING"], now);
-  if (resolved.status === "ACTIVE") return resolved.row;
-  throw new TRPCError({
-    code: resolved.status === "NOT_FOUND" ? "NOT_FOUND" : "FORBIDDEN",
-    message:
-      resolved.status === "NOT_FOUND"
-        ? "Lien introuvable."
-        : "Ce lien a expiré. Appelez le garage pour prendre rendez-vous.",
-    cause: new DomainError(`TOKEN_${resolved.status}`, "Lien de portail non valide."),
-  });
+/** M14 : résolution unique (limitation par IP, portée, journal PortalAccess, états du lien). */
+async function requireToken(
+  token: string,
+  now: Date,
+  ctx: PortalRequestCtx,
+  options: RequirePortalTokenOptions = {},
+): Promise<PortalToken> {
+  return requirePortalToken(token, ["APPOINTMENT", "BOOKING"], ctx, { now, ...options });
 }
 
 function rethrow(error: unknown): never {
@@ -188,9 +191,9 @@ async function portalSlots(
 
 export const portalAppointmentRouter = router({
   /** Page `/p/[token]/rdv` : garage, véhicule pré-identifié, RDV existant éventuel. */
-  get: publicProcedure.input(portalAppointmentTokenInputSchema).query(async ({ input }) => {
+  get: publicProcedure.input(portalAppointmentTokenInputSchema).query(async ({ ctx, input }) => {
     const now = new Date();
-    const token = await requireToken(input.token, now);
+    const token = await requireToken(input.token, now, ctx);
     const tx = db.forTenant({ organizationId: token.organizationId }) as unknown as Tx;
     const org = await loadOrganization(token.organizationId);
     const config = planningConfigOf(org);
@@ -234,9 +237,9 @@ export const portalAppointmentRouter = router({
     };
   }),
 
-  slots: publicProcedure.input(portalSlotsInputSchema).query(async ({ input }) => {
+  slots: publicProcedure.input(portalSlotsInputSchema).query(async ({ ctx, input }) => {
     const now = new Date();
-    const token = await requireToken(input.token, now);
+    const token = await requireToken(input.token, now, ctx, { count: false });
     const tx = db.forTenant({ organizationId: token.organizationId }) as unknown as Tx;
     let type = input.type;
     let excludeId: string | undefined;
@@ -264,7 +267,7 @@ export const portalAppointmentRouter = router({
   book: publicProcedure.input(portalBookInputSchema).mutation(async ({ ctx, input }) => {
     const now = new Date();
     rateLimit(ctx.ip, now);
-    const token = await requireToken(input.token, now);
+    const token = await requireToken(input.token, now, ctx, { count: false, action: "book" });
     if (token.scope !== "BOOKING") {
       throw new TRPCError({
         code: "BAD_REQUEST",
@@ -403,77 +406,84 @@ export const portalAppointmentRouter = router({
     return { status };
   }),
 
-  confirm: publicProcedure.input(portalAppointmentTokenInputSchema).mutation(async ({ input }) => {
-    const now = new Date();
-    const token = await requireToken(input.token, now);
-    if (token.scope !== "APPOINTMENT")
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Lien invalide." });
-    const tenantDb = db.forTenant({ organizationId: token.organizationId });
-    try {
-      await tenantDb.transaction(async (tx) => {
-        const appt = await tx.appointment.findFirstOrThrow({ where: { id: token.targetId } });
-        assertTransition(appt.status as AppointmentStatusKey, "confirm");
-        await tx.appointment.update({
-          where: { id: appt.id },
-          data: { status: "CONFIRMED", confirmedAt: now, confirmedVia: "portal" },
-        });
-        await emitDomainEvent(tx as never, token.organizationId, "appointment.confirmed", {
-          appointmentId: appt.id,
-          via: "portal",
-        });
-      });
-    } catch (error) {
-      rethrow(error);
-    }
-    return { ok: true } as const;
-  }),
-
-  cancel: publicProcedure.input(portalAppointmentTokenInputSchema).mutation(async ({ input }) => {
-    const now = new Date();
-    const token = await requireToken(input.token, now);
-    if (token.scope !== "APPOINTMENT")
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Lien invalide." });
-    const tenantDb = db.forTenant({ organizationId: token.organizationId });
-    try {
-      await tenantDb.transaction(async (tx) => {
-        const appt = await tx.appointment.findFirstOrThrow({ where: { id: token.targetId } });
-        assertTransition(appt.status as AppointmentStatusKey, "cancel");
-        await tx.appointment.update({
-          where: { id: appt.id },
-          data: {
-            status: "CANCELLED",
-            cancelledAt: now,
-            cancelledBy: "CUSTOMER",
-            cancelReason: "Annulé par le client (portail)",
-          },
-        });
-        await tx.reminder.updateMany({
-          where: {
+  confirm: publicProcedure
+    .input(portalAppointmentTokenInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const now = new Date();
+      const token = await requireToken(input.token, now, ctx, { count: false, action: "confirm" });
+      if (token.scope !== "APPOINTMENT")
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Lien invalide." });
+      const tenantDb = db.forTenant({ organizationId: token.organizationId });
+      try {
+        await tenantDb.transaction(async (tx) => {
+          const appt = await tx.appointment.findFirstOrThrow({ where: { id: token.targetId } });
+          assertTransition(appt.status as AppointmentStatusKey, "confirm");
+          await tx.appointment.update({
+            where: { id: appt.id },
+            data: { status: "CONFIRMED", confirmedAt: now, confirmedVia: "portal" },
+          });
+          await emitDomainEvent(tx as never, token.organizationId, "appointment.confirmed", {
             appointmentId: appt.id,
-            type: "APPOINTMENT",
-            status: { in: ["PLANNED", "NEEDS_APPROVAL", "SNOOZED"] },
-          },
-          data: { status: "CANCELLED", skippedReason: "Rendez-vous annulé." },
+            via: "portal",
+          });
         });
-        await emitDomainEvent(tx as never, token.organizationId, "appointment.cancelled", {
-          appointmentId: appt.id,
-          vehicleId: appt.vehicleId,
-          customerId: appt.customerId,
-          cancelledBy: "CUSTOMER",
+      } catch (error) {
+        rethrow(error);
+      }
+      return { ok: true } as const;
+    }),
+
+  cancel: publicProcedure
+    .input(portalAppointmentTokenInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const now = new Date();
+      const token = await requireToken(input.token, now, ctx, { count: false, action: "cancel" });
+      if (token.scope !== "APPOINTMENT")
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Lien invalide." });
+      const tenantDb = db.forTenant({ organizationId: token.organizationId });
+      try {
+        await tenantDb.transaction(async (tx) => {
+          const appt = await tx.appointment.findFirstOrThrow({ where: { id: token.targetId } });
+          assertTransition(appt.status as AppointmentStatusKey, "cancel");
+          await tx.appointment.update({
+            where: { id: appt.id },
+            data: {
+              status: "CANCELLED",
+              cancelledAt: now,
+              cancelledBy: "CUSTOMER",
+              cancelReason: "Annulé par le client (portail)",
+            },
+          });
+          await tx.reminder.updateMany({
+            where: {
+              appointmentId: appt.id,
+              type: "APPOINTMENT",
+              status: { in: ["PLANNED", "NEEDS_APPROVAL", "SNOOZED"] },
+            },
+            data: { status: "CANCELLED", skippedReason: "Rendez-vous annulé." },
+          });
+          await emitDomainEvent(tx as never, token.organizationId, "appointment.cancelled", {
+            appointmentId: appt.id,
+            vehicleId: appt.vehicleId,
+            customerId: appt.customerId,
+            cancelledBy: "CUSTOMER",
+          });
         });
-      });
-    } catch (error) {
-      rethrow(error);
-    }
-    return { ok: true } as const;
-  }),
+      } catch (error) {
+        rethrow(error);
+      }
+      return { ok: true } as const;
+    }),
 
   reschedule: publicProcedure
     .input(portalRescheduleInputSchema)
     .mutation(async ({ ctx, input }) => {
       const now = new Date();
       rateLimit(ctx.ip, now);
-      const token = await requireToken(input.token, now);
+      const token = await requireToken(input.token, now, ctx, {
+        count: false,
+        action: "reschedule",
+      });
       if (token.scope !== "APPOINTMENT")
         throw new TRPCError({ code: "BAD_REQUEST", message: "Lien invalide." });
       const tenantDb = db.forTenant({ organizationId: token.organizationId });
