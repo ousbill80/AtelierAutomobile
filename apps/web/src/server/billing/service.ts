@@ -608,7 +608,9 @@ export async function issueInvoice(
       now: org.now,
       timeZone: org.timeZone,
       lastIssuedAt: last,
-      paymentTermsDays: invoice.billTo === "CUSTOMER" ? customer.paymentTermsDays : 30,
+      // M16 : facture assurance d'un sinistre → délai de la compagnie (Customer lié).
+      paymentTermsDays:
+        invoice.billTo === "CUSTOMER" || invoice.insuranceClaimId ? customer.paymentTermsDays : 30,
       fneMode: org.fneMode,
     }),
   );

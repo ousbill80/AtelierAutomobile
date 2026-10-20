@@ -48,7 +48,8 @@ export async function allocatableInvoices(tx: Tx, customerId: string) {
   const invoices = await tx.invoice.findMany({
     where: {
       customerId,
-      billTo: "CUSTOMER",
+      // M16 : le Customer d'un assureur reçoit les factures `billTo = INSURANCE` des sinistres.
+      OR: [{ billTo: "CUSTOMER" }, { billTo: "INSURANCE", customer: { insurer: { isNot: null } } }],
       type: { in: ["INVOICE", "DEPOSIT"] },
       status: { in: [...ALLOCATABLE] },
     },

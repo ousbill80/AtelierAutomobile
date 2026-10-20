@@ -62,6 +62,10 @@ async function main(): Promise<void> {
     await import("./queues/workshop");
   const { processWorkshopCloseStaleJob, processWorkshopLateAlertsJob } =
     await import("./jobs/workshopJobs");
+  const { CLAIMS_JOB_NAMES, CLAIMS_QUEUE_NAME, scheduleClaimsJobs } =
+    await import("./queues/claims");
+  const { processClaimsPlanFollowUpsJob, processClaimsDispatchFollowUpsJob } =
+    await import("./jobs/claimsJobs");
   const { FNE_JOB_NAMES, FNE_QUEUE_NAME, scheduleFneJobs } = await import("./queues/fne");
   type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
   const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
@@ -274,6 +278,24 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "workshop : un job a échoué");
   });
 
+  // M16 §9 : relances de l'assureur (accord, expert, règlement).
+  await scheduleClaimsJobs();
+
+  const claimsWorker = new Worker(
+    CLAIMS_QUEUE_NAME,
+    async (job: Job) => {
+      if (job.name === CLAIMS_JOB_NAMES.PLAN_FOLLOWUPS) return processClaimsPlanFollowUpsJob();
+      if (job.name === CLAIMS_JOB_NAMES.DISPATCH_FOLLOWUPS)
+        return processClaimsDispatchFollowUpsJob();
+      logger.warn({ jobName: job.name }, "claims : job inconnu, ignoré");
+      return undefined;
+    },
+    { connection: createRedisConnection() },
+  );
+  claimsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "claims : un job a échoué");
+  });
+
   // M08 §9 : certification FNE à l'émission et reprises toutes les 10 min (RG-M08-15/16).
   await scheduleFneJobs();
 
@@ -309,6 +331,7 @@ async function main(): Promise<void> {
       quotesWorker.close(),
       cashWorker.close(),
       workshopWorker.close(),
+      claimsWorker.close(),
       fneWorker.close(),
     ]);
     process.exit(0);
