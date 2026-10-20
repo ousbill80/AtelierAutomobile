@@ -117,7 +117,7 @@ test("automatisation « OR prêt » : activation en un clic, OR passé à Prêt,
   // 2. Passer l'OR à Prêt.
   await page.goto(`/ordres/${order.id}`);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: /Terminer$/ }).click();
+  await page.getByRole("button", { name: "Terminer les travaux" }).click();
   await expect
     .poll(async () => (await adminDb.repairOrder.findUnique({ where: { id: order.id } }))?.status)
     .toBe("READY");
