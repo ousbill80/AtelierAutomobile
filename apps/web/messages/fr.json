@@ -148,7 +148,8 @@
     "settingsPayments": "Paiements",
     "settingsAi": "Intelligence artificielle",
     "assistant": "Assistant",
-    "reports": "Rapports"
+    "reports": "Rapports",
+    "settingsApi": "API et webhooks"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -4702,6 +4703,71 @@
         "dso": "DSO"
       },
       "sortBy": "Trier par"
+    }
+  },
+  "apiSettings": {
+    "title": "API et webhooks",
+    "description": "Connectez votre logiciel de gestion ou votre ERP à AtelierOS : clés d'accès à l'API publique et notifications envoyées à vos serveurs.",
+    "docs": "Documentation OpenAPI",
+    "loadError": "Impossible de charger les paramètres de l'API.",
+    "keys": {
+      "title": "Clés API",
+      "new": "Nouvelle clé",
+      "empty": "Aucune clé API.",
+      "name": "Nom de la clé",
+      "namePlaceholder": "ERP comptabilité",
+      "environment": "Environnement",
+      "environments": {
+        "live": "Production",
+        "test": "Test (bac à sable)"
+      },
+      "scopes": "Droits",
+      "expiresAt": "Expire le (facultatif)",
+      "create": "Créer la clé",
+      "createdTitle": "Clé créée",
+      "copyOnce": "Copiez cette clé maintenant : elle ne sera plus jamais affichée.",
+      "copy": "Copier",
+      "copied": "Copiée",
+      "revoke": "Révoquer",
+      "revoked": "Révoquée",
+      "active": "Active",
+      "expired": "Expirée",
+      "lastUsed": "Dernière utilisation : {date}",
+      "neverUsed": "Jamais utilisée",
+      "requests": "{count} requête(s) sur 24 h",
+      "logs": "Journal d'accès",
+      "noLogs": "Aucune requête enregistrée."
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "new": "Nouveau webhook",
+      "empty": "Aucun webhook.",
+      "url": "URL de destination (https)",
+      "description": "Description (facultatif)",
+      "events": "Événements",
+      "create": "Créer le webhook",
+      "secretTitle": "Secret de signature",
+      "secretOnce": "Copiez ce secret maintenant : il signe chaque envoi (en-tête X-AtelierOS-Signature) et ne sera plus affiché.",
+      "test": "Tester",
+      "rotate": "Changer le secret",
+      "rotateHint": "L'ancien secret reste valable 24 h.",
+      "disable": "Désactiver",
+      "enable": "Réactiver",
+      "delete": "Supprimer",
+      "active": "Actif",
+      "inactive": "Désactivé",
+      "failures": "{count} échec(s) consécutif(s)",
+      "deliveries": "Dernières livraisons",
+      "noDeliveries": "Aucune livraison.",
+      "redeliver": "Renvoyer",
+      "attempt": "tentative {count}",
+      "nextAttempt": "prochain essai le {date}",
+      "status": {
+        "pending": "En attente",
+        "succeeded": "Livré",
+        "failed": "Échec"
+      },
+      "testResult": "Test : {status}"
     }
   }
 }

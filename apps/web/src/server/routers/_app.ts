@@ -13,6 +13,7 @@ import { customerRouter } from "./customer";
 import { alertsRouter, dashboardRouter, digestRouter } from "./dashboard";
 import { dataSourcesRouter } from "./dataSources";
 import { syncAgentsRouter } from "./syncAgents";
+import { apiKeysRouter, webhooksRouter } from "./integrations";
 import { reportsRouter } from "./reports";
 import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
@@ -94,6 +95,8 @@ export const appRouter = router({
   import: importRouter,
   dataSources: dataSourcesRouter,
   syncAgents: syncAgentsRouter,
+  apiKeys: apiKeysRouter,
+  webhooks: webhooksRouter,
   customer: customerRouter,
   vehicle: vehicleRouter,
   contact: contactRouter,

@@ -108,3 +108,23 @@ export { LocalObjectStorage } from "./storage-local";
 export type { BinaryObjectStorage } from "./storage-local";
 
 export * from "./ai";
+
+export {
+  FakeWebhookSender,
+  generateApiKey,
+  generateWebhookSecret,
+  HttpWebhookSender,
+  requestFingerprint,
+  resolveWebhookSender,
+  sha256Hex,
+  signWebhook,
+  webhookHmac,
+} from "./webhooks";
+export type {
+  FakeResponder,
+  FakeWebhookRecord,
+  HostResolver,
+  WebhookRequest,
+  WebhookResponse,
+  WebhookSender,
+} from "./webhooks";

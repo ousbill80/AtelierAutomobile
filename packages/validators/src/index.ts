@@ -456,3 +456,4 @@ export {
 } from "./claims";
 export * from "./paymentLinks";
 export * from "./automations";
+export * from "./publicApi";

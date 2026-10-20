@@ -85,6 +85,13 @@ const NAV = [
     label: "automations.nav",
     permission: "ai:configure",
   },
+  // M13 §7 — clés de l'API publique et webhooks sortants (étape 6.4).
+  {
+    key: "api",
+    href: "/parametres/api",
+    label: "nav.settingsApi",
+    permission: "integration:manage",
+  },
 ] as const;
 
 export default function ParametresLayout({ children }: { children: ReactNode }) {

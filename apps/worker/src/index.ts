@@ -79,6 +79,10 @@ async function main(): Promise<void> {
   const { FNE_JOB_NAMES, FNE_QUEUE_NAME, scheduleFneJobs } = await import("./queues/fne");
   type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
   const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
+  const { WEBHOOKS_JOB_NAMES, WEBHOOKS_QUEUE_NAME, scheduleWebhookJobs } =
+    await import("./queues/webhooks");
+  const { processIdempotencyPurgeJob, processWebhooksDispatchJob } =
+    await import("./jobs/webhooks");
   const { AI_JOB_NAMES, AI_QUEUE_NAME, scheduleAiJobs } = await import("./queues/ai");
   const {
     processAiAnomaliesJob,
@@ -444,6 +448,28 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "automations : un job a échoué");
   });
 
+  // M13 §9 : webhooks sortants (diffusion + livraisons échues chaque minute) et purge horaire.
+  await scheduleWebhookJobs();
+
+  const webhooksWorker = new Worker(
+    WEBHOOKS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case WEBHOOKS_JOB_NAMES.DISPATCH:
+          return processWebhooksDispatchJob();
+        case WEBHOOKS_JOB_NAMES.PURGE:
+          return processIdempotencyPurgeJob();
+        default:
+          logger.warn({ jobName: job.name }, "webhooks : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection(), concurrency: 1 },
+  );
+  webhooksWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "webhooks : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -452,6 +478,7 @@ async function main(): Promise<void> {
       remindersWorker.close(),
       reportsWorker.close(),
       syncWorker.close(),
+      webhooksWorker.close(),
       appointmentsWorker.close(),
       repairOrdersWorker.close(),
       stockWorker.close(),
