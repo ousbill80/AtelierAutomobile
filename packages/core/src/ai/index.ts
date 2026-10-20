@@ -8,3 +8,4 @@ export * from "./mapping";
 export * from "./quoteDraft";
 export * from "./anomalies";
 export * from "./sendTime";
+export * from "./digest";

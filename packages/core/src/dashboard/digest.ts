@@ -23,6 +23,8 @@ export interface DigestInput {
   orders?: { opened: number; delivered: number; inProgress: number };
   today?: { appointments: number; promised: number; blockedParts: number };
   alerts: readonly string[];
+  /** M17 RG-M17-21 — phrase « faits marquants » (≤ 200 caractères), si activée et disponible. */
+  highlight?: string | null;
   link: string;
 }
 
@@ -106,6 +108,8 @@ export function buildDigestText(input: DigestInput): string {
     );
   }
   for (const alert of input.alerts) lines.push(`⚠️ ${alert}`);
+  // M17 RG-M17-21 : en dernier, donc la première ligne retirée si le message est trop long.
+  if (input.highlight) lines.push(`💡 ${input.highlight}`);
 
   const footer = `Détails : ${input.link}`;
   // Tronque les alertes (en dernier) si le message dépasse la limite WhatsApp.

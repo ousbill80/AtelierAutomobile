@@ -4,6 +4,7 @@
 import {
   ALERT_NOTIFICATION_TYPES,
   buildDigestText,
+  type DigestInput,
   computeRevenue,
   RO_IN_PROGRESS_STATUSES,
   computeReceivables,
@@ -25,6 +26,13 @@ export async function buildDigestForMembership(
   membership: { id: string; siteIds: string[] },
   now: Date,
   link: string,
+  options: {
+    /**
+     * M17 RG-M17-21 : phrase « faits marquants » calculée par l'appelant (service IA) à partir
+     * des chiffres du résumé ; `null` ou une erreur → résumé sans phrase (jamais bloquant).
+     */
+    highlight?: (input: DigestInput) => Promise<string | null>;
+  } = {},
 ): Promise<string> {
   const { siteIds } = membership;
   const tz = org.timezone;
@@ -137,7 +145,7 @@ export async function buildDigestForMembership(
     receivedAt: r.paymentAllocation.payment!.receivedAt,
   }));
 
-  return buildDigestText({
+  const digest: DigestInput = {
     garageName: org.name,
     now,
     timeZone: tz,
@@ -156,7 +164,16 @@ export async function buildDigestForMembership(
     ...(full ?? {}),
     alerts: alerts.map((a) => a.title),
     link,
-  });
+  };
+  let highlight: string | null = null;
+  if (options.highlight) {
+    try {
+      highlight = await options.highlight(digest);
+    } catch {
+      highlight = null;
+    }
+  }
+  return buildDigestText({ ...digest, highlight });
 }
 
 /**

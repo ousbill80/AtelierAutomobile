@@ -8,47 +8,57 @@ Donner au gérant, en 10 secondes, l'état de son garage : ce qui rentre, ce qui
 
 ## 2. Utilisateurs et cas d'usage
 
-| Rôle | Ce qu'il fait | Fréquence |
-|---|---|---|
-| OWNER | Consulte le tableau de bord sur téléphone, lit le résumé quotidien WhatsApp, compare les sites, exporte les rapports | Quotidien |
-| MANAGER | Suit les OR en cours, l'occupation des ponts, l'efficacité des mécaniciens | Plusieurs fois par jour |
-| ADVISOR | Voit RDV du jour, relances à valider, devis en attente, véhicules prêts | Continu |
-| ACCOUNTANT | Encaissements par mode, balance âgée, DSO, exports | Quotidien / mensuel |
-| CASHIER | Encaissements du jour de sa caisse | Quotidien |
+| Rôle       | Ce qu'il fait                                                                                                        | Fréquence               |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| OWNER      | Consulte le tableau de bord sur téléphone, lit le résumé quotidien WhatsApp, compare les sites, exporte les rapports | Quotidien               |
+| MANAGER    | Suit les OR en cours, l'occupation des ponts, l'efficacité des mécaniciens                                           | Plusieurs fois par jour |
+| ADVISOR    | Voit RDV du jour, relances à valider, devis en attente, véhicules prêts                                              | Continu                 |
+| ACCOUNTANT | Encaissements par mode, balance âgée, DSO, exports                                                                   | Quotidien / mensuel     |
+| CASHIER    | Encaissements du jour de sa caisse                                                                                   | Quotidien               |
 
 ## 3. User stories
 
 **US-M12-01 — En tant que gérant, je veux un tableau de bord mobile qui affiche CA, encaissements, créances et résultats des relances afin de savoir en 10 secondes où en est le garage.**
+
 - Étant donné que je suis OWNER et que j'ouvre `/tableau-de-bord` sur un écran de 390 px, quand la page charge, alors je vois en premier 4 cartes (CA HT du mois, Encaissé du mois, Créances en cours dont > 30 j, Récupéré grâce aux relances 30 j), chacune avec la variation vs période précédente, en moins de 1,5 s sur 3G (données issues du cache).
 - Étant donné que je touche la carte « Créances en cours », alors j'arrive sur `/creances` filtré sur « en retard ».
 
 **US-M12-02 — En tant qu'utilisateur, je veux choisir la période et le site afin d'analyser une situation précise.**
+
 - Étant donné les sélecteurs Période (Aujourd'hui, 7 j, Mois en cours, Mois précédent, 30 j, Trimestre, Année, Personnalisée) et Site (Tous / un site autorisé), quand je change un filtre, alors tous les blocs se recalculent et l'URL contient `?periode=mois&site=YOP` (partageable).
 - Étant donné que mon `Membership.siteIds = ["site_yop"]`, alors le sélecteur ne propose que Yopougon et « Tous les sites » n'existe pas.
 
 **US-M12-03 — En tant que chef d'atelier, je veux un tableau de bord atelier afin d'organiser la journée.**
+
 - Étant donné que je suis MANAGER, quand j'ouvre le tableau de bord, alors je vois par défaut l'onglet « Atelier » : OR par statut (compteurs cliquables), OR en retard sur `promisedAt`, taux d'occupation du jour, efficacité par mécanicien sur 7 j, OR en `WAITING_PARTS` depuis > 48 h.
 
 **US-M12-04 — En tant que réceptionniste, je veux voir ce que j'ai à faire maintenant.**
+
 - Étant donné que je suis ADVISOR, alors l'onglet « Accueil » affiche : RDV du jour (heure, client, plaque, statut), relances `NEEDS_APPROVAL` (5 premières + « Tout voir »), devis `SENT`/`VIEWED` sans décision depuis > 48 h, véhicules `READY` non livrés.
 
 **US-M12-05 — En tant que comptable, je veux exporter la balance âgée en Excel à une date donnée.**
+
 - Étant donné que je choisis « Balance âgée » au 30/09/2026 et « Excel », quand je clique « Exporter », alors un fichier `balance-agee_2026-09-30_Garage-Excellence-Auto.xlsx` est généré (asynchrone si > 5 000 lignes) avec une ligne par facture ouverte et un onglet de synthèse par client, et les totaux sont identiques à ceux affichés à l'écran.
 
 **US-M12-06 — En tant que gérant, je veux savoir combien les relances ont rapporté, avec une règle claire.**
+
 - Étant donné qu'une relance créance J+15 sur FAC-2026-000412 (185 000 FCFA) est envoyée le 03/10/2026 à 9 h 00 et qu'un paiement Wave de 185 000 FCFA est alloué à cette facture le 06/10/2026, alors « Récupéré grâce aux relances » inclut 185 000 FCFA pour octobre et le détail affiche la relance attributaire.
 - Étant donné qu'un paiement arrive 20 jours après la dernière relance, alors il n'est pas attribué (fenêtre par défaut 14 j).
 
 **US-M12-07 — En tant que gérant d'un réseau, je veux comparer mes sites.**
+
 - Étant donné une organisation de 2 sites ou plus et la permission `dashboard:owner`, quand j'ouvre `/rapports/comparaison-sites`, alors je vois un tableau sites × indicateurs (CA HT, marge globale %, panier moyen, nb OR, taux d'acceptation, occupation, efficacité, encours, DSO) avec la ligne « Réseau » et le classement par indicateur.
 
 **US-M12-08 — En tant que gérant, je veux recevoir un résumé chaque matin.**
+
 - Étant donné `settings.digest.enabled = true`, canal WhatsApp, heure 07:30, quand la tâche `digest.owner` s'exécute, alors je reçois un message conforme à RG-M12-30, une seule fois par jour (clé de dédoublonnage `digest:{membershipId}:{date}`).
 
 **US-M12-09 — En tant que gérant, je veux être alerté des situations anormales.**
+
 - Étant donné qu'une caisse est clôturée avec un écart de −12 500 FCFA, alors une notification « Écart de caisse −12 500 FCFA — Atelier Yopougon » m'est créée immédiatement et apparaît dans le bloc Alertes.
 
 **US-M12-10 — En tant que garage en mode « Relances seules », je veux un tableau de bord adapté.**
+
 - Étant donné `Organization.operatingMode = REMINDERS_ONLY`, alors le tableau de bord affiche la version AutoRappel : relances à traiter aujourd'hui, créances en cours (dont > 30 j), VT expirant sous 30 j, révisions dues ce mois, bloc résultats des relances, top 5 impayés, alertes système ; aucun bloc OR/atelier/stock.
 
 ## 4. Règles métier
@@ -62,53 +72,53 @@ Donner au gérant, en 10 secondes, l'état de son garage : ce qui rentre, ce qui
 
 ### 4.2 Définition exacte des indicateurs
 
-| Code | Indicateur | Formule | Période / instant |
-|---|---|---|---|
-| RG-M12-05 `revenue_ht` | CA HT | `Σ InvoiceLine.lineSubtotal` des factures valides − `Σ lineSubtotal` des avoirs émis. Si une facture importée n'a pas de lignes (`origin = IMPORTED`, cf. M13), utiliser `Invoice.subtotal − Invoice.discountTotal`. `lineSubtotal` est net de remise (M08). | `issuedAt` dans la période |
-| RG-M12-06 `revenue_ttc` | CA TTC | idem avec `lineTotal` (ou `Invoice.total`). | idem |
-| RG-M12-07 `revenue_by_type` | CA par nature | CA HT ventilé par `InvoiceLine.type` : MO (`LABOR`), Pièces (`PART` + `CONSUMABLE`), Sous-traitance (`SUBCONTRACT`), Frais (`FEE`). | idem |
-| RG-M12-08 `parts_margin` | Marge pièces | `Σ (lineSubtotal − quantity × unitCost)` sur lignes PART/CONSUMABLE. `unitCost` = CMP figé au moment de la sortie : moyenne pondérée des `StockMovement` `ISSUE_TO_RO` (net des `RETURN_FROM_RO`) du même `productId` et du même `repairOrderId` ; à défaut `Product.averageCost` actuel et la ligne est marquée « coût estimé ». Taux = marge / CA pièces. | idem |
-| RG-M12-09 `labor_margin` | Marge MO | CA MO − coût MO. Coût MO = `Σ heures pointées × Membership.hourlyCost` des `TimeEntry` des OR rattachés aux factures valides de la période. Heures pointées d'une entrée = `(endedAt − startedAt) en minutes − pauseMinutes`, ÷ 60, entrées `endedAt = null` ignorées. `hourlyCost` nul → `settings.costs.defaultMechanicHourlyCost` (défaut 2 500 FCFA/h) et marquage « coût estimé ». | idem |
-| RG-M12-10 `gross_margin` | Marge globale | marge pièces + marge MO + CA frais + CA sous-traitance (coût sous-traitance non suivi en v1, signalé « hors coût »). Taux = marge globale / CA HT. | idem |
-| RG-M12-11 `avg_ticket` | Panier moyen | CA HT / nombre de factures valides de type INVOICE (avoirs non comptés au dénominateur). | idem |
-| RG-M12-12 `ro_counts` | Nombre d'OR | **Ouverts** : `createdAt` dans la période, `status ≠ CANCELLED`, `deletedAt null`, `origin ≠ IMPORTED`. **Livrés** : `deliveredAt` dans la période. **En cours (instantané)** : statut ∉ {DRAFT, DELIVERED, INVOICED, CANCELLED} à l'instant présent. | période / instant |
-| RG-M12-13 `quote_acceptance` | Taux d'acceptation des devis | Univers : **dernière version** de chaque numéro de devis, décidée dans la période (`decidedAt` dans la période, ou `validUntil` dans la période pour `EXPIRED`). En nombre : `(ACCEPTED + PARTIALLY_ACCEPTED + CONVERTED) / (ACCEPTED + PARTIALLY_ACCEPTED + CONVERTED + DECLINED + EXPIRED)`. En valeur : `Σ total TTC des QuoteLine accepted = true / Σ Quote.total` de l'univers. Les deux sont affichés ; la carte montre la valeur en nombre. | décision |
-| RG-M12-14 `bay_occupancy` | Taux d'occupation des ateliers | **Réel** = heures pointées sur le site / capacité. **Planifié** = `Σ durée (endsAt − startsAt)` des `Appointment` avec `bayId`, statut ∉ {CANCELLED, NO_SHOW} / capacité. Capacité = `Σ ponts actifs (Bay.isActive, type ≠ WASH)` × heures d'ouverture du site (`Site.openingHours`) sur la période, jours fériés (`Holiday`, M15) exclus. Plafonné à 100 % à l'affichage, valeur brute dans l'export. | période |
-| RG-M12-15 `tech_efficiency` | Efficacité mécanicien | Heures vendues / heures pointées. Heures vendues = `Σ RepairOrderLine.quantity` (type LABOR, `assignedToId` = mécanicien, `status = DONE`) des OR facturés dans la période. Heures pointées = sur ces mêmes lignes. Objectif affiché ≥ 100 %. | facturation |
-| RG-M12-16 `tech_productivity` | Productivité | Heures pointées sur OR / heures de présence (`Attendance.clockOut − clockIn`). **Rendement global** = heures vendues / heures de présence. | période |
-| RG-M12-17 `receivables` | Créances en cours | `Σ Invoice.balance` des factures INVOICE `status IN (ISSUED, PARTIALLY_PAID, OVERDUE, DISPUTED)` à l'instant T. **En retard** : `dueDate < T`. **> 30 j** : `T − dueDate > 30`. Les `DISPUTED` sont comptées mais montrées à part. | instant |
-| RG-M12-18 `aged_balance` | Balance âgée | Tranches sur jours de retard `d = T − dueDate` : Non échu (`d ≤ 0`), 1–30, 31–60, 61–90, > 90. À une date passée T, le solde est reconstitué : `total − Σ allocations des paiements reçus ≤ T` pour les factures émises ≤ T. | instant (date choisie) |
-| RG-M12-19 `dso` | DSO (délai moyen d'encaissement) | `round(encours TTC à T / CA TTC des 90 jours précédant T × 90)` en jours. CA TTC nul → « — ». | instant, fenêtre 90 j |
-| RG-M12-20 `collected` | Encaissements | `Σ Payment.amount` `status = CONFIRMED`, `receivedAt` dans la période, ventilé par `method`. Les remboursements (`REFUNDED`) sont affichés en négatif sur leur date de mise à jour. Les règlements de reprise de solde importés (`origin = IMPORTED` avec `reference = 'OPENING'`) sont exclus. | `receivedAt` |
-| RG-M12-21 `recovered_by_reminders` | Montant récupéré grâce aux relances | Voir RG-M12-22. | `receivedAt` |
-| RG-M12-23 `reminder_return_rate` | Taux de retour VT / révision | Voir RG-M12-24. | cohorte |
-| RG-M12-25 `active_customers` | Clients actifs / nouveaux / perdus | Activité = au moins une facture valide ou un OR non annulé (dates `issuedAt`/`createdAt`). **Actifs** : activité dans les 12 mois précédant la fin de période. **Nouveaux** : première activité de l'historique dans la période. **Perdus** : activité entre 24 et 12 mois avant la fin de période, aucune dans les 12 derniers mois. | fin de période |
-| RG-M12-26 `top_parts` | Top pièces | Lignes PART des factures valides, groupées par `productId` (sinon par `description` normalisée), triées par CA HT puis quantité ; colonnes : quantité, CA HT, marge, nb OR. Top 10 au tableau de bord, complet en rapport. | `issuedAt` |
+| Code                               | Indicateur                          | Formule                                                                                                                                                                                                                                                                                                                                                                                                                                            | Période / instant          |
+| ---------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| RG-M12-05 `revenue_ht`             | CA HT                               | `Σ InvoiceLine.lineSubtotal` des factures valides − `Σ lineSubtotal` des avoirs émis. Si une facture importée n'a pas de lignes (`origin = IMPORTED`, cf. M13), utiliser `Invoice.subtotal − Invoice.discountTotal`. `lineSubtotal` est net de remise (M08).                                                                                                                                                                                       | `issuedAt` dans la période |
+| RG-M12-06 `revenue_ttc`            | CA TTC                              | idem avec `lineTotal` (ou `Invoice.total`).                                                                                                                                                                                                                                                                                                                                                                                                        | idem                       |
+| RG-M12-07 `revenue_by_type`        | CA par nature                       | CA HT ventilé par `InvoiceLine.type` : MO (`LABOR`), Pièces (`PART` + `CONSUMABLE`), Sous-traitance (`SUBCONTRACT`), Frais (`FEE`).                                                                                                                                                                                                                                                                                                                | idem                       |
+| RG-M12-08 `parts_margin`           | Marge pièces                        | `Σ (lineSubtotal − quantity × unitCost)` sur lignes PART/CONSUMABLE. `unitCost` = CMP figé au moment de la sortie : moyenne pondérée des `StockMovement` `ISSUE_TO_RO` (net des `RETURN_FROM_RO`) du même `productId` et du même `repairOrderId` ; à défaut `Product.averageCost` actuel et la ligne est marquée « coût estimé ». Taux = marge / CA pièces.                                                                                        | idem                       |
+| RG-M12-09 `labor_margin`           | Marge MO                            | CA MO − coût MO. Coût MO = `Σ heures pointées × Membership.hourlyCost` des `TimeEntry` des OR rattachés aux factures valides de la période. Heures pointées d'une entrée = `(endedAt − startedAt) en minutes − pauseMinutes`, ÷ 60, entrées `endedAt = null` ignorées. `hourlyCost` nul → `settings.costs.defaultMechanicHourlyCost` (défaut 2 500 FCFA/h) et marquage « coût estimé ».                                                            | idem                       |
+| RG-M12-10 `gross_margin`           | Marge globale                       | marge pièces + marge MO + CA frais + CA sous-traitance (coût sous-traitance non suivi en v1, signalé « hors coût »). Taux = marge globale / CA HT.                                                                                                                                                                                                                                                                                                 | idem                       |
+| RG-M12-11 `avg_ticket`             | Panier moyen                        | CA HT / nombre de factures valides de type INVOICE (avoirs non comptés au dénominateur).                                                                                                                                                                                                                                                                                                                                                           | idem                       |
+| RG-M12-12 `ro_counts`              | Nombre d'OR                         | **Ouverts** : `createdAt` dans la période, `status ≠ CANCELLED`, `deletedAt null`, `origin ≠ IMPORTED`. **Livrés** : `deliveredAt` dans la période. **En cours (instantané)** : statut ∉ {DRAFT, DELIVERED, INVOICED, CANCELLED} à l'instant présent.                                                                                                                                                                                              | période / instant          |
+| RG-M12-13 `quote_acceptance`       | Taux d'acceptation des devis        | Univers : **dernière version** de chaque numéro de devis, décidée dans la période (`decidedAt` dans la période, ou `validUntil` dans la période pour `EXPIRED`). En nombre : `(ACCEPTED + PARTIALLY_ACCEPTED + CONVERTED) / (ACCEPTED + PARTIALLY_ACCEPTED + CONVERTED + DECLINED + EXPIRED)`. En valeur : `Σ total TTC des QuoteLine accepted = true / Σ Quote.total` de l'univers. Les deux sont affichés ; la carte montre la valeur en nombre. | décision                   |
+| RG-M12-14 `bay_occupancy`          | Taux d'occupation des ateliers      | **Réel** = heures pointées sur le site / capacité. **Planifié** = `Σ durée (endsAt − startsAt)` des `Appointment` avec `bayId`, statut ∉ {CANCELLED, NO_SHOW} / capacité. Capacité = `Σ ponts actifs (Bay.isActive, type ≠ WASH)` × heures d'ouverture du site (`Site.openingHours`) sur la période, jours fériés (`Holiday`, M15) exclus. Plafonné à 100 % à l'affichage, valeur brute dans l'export.                                             | période                    |
+| RG-M12-15 `tech_efficiency`        | Efficacité mécanicien               | Heures vendues / heures pointées. Heures vendues = `Σ RepairOrderLine.quantity` (type LABOR, `assignedToId` = mécanicien, `status = DONE`) des OR facturés dans la période. Heures pointées = sur ces mêmes lignes. Objectif affiché ≥ 100 %.                                                                                                                                                                                                      | facturation                |
+| RG-M12-16 `tech_productivity`      | Productivité                        | Heures pointées sur OR / heures de présence (`Attendance.clockOut − clockIn`). **Rendement global** = heures vendues / heures de présence.                                                                                                                                                                                                                                                                                                         | période                    |
+| RG-M12-17 `receivables`            | Créances en cours                   | `Σ Invoice.balance` des factures INVOICE `status IN (ISSUED, PARTIALLY_PAID, OVERDUE, DISPUTED)` à l'instant T. **En retard** : `dueDate < T`. **> 30 j** : `T − dueDate > 30`. Les `DISPUTED` sont comptées mais montrées à part.                                                                                                                                                                                                                 | instant                    |
+| RG-M12-18 `aged_balance`           | Balance âgée                        | Tranches sur jours de retard `d = T − dueDate` : Non échu (`d ≤ 0`), 1–30, 31–60, 61–90, > 90. À une date passée T, le solde est reconstitué : `total − Σ allocations des paiements reçus ≤ T` pour les factures émises ≤ T.                                                                                                                                                                                                                       | instant (date choisie)     |
+| RG-M12-19 `dso`                    | DSO (délai moyen d'encaissement)    | `round(encours TTC à T / CA TTC des 90 jours précédant T × 90)` en jours. CA TTC nul → « — ».                                                                                                                                                                                                                                                                                                                                                      | instant, fenêtre 90 j      |
+| RG-M12-20 `collected`              | Encaissements                       | `Σ Payment.amount` `status = CONFIRMED`, `receivedAt` dans la période, ventilé par `method`. Les remboursements (`REFUNDED`) sont affichés en négatif sur leur date de mise à jour. Les règlements de reprise de solde importés (`origin = IMPORTED` avec `reference = 'OPENING'`) sont exclus.                                                                                                                                                    | `receivedAt`               |
+| RG-M12-21 `recovered_by_reminders` | Montant récupéré grâce aux relances | Voir RG-M12-22.                                                                                                                                                                                                                                                                                                                                                                                                                                    | `receivedAt`               |
+| RG-M12-23 `reminder_return_rate`   | Taux de retour VT / révision        | Voir RG-M12-24.                                                                                                                                                                                                                                                                                                                                                                                                                                    | cohorte                    |
+| RG-M12-25 `active_customers`       | Clients actifs / nouveaux / perdus  | Activité = au moins une facture valide ou un OR non annulé (dates `issuedAt`/`createdAt`). **Actifs** : activité dans les 12 mois précédant la fin de période. **Nouveaux** : première activité de l'historique dans la période. **Perdus** : activité entre 24 et 12 mois avant la fin de période, aucune dans les 12 derniers mois.                                                                                                              | fin de période             |
+| RG-M12-26 `top_parts`              | Top pièces                          | Lignes PART des factures valides, groupées par `productId` (sinon par `description` normalisée), triées par CA HT puis quantité ; colonnes : quantité, CA HT, marge, nb OR. Top 10 au tableau de bord, complet en rapport.                                                                                                                                                                                                                         | `issuedAt`                 |
 
 ### 4.3 Attribution aux relances
 
 - **RG-M12-22 — Montant récupéré (créances).** Une `PaymentAllocation` (paiement `CONFIRMED`) d'un montant A sur la facture I est attribuée à une relance R si : `R.type = RECEIVABLE`, `R.status = SENT`, (`R.invoiceId = I` **ou** `R.invoiceId = null` et `R.customerId = Invoice.customerId`), et `R.sentAt ≤ Payment.receivedAt ≤ R.sentAt + N jours` avec `N = settings.reports.attributionWindowDays` (défaut **14**). Règle **dernier contact** : si plusieurs relances éligibles, la plus récente gagne. Un paiement passé par un `PaymentLink` créé depuis le message d'une relance est attribué à cette relance même au-delà de N. Chaque allocation est attribuée au plus une fois. Le montant attribué est `A` (pas le montant du paiement). La fonction pure `attributePayment()` dans `core/reports/attribution.ts` est **aussi** utilisée par M10 pour renseigner `Reminder.outcome = PAID | PARTIALLY_PAID`.
-  *Exemple* : SOTRA Logistique doit 1 240 000 FCFA ; relance J+30 le 01/10 ; virement de 600 000 FCFA le 08/10 alloué à 2 factures → 600 000 FCFA récupérés, outcome `PARTIALLY_PAID`.
+  _Exemple_ : SOTRA Logistique doit 1 240 000 FCFA ; relance J+30 le 01/10 ; virement de 600 000 FCFA le 08/10 alloué à 2 factures → 600 000 FCFA récupérés, outcome `PARTIALLY_PAID`.
 - **RG-M12-24 — Taux de retour VT / révision.** Cohorte = couples distincts `(vehicleId, dueDate)` ayant au moins une relance `SENT` de type INSPECTION (resp. SERVICE) et dont `dueDate` est dans la période. **Retour** si, pour ce véhicule, un `Appointment` (statut ARRIVED ou COMPLETED) ou un `RepairOrder` (non annulé) a été créé entre la **première** relance envoyée et `dueDate + G` jours (G = 30 pour VT, 60 pour révision). Taux = retours / cohorte. Les échéances dont `dueDate + G` n'est pas encore passé sont affichées « en cours » et exclues du taux. Le **CA généré** par ces retours = CA HT des factures des OR concernés (affiché à part, jamais additionné au montant récupéré des créances).
 
 ### 4.4 Alertes
 
 - **RG-M12-27 — Alertes calculées.** Chaque alerte crée une `Notification` (type `alert.<code>`) pour les destinataires configurés, dédoublonnée par `dedupeKey` (une fois par objet et par jour) :
 
-| Code | Condition (défauts modifiables dans `settings.alerts`) | Destinataires |
-|---|---|---|
-| `cash_difference` | `CashSession.difference ≠ 0` et `|difference| ≥ 1 000` | OWNER, ACCOUNTANT |
-| `receivable_45d` | Facture en retard > 45 j (aligné sur palier « alerte gérant » M10) | OWNER |
-| `credit_limit` | Encours client > `Customer.creditLimit` | OWNER, ACCOUNTANT |
-| `promise_broken` | `PaymentPromise` passée à `BROKEN` | OWNER, assigné du dossier |
-| `fne_failed` | Facture `fneStatus = FAILED` depuis > 24 h | ACCOUNTANT, OWNER |
-| `stock_below_min` | Événement `stock.below_minimum` | STOREKEEPER |
-| `ro_ready_not_delivered` | OR `READY` depuis > 3 jours | ADVISOR, MANAGER |
-| `ro_late` | `promisedAt < now` et statut ∉ {READY, DELIVERED, INVOICED, CANCELLED} | MANAGER |
-| `channel_error` | `ChannelConfig.status = ERROR` ou > 10 % de messages `FAILED` sur 24 h (min. 20 envois) | OWNER |
-| `sms_balance_low` | `ChannelConfig.balance < 500` | OWNER |
-| `import_stale` | Source de données active sans exécution réussie depuis > 3 jours | OWNER |
-| `discount_high` | Remise de ligne > `settings.discounts.maxRateWithoutApproval` (défaut 15 %) sur facture émise | OWNER |
+| Code                     | Condition (défauts modifiables dans `settings.alerts`)                                        | Destinataires             |
+| ------------------------ | --------------------------------------------------------------------------------------------- | ------------------------- |
+| `cash_difference`        | `CashSession.difference ≠ 0` et `                                                             | difference                | ≥ 1 000` | OWNER, ACCOUNTANT |
+| `receivable_45d`         | Facture en retard > 45 j (aligné sur palier « alerte gérant » M10)                            | OWNER                     |
+| `credit_limit`           | Encours client > `Customer.creditLimit`                                                       | OWNER, ACCOUNTANT         |
+| `promise_broken`         | `PaymentPromise` passée à `BROKEN`                                                            | OWNER, assigné du dossier |
+| `fne_failed`             | Facture `fneStatus = FAILED` depuis > 24 h                                                    | ACCOUNTANT, OWNER         |
+| `stock_below_min`        | Événement `stock.below_minimum`                                                               | STOREKEEPER               |
+| `ro_ready_not_delivered` | OR `READY` depuis > 3 jours                                                                   | ADVISOR, MANAGER          |
+| `ro_late`                | `promisedAt < now` et statut ∉ {READY, DELIVERED, INVOICED, CANCELLED}                        | MANAGER                   |
+| `channel_error`          | `ChannelConfig.status = ERROR` ou > 10 % de messages `FAILED` sur 24 h (min. 20 envois)       | OWNER                     |
+| `sms_balance_low`        | `ChannelConfig.balance < 500`                                                                 | OWNER                     |
+| `import_stale`           | Source de données active sans exécution réussie depuis > 3 jours                              | OWNER                     |
+| `discount_high`          | Remise de ligne > `settings.discounts.maxRateWithoutApproval` (défaut 15 %) sur facture émise | OWNER                     |
 
 - **RG-M12-28 — Bloc Alertes.** Affiche les 5 alertes non lues les plus récentes, triées par sévérité (`critical` > `warning` > `info`) puis date ; « Marquer comme lu » met `Notification.readAt`.
 
@@ -163,31 +173,31 @@ Paramètres (`Organization.settings`) : `reports.attributionWindowDays`, `costs.
 
 **`/tableau-de-bord`** — En-tête : sélecteurs Période et Site (sticky sur mobile), bouton « Actualiser » (force le recalcul, limité à 1/min). Onglets selon le rôle (l'OWNER voit tous les onglets) :
 
-| Onglet | Rôle par défaut | Blocs |
-|---|---|---|
-| Synthèse | OWNER | 4 cartes KPI (CA HT, Encaissé, Créances dont > 30 j, Récupéré par relances) ; graphique CA HT par jour (barres) vs période précédente (ligne) ; CA par nature (MO/Pièces/Sous-traitance/Frais) ; marge globale % ; panier moyen ; taux d'acceptation devis ; top 5 impayés ; alertes ; phrase M17 |
-| Atelier | MANAGER | Compteurs OR par statut ; OR en retard ; occupation réelle/planifiée (jauge) ; tableau mécaniciens (heures présence, pointées, vendues, efficacité, productivité) ; OR `WAITING_PARTS` > 48 h |
-| Accueil | ADVISOR | RDV du jour ; relances à valider ; devis en attente ; véhicules prêts ; messages non lus (M11) |
-| Finances | ACCOUNTANT | Encaissements par mode (barres) ; encours + balance âgée (barres horizontales) ; DSO ; factures FNE en échec ; promesses du jour |
-| Relances | OWNER, ADVISOR | Envoyés / délivrés / lus (30 j) ; clients revenus après rappel ; montant récupéré ; taux de retour VT / révision ; graphique envois par semaine empilés par type |
-| Clients | OWNER | Actifs, nouveaux, perdus ; top pièces |
+| Onglet   | Rôle par défaut | Blocs                                                                                                                                                                                                                                                                                             |
+| -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Synthèse | OWNER           | 4 cartes KPI (CA HT, Encaissé, Créances dont > 30 j, Récupéré par relances) ; graphique CA HT par jour (barres) vs période précédente (ligne) ; CA par nature (MO/Pièces/Sous-traitance/Frais) ; marge globale % ; panier moyen ; taux d'acceptation devis ; top 5 impayés ; alertes ; phrase M17 |
+| Atelier  | MANAGER         | Compteurs OR par statut ; OR en retard ; occupation réelle/planifiée (jauge) ; tableau mécaniciens (heures présence, pointées, vendues, efficacité, productivité) ; OR `WAITING_PARTS` > 48 h                                                                                                     |
+| Accueil  | ADVISOR         | RDV du jour ; relances à valider ; devis en attente ; véhicules prêts ; messages non lus (M11)                                                                                                                                                                                                    |
+| Finances | ACCOUNTANT      | Encaissements par mode (barres) ; encours + balance âgée (barres horizontales) ; DSO ; factures FNE en échec ; promesses du jour                                                                                                                                                                  |
+| Relances | OWNER, ADVISOR  | Envoyés / délivrés / lus (30 j) ; clients revenus après rappel ; montant récupéré ; taux de retour VT / révision ; graphique envois par semaine empilés par type                                                                                                                                  |
+| Clients  | OWNER           | Actifs, nouveaux, perdus ; top pièces                                                                                                                                                                                                                                                             |
 
 CASHIER : carte unique « Ma caisse du jour » (encaissements par mode de sa `CashSession` ouverte). MECHANIC : pas d'accès (redirigé vers `(tech)`).
 Chaque carte : valeur, variation colorée **avec flèche et texte** (jamais la couleur seule), info-bulle « Comment est-ce calculé ? » reprenant la formule en langage simple, lien vers la liste détaillée. Mobile : cartes en grille 2×2, blocs empilés, graphiques simplifiés (7 points max). États : squelettes au chargement ; vide « Pas encore de données sur cette période » ; erreur « Impossible de charger les chiffres. Réessayer ». Badge « coût estimé » sur les marges quand RG-M12-08/09 utilisent un défaut.
 
 **`/rapports`** — Grille des rapports (titre, description, dernier export). **`/rapports/[slug]`** : filtres, aperçu paginé (50 lignes), totaux, boutons « Excel » et « PDF ». Rapports :
 
-| Slug | Rapport | Colonnes principales |
-|---|---|---|
-| `ventes` | Ventes | Date, n° facture, client, site, CA MO, pièces, sous-traitance, frais, remise, HT, TVA, TTC ; regroupement jour / mois / client / conseiller |
-| `encaissements` | Encaissements par mode | Date, n° reçu, client, mode, référence, montant, caissier, factures allouées ; sous-totaux par mode et par jour |
-| `balance-agee` | Balance âgée | Client, facture, émission, échéance, total, payé, solde, retard (j), tranche ; onglet synthèse par client |
-| `rentabilite-or` | Rentabilité par OR | N° OR, client, véhicule, CA MO, coût MO, CA pièces, coût pièces, marge, marge %, heures vendues/pointées |
-| `stock-valorise` | Stock valorisé | Site, SKU, désignation, catégorie, quantité, CMP, valeur (= `onHand × averageCost`) ; à une date passée : `onHand` reconstitué = actuel − Σ mouvements postérieurs, valorisé au CMP actuel (mention « valorisation au CMP actuel ») |
-| `relances` | Performances des relances | Type, palier, canal, envoyés, délivrés, lus, réponses, RDV, payés, montant récupéré, coût messages |
-| `productivite` | Productivité | Mécanicien, présence, pointé, vendu, efficacité, productivité, rendement, nb OR |
-| `clients` | Clients actifs/perdus | Client, dernière activité, CA 12 mois, statut |
-| `top-pieces` | Top pièces | cf. RG-M12-26 |
+| Slug             | Rapport                   | Colonnes principales                                                                                                                                                                                                                |
+| ---------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ventes`         | Ventes                    | Date, n° facture, client, site, CA MO, pièces, sous-traitance, frais, remise, HT, TVA, TTC ; regroupement jour / mois / client / conseiller                                                                                         |
+| `encaissements`  | Encaissements par mode    | Date, n° reçu, client, mode, référence, montant, caissier, factures allouées ; sous-totaux par mode et par jour                                                                                                                     |
+| `balance-agee`   | Balance âgée              | Client, facture, émission, échéance, total, payé, solde, retard (j), tranche ; onglet synthèse par client                                                                                                                           |
+| `rentabilite-or` | Rentabilité par OR        | N° OR, client, véhicule, CA MO, coût MO, CA pièces, coût pièces, marge, marge %, heures vendues/pointées                                                                                                                            |
+| `stock-valorise` | Stock valorisé            | Site, SKU, désignation, catégorie, quantité, CMP, valeur (= `onHand × averageCost`) ; à une date passée : `onHand` reconstitué = actuel − Σ mouvements postérieurs, valorisé au CMP actuel (mention « valorisation au CMP actuel ») |
+| `relances`       | Performances des relances | Type, palier, canal, envoyés, délivrés, lus, réponses, RDV, payés, montant récupéré, coût messages                                                                                                                                  |
+| `productivite`   | Productivité              | Mécanicien, présence, pointé, vendu, efficacité, productivité, rendement, nb OR                                                                                                                                                     |
+| `clients`        | Clients actifs/perdus     | Client, dernière activité, CA 12 mois, statut                                                                                                                                                                                       |
+| `top-pieces`     | Top pièces                | cf. RG-M12-26                                                                                                                                                                                                                       |
 
 **`/rapports/comparaison-sites`** — tableau sites × indicateurs, ligne Réseau, tri par colonne, meilleur site en gras + icône, export Excel. Visible si ≥ 2 sites actifs.
 
@@ -195,20 +205,20 @@ Chaque carte : valeur, variation colorée **avec flèche et texte** (jamais la c
 
 ## 8. API
 
-| Procédure tRPC | Entrée | Sortie |
-|---|---|---|
-| `dashboard.get` | `{ tab, period: {preset} \| {from,to}, siteId? }` | `{ cards: Kpi[], blocks: Record<string, unknown>, computedAt, estimatedFlags[] }` |
-| `dashboard.kpi` | `{ metric: KpiCode, period, siteId?, compare?: boolean }` | `{ value, previous?, deltaPct?, numerator?, denominator? }` (utilisé par M17) |
-| `dashboard.refresh` | `{ siteId? }` | `{ ok }` (invalide le cache) |
-| `reports.preview` | `{ slug, filters, cursor? }` | `{ rows, totals, nextCursor }` |
-| `reports.export` | `{ slug, filters, format: 'xlsx'\|'pdf' }` | `{ exportId, status, url? }` (synchrone si ≤ 5 000 lignes) |
-| `reports.getExport` | `{ exportId }` | `{ status, url?, error? }` |
-| `reports.listExports` | `{ cursor? }` | exports des 7 derniers jours |
-| `reports.compareSites` | `{ period, metrics[] }` | `{ sites: [{siteId, values}], network }` |
-| `alerts.list` | `{ unreadOnly? }` | `Notification[]` |
-| `alerts.markRead` | `{ ids[] }` | `{ count }` |
-| `digest.preview` | `{ date? }` | `{ text, html }` |
-| `digest.updateSettings` | `{ enabled, time, channel, recipients[] }` | settings |
+| Procédure tRPC          | Entrée                                                    | Sortie                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dashboard.get`         | `{ tab, period: {preset} \| {from,to}, siteId? }`         | `{ cards: Kpi[], blocks: Record<string, unknown>, computedAt, estimatedFlags[] }`                                                                                                                                                                                                                                                                   |
+| `dashboard.kpi`         | `{ metric: KpiCode, period, siteId?, compare?: boolean }` | `{ value, previous?, delta?, numerator?, denominator?, estimated? }` (utilisé par M17 ; livré en 6.2b, `KpiCode` ∈ `revenue_ht`, `revenue_ttc`, `parts_margin`, `labor_margin`, `gross_margin`, `avg_ticket`, `collected`, `receivables`, `recovered_by_reminders`, `quote_acceptance` ; permission par indicateur, marges sous `report:financial`) |
+| `dashboard.refresh`     | `{ siteId? }`                                             | `{ ok }` (invalide le cache)                                                                                                                                                                                                                                                                                                                        |
+| `reports.preview`       | `{ slug, filters, cursor? }`                              | `{ rows, totals, nextCursor }`                                                                                                                                                                                                                                                                                                                      |
+| `reports.export`        | `{ slug, filters, format: 'xlsx'\|'pdf' }`                | `{ exportId, status, url? }` (synchrone si ≤ 5 000 lignes)                                                                                                                                                                                                                                                                                          |
+| `reports.getExport`     | `{ exportId }`                                            | `{ status, url?, error? }`                                                                                                                                                                                                                                                                                                                          |
+| `reports.listExports`   | `{ cursor? }`                                             | exports des 7 derniers jours                                                                                                                                                                                                                                                                                                                        |
+| `reports.compareSites`  | `{ period, metrics[] }`                                   | `{ sites: [{siteId, values}], network }`                                                                                                                                                                                                                                                                                                            |
+| `alerts.list`           | `{ unreadOnly? }`                                         | `Notification[]`                                                                                                                                                                                                                                                                                                                                    |
+| `alerts.markRead`       | `{ ids[] }`                                               | `{ count }`                                                                                                                                                                                                                                                                                                                                         |
+| `digest.preview`        | `{ date? }`                                               | `{ text, html }`                                                                                                                                                                                                                                                                                                                                    |
+| `digest.updateSettings` | `{ enabled, time, channel, recipients[] }`                | settings                                                                                                                                                                                                                                                                                                                                            |
 
 REST publique (M13) : `GET /api/v1/reports/kpis?metric=revenue_ht&from=2026-10-01&to=2026-10-31&siteId=` (scope `reports:read`).
 Toutes les procédures passent par `requirePermission` (§10) et `db.forTenant(ctx)` ; `siteId` hors `Membership.siteIds` → `FORBIDDEN` « Vous n'avez pas accès à ce site. »
@@ -223,14 +233,14 @@ Toutes les procédures passent par `requirePermission` (§10) et `db.forTenant(c
 
 Permissions du catalogue M01 §10.1 (aucune nouvelle permission créée) :
 
-| Action | Permission | Rôles par défaut |
-|---|---|---|
-| Onglets Accueil / Atelier / Relances (chacun filtré par les permissions de lecture des modules : `appointment:read`, `repair_order:read`, `reminder:read`) | aucune permission propre | Tous sauf MECHANIC |
-| Onglet Synthèse, cartes CA/Encaissé/Récupéré, résumé quotidien, comparaison multi-sites | `dashboard:owner` | OWNER |
-| Rapports opérationnels (productivité, relances, top pièces sans marge, clients) | `report:read` | OWNER, MANAGER, ACCOUNTANT |
-| Rapports financiers (ventes, encaissements, balance âgée, rentabilité par OR, stock valorisé), marges et coûts, onglet Finances | `report:financial` | OWNER, ACCOUNTANT |
-| Configurer alertes et résumé quotidien | `settings:update` | OWNER |
-| Carte « Ma caisse du jour » | `cash:operate` | CASHIER, MANAGER, OWNER |
+| Action                                                                                                                                                     | Permission               | Rôles par défaut           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | -------------------------- |
+| Onglets Accueil / Atelier / Relances (chacun filtré par les permissions de lecture des modules : `appointment:read`, `repair_order:read`, `reminder:read`) | aucune permission propre | Tous sauf MECHANIC         |
+| Onglet Synthèse, cartes CA/Encaissé/Récupéré, résumé quotidien, comparaison multi-sites                                                                    | `dashboard:owner`        | OWNER                      |
+| Rapports opérationnels (productivité, relances, top pièces sans marge, clients)                                                                            | `report:read`            | OWNER, MANAGER, ACCOUNTANT |
+| Rapports financiers (ventes, encaissements, balance âgée, rentabilité par OR, stock valorisé), marges et coûts, onglet Finances                            | `report:financial`       | OWNER, ACCOUNTANT          |
+| Configurer alertes et résumé quotidien                                                                                                                     | `settings:update`        | OWNER                      |
+| Carte « Ma caisse du jour »                                                                                                                                | `cash:operate`           | CASHIER, MANAGER, OWNER    |
 
 Les marges ne sont jamais renvoyées par l'API à un membre sans `report:financial` (champs omis côté serveur, pas seulement masqués). Un membre restreint à des sites ne voit jamais de donnée d'autres sites, y compris dans la ligne « Réseau ». Tout export est journalisé (`AuditLog` action `report.export`).
 
@@ -300,4 +310,5 @@ model Notification {
   @@unique([organizationId, membershipId, dedupeKey])
 }
 ```
+
 Les champs `origin` (Invoice, Payment, RepairOrder) sont définis dans M13 §14 ; le modèle `Holiday` dans M15 §14.

@@ -2,9 +2,11 @@
 // `reminders.plan` (canal préliminaire, pour router une relance sans canal vers « À appeler »
 // dès sa création, RG-M10-31) et `reminders.dispatch` (résolution faisant foi à l'envoi,
 // RG-M10-24 : revérifiée indépendamment, peut différer de celle posée par plan).
-import { db } from "@atelieros/db";
+import { adminDb, db } from "@atelieros/db";
 import {
   buildRecipientKey,
+  orderChannelsByPreference,
+  resolveAiSettings,
   normalizePhoneCI,
   phoneLineType,
   type Channel,
@@ -70,12 +72,34 @@ export interface ChannelResolution {
   providerByChannel: Map<Channel, string>;
 }
 
-/** RG-M10-12 : écarte WhatsApp/SMS pour un numéro fixe, une adresse invalide ou un OptOut. */
+/**
+ * RG-M10-12 : écarte WhatsApp/SMS pour un numéro fixe, une adresse invalide ou un OptOut.
+ * M17 RG-M17-16 : le canal préféré du client (choix manuel `preferredChannel`, sinon canal
+ * appris `bestChannel` si l'optimisation IA est activée) est essayé en premier ; il reste
+ * soumis aux mêmes contrôles, revérifiés au moment de l'envoi (`reminders.dispatch`).
+ */
 export async function resolveChannelCandidates(
   tenantDb: TenantDb,
   recipient: RecipientInfo,
-  stepChannels: Channel[],
+  ruleChannels: Channel[],
 ): Promise<ChannelResolution> {
+  const customer = await tenantDb.customer.findFirst({ where: { id: recipient.customerId } });
+  const org = customer
+    ? await adminDb.organization.findUnique({
+        where: { id: customer.organizationId },
+        select: { settings: true },
+      })
+    : null;
+  const ai = resolveAiSettings(org?.settings);
+  const stepChannels = customer
+    ? orderChannelsByPreference({
+        stepChannels: ruleChannels,
+        preferredChannel: customer.preferredChannel,
+        bestChannel: customer.bestChannel,
+        hasWhatsapp: customer.hasWhatsapp,
+        useLearned: ai.enabled && ai.autoTimeOptimization,
+      })
+    : ruleChannels;
   const configs = await tenantDb.channelConfig.findMany({
     where: { channel: { in: stepChannels } },
   });
@@ -88,7 +112,6 @@ export async function resolveChannelCandidates(
       },
     },
   });
-  const customer = await tenantDb.customer.findFirst({ where: { id: recipient.customerId } });
 
   const providerByChannel = new Map<Channel, string>();
   const candidates = stepChannels.map((channel): ChannelCandidate => {

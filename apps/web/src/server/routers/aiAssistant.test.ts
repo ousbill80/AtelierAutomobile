@@ -174,7 +174,7 @@ describe("ai.assistant (M17 — assistant lecture seule)", () => {
     });
     expect(interaction).toMatchObject({
       status: "OK",
-      promptVersion: "v1",
+      promptVersion: "v2",
       inputRef: `assistant_thread:${answer.threadId}`,
       createdById: owner.membership.id,
     });
@@ -205,7 +205,8 @@ describe("ai.assistant (M17 — assistant lecture seule)", () => {
       question: "quel est mon CA ce mois ?",
     });
     expect(ownerAnswer.text).toMatch(
-      /^Chiffre d'affaires TTC facturé \(mois en cours\) : [\d ]+ FCFA\.$/,
+      // « CA » = HT (M12 RG-M12-05), mêmes chiffres que `dashboard.kpi`.
+      /^Chiffre d'affaires HT facturé \(mois en cours\) : [\d  ]+ FCFA\.$/,
     );
   });
 

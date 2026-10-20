@@ -3,6 +3,7 @@
 // Toutes les formules viennent de `@atelieros/core` (dashboard) ; ce routeur ne fait que
 // charger les faits via `db.forTenant` et appliquer le filtre site (RG-M12-02).
 import {
+  canReadKpi,
   collectedByMethod,
   ALERT_NOTIFICATION_TYPES,
   asOfDate,
@@ -13,7 +14,6 @@ import {
   dso,
   localDay,
   occupancy,
-  OPEN_INVOICE_STATUSES,
   quoteAcceptance,
   rankTopParts,
   recoveredByReminders,
@@ -24,7 +24,6 @@ import {
   topUnpaid,
   variation,
   weeklySends,
-  type ReceivableInvoiceLike,
   type ReminderFactLike,
 } from "@atelieros/core";
 import { adminDb, buildDigestForMembership, db, reportFacts, type Prisma } from "@atelieros/db";
@@ -32,6 +31,7 @@ import {
   alertsListInputSchema,
   alertsMarkReadInputSchema,
   dashboardInputSchema,
+  dashboardKpiInputSchema,
   DEFAULT_DIGEST_SETTINGS,
   digestSettingsSchema,
   digestUpdateSettingsInputSchema,
@@ -51,6 +51,9 @@ import { orgProcedure, requirePermission, router } from "../trpc";
 type TenantDb = ReturnType<typeof db.forTenant>;
 const {
   collected,
+  computeKpi,
+  loadAttributions,
+  loadReceivableInvoices,
   customerActivities,
   dailyRevenue,
   partAggregates,
@@ -87,60 +90,6 @@ function siteFilter(scope: SiteScope): { siteId?: { in: string[] } } {
 /** Relance → site de la facture (RECEIVABLE) ; sinon non attribuable (« Tous les sites » seulement). */
 function reminderSiteWhere(scope: SiteScope): Prisma.ReminderWhereInput {
   return scope.siteIds ? { invoice: { siteId: { in: scope.siteIds } } } : {};
-}
-
-async function loadReceivableInvoices(
-  tenantDb: TenantDb,
-  scope: SiteScope,
-): Promise<ReceivableInvoiceLike[]> {
-  const rows = await tenantDb.invoice.findMany({
-    where: {
-      ...invoiceSiteWhere(scope),
-      type: "INVOICE",
-      billTo: "CUSTOMER",
-      status: { in: [...OPEN_INVOICE_STATUSES] },
-      balance: { gt: 0 },
-    },
-    select: {
-      id: true,
-      type: true,
-      status: true,
-      billTo: true,
-      balance: true,
-      dueDate: true,
-      number: true,
-      customerId: true,
-      customer: { select: { displayName: true } },
-    },
-  });
-  return rows.map((r) => ({ ...r, customerName: r.customer.displayName }));
-}
-
-/**
- * RG-M12-22 (A10) : attributions M09 (`PaymentAttribution`) des paiements confirmés reçus dans
- * `[from, to)`. Chaque allocation compte sur le site de sa facture (M12 §11).
- */
-async function loadAttributions(tenantDb: TenantDb, scope: SiteScope, from: Date, to: Date) {
-  const rows = await tenantDb.paymentAttribution.findMany({
-    where: {
-      source: "reminder",
-      paymentAllocation: {
-        payment: { status: "CONFIRMED", receivedAt: { gte: from, lt: to } },
-        ...(scope.siteIds ? { invoice: { siteId: { in: scope.siteIds } } } : {}),
-      },
-    },
-    select: {
-      source: true,
-      amount: true,
-      paymentAllocation: { select: { payment: { select: { receivedAt: true } } } },
-    },
-  });
-  return rows.map((r) => ({
-    source: r.source,
-    amount: r.amount,
-    // Filtré sur `payment` ci-dessus : une attribution vient toujours d'un paiement (jamais d'un crédit).
-    receivedAt: r.paymentAllocation.payment!.receivedAt,
-  }));
 }
 
 async function loadReminderFacts(
@@ -191,6 +140,34 @@ async function loadReminderFacts(
 }
 
 export const dashboardRouter = router({
+  /**
+   * M12 §8 `dashboard.kpi` — un indicateur, même définition que les onglets (M12 §1), pour
+   * l'assistant M17. Permission propre à chaque indicateur (`core/reports/kpi`) ; marges
+   * réservées à `report:financial` ; filtre site toujours intersecté (RG-M12-02).
+   */
+  kpi: orgProcedure.input(dashboardKpiInputSchema).query(async ({ ctx, input }) => {
+    assertNotMechanic(ctx);
+    if (!canReadKpi(input.metric, ctx.permissions)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Vous n'avez pas accès à cet indicateur.",
+      });
+    }
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    const scope = resolveSiteScope(ctx, input.siteId);
+    const org = await loadOrgReportContext(ctx.organizationId);
+    const now = reportsNow();
+    return computeKpi(tenantDb, {
+      organizationId: ctx.organizationId,
+      org,
+      metric: input.metric,
+      scope,
+      period: periodOf(input, now, org.timezone),
+      now,
+      compare: input.compare,
+    });
+  }),
+
   /**
    * Onglet Synthèse — 4 cartes (CA HT, Encaissé, Créances dont > 30 j, Récupéré), CA par jour,
    * CA par nature, marge, panier moyen, acceptation des devis (US-M12-01) ; en mode
