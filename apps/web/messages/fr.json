@@ -3873,5 +3873,55 @@
       "moov": "Moov Money"
     },
     "loadError": "Impossible de charger les paramètres de paiement."
+  },
+  "aiExtraction": {
+    "take": "Photographier un document",
+    "reading": "L'assistant lit le document…",
+    "hint": "Photo de la carte grise, de la vignette de visite technique ou du constat : les champs sont pré-remplis, à vérifier avant d'enregistrer.",
+    "kindLabel": "Type de document",
+    "kinds": {
+      "VEHICLE_REGISTRATION": "Carte grise",
+      "INSPECTION_STICKER": "Vignette de visite technique",
+      "ODOMETER": "Compteur kilométrique",
+      "SUPPLIER_INVOICE": "Facture fournisseur",
+      "CLAIM_REPORT": "Constat amiable"
+    },
+    "filled": "Champs pré-remplis par l'assistant : vérifiez-les avant d'enregistrer.",
+    "unreadable": "Document illisible, reprenez la photo en pleine lumière.",
+    "fallback": "Lecture automatique indisponible ({reason}) : saisissez les champs à la main.",
+    "error": "La photo n'a pas pu être envoyée. Réessayez.",
+    "suggested": "Proposé par l'assistant",
+    "check": "À vérifier",
+    "needsReview": "À vérifier ({pct} %)",
+    "confidence": "Confiance {pct} %",
+    "ownerName": "Titulaire lu sur la carte grise : {name}",
+    "vehicle": {
+      "title": "Ajouter un véhicule",
+      "pickCustomer": "Choisissez d'abord un client.",
+      "plate": "Plaque",
+      "make": "Marque",
+      "model": "Modèle",
+      "vin": "Numéro de châssis (VIN)",
+      "firstRegistrationDate": "1re mise en circulation",
+      "fuel": "Énergie",
+      "fuelNone": "—",
+      "fuels": {
+        "PETROL": "Essence",
+        "DIESEL": "Gasoil",
+        "HYBRID": "Hybride",
+        "ELECTRIC": "Électrique",
+        "LPG": "GPL",
+        "OTHER": "Autre"
+      },
+      "inspectionExpiryDate": "Fin de validité de la visite technique",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "loading": "Chargement…"
+    },
+    "import": {
+      "proposed": "Proposé par l'assistant",
+      "proposedHint": "Correspondance proposée par l'assistant ({pct} %) : à confirmer.",
+      "useProposal": "Utiliser « {field} »"
+    }
   }
 }

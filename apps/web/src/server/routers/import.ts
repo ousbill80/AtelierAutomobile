@@ -1,5 +1,9 @@
 import { TRPCError } from "@trpc/server";
-import { headerSignature as computeHeaderSignature, type DetectedEncoding } from "@atelieros/core";
+import {
+  headerSignature as computeHeaderSignature,
+  TARGET_FIELDS_BY_ENTITY,
+  type DetectedEncoding,
+} from "@atelieros/core";
 import { db, writeAuditLog } from "@atelieros/db";
 import {
   buildJobRows,
@@ -33,6 +37,7 @@ import {
 import { requirePermission, router } from "../trpc";
 import { getImportJobQueue } from "../queue";
 import { getObjectStorage } from "../storage";
+import { enrichMappingWithAi } from "../ai/extraction";
 
 /**
  * Formats acceptés (RG-M13-01) : CSV/TXT délimités et classeurs Excel
@@ -143,8 +148,18 @@ export const importRouter = router({
         orderBy: { createdAt: "desc" },
       });
       const memorized = (previousJob?.mapping as ImportJobMapping | null)?.columns;
-      const mapping = suggestColumnMapping(parsed.headers, memorized);
-      const suggestedEntity = suggestEntity(mapping);
+      const synonymMapping = suggestColumnMapping(parsed.headers, memorized);
+      const suggestedEntity = suggestEntity(synonymMapping);
+      // M17 / RG-M13-07 : colonnes < 0,7 proposées par l'IA (jamais bloquant).
+      const mapping = await enrichMappingWithAi({
+        organizationId: ctx.organizationId,
+        membershipId: ctx.membership.id,
+        importJobId: job.id,
+        mapping: synonymMapping,
+        headers: parsed.headers,
+        rows: parsed.rows.map((row) => row.map((cell) => String(cell ?? ""))),
+        targetFields: [...new Set(Object.values(TARGET_FIELDS_BY_ENTITY).flat())],
+      });
 
       await tenantDb.importJob.update({
         where: { id: job.id },
