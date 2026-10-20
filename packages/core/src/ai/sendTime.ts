@@ -87,3 +87,30 @@ export function optimizeSendTime(input: OptimizeSendTimeInput): Date | null {
   if (!isWithinSendWindow(candidate, input.timeZone, input.sendWindow)) return null;
   return candidate;
 }
+
+export interface ChannelPreferenceInput {
+  /** Canaux du palier, dans l'ordre de la règle M10. */
+  stepChannels: readonly SendChannel[];
+  /** Choix manuel (`Customer.preferredChannel`) : toujours prioritaire. */
+  preferredChannel: SendChannel | null;
+  /** Canal appris (`Customer.bestChannel`, RG-M17-16), utilisé si aucun choix manuel. */
+  bestChannel: SendChannel | null;
+  /** `false` = numéro connu comme non WhatsApp : WhatsApp n'est jamais avancé. */
+  hasWhatsapp: boolean | null;
+  /** `settings.ai` : optimisation activée (sinon le canal appris est ignoré). */
+  useLearned: boolean;
+}
+
+/**
+ * RG-M17-16 — ordre des canaux à essayer : le canal préféré (manuel, sinon appris) passe en
+ * tête s'il fait partie des canaux du palier ; les autres gardent l'ordre de la règle, en repli.
+ * L'éligibilité réelle (OptOut, numéro fixe, adresse invalide, canal actif) reste vérifiée
+ * juste avant l'envoi par `pickChannel` sur la liste ainsi ordonnée.
+ */
+export function orderChannelsByPreference(input: ChannelPreferenceInput): SendChannel[] {
+  const channels = [...input.stepChannels];
+  const preferred = input.preferredChannel ?? (input.useLearned ? input.bestChannel : null);
+  if (!preferred || !channels.includes(preferred)) return channels;
+  if (preferred === "WHATSAPP" && input.hasWhatsapp === false) return channels;
+  return [preferred, ...channels.filter((c) => c !== preferred)];
+}
