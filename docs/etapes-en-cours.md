@@ -10,8 +10,8 @@
 > Origine : le 19/10/2026, M02 et M10 ont été codés deux fois en parallèle par deux sessions
 > qui ne se voyaient pas ; la fusion a dû jeter l'une des deux implémentations.
 
-| Étape                                                            | Branche                 | Session / responsable  | Réservée le | Statut                                                                                                 |
-| ---------------------------------------------------------------- | ----------------------- | ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
-| 6.3 — Portail client complet (M14) et suivi d'OR en temps réel   | `etape-6.3-portail`     | session de l'étape 6.3 | 20/10/2026  | en cours — migration `20261020005000_m14_portail`                                                      |
-| 6.2 — IA et automatisations (M17)                                | `etape-6.2-ia`          | session de l'étape 6.2 | 20/10/2026  | en cours — migration `20261020004000_m17_ia`                                                           |
-| 6.4 (partie 2 seulement) — Synchronisation base externe (M13 §2) | `etape-6.4-synchro-api` | session de l'étape 2.4 | 19/10/2026  | **en pause** (A15 point 5 : au plus 2 sessions de développement) — migration `20261019190000_m13_sync` |
+| Étape                                                                          | Branche                 | Session / responsable  | Réservée le | Statut                                                                                                 |
+| ------------------------------------------------------------------------------ | ----------------------- | ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
+| 6.3 — Portail client complet (M14) et suivi d'OR en temps réel                 | `etape-6.3-portail`     | session de l'étape 6.3 | 20/10/2026  | en cours — migration `20261020005000_m14_portail`                                                      |
+| 6.5 — Paramètres restants, plans/abonnements, export complet des données (M15) | `etape-6.5-parametres`  | session de l'étape 6.5 | 20/10/2026  | en cours — migration `20261020006000_m15_parametres`                                                   |
+| 6.4 (partie 2 seulement) — Synchronisation base externe (M13 §2)               | `etape-6.4-synchro-api` | session de l'étape 2.4 | 19/10/2026  | **en pause** (A15 point 5 : au plus 2 sessions de développement) — migration `20261019190000_m13_sync` |
