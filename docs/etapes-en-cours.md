@@ -12,5 +12,4 @@
 
 | Étape                                                                | Branche                  | Session / responsable  | Réservée le | Statut                                                                               |
 | -------------------------------------------------------------------- | ------------------------ | ---------------------- | ----------- | ------------------------------------------------------------------------------------ |
-| 7.1 — Durcissement (sécurité, performance)                           | `etape-7.1-durcissement` | session de l'étape 7.1 | 20/10/2026  | en cours — migration `20261020008000_durcissement` (index uniquement, si nécessaire) |
-| 7.2 — Déploiement (Docker, Caddy, sauvegardes, Sentry, exploitation) | `etape-7.2-deploiement`  | session de l'étape 7.2 | 20/10/2026  | en cours — sans migration                                                            |
+| 7.1 — Durcissement (sécurité, performance)                           | `etape-7.1-durcissement` | session de l'étape 7.1 | 20/10/2026  | en cours — migration `20261020008000_durcissement` (index uniquement, si nécessaire) ; PR #34 E2E rouge, non fusionnée |
