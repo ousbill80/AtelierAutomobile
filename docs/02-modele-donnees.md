@@ -2256,7 +2256,7 @@ model AutomationRun {
 | Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
 | `Site.code` non modifiable dès qu'une `DocumentSequence` existe pour ce site (il figure dans les numéros déjà émis)                 | M15 (RG-M15-05)                                      |
 
-> **M17 §14 & Phase 7.1 Durcissement** — les audits d'isolation multi-locataires, la vérification des en-têtes de sécurité (CSP, HSTS), le rate limiting en mémoire/Redis et le masquage des secrets dans les logs sont validés et testés. Aucun index manquant sur les listes principales sous contrainte d'isolation `organizationId`.
+> **M17 §14 & Phase 7.1 Durcissement** — les audits d'isolation multi-locataires (véhicule, devis, facture, client, RDV, OR), la vérification des en-têtes de sécurité (CSP, HSTS, Permissions-Policy), le rate limiting login / OTP / webhooks (en mémoire, quotas `DEFAULT_RATE_LIMITS`) et le masquage des secrets dans les logs sont validés et testés. Aucun index manquant sur les listes principales sous contrainte d'isolation `organizationId` ; les listes OR / facture / caisse / relances sont paginées par curseur.
 
 ## 4. Variables de modèles de messages
 

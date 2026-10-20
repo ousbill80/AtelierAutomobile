@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSecurityHeaders } from "@atelieros/core";
+import { getSecurityHeaders } from "@atelieros/core/security/headers";
 import { SESSION_COOKIE_NAME } from "@/server/session-cookie-name";
 
 const AUTH_PATHS = [

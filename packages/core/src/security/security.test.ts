@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildContentSecurityPolicy, getSecurityHeaders } from "./headers";
 import { isSensitiveKey, sanitizeLogData, scrubLogMessage } from "./sanitizer";
-import { checkSlidingWindowRateLimit } from "./rateLimit";
+import { InMemoryRateLimiter, checkSlidingWindowRateLimit } from "./rateLimit";
 
 describe("Security module (Étape 7.1)", () => {
   describe("Security Headers & CSP", () => {
@@ -12,6 +12,8 @@ describe("Security module (Étape 7.1)", () => {
       expect(headers["Strict-Transport-Security"]).toContain("max-age=");
       expect(headers["Content-Security-Policy"]).toContain("default-src 'self'");
       expect(headers["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+      expect(headers["Permissions-Policy"]).toContain("camera=(self)");
+      expect(headers["Permissions-Policy"]).toContain("microphone=(self)");
     });
 
     it("permet d'ajouter des connectSources à la CSP", () => {
@@ -87,6 +89,15 @@ describe("Security module (Étape 7.1)", () => {
       expect(result.allowed).toBe(false);
       expect(result.remaining).toBe(0);
       expect(result.resetMs).toBe(20_000);
+    });
+
+    it("InMemoryRateLimiter enregistre les succès et refuse au-delà du quota", () => {
+      const limiter = new InMemoryRateLimiter();
+      const options = { maxRequests: 2, windowMs: 60_000 };
+      expect(limiter.consume("login:1.1.1.1", 1_000, options).allowed).toBe(true);
+      expect(limiter.consume("login:1.1.1.1", 2_000, options).allowed).toBe(true);
+      expect(limiter.consume("login:1.1.1.1", 3_000, options).allowed).toBe(false);
+      expect(limiter.consume("login:2.2.2.2", 3_000, options).allowed).toBe(true);
     });
   });
 });

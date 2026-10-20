@@ -42,9 +42,12 @@ describe("Global Multi-Tenant Isolation Audit (CLAUDE.md & Étape 7.1)", () => {
   let ownerA: { userId: string; token: string };
   let ownerB: { userId: string; token: string };
 
+  let customerB: { id: string };
   let vehicleB: { id: string };
   let quoteB: { id: string };
   let invoiceB: { id: string };
+  let appointmentB: { id: string };
+  let repairOrderB: { id: string };
 
   beforeAll(async () => {
     orgA = await adminDb.organization.create({
@@ -59,7 +62,7 @@ describe("Global Multi-Tenant Isolation Audit (CLAUDE.md & Étape 7.1)", () => {
     ownerA = await ownerContextFor(orgA.id, "Owner Audit A");
     ownerB = await ownerContextFor(orgB.id, "Owner Audit B");
 
-    const customerB = await adminDb.customer.create({
+    customerB = await adminDb.customer.create({
       data: {
         organizationId: orgB.id,
         displayName: "Client Isolation B",
@@ -106,11 +109,36 @@ describe("Global Multi-Tenant Isolation Audit (CLAUDE.md & Étape 7.1)", () => {
         balance: 23600,
       },
     });
+
+    appointmentB = await adminDb.appointment.create({
+      data: {
+        organizationId: orgB.id,
+        siteId: siteB.id,
+        customerId: customerB.id,
+        vehicleId: vehicleB.id,
+        startsAt: new Date("2026-10-21T09:00:00Z"),
+        endsAt: new Date("2026-10-21T10:00:00Z"),
+        type: "SERVICE",
+      },
+    });
+
+    repairOrderB = await adminDb.repairOrder.create({
+      data: {
+        organizationId: orgB.id,
+        siteId: siteB.id,
+        customerId: customerB.id,
+        vehicleId: vehicleB.id,
+        number: "OR-TEST-B",
+        complaint: "Isolation audit",
+      },
+    });
   });
 
   afterAll(async () => {
     await adminDb.invoice.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.quote.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
+    await adminDb.repairOrder.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
+    await adminDb.appointment.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.vehicle.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.customer.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.session.deleteMany({ where: { userId: { in: [ownerA.userId, ownerB.userId] } } });
@@ -139,5 +167,20 @@ describe("Global Multi-Tenant Isolation Audit (CLAUDE.md & Étape 7.1)", () => {
     const callerA = callerFactory(await contextFor(ownerA.token));
     const list = await callerA.vehicle.list({ limit: 100 });
     expect(list.items.some((v) => v.id === vehicleB.id)).toBe(false);
+  });
+
+  it("isolation Client : le garage A ne peut pas lire le client du garage B", async () => {
+    const callerA = callerFactory(await contextFor(ownerA.token));
+    await expect(callerA.customer.get({ id: customerB.id })).rejects.toThrow();
+  });
+
+  it("isolation RDV : le garage A ne peut pas lire le rendez-vous du garage B", async () => {
+    const callerA = callerFactory(await contextFor(ownerA.token));
+    await expect(callerA.appointment.get({ id: appointmentB.id })).rejects.toThrow();
+  });
+
+  it("isolation OR : le garage A ne peut pas lire l'ordre du garage B", async () => {
+    const callerA = callerFactory(await contextFor(ownerA.token));
+    await expect(callerA.repairOrder.get({ id: repairOrderB.id })).rejects.toThrow();
   });
 });

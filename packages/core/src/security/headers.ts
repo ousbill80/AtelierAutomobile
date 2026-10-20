@@ -69,7 +69,8 @@ export function getSecurityHeaders(config: SecurityHeadersConfig = {}): Record<s
     // Contrôle strict du référent : ne jamais faire fuiter les chemins d'URL complets
     "Referrer-Policy": "strict-origin-when-cross-origin",
     // Désactivation des fonctionnalités sensibles du navigateur non nécessaires
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    // Réception / inspection : photo et dictée vocale restent autorisées sur l'origine.
+    "Permissions-Policy": "camera=(self), microphone=(self), geolocation=(), payment=()",
     // CSP complet
     "Content-Security-Policy": buildContentSecurityPolicy(config),
   };

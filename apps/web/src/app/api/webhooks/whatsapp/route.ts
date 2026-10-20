@@ -11,6 +11,7 @@ import {
   recordInboundMessage,
   recordStatusEvent,
 } from "@/server/messaging/inbound";
+import { webhookRateLimitResponse } from "@/server/security/sensitiveRateLimit";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -41,6 +42,8 @@ interface WhatsappWebhookPayload {
 }
 
 export async function POST(req: Request) {
+  const limited = webhookRateLimitResponse(req);
+  if (limited) return limited;
   const payload = (await req
     .clone()
     .json()

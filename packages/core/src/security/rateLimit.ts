@@ -40,6 +40,26 @@ export function checkSlidingWindowRateLimit(
 }
 
 /**
+ * Compteur en mémoire (processus) pour login / OTP / webhooks.
+ * En production multi-instance, préférer Redis ; ce store suffit au local et aux tests.
+ */
+export class InMemoryRateLimiter {
+  private readonly hits = new Map<string, number[]>();
+
+  consume(key: string, nowMs: number, options: RateLimiterOptions): RateLimitCheckResult {
+    const recent = (this.hits.get(key) ?? []).filter((t) => t > nowMs - options.windowMs);
+    const result = checkSlidingWindowRateLimit(recent, nowMs, options);
+    if (result.allowed) recent.push(nowMs);
+    this.hits.set(key, recent);
+    return result;
+  }
+
+  reset(): void {
+    this.hits.clear();
+  }
+}
+
+/**
  * Configuration par défaut pour les points sensibles d'AtelierOS
  */
 export const DEFAULT_RATE_LIMITS = {
