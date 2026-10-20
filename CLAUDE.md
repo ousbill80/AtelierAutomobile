@@ -15,6 +15,7 @@ AtelierOS est un logiciel de gestion d'atelier automobile pour la Côte d'Ivoire
 - Jamais de commit ni de push direct sur `main`. Le code n'atteint `main` que par une Pull Request de la branche d'étape, CI verte et relecture faites, fusionnée par la session d'intégration (arbitrages A14 et A15).
 - Avant de committer ou de modifier des fichiers, vérifie `git status` : si une autre session a des changements en cours (sur `main` ou une autre branche) que tu n'as pas toi-même produits, ne commit pas à sa place et ne réécris pas ses fichiers. Attends qu'elle fusionne sa branche, ou prends une étape différente sur une branche séparée.
 - Deux sessions ne travaillent jamais sur la même étape en même temps.
+- **CI économe (A16)** : ouvre ta PR en brouillon (_draft_) ; valide en local (`pnpm check`, E2E si besoin) avant chaque push et regroupe tes commits ; passe la PR « Ready for review » seulement quand tout est vert en local. Pas de relance de CI « pour voir ».
 - **Réserver avant de coder** : une étape se réserve dans `docs/etapes-en-cours.md` avant toute ligne de code, en la demandant à la session d'intégration, seule à fusionner dans `main` (arbitrage A15). Étape déjà listée = étape prise. La ligne est retirée à la fusion de la branche.
 
 ## Ordre de vérité
