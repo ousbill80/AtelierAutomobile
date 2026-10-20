@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type StatusTone = "ok" | "warn" | "bad" | "off";
+export type StatusTone = "ok" | "warn" | "bad" | "off" | "accent";
 
 export interface StatusBadgeProps {
   tone: StatusTone;

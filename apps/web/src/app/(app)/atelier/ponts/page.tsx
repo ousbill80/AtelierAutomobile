@@ -3,7 +3,8 @@
 // M06 US-M06-02 — /atelier/ponts : une colonne par pont actif, zone « Parking / sans pont ».
 // Glisser un OR sur un pont (ou choisir le pont dans la liste) ; pont occupé → confirmation
 // avant d'envoyer l'occupant au parking (RG-M06-03).
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Car, CheckCircle2, CircleDot, Gauge, Wrench } from "lucide-react";
 import { Button, EmptyState, Modal, PageHead, Select } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
@@ -50,7 +51,17 @@ export default function WorkshopBaysPage() {
   };
 
   const data = bays.data;
-  const allBays = data?.bays ?? [];
+  const allBays = useMemo(() => data?.bays ?? [], [data?.bays]);
+
+  // Statistiques ponts
+  const stats = useMemo(() => {
+    const totalBays = allBays.length;
+    const occupied = allBays.filter((b) => b.repairOrder !== null).length;
+    const free = totalBays - occupied;
+    const occupancyRate = totalBays > 0 ? Math.round((occupied / totalBays) * 100) : 0;
+    const parkingCount = data?.parking.length ?? 0;
+    return { totalBays, occupied, free, occupancyRate, parkingCount };
+  }, [allBays, data?.parking]);
 
   const bayPicker = (card: WorkshopCard) =>
     canMove ? (
@@ -80,13 +91,62 @@ export default function WorkshopBaysPage() {
   });
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-5">
       <PageHead title={tw("tabs.bays")} description={tw("bays.description")} />
+
+      {/* KPI Cards / Synthèse Ponts */}
+      {allBays.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left">
+            <div className="flex items-center justify-between text-muted">
+              <span className="text-xs font-medium uppercase tracking-wider">{tw("kpis.baysOccupied")}</span>
+              <Wrench className="size-4 text-accent" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">
+              {stats.occupied} / {stats.totalBays}
+            </span>
+            <span className="text-xs text-muted">{stats.free} pont(s) libre(s)</span>
+          </div>
+
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left">
+            <div className="flex items-center justify-between text-status-ok">
+              <span className="text-xs font-medium uppercase tracking-wider">{tw("kpis.occupancyRate")}</span>
+              <Gauge className="size-4 text-status-ok" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-status-ok">
+              {stats.occupancyRate} %
+            </span>
+            <span className="text-xs text-muted">Charge actuelle</span>
+          </div>
+
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left">
+            <div className="flex items-center justify-between text-muted">
+              <span className="text-xs font-medium uppercase tracking-wider">{tw("bays.free")}</span>
+              <CheckCircle2 className="size-4 text-status-ok" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">{stats.free}</span>
+            <span className="text-xs text-muted">Prêts à accueillir</span>
+          </div>
+
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left">
+            <div className="flex items-center justify-between text-status-warn">
+              <span className="text-xs font-medium uppercase tracking-wider">{tw("kpis.parkingVehicles")}</span>
+              <Car className="size-4 text-status-warn" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-status-warn">
+              {stats.parkingCount}
+            </span>
+            <span className="text-xs text-muted">En attente d&apos;affectation</span>
+          </div>
+        </div>
+      ) : null}
+
       {error ? (
         <p role="alert" className="text-sm text-status-bad">
           {error}
         </p>
       ) : null}
+
       {bays.isLoading ? (
         <ListSkeleton rows={3} />
       ) : bays.isError || !data ? (
@@ -94,15 +154,34 @@ export default function WorkshopBaysPage() {
       ) : (
         <>
           {allBays.length === 0 ? <EmptyState title={tw("bays.noBays")} /> : null}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {allBays.map(({ bay, repairOrder }) => (
               <section
                 key={bay.id}
                 aria-label={bay.name}
                 {...dropZone(bay.id)}
-                className="flex min-h-40 flex-col gap-2 rounded-lg bg-surface-2/60 p-2"
+                className={`flex min-h-48 flex-col gap-2.5 rounded-xl border p-3 transition-colors ${
+                  repairOrder
+                    ? "border-accent/40 bg-surface shadow-sm"
+                    : "border-dashed border-border bg-surface-2/40 hover:bg-surface-2/70"
+                }`}
               >
-                <h3 className="text-sm font-semibold">{bay.name}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                    <CircleDot className={`size-3 ${repairOrder ? "text-accent fill-accent" : "text-status-ok"}`} />
+                    {bay.name}
+                  </h3>
+                  {repairOrder ? (
+                    <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                      Occupé
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-status-ok/15 px-2 py-0.5 text-[11px] font-semibold text-status-ok">
+                      {tw("bays.free")}
+                    </span>
+                  )}
+                </div>
+
                 {repairOrder ? (
                   <OrderCard
                     card={repairOrder}
@@ -111,32 +190,47 @@ export default function WorkshopBaysPage() {
                     onDragStart={() => setDragging(repairOrder.id)}
                     onDragEnd={() => setDragging(null)}
                     footer={
-                      <>
+                      <div className="flex flex-col gap-1.5">
                         {repairOrder.activeMechanics.length > 0 ? (
-                          <p className="text-xs">
+                          <p className="text-xs text-muted">
                             {tw("bays.active", {
                               names: repairOrder.activeMechanics.map((m) => m.name).join(", "),
                             })}
                           </p>
                         ) : null}
                         {bayPicker(repairOrder)}
-                      </>
+                      </div>
                     }
                   />
                 ) : (
-                  <p className="text-sm text-muted">{tw("bays.free")}</p>
+                  <div className="flex flex-1 flex-col items-center justify-center p-4 text-center">
+                    <p className="text-xs text-muted">
+                      {canMove ? "Glissez un véhicule ici pour l'installer sur le pont" : tw("bays.free")}
+                    </p>
+                  </div>
                 )}
               </section>
             ))}
           </div>
+
+          {/* Section Parking */}
           <section
             aria-label={tw("bays.parking")}
             {...dropZone(null)}
-            className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-2"
+            className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-surface-2/20 p-4"
           >
-            <h3 className="text-sm font-semibold">{tw("bays.parking")}</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Car className="size-4 text-muted" aria-hidden />
+                <span>{tw("bays.parking")}</span>
+                <span className="rounded-full bg-surface-3 px-2 py-0.5 text-xs text-muted">
+                  {data.parking.length}
+                </span>
+              </h3>
+            </div>
+
             {data.parking.length === 0 ? (
-              <p className="text-sm text-muted">{tw("bays.emptyParking")}</p>
+              <p className="text-sm text-muted py-2">{tw("bays.emptyParking")}</p>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {data.parking.map((card) => (
@@ -155,6 +249,7 @@ export default function WorkshopBaysPage() {
           </section>
         </>
       )}
+
       <Modal
         open={!!conflict}
         title={tw("bays.occupiedTitle")}
@@ -179,7 +274,7 @@ export default function WorkshopBaysPage() {
           </>
         }
       >
-        <p>{conflict?.message}</p>
+        <p className="text-sm text-muted">{conflict?.message}</p>
       </Modal>
     </div>
   );

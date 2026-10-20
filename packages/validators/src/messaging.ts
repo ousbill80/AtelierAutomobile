@@ -69,6 +69,8 @@ export const messagingHistoryInputSchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   channel: messageChannelSchema.optional(),
+  status: z.enum(["QUEUED", "SENDING", "SENT", "DELIVERED", "READ", "FAILED", "RECEIVED"]).optional(),
+  q: z.string().trim().max(100).optional(),
   customerId: z.string().trim().min(1).optional(),
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(30),

@@ -19,13 +19,27 @@ export function formatPct(rate: number | null | undefined): string {
 export function VariationText({ variation }: { variation: Variation }) {
   if (variation.kind === "none") return null;
   if (variation.kind === "new") {
-    return <span className="text-xs text-muted">↗ {L.variation.new}</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted">
+        ↗ {L.variation.new}
+      </span>
+    );
   }
   const { pct } = variation;
-  if (pct === 0) return <span className="text-xs text-muted">→ {L.variation.flat}</span>;
+  if (pct === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted">
+        → {L.variation.flat}
+      </span>
+    );
+  }
   const up = pct > 0;
   return (
-    <span className={`text-xs ${up ? "text-status-ok" : "text-status-bad"}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+        up ? "bg-status-ok-bg text-status-ok" : "bg-status-bad-bg text-status-bad"
+      }`}
+    >
       {up ? "▲" : "▼"} {fmt(up ? L.variation.up : L.variation.down, { pct: Math.abs(pct) })}
     </span>
   );
@@ -34,7 +48,7 @@ export function VariationText({ variation }: { variation: Variation }) {
 /** Info-bulle « Comment est-ce calculé ? » : survol (title) et texte lu par les lecteurs d'écran. */
 export function HelpTip({ text }: { text: string }) {
   return (
-    <span title={text} className="cursor-help">
+    <span title={text} className="cursor-help text-muted hover:text-foreground">
       <span aria-hidden="true">ⓘ</span>
       <span className="sr-only">{text}</span>
     </span>
@@ -49,6 +63,7 @@ export function KpiCard({
   help,
   href,
   badge,
+  icon,
 }: {
   label: string;
   value: string;
@@ -57,27 +72,41 @@ export function KpiCard({
   help?: string;
   href?: string;
   badge?: string;
+  icon?: ReactNode;
 }) {
   const content = (
     <>
-      <span className="flex items-start justify-between gap-1 text-xs text-muted">
-        {label}
-        {help && <HelpTip text={help} />}
-      </span>
-      <span className="text-lg font-semibold leading-tight sm:text-xl">{value}</span>
-      {sub && <span className="text-xs text-muted">{sub}</span>}
-      {variation && <VariationText variation={variation} />}
-      {badge && (
-        <span className="w-fit">
-          <StatusBadge tone="warn">{badge}</StatusBadge>
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex items-center gap-1 text-xs font-medium text-muted">
+          {label}
+          {help && <HelpTip text={help} />}
         </span>
+        {icon && (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+            {icon}
+          </span>
+        )}
+      </div>
+      <div className="my-1 flex items-baseline gap-2">
+        <span className="text-xl font-bold tracking-tight sm:text-2xl">{value}</span>
+      </div>
+      {(sub || variation || badge) && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          {variation && <VariationText variation={variation} />}
+          {badge && (
+            <span className="w-fit">
+              <StatusBadge tone="warn">{badge}</StatusBadge>
+            </span>
+          )}
+          {sub && <span className="text-xs text-muted">{sub}</span>}
+        </div>
       )}
     </>
   );
   const className =
-    "flex min-h-24 min-w-0 flex-col gap-1 break-words rounded-lg border border-border bg-surface p-3";
+    "flex min-h-24 min-w-0 flex-col justify-between gap-1 break-words rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md";
   return href ? (
-    <Link href={href} className={`${className} hover:bg-surface-2`} data-testid="kpi-card">
+    <Link href={href} className={`${className} hover:bg-surface-2/60`} data-testid="kpi-card">
       {content}
     </Link>
   ) : (

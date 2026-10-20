@@ -150,8 +150,32 @@ export const paymentRouter = router({
       });
       const hasMore = rows.length > input.limit;
       const items = hasMore ? rows.slice(0, input.limit) : rows;
+
+      const confirmedPayments = items.filter((p) => p.status === "CONFIRMED" && !p.voidedAt);
+      const totalCollected = confirmedPayments.reduce((sum, p) => sum + p.amount, 0);
+      const cashCollected = confirmedPayments
+        .filter((p) => p.method === "CASH")
+        .reduce((sum, p) => sum + p.amount, 0);
+      const mobileCollected = confirmedPayments
+        .filter((p) => ["WAVE", "ORANGE_MONEY", "MTN_MOMO", "MOOV_MONEY", "MOBILE_MONEY"].includes(p.method))
+        .reduce((sum, p) => sum + p.amount, 0);
+      const chequeCollected = confirmedPayments
+        .filter((p) => p.method === "CHEQUE" || p.method === "BANK_TRANSFER")
+        .reduce((sum, p) => sum + p.amount, 0);
+      const totalUnallocated = confirmedPayments.reduce((sum, p) => sum + p.unallocated, 0);
+      const pendingCheques = items.filter((p) => p.method === "CHEQUE" && p.status === "PENDING").length;
+
       return {
         items: items.map((p) => ({ ...p, receiptUrl: receiptUrl(p.id) })),
+        summary: {
+          totalCount: items.length,
+          totalCollected,
+          cashCollected,
+          mobileCollected,
+          chequeCollected,
+          totalUnallocated,
+          pendingCheques,
+        },
         nextCursor: hasMore ? items[items.length - 1]!.id : null,
         timeZone: org.timeZone,
       };

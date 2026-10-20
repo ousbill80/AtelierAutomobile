@@ -24,7 +24,6 @@ import {
   InlineError,
   ListSkeleton,
   ModuleNav,
-  PageTitle,
   ReasonModal,
   useCan,
 } from "../../stock/_lib/components";
@@ -77,56 +76,123 @@ export function PurchaseView({ id }: { id: string }) {
   const po = query.data;
   const open = po.status === "SENT" || po.status === "PARTIALLY_RECEIVED";
 
+  const totalReceivedValue = po.lines.reduce(
+    (acc, l) => acc + Math.round((l.receivedQty / l.product.quantityScale) * (l.receivedCost ?? l.unitCost)),
+    0,
+  );
+
   return (
-    <div className="flex flex-col gap-4 pb-10">
+    <div className="flex flex-col gap-6 pb-16">
       <ModuleNav section="purchases" />
-      <Link href="/achats" className="min-h-11 text-sm text-muted underline">
-        {t("common.back")}
-      </Link>
-      <PageTitle
-        title={po.number}
-        description={`${po.supplier.name} · ${po.site.name}`}
-        actions={
-          <>
-            {(po.status === "DRAFT" || po.status === "SENT") && can("purchase:create") ? (
-              <Button onClick={() => setDialog("send")}>{t("purchases.send")}</Button>
-            ) : null}
-            {open && can("stock:receive") ? (
-              <Button onClick={() => setDialog("receive")}>{t("purchases.receive")}</Button>
-            ) : null}
-            {(po.status === "DRAFT" || open) && can("purchase:create") ? (
-              <Button variant="secondary" onClick={() => setDialog("edit")}>
-                {t("purchases.editLines")}
+
+      {/* En-tête enrichi */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/achats"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted hover:text-foreground hover:bg-surface-2"
+          >
+            ←
+          </Link>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground font-mono">
+                {po.number}
+              </h1>
+              <StatusBadge
+                tone={PO_TONE[po.status] ?? "off"}
+                label={t(`purchases.status.${po.status}`)}
+              />
+              {po.late && <StatusBadge tone="bad" label={t("purchases.late")} />}
+            </div>
+            <p className="text-xs text-muted">
+              Fournisseur : <strong className="text-foreground">{po.supplier.name}</strong> · Site :{" "}
+              {po.site.name}
+              {po.repairOrder && ` · OR lié : ${po.repairOrder.number}`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {(po.status === "DRAFT" || po.status === "SENT") && can("purchase:create") ? (
+            <Button className="h-9 text-xs" onClick={() => setDialog("send")}>
+              {t("purchases.send")}
+            </Button>
+          ) : null}
+          {open && can("stock:receive") ? (
+            <Button className="h-9 text-xs" onClick={() => setDialog("receive")}>
+              {t("purchases.receive")}
+            </Button>
+          ) : null}
+          {(po.status === "DRAFT" || open) && can("purchase:create") ? (
+            <Button variant="secondary" className="h-9 text-xs" onClick={() => setDialog("edit")}>
+              {t("purchases.editLines")}
+            </Button>
+          ) : null}
+          <a
+            href={`/api/achats/${po.id}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-9 items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground hover:bg-surface-2"
+          >
+            {t("purchases.downloadPdf")}
+          </a>
+          {open && can("stock:receive") ? (
+            <Button variant="ghost" className="h-9 text-xs" onClick={() => setDialog("close")}>
+              {t("purchases.close")}
+            </Button>
+          ) : null}
+          {po.receivedAt || po.status === "PARTIALLY_RECEIVED" ? (
+            can("stock:receive") ? (
+              <Button variant="ghost" className="h-9 text-xs" onClick={() => setDialog("return")}>
+                {t("purchases.supplierReturn")}
               </Button>
-            ) : null}
-            <a
-              href={`/api/achats/${po.id}/pdf`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-11 items-center rounded-md bg-surface-2 px-4 text-sm font-medium"
-            >
-              {t("purchases.downloadPdf")}
-            </a>
-            {open && can("stock:receive") ? (
-              <Button variant="ghost" onClick={() => setDialog("close")}>
-                {t("purchases.close")}
-              </Button>
-            ) : null}
-            {po.receivedAt || po.status === "PARTIALLY_RECEIVED" ? (
-              can("stock:receive") ? (
-                <Button variant="ghost" onClick={() => setDialog("return")}>
-                  {t("purchases.supplierReturn")}
-                </Button>
-              ) : null
-            ) : null}
-            {(po.status === "DRAFT" || po.status === "SENT") && can("purchase:approve") ? (
-              <Button variant="ghost" onClick={() => setDialog("cancel")}>
-                {t("purchases.cancel")}
-              </Button>
-            ) : null}
-          </>
-        }
-      />
+            ) : null
+          ) : null}
+          {(po.status === "DRAFT" || po.status === "SENT") && can("purchase:approve") ? (
+            <Button variant="ghost" className="h-9 text-xs text-status-bad hover:bg-status-bad-bg/20" onClick={() => setDialog("cancel")}>
+              {t("purchases.cancel")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Cartes KPI du bon de commande */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Montant commandé</span>
+          <div className="mt-2 text-xl font-bold tracking-tight text-foreground">
+            {formatFCFA(po.total)}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">Total HT engagé</span>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Lignes commandées</span>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+            {po.lines.length}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">Références d&apos;articles</span>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Date prévisionnelle</span>
+          <div className="mt-2 text-base font-bold tracking-tight text-foreground">
+            {po.expectedAt ? formatDay(po.expectedAt) : "Non renseignée"}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">
+            {po.late ? "⚠️ Date dépassée" : "Délai de livraison estimé"}
+          </span>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Valeur réceptionnée</span>
+          <div className="mt-2 text-xl font-bold tracking-tight text-status-ok">
+            {formatFCFA(totalReceivedValue)}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">Entré en magasin</span>
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge
           tone={PO_TONE[po.status] ?? "off"}

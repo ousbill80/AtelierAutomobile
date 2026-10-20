@@ -81,21 +81,65 @@ export const remindersRouter = router({
     .query(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const now = new Date();
+      const compactQ = input.q?.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const searchWhere: Prisma.ReminderWhereInput = input.q
+        ? {
+            OR: [
+              { customer: { displayName: { contains: input.q, mode: "insensitive" } } },
+              { customer: { phone: { contains: input.q } } },
+              { customer: { whatsappPhone: { contains: input.q } } },
+              ...(compactQ ? [{ vehicle: { plateCompact: { contains: compactQ } } }] : []),
+            ],
+          }
+        : {};
+
       const where: Prisma.ReminderWhereInput = {
         ...tabWhere(input.tab, now),
+        ...searchWhere,
         ...(input.types && input.types.length > 0 ? { type: { in: input.types } } : {}),
         ...(input.channels && input.channels.length > 0 ? { channel: { in: input.channels } } : {}),
         ...(input.customerId ? { customerId: input.customerId } : {}),
         ...(input.vehicleId ? { vehicleId: input.vehicleId } : {}),
       };
 
-      const items = await tenantDb.reminder.findMany({
-        where,
-        orderBy: [{ priority: "asc" }, { scheduledFor: "asc" }],
-        take: input.limit + 1,
-        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-        include: { customer: true, vehicle: true },
-      });
+      const [items, optOutCount, monthDueCount, sentTodayCount] = await Promise.all([
+        tenantDb.reminder.findMany({
+          where,
+          orderBy: [{ priority: "asc" }, { scheduledFor: "asc" }],
+          take: input.limit + 1,
+          ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+          include: { customer: true, vehicle: true },
+        }),
+        tenantDb.optOut.count(),
+        // Échéances du mois en cours
+        tenantDb.vehicle.count({
+          where: {
+            deletedAt: null,
+            OR: [
+              {
+                inspectionExpiryDate: {
+                  gte: new Date(now.getFullYear(), now.getMonth(), 1),
+                  lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+                },
+              },
+              {
+                nextServiceDueDate: {
+                  gte: new Date(now.getFullYear(), now.getMonth(), 1),
+                  lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+                },
+              },
+            ],
+          },
+        }),
+        tenantDb.reminder.count({
+          where: {
+            status: "SENT",
+            sentAt: {
+              gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+            },
+          },
+        }),
+      ]);
       const nextCursor = items.length > input.limit ? items[input.limit]!.id : null;
 
       const tabs = [
@@ -116,7 +160,18 @@ export const remindersRouter = router({
         return Object.fromEntries(entries);
       });
 
-      return { items: items.slice(0, input.limit), counts, nextCursor };
+      return {
+        items: items.slice(0, input.limit),
+        counts,
+        stats: {
+          optOutCount,
+          monthDueCount,
+          sentTodayCount,
+          toApproveCount: counts.TO_APPROVE ?? 0,
+          plannedTodayCount: counts.PLANNED_TODAY ?? 0,
+        },
+        nextCursor,
+      };
     }),
 
   get: requirePermission("reminder:read")

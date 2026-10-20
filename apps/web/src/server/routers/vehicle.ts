@@ -139,14 +139,79 @@ export const vehicleRouter = router({
         orderBy: { createdAt: "desc" },
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        include: {
+          customer: { select: { id: true, displayName: true, type: true, phone: true } },
+          repairOrders: {
+            where: { deletedAt: null },
+            select: { id: true, number: true, status: true, totalEstimate: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+          },
+          invoices: {
+            where: { type: "INVOICE" },
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              total: true,
+              balance: true,
+              dueDate: true,
+              createdAt: true,
+            },
+          },
+        },
       });
       const nextCursor = items.length > input.limit ? items[input.limit]!.id : null;
 
+      const now = new Date();
       const filtered = await Promise.all(
-        items.slice(0, input.limit).map(async (vehicle) => ({
-          ...vehicle,
-          status: await computeVehicleStatus(vehicle),
-        })),
+        items.slice(0, input.limit).map(async (vehicle) => {
+          const repairCount = vehicle.repairOrders.length;
+          const activeRoCount = vehicle.repairOrders.filter((ro) =>
+            [
+              "CHECKED_IN",
+              "DIAGNOSING",
+              "AWAITING_APPROVAL",
+              "APPROVED",
+              "IN_PROGRESS",
+              "WAITING_PARTS",
+              "QUALITY_CHECK",
+              "READY",
+            ].includes(ro.status),
+          ).length;
+          const lastRepair = vehicle.repairOrders[0] ?? null;
+          const invoicesTotal = vehicle.invoices.reduce((sum, inv) => sum + inv.total, 0);
+          const invoicesPaidCount = vehicle.invoices.filter((inv) => inv.status === "PAID").length;
+          const invoicesUnpaidCount = vehicle.invoices.filter((inv) =>
+            ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"].includes(inv.status),
+          ).length;
+          const dueBalance = vehicle.invoices
+            .filter((inv) => ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"].includes(inv.status))
+            .reduce((sum, inv) => sum + (inv.balance || inv.total), 0);
+          const overdueBalance = vehicle.invoices
+            .filter(
+              (inv) =>
+                ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"].includes(inv.status) &&
+                inv.dueDate &&
+                new Date(inv.dueDate) < now,
+            )
+            .reduce((sum, inv) => sum + (inv.balance || inv.total), 0);
+
+          return {
+            ...vehicle,
+            status: await computeVehicleStatus(vehicle),
+            stats: {
+              repairCount,
+              activeRoCount,
+              lastRepairDate: lastRepair?.createdAt ?? null,
+              lastRepairNumber: lastRepair?.number ?? null,
+              invoicesTotal,
+              invoicesPaidCount,
+              invoicesUnpaidCount,
+              dueBalance,
+              overdueBalance,
+            },
+          };
+        }),
       );
       const statusFiltered = filtered.filter(
         (v) =>
@@ -164,8 +229,8 @@ export const vehicleRouter = router({
       const vehicle = await tenantDb.vehicle.findFirstOrThrow({
         where: { id: input.id, deletedAt: null },
         include: {
-          mileageReadings: { orderBy: { readAt: "desc" }, take: 10 },
-          customer: { select: { id: true, displayName: true } },
+          mileageReadings: { orderBy: { readAt: "desc" }, take: 20 },
+          customer: { select: { id: true, displayName: true, phone: true, email: true, type: true } },
         },
       });
       return { ...vehicle, status: await computeVehicleStatus(vehicle) };

@@ -180,7 +180,7 @@
     "claimFollowUps": "Relances assureurs",
     "settingsPayments": "Paiements",
     "settingsAi": "Intelligence artificielle",
-    "assistant": "Assistant",
+    "assistant": "Assistant IA",
     "reports": "Rapports",
     "settingsGarage": "Garage",
     "settingsHolidays": "Jours fériés",
@@ -1016,7 +1016,26 @@
     "creditAlert": {
       "blockTitle": "Crédit bloqué",
       "warnTitle": "Client en retard de paiement"
-    }
+    },
+    "filterReset": "Réinitialiser",
+    "searchPlaceholder": "Rechercher par client ou téléphone…",
+    "bucketFilter": {
+      "all": "Toutes les tranches",
+      "notDue": "Non échu",
+      "b0_30": "0-30 j",
+      "b31_60": "31-60 j",
+      "b61_90": "61-90 j",
+      "b90p": "+90 j",
+      "over60": "+60 j"
+    },
+    "quickActions": {
+      "whatsapp": "WhatsApp",
+      "call": "Appeler",
+      "viewAccount": "Dossier client",
+      "whatsappMessage": "Bonjour {name}, nous vous contactons concernant votre solde en attente de {amount} chez notre garage AtelierOS. Merci de nous contacter pour convenir du règlement."
+    },
+    "emptyFiltered": "Aucune créance trouvée pour ces filtres.",
+    "emptyFilteredDescription": "Ajustez vos filtres de retard, onglets ou termes de recherche pour afficher les dossiers."
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -1349,7 +1368,25 @@
       "created": "RDV enregistré.",
       "createdNoChannel": "RDV enregistré. Aucun canal écrit : confirmez par téléphone.",
       "warnings": "Avertissements",
-      "required": "Choisissez un client."
+      "required": "Choisissez un client.",
+      "sections": {
+        "customer": "Client & Véhicule",
+        "service": "Prestation & Durée",
+        "scheduling": "Date & Créneau horaire",
+        "workshop": "Affectation atelier",
+        "details": "Motif & Doléances"
+      },
+      "quickDates": {
+        "today": "Aujourd'hui",
+        "tomorrow": "Demain",
+        "afterTomorrow": "Après-demain"
+      },
+      "vehicleSelected": "Véhicule sélectionné",
+      "noVehiclesFound": "Aucun véhicule rattaché",
+      "recommendedDuration": "Recommandé : {minutes} min",
+      "findSlotAuto": "Trouver un créneau disponible",
+      "suggestSlotAi": "Assistant de créneau selon demande",
+      "clientNotificationHint": "Confirmation automatique envoyée par SMS / WhatsApp"
     },
     "panel": {
       "title": "Rendez-vous",
@@ -1423,7 +1460,66 @@
       "phoneConfirmations": "Confirmations à obtenir par téléphone",
       "phoneConfirmationsHint": "RDV de demain non confirmés : clients sans canal écrit, avec absences antérieures, ou sans réponse après 18:00.",
       "nothing": "Rien ici.",
-      "empty": "Aucun RDV aujourd'hui."
+      "empty": "Aucun RDV aujourd'hui.",
+      "emptyDescription": "Aucun véhicule n'est attendu sur ce créneau. Les relances automatiques de visite technique et de révision vont remplir votre agenda.",
+      "searchPlaceholder": "Client, plaque, téléphone, véhicule, prestation…",
+      "newAppointment": "Nouveau RDV",
+      "openPlanning": "Planning complet",
+      "openReminders": "Relances clients",
+      "all": "Tous les RDV",
+      "filterLate": "En retard uniquement",
+      "filterArrived": "Déjà arrivés",
+      "filterUpcoming": "À venir",
+      "filterPhone": "Confirmations",
+      "resetFilters": "Réinitialiser",
+      "emptyFiltered": "Aucun rendez-vous trouvé",
+      "emptyFilteredHint": "Modifiez votre recherche ou réinitialisez les critères.",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "tomorrow": "Demain",
+      "backToToday": "Aujourd'hui",
+      "previousDay": "Jour précédent",
+      "nextDay": "Jour suivant",
+      "pickDate": "Choisir une date",
+      "searchResultsCount": "{count} rendez-vous trouvé(s)",
+      "filterAll": "Tous ({count})",
+      "filterLateCount": "En retard ({count})",
+      "filterUpcomingCount": "À venir ({count})",
+      "filterConfirmedCount": "Confirmés ({count})",
+      "filterBookedCount": "À confirmer ({count})",
+      "filterArrivedCount": "Arrivés ({count})",
+      "filterNoShowCount": "Absents ({count})",
+      "clientArrived": "Client arrivé",
+      "confirmPhone": "Confirmer par téléphone",
+      "markNoShow": "Marquer absent",
+      "badgeLate": "En retard",
+      "whatsappMsg": "Bonjour {name}, votre rendez-vous ({type}) chez AtelierOS est prévu le {date} à {time}. À très bientôt !",
+      "phoneConfirmationsTitle": "Confirmations téléphoniques pour demain",
+      "phoneConfirmationsBadge": "Appels prioritaires",
+      "reasonNoChannel": "Aucun canal écrit",
+      "reasonNoShows": "Client avec absences antérieures",
+      "reasonAfterSix": "Veille au soir sans confirmation",
+      "bay": "Emplacement : {bay}",
+      "unassignedBay": "Emplacement non assigné",
+      "noPhone": "Sans téléphone",
+      "clearSearch": "Effacer la recherche",
+      "filterActive": "Filtre actif : {filter}",
+      "quickActions": "Actions rapides",
+      "callCustomer": "Appeler le client",
+      "openWhatsApp": "Contacter sur WhatsApp",
+      "receptionDirect": "Démarrer réception",
+      "viewFile": "Fiche RDV",
+      "quickWhatsApp": "WhatsApp",
+      "call": "Appeler",
+      "viewDetails": "Voir fiche",
+      "kpis": {
+        "total": "Total prévus",
+        "confirmed": "Confirmés",
+        "unanswered": "À confirmer",
+        "arrived": "Arrivés / En atelier",
+        "late": "En retard",
+        "phoneConfirmations": "À appeler demain"
+      }
     },
     "settings": {
       "title": "Planning",
@@ -1499,7 +1595,37 @@
     },
     "errors": {
       "generic": "Action impossible. Réessayez."
-    }
+    },
+    "kpis": {
+      "today": "RDV du jour",
+      "confirmed": "Confirmés",
+      "pending": "En attente",
+      "cancelledOrNoShow": "Annulés / Absents",
+      "vehiclesExpected": "Véhicules attendus"
+    },
+    "timeScopes": {
+      "today": "Aujourd'hui",
+      "thisWeek": "Cette semaine",
+      "all": "Tous (30j)"
+    },
+    "searchPlaceholder": "Rechercher par client, plaque, véhicule, motif…",
+    "filterReset": "Réinitialiser les filtres",
+    "table": {
+      "slot": "Créneau",
+      "customer": "Client & contact",
+      "vehicle": "Véhicule",
+      "reason": "Prestation & motif",
+      "resource": "Ressource",
+      "status": "Statut",
+      "actions": "Actions",
+      "noVehicle": "À identifier",
+      "inspectionSoon": "VT proche",
+      "openOrder": "Voir l'OR",
+      "markArrived": "Client arrivé / OR",
+      "details": "Détails"
+    },
+    "emptySearch": "Aucun rendez-vous trouvé.",
+    "emptySearchDescription": "Aucun rendez-vous ne correspond aux critères sélectionnés."
   },
   "repairOrders": {
     "title": "Ordres de réparation",
@@ -1536,7 +1662,11 @@
       "allPriorities": "Toutes priorités",
       "status": "Statut",
       "allStatuses": "Tous les statuts",
-      "search": "Rechercher (n° OR, plaque, client)"
+      "search": "Rechercher (n° OR, plaque, client)",
+      "searchPlaceholder": "Rechercher par n° OR, plaque, client, modèle...",
+      "resetFilters": "Réinitialiser les filtres",
+      "shown": "{count} ordre(s) affiché(s)",
+      "all": "Tous les OR"
     },
     "columns": {
       "number": "N° OR",
@@ -1547,7 +1677,9 @@
       "advisor": "Conseiller",
       "mechanics": "Mécaniciens",
       "promise": "Promesse",
-      "total": "Total estimé"
+      "total": "Total estimé",
+      "vehicle": "Véhicule",
+      "actions": "Actions"
     },
     "status": {
       "DRAFT": "Brouillon",
@@ -1723,7 +1855,11 @@
       "lockedNotice": "OR restitué : les lignes ne sont plus modifiables.",
       "declinedHistory": "Refusées par le client",
       "edit": "Modifier",
-      "editTitle": "Modifier la ligne"
+      "editTitle": "Modifier la ligne",
+      "searchPlaceholder": "Rechercher une opération ou saisir librement...",
+      "quickSuggestions": "Suggestions fréquentes d'atelier",
+      "catalogMatch": "Catalogue",
+      "customLine": "Saisie libre hors catalogue"
     },
     "reception": {
       "title": "Réception du véhicule",
@@ -1960,7 +2096,7 @@
       "promise": "Promesse de restitution",
       "promiseSuggested": "Proposition : {date}",
       "priority": "Priorité",
-      "summary": "Récapitulatif",
+      "summary": "Procès-verbal de réception",
       "summaryMileage": "Compteur : {value}",
       "summaryFuel": "Carburant : {value}/8",
       "summaryDamages": "Dommages : {count}",
@@ -1981,7 +2117,41 @@
       "creditOverride": "Dérogation (motif)",
       "created": "Réception enregistrée : {number}.",
       "missingVehicle": "Choisissez un véhicule.",
-      "submitting": "Envoi…"
+      "submitting": "Envoi…",
+      "summarySubtitle": "Contrôle visuel d'entrée en atelier & accord du client",
+      "summaryVehicle": "Véhicule",
+      "summaryClient": "Client",
+      "loadingWizard": "Chargement de l'assistant de réception…",
+      "noPhone": "Sans téléphone",
+      "odometerReasonPlaceholder": "Ex. Afficheur LCD cassé ou câble compteur décroché",
+      "damageHeader": "{damage} #{n} — {view}",
+      "damageZonePlaceholder": "Ex. Aile avant gauche, siège conducteur…",
+      "recordedDamagesCount": "Anomalies enregistrées ({count})",
+      "timeSaverTitle": "Gain de temps atelier",
+      "timeSaverDescription": "Coche automatiquement la roue de secours, cric, triangle, gilet, extincteur et documents de bord.",
+      "complaintClientLabel": "Doléances client :",
+      "signerNamePlaceholder": "Nom complet du client ou déposant",
+      "unreadableOdometer": "Illisible",
+      "noneDamageCount": "0 (Aucun)",
+      "stepBadge": "Étape {step} sur {total}",
+      "alertsCount": "{count} alerte(s) atelier",
+      "vehicleInfo": "Informations du véhicule",
+      "clientHistory": "Historique client & véhicule",
+      "meterHeading": "Relevé kilométrique & Carburant",
+      "meterSubtitle": "Précisez l'odomètre et le niveau de réservoir à l'arrivée",
+      "conditionHeading": "Inspection visuelle & Tour du véhicule",
+      "conditionSubtitle": "Prenez au moins {count} photos et signalez les anomalies sur le schéma",
+      "itemsHeading": "Équipements & Objets à bord",
+      "itemsSubtitle": "Inventaire rapide des accessoires de sécurité et effets personnels",
+      "complaintHeading": "Doléances & Devis préliminaire",
+      "complaintSubtitle": "Saisissez les motifs d'intervention et le plafond d'autorisation",
+      "summaryHeading": "Synthèse & Validation officielle",
+      "summarySubtitleOfficial": "Procès-verbal officiel d'entrée en atelier",
+      "damageHeaderClose": "Fermer l'ajout de dommage",
+      "deleteDamage": "Supprimer l'anomalie",
+      "dropOffClient": "Client : {name} · {phone}",
+      "dropOffSection": "Personne déposant le véhicule",
+      "keysCountLabel": "Nombre de clés remises"
     },
     "checkInItems": {
       "spare_wheel": "Roue de secours",
@@ -2225,7 +2395,28 @@
       "generic": "Une erreur est survenue. Réessayez.",
       "offline": "Pas de réseau : la réception est conservée sur cet appareil."
     },
-    "loadMore": "Afficher plus"
+    "loadMore": "Afficher plus",
+    "description": "Suivi des réceptions, diagnostics, réparations en cours et restitutions véhicules.",
+    "emptyDescription": "Enregistrez une nouvelle réception pour démarrer la prise en charge d'un véhicule.",
+    "emptyFilteredDescription": "Aucun ordre de réparation ne correspond à vos critères de recherche actuels.",
+    "kpis": {
+      "totalOpen": "OR ouverts",
+      "totalOpenSub": "Total à l'atelier",
+      "inProgress": "En cours",
+      "inProgressSub": "Interventions actives",
+      "awaitingApproval": "Attente accord",
+      "awaitingApprovalSub": "Validation client",
+      "waitingParts": "Attente pièces",
+      "waitingPartsSub": "En approvisionnement",
+      "late": "OR en retard",
+      "lateSub": "Promesse dépassée"
+    },
+    "actions": {
+      "open": "Ouvrir",
+      "view": "Consulter",
+      "pdfWorkshop": "Fiche atelier (PDF)",
+      "pdfReception": "Fiche réception (PDF)"
+    }
   },
   "customers": {
     "contacts": {
@@ -2442,7 +2633,23 @@
       "alertBelowMin": "Sous le mini",
       "alertNegative": "Négatif",
       "archived": "Archivé",
-      "compatible": "Compatible"
+      "compatible": "Compatible",
+      "stats": {
+        "total": "Total références",
+        "inStock": "Stock sain",
+        "belowMin": "Sous le mini",
+        "negative": "Rupture & Négatif",
+        "inactive": "Archivés"
+      },
+      "resetFilters": "Réinitialiser les filtres",
+      "itemsFound": "{count} référence(s) affichée(s)",
+      "copySku": "Copier le SKU",
+      "copied": "Copié !",
+      "viewDetails": "Voir fiche",
+      "emptyFiltered": "Aucun produit ne correspond aux filtres",
+      "emptyFilteredHint": "Modifiez la recherche, réinitialisez les filtres ou créez une nouvelle référence.",
+      "stockStatus": "État du stock",
+      "margin": "Marge : {rate} %"
     },
     "product": {
       "titleNew": "Nouveau produit",
@@ -2765,7 +2972,20 @@
       "repairOrder": "Lié à l'OR {number}",
       "editLines": "Modifier les lignes",
       "notFound": "Bon de commande introuvable.",
-      "sentEditHint": "Commande envoyée : vous pouvez ajouter des lignes ou augmenter les quantités ; chaque modification est tracée."
+      "sentEditHint": "Commande envoyée : vous pouvez ajouter des lignes ou augmenter les quantités ; chaque modification est tracée.",
+      "stats": {
+        "active": "Commandes en cours",
+        "late": "En retard de livraison",
+        "partial": "Réceptions partielles",
+        "totalCommitted": "Total engagé"
+      },
+      "resetFilters": "Réinitialiser les filtres",
+      "searchPlaceholder": "N° de bon, fournisseur, site…",
+      "quickWhatsapp": "Contacter par WhatsApp",
+      "viewDetails": "Voir le bon",
+      "emptyFiltered": "Aucun bon de commande trouvé",
+      "emptyFilteredHint": "Modifiez la recherche ou réinitialisez les critères.",
+      "emptySuggestionsHint": "Consultez les suggestions de réapprovisionnement pour générer des bons automatiquement."
     },
     "suggestions": {
       "title": "Suggestions de réapprovisionnement",
@@ -2789,13 +3009,13 @@
       "title": "Fournisseurs",
       "new": "Nouveau fournisseur",
       "empty": "Aucun fournisseur.",
-      "name": "Nom",
-      "phone": "Téléphone",
-      "whatsappPhone": "WhatsApp",
-      "email": "Email",
-      "address": "Adresse",
-      "paymentTermsDays": "Délai de paiement (jours)",
-      "notes": "Conditions et notes",
+      "name": "Nom de l'entreprise / Fournisseur",
+      "phone": "Téléphone standard / bureau",
+      "whatsappPhone": "WhatsApp (envoi direct des bons)",
+      "email": "Email professionnel",
+      "address": "Adresse géographique / Zone",
+      "paymentTermsDays": "Délai de règlement",
+      "notes": "Conditions commerciales et notes",
       "products": "{count} produit(s)",
       "orders": "{count} commande(s)",
       "inactive": "Inactif",
@@ -2806,7 +3026,21 @@
       "catalog": "Produits (fournisseur par défaut)",
       "totalPurchased": "Total commandé : {value}",
       "created": "Fournisseur créé.",
-      "notFound": "Fournisseur introuvable."
+      "notFound": "Fournisseur introuvable.",
+      "whatsappBadge": "Canal prioritaire",
+      "whatsappHint": "Numéro utilisé en priorité pour l'envoi des bons de commande par WhatsApp",
+      "sections": {
+        "identity": "Informations entreprise",
+        "contact": "Canaux de communication",
+        "address": "Localisation",
+        "terms": "Conditions de règlement & notes"
+      },
+      "paymentTermsPresets": {
+        "cash": "Comptant (0 j)",
+        "days15": "15 jours",
+        "days30": "30 jours",
+        "days60": "60 jours"
+      }
     },
     "label": {
       "print": "Imprimer",
@@ -2833,7 +3067,8 @@
       "stats": "Statistiques",
       "timeline": "Frise",
       "versions": "Versions",
-      "reminders": "Relances"
+      "reminders": "Relances",
+      "all": "Tous les devis"
     },
     "status": {
       "DRAFT": "Brouillon",
@@ -2858,7 +3093,11 @@
       "OTHER": "Travaux et entretien"
     },
     "filters": {
-      "allOrigins": "Toutes origines"
+      "allOrigins": "Toutes origines",
+      "allTabs": "Tous les statuts",
+      "searchPlaceholder": "Rechercher par n° devis, client, plaque, modèle...",
+      "resetFilters": "Réinitialiser les filtres",
+      "shown": "{count} devis affiché(s)"
     },
     "empty": {
       "title": "Aucun devis en attente.",
@@ -3219,6 +3458,33 @@
       "declineAll": "Je refuse ce devis",
       "payDeposit": "Payer l'acompte de {amount}",
       "depositPaid": "Acompte de {amount} reçu. Merci !"
+    },
+    "description": "Chiffrage, envoi multicanal, validation client et conversion en ordres de réparation.",
+    "kpis": {
+      "totalQuotes": "Total devis",
+      "totalQuotesSub": "Tous statuts confondus",
+      "totalAmount": "Montant chiffré",
+      "totalAmountSub": "Volume financier global",
+      "waiting": "Envoyés en attente",
+      "waitingSub": "En attente d'accord",
+      "accepted": "Acceptés / Convertis",
+      "acceptedSub": "Accords confirmés",
+      "expiredDeclined": "Expirés / Refusés",
+      "expiredDeclinedSub": "Non concrétisés"
+    },
+    "columns": {
+      "number": "N° Devis",
+      "customerVehicle": "Client & Véhicule",
+      "origin": "Origine",
+      "status": "Statut",
+      "dates": "Dates & Validité",
+      "amount": "Montant total",
+      "tracking": "Suivi & Relances",
+      "actions": "Actions"
+    },
+    "emptyFiltered": {
+      "title": "Aucun devis trouvé",
+      "description": "Aucun devis ne correspond à vos filtres ou termes de recherche."
     }
   },
   "billing": {
@@ -3500,6 +3766,39 @@
       "copyLink": "Copier le lien client",
       "linkCopied": "Lien client copié",
       "sentAt": "Envoyée le {date}"
+    },
+    "description": "Facturation des ordres de réparation, ventes comptoir, certification FNE et encaissements.",
+    "kpis": {
+      "totalInvoiced": "Factures émises",
+      "totalInvoicedSub": "Hors brouillons & avoirs",
+      "revenue": "Chiffre d'affaires",
+      "revenueSub": "Total facturé TTC",
+      "overdue": "En retard de règlement",
+      "overdueSub": "Échéance dépassée",
+      "paid": "Factures réglées",
+      "paidSub": "Entièrement payées",
+      "creditNotes": "Avoirs & crédits",
+      "creditNotesSub": "Avoirs émis"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher par n° facture, client, plaque, n° OR...",
+      "resetFilters": "Réinitialiser les filtres",
+      "overdueOnly": "En retard uniquement",
+      "shown": "{count} facture(s) affichée(s)"
+    },
+    "columns": {
+      "number": "N° Facture",
+      "customerVehicle": "Client & Véhicule",
+      "status": "Statut",
+      "fne": "FNE",
+      "dates": "Émission & Échéance",
+      "total": "Montant TTC",
+      "balance": "Reste dû",
+      "actions": "Actions"
+    },
+    "emptyFiltered": {
+      "title": "Aucune facture trouvée",
+      "description": "Aucune facture ne correspond à votre recherche ou aux filtres appliqués."
     }
   },
   "cash": {
@@ -3569,6 +3868,40 @@
       "refundReason": "Motif du remboursement",
       "refundAmount": "Montant à rembourser",
       "allMethods": "Tous les modes"
+    },
+    "kpis": {
+      "totalCollected": "Total encaissé",
+      "cashInRegister": "Espèces en caisse",
+      "mobileMoney": "Mobile Money",
+      "chequesAndTransfers": "Chèques & Virements",
+      "openSessions": "Sessions ouvertes",
+      "expectedDetail": "Attendu : {amount}",
+      "openCount": "{count} session(s) active(s)"
+    },
+    "filterReset": "Réinitialiser les filtres",
+    "searchPlaceholder": "Rechercher un règlement, client, référence…",
+    "allTransactions": "Transactions & Règlements",
+    "table": {
+      "paymentNumber": "N° Règlement / Réf.",
+      "customer": "Client",
+      "method": "Mode de règlement",
+      "allocations": "Facture(s) liée(s)",
+      "amount": "Montant",
+      "status": "Statut",
+      "receipt": "Reçu",
+      "actions": "Actions",
+      "unallocatedBadge": "{amount} non affecté"
+    },
+    "emptyTransactions": "Aucune transaction trouvée.",
+    "emptyTransactionsDesc": "Aucun règlement ne correspond aux critères de recherche actuels.",
+    "methodBadge": {
+      "CASH": "Espèces",
+      "WAVE": "Wave",
+      "ORANGE_MONEY": "Orange Money",
+      "MTN_MOMO": "MTN MoMo",
+      "MOOV_MONEY": "Moov Money",
+      "CHEQUE": "Chèque",
+      "BANK_TRANSFER": "Virement"
     }
   },
   "workshop": {
@@ -3802,7 +4135,37 @@
       "reject": "Refuser",
       "rejectReason": "Motif du refus",
       "updated": "Demande mise à jour"
-    }
+    },
+    "kpis": {
+      "totalOrders": "OR à l'atelier",
+      "inProgress": "En cours d'intervention",
+      "waitingParts": "Attente pièces",
+      "qcPending": "Contrôle qualité",
+      "late": "En retard",
+      "baysOccupied": "Ponts occupés",
+      "occupancyRate": "Taux d'occupation",
+      "parkingVehicles": "Au parking",
+      "presentMechanics": "Mécaniciens présents",
+      "busyMechanics": "En cours de travail",
+      "freeMechanics": "Disponibles",
+      "unassignedTasks": "Tâches à affecter",
+      "totalLoad": "Charge restante",
+      "totalHoursToday": "Heures pointées aujourd'hui",
+      "productiveHours": "Heures productives",
+      "toReviewCount": "Pointages à vérifier",
+      "qcWaiting": "Véhicules à contrôler",
+      "qcRework": "En reprise",
+      "subcontractActive": "En sous-traitance",
+      "subcontractOverdue": "Retards sous-traitant",
+      "subcontractCost": "Coût engagé",
+      "efficiencyAvg": "Efficacité moyenne",
+      "productivityAvg": "Productivité atelier",
+      "overallAvg": "Rendement global",
+      "billedHours": "Heures facturées",
+      "partsRequested": "Demandes en attente",
+      "partsPreparing": "En préparation"
+    },
+    "searchOrder": "Filtrer par immatriculation, client ou OR…"
   },
   "tablet": {
     "title": "Tablette atelier",
@@ -5423,6 +5786,341 @@
         "failed": "Échec"
       },
       "testResult": "Test : {status}"
+    }
+  },
+  "claimsModule": {
+    "kpis": {
+      "total": "Total dossiers sinistres",
+      "waiting": "En attente accord / expert",
+      "repairing": "Réparations autorisées",
+      "invoiced": "Facturés / en attente règlement",
+      "blocked": "Dossiers en retard / bloqués",
+      "insurerDue": "Encours Assureurs",
+      "customerDue": "Reste client"
+    },
+    "filters": {
+      "allStatuses": "Tous les statuts",
+      "allInsurers": "Toutes les compagnies",
+      "blockedOnly": "Dossiers bloqués / retards",
+      "searchPlaceholder": "Rechercher par n° sinistre, immatriculation, compagnie, client...",
+      "reset": "Réinitialiser"
+    },
+    "table": {
+      "claim": "Dossier sinistre",
+      "vehicleCustomer": "Véhicule & Assuré",
+      "insurer": "Compagnie & Expert",
+      "status": "Statut",
+      "approvedAmount": "Montant chiffré",
+      "insurerShare": "Part Assureur",
+      "customerShare": "Part Assuré",
+      "actions": "Actions",
+      "view": "Consulter"
+    },
+    "empty": {
+      "title": "Aucun dossier sinistre trouvé",
+      "description": "Aucun dossier ne correspond à votre recherche ou à vos critères de filtrage.",
+      "action": "Effacer les filtres",
+      "create": "Créer un dossier sinistre"
+    }
+  },
+  "remindersModule": {
+    "title": "Relances",
+    "subtitle": "Moteur automatisé de relances Visites Techniques, Révisions et Créances impayées",
+    "kpis": {
+      "monthDue": "Échéances du mois",
+      "monthDueHint": "Visites & Révisions prévues",
+      "toApprove": "À approuver",
+      "toApproveHint": "Vérification humaine requise",
+      "scheduled": "Planifiées",
+      "scheduledHint": "Automatisées pour aujourd'hui",
+      "sent": "Envoyées",
+      "sentHint": "Messages distribués ce jour",
+      "failed": "En échec ⚠️",
+      "failedHint": "Échecs d'envoi opérateur",
+      "optOut": "Opt-Out / Désinscriptions",
+      "optOutHint": "Clients désinscrits respectés",
+      "successRate": "Taux de succès"
+    },
+    "tabs": {
+      "TO_APPROVE": "À valider",
+      "PLANNED_TODAY": "Planifiées aujourd'hui",
+      "SENT_TODAY": "Envoyées aujourd'hui",
+      "FAILED": "Échecs",
+      "TO_CALL": "À appeler",
+      "EXPIRED": "Expirées"
+    },
+    "types": {
+      "all": "Tous les types",
+      "INSPECTION": "Visite technique",
+      "SERVICE": "Révision",
+      "RECEIVABLE": "Créance",
+      "APPOINTMENT": "Rendez-vous",
+      "QUOTE_FOLLOWUP": "Suivi de devis",
+      "VEHICLE_READY": "Véhicule prêt",
+      "INSURANCE_EXPIRY": "Assurance",
+      "SATISFACTION": "Satisfaction",
+      "RECOMMENDED_WORK": "Travaux recommandés",
+      "CUSTOM": "Personnalisée"
+    },
+    "channels": {
+      "all": "Tous les canaux",
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS",
+      "EMAIL": "Email",
+      "none": "Sans canal"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher par client, plaque ou téléphone (+225)...",
+      "reset": "Réinitialiser"
+    },
+    "row": {
+      "individual": "Particulier",
+      "company": "Entreprise",
+      "noChannel": "Sans canal",
+      "preview": "Aperçu du message",
+      "hidePreview": "Masquer l'aperçu",
+      "loadingPreview": "Chargement de l'aperçu…",
+      "errorPreview": "Aperçu indisponible.",
+      "smsDetails": "{chars} car. · {segments} SMS · {encoding}",
+      "stepLabel": "palier {step}",
+      "selectAria": "Sélectionner cette relance",
+      "actions": {
+        "sendNow": "Envoyer",
+        "retry": "Réessayer",
+        "modify": "Modifier",
+        "snooze": "Reporter",
+        "skip": "Ignorer",
+        "call": "Appeler",
+        "callUnknown": "Appeler (numéro inconnu)",
+        "openWaLink": "Ouvrir dans WhatsApp (envoyé manuellement)"
+      },
+      "editForm": {
+        "save": "Enregistrer",
+        "cancel": "Annuler"
+      },
+      "snoozeForm": {
+        "label": "Reporter au",
+        "confirm": "Confirmer",
+        "cancel": "Annuler"
+      },
+      "skipForm": {
+        "stopSequence": "Arrêter la séquence",
+        "confirm": "Confirmer",
+        "cancel": "Annuler"
+      }
+    },
+    "batch": {
+      "selectedCount": "{count} sélectionnée(s)",
+      "sendSelected": "Envoyer la sélection ({count})",
+      "cancelSelection": "Tout désélectionner"
+    },
+    "empty": {
+      "title": "Aucune relance dans cet onglet",
+      "description": "Revenez plus tard ou modifiez vos critères de recherche.",
+      "action": "Effacer les filtres"
+    },
+    "error": {
+      "load": "Impossible de charger les relances.",
+      "retry": "Réessayer"
+    },
+    "links": {
+      "dueDates": "Échéances",
+      "results": "Résultats & Retours"
+    },
+    "dueDates": {
+      "title": "Échéances d'entretien & contrôles",
+      "subtitle": "Suivi proactif des visites techniques, révisions et assurances avec déclenchement rapide des rendez-vous",
+      "tabs": {
+        "inspection": "Visite technique",
+        "service": "Vidange & Révision",
+        "insurance": "Assurance"
+      },
+      "filters": {
+        "all": "Toutes les échéances",
+        "upcoming": "À venir (sous 30 jours)",
+        "expired": "Échues / En retard",
+        "missing": "Données manquantes"
+      },
+      "actions": {
+        "markAppointment": "Prendre RDV",
+        "markInspectionDone": "VT effectuée",
+        "sendReminder": "Relancer",
+        "callCustomer": "Appeler",
+        "viewCustomer": "Fiche client"
+      },
+      "empty": "Aucune échéance ne correspond à ce filtre."
+    }
+  },
+  "messagesModule": {
+    "title": "Messagerie & Communications",
+    "subtitle": "Boîte de réception unifiée et journal omnicanal (WhatsApp Business Cloud, SMS Orange CI et Email)",
+    "kpis": {
+      "totalConversations": "Total conversations",
+      "totalConversationsHint": "Fils de discussion actifs",
+      "unreadMessages": "Non lus",
+      "unreadMessagesHint": "En attente de réponse",
+      "activeWhatsapp24h": "WhatsApp 24h actifs",
+      "activeWhatsapp24hHint": "Fenêtre Meta ouverte (texte libre)",
+      "totalSent": "Total envoyés",
+      "deliveredRead": "Délivrés / Lus",
+      "failed": "Échecs d'envoi",
+      "whatsapp": "WhatsApp Business",
+      "sms": "SMS",
+      "email": "Email"
+    },
+    "tabs": {
+      "inbox": "Boîte de réception (conversations)",
+      "history": "Journal des messages envoyés",
+      "filters": {
+        "ALL": "Toutes",
+        "UNREAD": "Non lues",
+        "ASSIGNED_TO_ME": "Mes conversations",
+        "UNASSIGNED": "Non affectées"
+      }
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom client, téléphone, immatriculation ou message...",
+      "allStatuses": "Tous les statuts",
+      "allChannels": "Tous les canaux",
+      "delivered": "Délivré / Lu",
+      "pending": "En attente",
+      "failed": "Échec d'envoi",
+      "reset": "Réinitialiser"
+    },
+    "compose": {
+      "button": "Nouveau message",
+      "title": "Rédiger un nouveau message",
+      "clientSelectorLabel": "Destinataire (client)",
+      "searchClientPlaceholder": "Rechercher un client (nom, tél, immatriculation)...",
+      "searching": "Recherche du client en cours...",
+      "noClientFound": "Aucun client trouvé pour ce terme.",
+      "changeClient": "Changer",
+      "selectClientHint": "Tapez au moins 2 lettres pour chercher un client.",
+      "clientWithoutPhone": "Attention : ce client n'a aucun numéro de téléphone renseigné.",
+      "channelLabel": "Canal de communication",
+      "channels": {
+        "WHATSAPP": "WhatsApp Business",
+        "WHATSAPP_DESC": "Meta Cloud API · 24h",
+        "SMS": "SMS Côte d'Ivoire",
+        "SMS_DESC": "Orange / MTN / Moov",
+        "EMAIL": "Email",
+        "EMAIL_DESC": "Devis & Factures"
+      },
+      "waWindow": {
+        "open": "Fenêtre WhatsApp ouverte : conversation et texte libre autorisés.",
+        "closed": "Fenêtre WhatsApp fermée : un modèle approuvé par Meta est obligatoire."
+      },
+      "templateLabel": "Modèle de message",
+      "freeText": "Texte libre",
+      "freeTextWaNotice": "Texte libre (1er contact WhatsApp impossible hors fenêtre 24h)",
+      "bodyLabel": "Message à envoyer",
+      "bodyPlaceholder": "Rédigez votre message ici…",
+      "send": "Envoyer le message",
+      "sending": "Envoi en cours…",
+      "cancel": "Annuler"
+    },
+    "conversations": {
+      "unreadBadge": "{count} non lu(s)",
+      "empty": {
+        "title": "Aucune conversation.",
+        "description": "Les réponses et échanges avec vos clients apparaîtront ici."
+      },
+      "status": {
+        "open": "Ouverte",
+        "closed": "Clôturée"
+      },
+      "channels": {
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email"
+      }
+    },
+    "table": {
+      "recipient": "Destinataire",
+      "channel": "Canal",
+      "status": "Statut",
+      "preview": "Aperçu du message",
+      "date": "Date & Heure",
+      "actions": "Actions",
+      "resend": "Réexpédier",
+      "view": "Ouvrir",
+      "copy": "Copier"
+    },
+    "statuses": {
+      "QUEUED": "En attente",
+      "SENDING": "En cours d'envoi",
+      "SENT": "Envoyé",
+      "DELIVERED": "Délivré",
+      "READ": "Lu",
+      "FAILED": "Échec d'envoi",
+      "RECEIVED": "Reçu"
+    },
+    "previewModal": {
+      "title": "Message {channel}",
+      "errorTitle": "Erreur d'envoi :",
+      "subject": "Objet :",
+      "body": "Corps du message :",
+      "close": "Fermer"
+    },
+    "empty": {
+      "title": "Aucun message trouvé",
+      "description": "Aucun message ne correspond à vos critères de recherche.",
+      "action": "Réinitialiser les filtres"
+    }
+  },
+  "vehicleDetail": {
+    "back": "Retour aux véhicules",
+    "owner": "Propriétaire",
+    "viewOwner": "Voir la fiche client",
+    "tabs": {
+      "overview": "Synthèse & Santé",
+      "history": "Historique des OR",
+      "mileage": "Relevés kilométriques",
+      "reminders": "Relances & Échéances"
+    },
+    "kpis": {
+      "totalRos": "Total OR réalisés",
+      "activeRo": "OR en cours d'atelier",
+      "totalSpent": "Dépenses cumulées",
+      "dueBalance": "Impayé client"
+    },
+    "inspection": {
+      "title": "Visite technique",
+      "unknown": "Date d'expiration inconnue",
+      "expiresOn": "Expire le {date}",
+      "recordTitle": "Enregistrer le contrôle technique",
+      "recordDate": "Date de la visite validée",
+      "button": "Valider la VT",
+      "success": "Visite technique enregistrée."
+    },
+    "service": {
+      "title": "Prochaine révision",
+      "unknown": "Aucune révision programmée",
+      "dueOn": "Prévue vers le {date}",
+      "approxKm": "≈ {km} km"
+    },
+    "mileage": {
+      "title": "Kilométrage",
+      "estimated": "Estimation automatique calculée",
+      "recordTitle": "Nouveau relevé kilométrique",
+      "inputLabel": "Kilométrage relevé",
+      "button": "Enregistrer le relevé",
+      "success": "Kilométrage mis à jour.",
+      "tableTitle": "Historique des relevés récents",
+      "colDate": "Date",
+      "colMileage": "Relevé",
+      "colSource": "Source",
+      "sources": {
+        "RECEPTION": "Réception atelier",
+        "MANUAL": "Saisie manuelle",
+        "INSPECTION": "Contrôle technique",
+        "WORKSHOP": "Intervention atelier"
+      }
+    },
+    "orders": {
+      "title": "Ordres de réparation liés",
+      "empty": "Aucun ordre de réparation pour ce véhicule.",
+      "newRo": "Créer un ordre de réparation"
     }
   }
 }

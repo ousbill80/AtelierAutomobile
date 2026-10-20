@@ -5,15 +5,28 @@
 // enregistré avant « Enregistrer » : la décision est ensuite tracée sur la suggestion IA.
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Field, Input, PlateInput, Select } from "@atelieros/ui";
-import { trpc } from "@/trpc/react";
-import { t } from "@/lib/i18n";
+import { Calendar, Car, ShieldCheck } from "lucide-react";
+import {
+  Field,
+  FormActions,
+  FormCard,
+  FormGrid,
+  FormSection,
+  Input,
+  PlateInput,
+  Select,
+  StatusBadge,
+  VinInput,
+} from "@atelieros/ui";
 import {
   DocumentCapture,
   ExtractedHint,
   extractedClass,
   type ExtractedFields,
 } from "@/components/ai/document-capture";
+import { VehicleMakeModelSelect } from "@/components/vehicle-make-model-select";
+import { t } from "@/lib/i18n";
+import { trpc } from "@/trpc/react";
 
 const FUELS = ["PETROL", "DIESEL", "HYBRID", "ELECTRIC", "LPG", "OTHER"] as const;
 type Fuel = (typeof FUELS)[number];
@@ -40,7 +53,11 @@ function NewVehicleForm() {
   });
 
   if (!customerId) {
-    return <p className="text-sm text-status-bad">{t("aiExtraction.vehicle.pickCustomer")}</p>;
+    return (
+      <div className="mx-auto max-w-xl rounded-xl border border-status-bad/50 bg-status-bad-bg p-4 text-sm text-status-bad">
+        {t("aiExtraction.vehicle.pickCustomer")}
+      </div>
+    );
   }
 
   function applyExtraction(fields: ExtractedFields, suggestionId: string | null) {
@@ -110,91 +127,138 @@ function NewVehicleForm() {
   const busy = createVehicle.isPending || recordInspection.isPending;
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4">
-      <h1 className="text-2xl font-semibold">{t("aiExtraction.vehicle.title")}</h1>
-      <DocumentCapture
-        kinds={["VEHICLE_REGISTRATION", "INSPECTION_STICKER"]}
-        onExtracted={(result) => applyExtraction(result.fields, result.suggestionId)}
-      />
-      {extracted.ownerName && (
-        <p className="text-sm text-muted">
-          {t("aiExtraction.ownerName", { name: String(extracted.ownerName.value) })}{" "}
-          <ExtractedHint field={extracted.ownerName} />
-        </p>
-      )}
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <div className={extractedClass(extracted.plate)}>
-          <PlateInput
-            label={t("aiExtraction.vehicle.plate")}
-            required
-            value={plate}
-            onChange={setPlate}
+    <FormCard
+      title={t("aiExtraction.vehicle.title")}
+      description="Ajoutez un véhicule avec masque d'immatriculation ivoirienne et numéro de châssis"
+      icon={<Car size={22} strokeWidth={2.2} />}
+      badge={<StatusBadge tone="ok">Nouveau véhicule</StatusBadge>}
+      backHref={`/clients/${customerId}`}
+      backLabel="Retour à la fiche client"
+      maxWidth="xl"
+    >
+      <div className="flex flex-col gap-5">
+        {/* Module de capture intelligente IA */}
+        <DocumentCapture
+          kinds={["VEHICLE_REGISTRATION", "INSPECTION_STICKER"]}
+          onExtracted={(result) => applyExtraction(result.fields, result.suggestionId)}
+        />
+
+        {extracted.ownerName && (
+          <div className="flex items-center gap-2 rounded-lg bg-surface-2/60 px-3 py-2 text-xs text-muted">
+            <span>
+              {t("aiExtraction.ownerName", { name: String(extracted.ownerName.value) })}
+            </span>
+            <ExtractedHint field={extracted.ownerName} />
+          </div>
+        )}
+
+        <form onSubmit={submit} className="flex flex-col gap-5">
+          {/* Section 1 : Immatriculation & Châssis */}
+          <FormSection
+            title="Immatriculation & Châssis"
+            icon={<ShieldCheck size={18} />}
+            description="Identifiants légaux du véhicule avec masques normés"
+          >
+            <FormGrid cols={2}>
+              <div className={extractedClass(extracted.plate)}>
+                <PlateInput
+                  label={t("aiExtraction.vehicle.plate")}
+                  required
+                  value={plate}
+                  onChange={setPlate}
+                />
+                <ExtractedHint field={extracted.plate} />
+              </div>
+
+              <div className={extractedClass(extracted.vin)}>
+                <VinInput
+                  label={t("aiExtraction.vehicle.vin")}
+                  value={vin}
+                  onChange={setVin}
+                  optional
+                />
+                <ExtractedHint field={extracted.vin} />
+              </div>
+            </FormGrid>
+          </FormSection>
+
+          {/* Section 2 : Marque & Modèle */}
+          <FormSection
+            title="Marque & Modèle"
+            icon={<Car size={18} />}
+            description="Suggestions riches adaptées au marché ivoirien avec auto-création"
+          >
+            <FormGrid cols={2}>
+              <VehicleMakeModelSelect
+                make={make}
+                model={model}
+                onMakeChange={setMake}
+                onModelChange={setModel}
+                required
+                makeLabel={t("aiExtraction.vehicle.make")}
+                modelLabel={t("aiExtraction.vehicle.model")}
+              />
+            </FormGrid>
+          </FormSection>
+
+          {/* Section 3 : Caractéristiques & Échéances */}
+          <FormSection
+            title="Énergie & Dates réglementaires"
+            icon={<Calendar size={18} />}
+            description="Informations pour le suivi d'entretien et les alertes de visite technique"
+          >
+            <FormGrid cols={3}>
+              <div className={extractedClass(extracted.fuel)}>
+                <Field label={t("aiExtraction.vehicle.fuel")}>
+                  <Select value={fuel} onChange={(e) => setFuel(e.target.value as Fuel | "")}>
+                    <option value="">{t("aiExtraction.vehicle.fuelNone")}</option>
+                    {FUELS.map((f) => (
+                      <option key={f} value={f}>
+                        {t(`aiExtraction.vehicle.fuels.${f}`)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <ExtractedHint field={extracted.fuel} />
+              </div>
+
+              <div className={extractedClass(extracted.firstRegistrationDate)}>
+                <Input
+                  type="date"
+                  label={t("aiExtraction.vehicle.firstRegistrationDate")}
+                  value={firstRegistrationDate}
+                  onChange={(e) => setFirstRegistrationDate(e.target.value)}
+                />
+                <ExtractedHint field={extracted.firstRegistrationDate} />
+              </div>
+
+              <div className={extractedClass(extracted.inspectionExpiryDate)}>
+                <Input
+                  type="date"
+                  label={t("aiExtraction.vehicle.inspectionExpiryDate")}
+                  value={inspectionExpiryDate}
+                  onChange={(e) => setInspectionExpiryDate(e.target.value)}
+                />
+                <ExtractedHint field={extracted.inspectionExpiryDate} />
+              </div>
+            </FormGrid>
+          </FormSection>
+
+          {error && (
+            <div className="rounded-lg border border-status-bad/50 bg-status-bad-bg p-3 text-xs text-status-bad">
+              {error}
+            </div>
+          )}
+
+          <FormActions
+            submitLabel={busy ? t("aiExtraction.vehicle.saving") : t("aiExtraction.vehicle.save")}
+            loading={busy}
+            cancelHref={`/clients/${customerId}`}
+            cancelLabel="Annuler"
           />
-          <ExtractedHint field={extracted.plate} />
-        </div>
-        <div className={extractedClass(extracted.make)}>
-          <Input
-            label={t("aiExtraction.vehicle.make")}
-            required
-            value={make}
-            onChange={(e) => setMake(e.target.value)}
-          />
-          <ExtractedHint field={extracted.make} />
-        </div>
-        <div className={extractedClass(extracted.model)}>
-          <Input
-            label={t("aiExtraction.vehicle.model")}
-            required
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-          />
-          <ExtractedHint field={extracted.model} />
-        </div>
-        <div className={extractedClass(extracted.vin)}>
-          <Input
-            label={t("aiExtraction.vehicle.vin")}
-            value={vin}
-            onChange={(e) => setVin(e.target.value)}
-          />
-          <ExtractedHint field={extracted.vin} />
-        </div>
-        <div className={extractedClass(extracted.firstRegistrationDate)}>
-          <Input
-            type="date"
-            label={t("aiExtraction.vehicle.firstRegistrationDate")}
-            value={firstRegistrationDate}
-            onChange={(e) => setFirstRegistrationDate(e.target.value)}
-          />
-          <ExtractedHint field={extracted.firstRegistrationDate} />
-        </div>
-        <div className={extractedClass(extracted.fuel)}>
-          <Field label={t("aiExtraction.vehicle.fuel")}>
-            <Select value={fuel} onChange={(e) => setFuel(e.target.value as Fuel | "")}>
-              <option value="">{t("aiExtraction.vehicle.fuelNone")}</option>
-              {FUELS.map((f) => (
-                <option key={f} value={f}>
-                  {t(`aiExtraction.vehicle.fuels.${f}`)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <ExtractedHint field={extracted.fuel} />
-        </div>
-        <div className={extractedClass(extracted.inspectionExpiryDate)}>
-          <Input
-            type="date"
-            label={t("aiExtraction.vehicle.inspectionExpiryDate")}
-            value={inspectionExpiryDate}
-            onChange={(e) => setInspectionExpiryDate(e.target.value)}
-          />
-          <ExtractedHint field={extracted.inspectionExpiryDate} />
-        </div>
-        {error && <p className="text-sm text-status-bad">{error}</p>}
-        <Button type="submit" disabled={busy} className="min-h-11">
-          {busy ? t("aiExtraction.vehicle.saving") : t("aiExtraction.vehicle.save")}
-        </Button>
-      </form>
-    </div>
+        </form>
+      </div>
+    </FormCard>
   );
 }
 

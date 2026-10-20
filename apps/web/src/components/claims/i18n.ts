@@ -1,14 +1,27 @@
 // Libellés du module M16 (assurances et sinistres) : source unique `apps/web/messages/fr.json`,
-// namespace `claims`.
+// namespace `claims` (avec fallback gracieux sur la racine des messages).
 import messages from "../../../messages/fr.json";
 
 type Dict = { [key: string]: string | Dict };
 
 export function t(key: string, vars?: Record<string, string | number>): string {
+  // Recherche en premier dans `messages.claims`
   let node: string | Dict | undefined = messages.claims as unknown as Dict;
   for (const part of key.split(".")) {
     node = typeof node === "object" ? node[part] : undefined;
   }
+
+  // Fallback si la clé commence par claimsModule ou est à la racine
+  if (typeof node !== "string") {
+    let fallbackNode: string | Dict | undefined = messages as unknown as Dict;
+    for (const part of key.split(".")) {
+      fallbackNode = typeof fallbackNode === "object" ? fallbackNode[part] : undefined;
+    }
+    if (typeof fallbackNode === "string") {
+      node = fallbackNode;
+    }
+  }
+
   if (typeof node !== "string") return key;
   return vars ? node.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`)) : node;
 }

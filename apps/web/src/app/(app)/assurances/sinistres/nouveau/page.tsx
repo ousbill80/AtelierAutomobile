@@ -13,6 +13,7 @@ import {
   Input,
   MoneyInput,
   PlateBadge,
+  PlateInput,
   Select,
   Textarea,
 } from "@atelieros/ui";
@@ -146,13 +147,7 @@ function NewClaimForm() {
           {t("fields.repairOrder")} : <strong>{order.data?.number ?? "…"}</strong>
         </p>
       ) : (
-        <Field label={t("fields.vehicleSearch")}>
-          <Input
-            value={plate}
-            onChange={(e) => setPlate(e.target.value)}
-            placeholder="1234 AB 01"
-          />
-        </Field>
+        <PlateInput label={t("fields.vehicleSearch")} value={plate} onChange={setPlate} />
       )}
       {!repairOrderId && vehicles.data && (
         <ul className="flex flex-col gap-1" aria-label={t("fields.vehicle")}>

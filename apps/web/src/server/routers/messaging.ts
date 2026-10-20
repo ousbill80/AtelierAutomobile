@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 import type { Channel } from "@atelieros/core";
-import { db } from "@atelieros/db";
+import { db, Prisma } from "@atelieros/db";
 import {
   conversationAssignInputSchema,
   conversationGetInputSchema,
@@ -106,8 +107,9 @@ export const messagingRouter = router({
     .input(messagingHistoryInputSchema)
     .query(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      const where: Record<string, unknown> = {};
+      const where: Prisma.MessageWhereInput = {};
       if (input.channel) where.channel = input.channel;
+      if (input.status) where.status = input.status;
       if (input.customerId) where.customerId = input.customerId;
       if (input.from || input.to) {
         where.createdAt = {
@@ -115,13 +117,72 @@ export const messagingRouter = router({
           ...(input.to ? { lte: input.to } : {}),
         };
       }
-      const items = await tenantDb.message.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        take: input.limit,
-      });
+      if (input.q) {
+        where.OR = [
+          { to: { contains: input.q } },
+          { body: { contains: input.q, mode: "insensitive" } },
+          { customer: { displayName: { contains: input.q, mode: "insensitive" } } },
+        ];
+      }
+
+      const [items, stats] = await Promise.all([
+        tenantDb.message.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: input.limit,
+          include: { customer: { select: { id: true, displayName: true, phone: true } } },
+        }),
+        (async () => {
+          const [total, delivered, read, failed, waCount, smsCount, emailCount] = await Promise.all([
+            tenantDb.message.count(),
+            tenantDb.message.count({ where: { status: "DELIVERED" } }),
+            tenantDb.message.count({ where: { status: "READ" } }),
+            tenantDb.message.count({ where: { status: "FAILED" } }),
+            tenantDb.message.count({ where: { channel: "WHATSAPP" } }),
+            tenantDb.message.count({ where: { channel: "SMS" } }),
+            tenantDb.message.count({ where: { channel: "EMAIL" } }),
+          ]);
+          return {
+            total,
+            deliveredRead: delivered + read,
+            failed,
+            whatsapp: waCount,
+            sms: smsCount,
+            email: emailCount,
+          };
+        })(),
+      ]);
+
       const totalCost = items.reduce((sum, m) => sum + (m.cost ?? 0), 0);
-      return { items, totals: { count: items.length, cost: totalCost } };
+      return { items, totals: { count: items.length, cost: totalCost }, stats };
+    }),
+
+  retry: requirePermission("message:send")
+    .input(z.object({ id: z.string().trim().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const message = await tenantDb.message.findFirst({
+        where: { id: input.id, status: "FAILED" },
+      });
+      if (!message) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Message introuvable ou n'étant pas en échec.",
+        });
+      }
+      await tenantDb.message.update({
+        where: { id: message.id },
+        data: {
+          status: "QUEUED",
+          attemptCount: 0,
+          errorCode: null,
+          errorMessage: null,
+          failedAt: null,
+          nextRetryAt: null,
+        },
+      });
+      await enqueueMessageSendJob(message.id);
+      return { success: true };
     }),
 
   conversations: router({
@@ -129,21 +190,66 @@ export const messagingRouter = router({
       .input(conversationListInputSchema)
       .query(async ({ ctx, input }) => {
         const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+        const now = new Date();
         const where: Record<string, unknown> = {};
         if (input.channel) where.channel = input.channel;
         if (input.filter === "UNREAD") where.unreadCount = { gt: 0 };
         if (input.filter === "ASSIGNED_TO_ME") where.assignedToId = ctx.membership.id;
         if (input.filter === "UNASSIGNED") where.assignedToId = null;
-        const items = await tenantDb.conversation.findMany({
-          where,
-          orderBy: { lastMessageAt: "desc" },
-          take: input.limit,
-          include: { customer: true },
-        });
-        const unreadTotal = await tenantDb.conversation.count({
-          where: { unreadCount: { gt: 0 } },
-        });
-        return { items, nextCursor: null, unreadTotal };
+        if (input.search) {
+          where.OR = [
+            { externalAddress: { contains: input.search, mode: "insensitive" } },
+            { customer: { displayName: { contains: input.search, mode: "insensitive" } } },
+            { customer: { phone: { contains: input.search } } },
+            { customer: { whatsappPhone: { contains: input.search } } },
+            { messages: { some: { body: { contains: input.search, mode: "insensitive" } } } },
+          ];
+        }
+
+        const [items, totalConversations, unreadTotal, activeWhatsapp24h] = await Promise.all([
+          tenantDb.conversation.findMany({
+            where,
+            orderBy: { lastMessageAt: "desc" },
+            take: input.limit,
+            include: {
+              customer: {
+                include: {
+                  vehicles: {
+                    where: { deletedAt: null },
+                    take: 1,
+                    select: { id: true, plate: true, plateType: true, make: true, model: true },
+                  },
+                },
+              },
+              messages: {
+                take: 1,
+                orderBy: { createdAt: "desc" },
+                select: { id: true, body: true, createdAt: true, direction: true, status: true },
+              },
+            },
+          }),
+          tenantDb.conversation.count(),
+          tenantDb.conversation.count({
+            where: { unreadCount: { gt: 0 } },
+          }),
+          tenantDb.conversation.count({
+            where: {
+              channel: "WHATSAPP",
+              whatsappWindowExpiresAt: { gt: now },
+            },
+          }),
+        ]);
+
+        return {
+          items,
+          nextCursor: null,
+          unreadTotal,
+          stats: {
+            totalConversations,
+            unreadTotal,
+            activeWhatsapp24h,
+          },
+        };
       }),
 
     get: requirePermission("message:read")

@@ -214,6 +214,7 @@ export const reminderQueueInputSchema = z.object({
   tab: reminderTabSchema,
   types: z.array(reminderTypeSchema).optional(),
   channels: z.array(messageChannelSchema).optional(),
+  q: z.string().trim().max(100).optional(),
   siteId: z.string().trim().min(1).optional(),
   customerId: z.string().trim().min(1).optional(),
   vehicleId: z.string().trim().min(1).optional(),
