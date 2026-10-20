@@ -89,6 +89,14 @@ async function main(): Promise<void> {
     await import("./queues/automations");
   const { processAutomationsDispatchJob } = await import("./jobs/automations");
 
+  const { EXPORTS_JOB_NAMES, EXPORTS_QUEUE_NAME, scheduleExportJobs } =
+    await import("./queues/exports");
+  type OrgExportJobData = import("./jobs/orgExport").OrgExportJobData;
+  const { processExportsSweep, runOrgExport } = await import("./jobs/orgExport");
+  const { expireDataExports, processOrgPurgeJob } = await import("./jobs/orgPurge");
+  const { renderInvoicePdf } = await import("@atelieros/pdf");
+  const { getObjectStorage } = await import("./storage");
+
   logger.info("AtelierOS worker démarré");
 
   // RG-M11-26 : un fournisseur `console` actif ne doit jamais tourner en production.
@@ -419,6 +427,36 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "automations : un job a échoué");
   });
 
+  // M15 RG-M15-21/22 : export complet, expiration des liens (48 h), purge J+30.
+  await scheduleExportJobs();
+  const exportDeps = {
+    storage: getObjectStorage(),
+    renderInvoicePdf: async (data: Parameters<typeof renderInvoicePdf>[0]) =>
+      new Uint8Array(await renderInvoicePdf(data)),
+  };
+  const exportsWorker = new Worker(
+    EXPORTS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case EXPORTS_JOB_NAMES.ORG_EXPORT:
+          return runOrgExport(job.data as OrgExportJobData, exportDeps);
+        case EXPORTS_JOB_NAMES.SWEEP:
+          await expireDataExports({ storage: exportDeps.storage });
+          return processExportsSweep(exportDeps);
+        case EXPORTS_JOB_NAMES.ORG_PURGE:
+          return processOrgPurgeJob({ storage: exportDeps.storage });
+        default:
+          logger.warn({ jobName: job.name }, "exports : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    // Une archive à la fois : construite en mémoire.
+    { connection: createRedisConnection(), concurrency: 1 },
+  );
+  exportsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "exports : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -438,6 +476,7 @@ async function main(): Promise<void> {
       paymentsWorker.close(),
       aiWorker.close(),
       automationsWorker.close(),
+      exportsWorker.close(),
     ]);
     process.exit(0);
   }

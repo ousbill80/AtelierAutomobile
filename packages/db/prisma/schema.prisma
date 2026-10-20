@@ -38,7 +38,14 @@ model Organization {
   operatingMode         OperatingMode @default(FULL) // REMINDERS_ONLY si le garage garde son ancien logiciel
   settings              Json          @default("{}") // préférences diverses (voir M15) : onboarding { step, skipped[] }, security { otpOnNewDevice: Role[] }
   onboardingCompletedAt DateTime?
-  slug                  String?       @unique // M15 §14 (créé par M14 : /p/connexion?g={slug}) ; requis quand M15 sera livré
+  // M15 §14 (étape 6.5) — identifiant public, cycle de vie, surcharges de plan, verrou optimiste
+  slug                  String        @unique @default(cuid(2)) // créé nullable par M14 (/p/connexion?g={slug}), rendu obligatoire par M15
+  lifecycleStatus       OrgLifecycle  @default(ACTIVE)
+  deletionRequestedAt   DateTime?
+  deletionScheduledFor  DateTime?
+  planOverrides         Json          @default("{}") // surcharges de limites par l'équipe AtelierOS
+  settingsVersion       Int           @default(0) // verrou optimiste
+  supportAccessUntil    DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -129,6 +136,8 @@ model Organization {
   automationRules        AutomationRule[]
   automationRuns         AutomationRun[]
   holidays               Holiday[]
+  usageCounters          UsageCounter[] // M15 §14
+  dataExports            DataExport[] // M15 §14
   portalTokens           PortalToken[]
   portalAccesses         PortalAccess[]
   portalSessions         PortalSession[]
@@ -158,6 +167,14 @@ enum PlanTier {
   NETWORK
 }
 
+// M15 §5/§14 — cycle de vie de l'organisation (RG-M15-22).
+enum OrgLifecycle {
+  ACTIVE
+  SUSPENDED
+  DELETION_SCHEDULED
+  PURGED
+}
+
 enum OperatingMode {
   FULL
   REMINDERS_ONLY
@@ -173,6 +190,7 @@ model Site {
   phone          String?
   whatsappNumber String?
   openingHours   Json     @default("{}") // { mon: [["08:00","18:00"]], ... }
+  timezone       String? // M15 §14 — surcharge éventuelle du fuseau de l'organisation
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -1107,7 +1125,8 @@ model InspectionTemplate {
   name           String
   items          Json // [{ category, label, measurementUnit?, recommendedLaborCode?, recommendedProductCategory? }]
   isDefault      Boolean @default(false) // M04 §14
-  isActive       Boolean @default(true) // M04 §14
+  isActive       Boolean @default(true) // M04 §14 (isActive = false tient lieu du isArchived de M15 §14)
+  version        Int     @default(1) // M15 §14 — +1 quand un modèle déjà utilisé est modifié
 
   organization Organization @relation(fields: [organizationId], references: [id])
   inspections  Inspection[]
@@ -2754,6 +2773,7 @@ model ChannelConfig {
   webhookVerifyToken String?
   messagingTier      String? // palier de messagerie WhatsApp
   lastError          String?
+  updatedAt          DateTime  @default(now()) @updatedAt // M15 §14
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
@@ -3613,6 +3633,43 @@ model CustomerFeedback {
   site         Site         @relation(fields: [siteId], references: [id])
   customer     Customer     @relation(fields: [customerId], references: [id])
   repairOrder  RepairOrder  @relation(fields: [repairOrderId], references: [id])
+
+  @@index([organizationId, createdAt])
+}
+
+// ───────────── M15 §14 (étape 6.5) — quotas mensuels et export complet ─────────────
+
+// RG-M15-20 — quotas mensuels (messages automatiques, crédits IA, stockage). La période est le
+// mois civil dans le fuseau de l'organisation ("2026-10") : la remise à zéro du 1er est implicite.
+model UsageCounter {
+  id             String   @id @default(cuid(2))
+  organizationId String
+  metric         String // auto_messages | ai_credits | storage_bytes
+  period         String // "2026-10"
+  used           Int      @default(0)
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, metric, period])
+}
+
+// RG-M15-21 — export complet des données de l'organisation (tâche `org.export`).
+model DataExport {
+  id             String    @id @default(cuid(2))
+  organizationId String
+  requestedById  String // Membership.id du demandeur
+  status         String    @default("PENDING") // PENDING | RUNNING | READY | FAILED | EXPIRED
+  fileUrl        String? // clé de l'objet dans le stockage S3 (jamais une URL publique)
+  sizeBytes      Int?
+  tableCount     Int?
+  rowCount       Int?
+  expiresAt      DateTime?
+  error          String?
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
 
   @@index([organizationId, createdAt])
 }

@@ -1,6 +1,5 @@
 import { TRPCError } from "@trpc/server";
 import {
-  canAddMember,
   defaultChannelConfigs,
   defaultInspectionTemplate,
   extraInspectionTemplates,
@@ -18,6 +17,7 @@ import { saveOnboardingStepInputSchema, type SaveOnboardingStepInput } from "@at
 import { authedProcedure, router } from "../trpc";
 import type { Ctx, CtxSession, CtxUser } from "../context";
 import { writeAuditLog } from "../audit";
+import { assertPlanLimit } from "../plan/limits";
 import {
   computeInvitationExpiry,
   generateInvitationToken,
@@ -348,17 +348,10 @@ async function saveTeamStep(
 
   const membershipId = requireMembership(ctx);
   const org = await adminDb.organization.findUniqueOrThrow({ where: { id: organizationId } });
-  const tenantDb = db.forTenant({ organizationId });
   const invitationIds: string[] = [];
 
   for (const invite of data.invitations) {
-    const activeMemberCount = await tenantDb.membership.count({ where: { isActive: true } });
-    if (!canAddMember(org.plan, activeMemberCount)) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Limite d'utilisateurs atteinte pour votre offre actuelle.",
-      });
-    }
+    await assertPlanLimit(organizationId, "activeMembers");
 
     const email = invite.email?.toLowerCase().trim();
     const phone = invite.phone?.trim();
