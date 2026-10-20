@@ -53,6 +53,9 @@ import { stockRouter } from "./stock";
 import { stockCountRouter } from "./stockCount";
 import { stockTransferRouter } from "./stockTransfer";
 import { supplierRouter } from "./supplier";
+import { partRequestRouter } from "./partRequest";
+import { techRouter } from "./tech";
+import { workshopRouter } from "./workshop";
 
 export const appRouter = router({
   invoice: invoiceRouter,
@@ -113,6 +116,10 @@ export const appRouter = router({
   quote: quoteRouter,
   quoteLine: quoteLineRouter,
   laborOperation: laborOperationRouter,
+  // M06 — atelier, tablette mécanicien, demandes de pièces
+  workshop: workshopRouter,
+  tech: techRouter,
+  partRequest: partRequestRouter,
   portal: router({
     appointment: portalAppointmentRouter,
     repairOrder: portalRepairOrderRouter,

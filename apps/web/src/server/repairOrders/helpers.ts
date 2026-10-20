@@ -14,11 +14,13 @@ import {
   isDomainError,
   laborRatesFrom,
   OPEN_INVOICE_STATUSES,
+  releasesBayOn,
   renderNumberingPattern,
   repairOrderSettingsFrom,
   repairOrderTotals,
   systemClock,
   warrantySettingsFrom,
+  workshopSettingsFrom,
   type AgingInvoice,
   type Clock,
   type NumberingConfig,
@@ -275,6 +277,17 @@ export async function applyTransition(tx: Tx, input: ApplyTransitionInput): Prom
     data.cancelReason = input.reason ?? null;
   }
   if (to === "INVOICED") data.invoicedAt = now;
+  // M06 RG-M06-03 : READY libère le pont (sauf `atelier.keepBayUntilDelivery`), comme la
+  // restitution et l'annulation.
+  if (order.bayId && data.bay === undefined) {
+    const org = await adminDb.organization.findUnique({
+      where: { id: order.organizationId },
+      select: { settings: true },
+    });
+    if (releasesBayOn(to, workshopSettingsFrom(org?.settings).keepBayUntilDelivery)) {
+      data.bay = { disconnect: true };
+    }
+  }
 
   const updated = await tx.repairOrder.update({ where: { id: order.id }, data });
   await tx.repairOrderStatusHistory.create({

@@ -24,9 +24,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const tenantDb = db.forTenant({ organizationId });
   const attachment = await tenantDb.attachment.findFirst({ where: { id } });
   if (!attachment) return error(404, "Fichier introuvable.");
-  if (attachment.entity === "repair_order") {
+  if (attachment.entity === "repair_order" || attachment.entity === "repair_order_line") {
+    // M06 : photo de travaux rattachée à une ligne d'OR → même contrôle de site que l'OR.
+    const orderId =
+      attachment.entity === "repair_order"
+        ? attachment.entityId
+        : (
+            await tenantDb.repairOrderLine.findFirst({
+              where: { id: attachment.entityId },
+              select: { repairOrderId: true },
+            })
+          )?.repairOrderId;
     const order = await tenantDb.repairOrder.findFirst({
-      where: { id: attachment.entityId },
+      where: { id: orderId ?? "" },
       select: { siteId: true },
     });
     if (!order || (ctx.allowedSiteIds !== "ALL" && !ctx.allowedSiteIds.includes(order.siteId))) {

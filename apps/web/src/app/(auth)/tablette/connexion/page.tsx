@@ -15,7 +15,7 @@ export default function AtelierPage() {
 
   const pinSignIn = trpc.auth.pinSignIn.useMutation({
     onSuccess() {
-      router.push("/");
+      router.push("/tablette/taches");
     },
     onError(err) {
       setError(err.message);

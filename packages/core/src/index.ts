@@ -328,6 +328,7 @@ export * from "./inventory";
 export * from "./planning";
 export * from "./repairOrders";
 export * from "./quotes";
+export * from "./workshop";
 
 export type { SearchDocumentPrefix, SearchQueryAnalysis, SearchQueryKind } from "./search";
 export { analyzeSearchQuery, loosenPlate, matchRank, SEARCH_DOCUMENT_PREFIXES } from "./search";

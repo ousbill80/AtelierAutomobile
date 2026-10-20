@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import {
   ACTIVE_REPAIR_ORDER_STATUSES,
+  assertQcCheckerAllowed,
   availableTransitions,
   BOARD_STATUSES,
   businessDate,
@@ -23,6 +24,7 @@ import {
   lineAmounts,
   OPEN_INVOICE_STATUSES,
   repairOrderTotals,
+  reworkableLineIds,
   storageFee,
   suggestPromisedAt,
   warrantyFor,
@@ -79,6 +81,7 @@ import {
   notify,
   recomputeTotals,
   recordRepairOrderMileage,
+  rethrowDomain,
   roNow,
   transitionFacts,
   type OrgRoContext,
@@ -1308,18 +1311,54 @@ export const repairOrderRouter = router({
           comment: input.comment ?? null,
         } as unknown as Prisma.InputJsonValue;
 
+        // M06 RG-M06-11 : le contrôleur n'est pas l'unique mécanicien ayant pointé sur l'OR.
+        const workers = await tx.timeEntry.findMany({
+          where: { repairOrderId: order.id },
+          select: { membershipId: true },
+        });
+        try {
+          assertQcCheckerAllowed(
+            ctx.membership.id,
+            workers.map((w) => w.membershipId),
+            ctx.permissions.has("workshop:qc_self"),
+          );
+        } catch (error) {
+          rethrowDomain(error);
+        }
+        const checklistRecord = Object.fromEntries(
+          input.checklist.map((c) => [c.key, c.result !== "NOK"]),
+        );
+
         if (input.reject) {
           const to = assertTransition(order, lines, "qc_reject", {
             ...transitionCtx(ctx, org),
             reason: input.comment,
           });
-          const reopened = lines.filter((l) => input.rejectLineIds?.includes(l.id));
+          // M06 US-M06-10 : les lignes à reprendre repassent PENDING avec le même mécanicien ;
+          // le temps de reprise sera pointé en REWORK (non facturable).
+          const reworkIds = reworkableLineIds(lines, input.rejectLineIds ?? []);
+          const reopened = lines.filter((l) => reworkIds.includes(l.id));
           for (const line of reopened) {
             await tx.repairOrderLine.update({
               where: { id: line.id },
-              data: { status: "IN_PROGRESS", completedAt: null, completedById: null },
+              data: { status: "PENDING", completedAt: null, completedById: null },
             });
           }
+          await tx.qualityCheck.create({
+            data: {
+              organizationId: ctx.organizationId,
+              repairOrderId: order.id,
+              checkedById: ctx.membership.id,
+              result: "FAILED",
+              checklist: checklistRecord,
+              comment: input.comment ?? null,
+              reworkLineIds: reworkIds,
+            },
+          });
+          await emitDomainEvent(tx as never, ctx.organizationId, "workshop.qc_failed", {
+            repairOrderId: order.id,
+            reworkLineIds: reworkIds,
+          });
           await notify(
             tx,
             ctx.organizationId,
@@ -1342,10 +1381,23 @@ export const repairOrderRouter = router({
           });
         }
 
-        // RG-M04-13 : avertissement (non bloquant) si le contrôleur est le seul mécanicien.
         const to = assertTransition(order, lines, "qc_pass", {
           ...transitionCtx(ctx, org),
           qcPassed: evaluation.ok,
+        });
+        await tx.qualityCheck.create({
+          data: {
+            organizationId: ctx.organizationId,
+            repairOrderId: order.id,
+            checkedById: ctx.membership.id,
+            result: "PASSED",
+            checklist: checklistRecord,
+            comment: input.comment ?? null,
+            reworkLineIds: [],
+          },
+        });
+        await emitDomainEvent(tx as never, ctx.organizationId, "workshop.qc_passed", {
+          repairOrderId: order.id,
         });
         return applyTransition(tx, {
           order,

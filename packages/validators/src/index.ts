@@ -402,6 +402,7 @@ export {
   updateDueDateInputSchema,
   updateInvoiceInputSchema,
 } from "./billing";
+export * from "./workshop";
 
 export type { FneConfigUpdateInput, FneSetManualInput } from "./fne";
 export {
