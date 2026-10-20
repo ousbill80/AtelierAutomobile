@@ -10,6 +10,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
 import { Button, EmptyState, StatusBadge, type StatusTone } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { AssistantFab } from "@/components/assistant-fab";
 import type { AppRouter } from "@/server/routers/_app";
 import { fmt, formatAmount, formatDay, L, reminderTypeLabel } from "./labels";
 
@@ -141,6 +142,7 @@ function Dashboard() {
       {tab === "finances" && <FinancesTab input={input} />}
 
       <AlertsBlock />
+      <AssistantFab />
     </div>
   );
 }

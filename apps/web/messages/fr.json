@@ -146,7 +146,8 @@
     "insurers": "Compagnies d'assurance",
     "claimFollowUps": "Relances assureurs",
     "settingsPayments": "Paiements",
-    "settingsAi": "Intelligence artificielle"
+    "settingsAi": "Intelligence artificielle",
+    "assistant": "Assistant"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -4015,5 +4016,44 @@
       "proposedHint": "Correspondance proposée par l'assistant ({pct} %) : à confirmer.",
       "useProposal": "Utiliser « {field} »"
     }
+  },
+  "assistant": {
+    "title": "Assistant",
+    "subtitle": "Posez vos questions sur le garage : créances, échéances, rendez-vous, atelier, stock.",
+    "readOnly": "Lecture seule — l'assistant ne modifie rien",
+    "fab": "Assistant",
+    "fabUnavailable": "Assistant indisponible",
+    "placeholder": "Votre question…",
+    "send": "Envoyer",
+    "sending": "L'assistant prépare une réponse…",
+    "voice": "Dicter la question",
+    "voiceListening": "Écoute en cours…",
+    "newThread": "Nouvelle conversation",
+    "history": "Conversations récentes",
+    "historyEmpty": "Aucune conversation pour l'instant.",
+    "deleteThread": "Supprimer la conversation",
+    "emptyTitle": "Que voulez-vous savoir ?",
+    "emptyDescription": "Choisissez une suggestion ou écrivez votre question.",
+    "suggestions": {
+      "topDebtors": "Qui me doit le plus ?",
+      "inspectionsWeek": "VT de la semaine",
+      "revenueYesterday": "CA d'hier",
+      "appointmentsToday": "RDV d'aujourd'hui"
+    },
+    "questions": {
+      "topDebtors": "Qui me doit le plus ?",
+      "inspectionsWeek": "Quels véhicules ont leur VT cette semaine ?",
+      "revenueYesterday": "Quel est le CA d'hier ?",
+      "appointmentsToday": "Quels sont les RDV d'aujourd'hui ?"
+    },
+    "you": "Vous",
+    "assistant": "Assistant",
+    "links": "Voir aussi",
+    "actions": "À faire vous-même",
+    "verifiedFallback": "Réponse remplacée par les données exactes (un chiffre n'était pas vérifiable).",
+    "error": "La question n'a pas pu être traitée. Réessayez.",
+    "loadError": "Impossible de charger la conversation.",
+    "retry": "Réessayer",
+    "unavailableHint": "L'assistant est désactivé, hors quota ou momentanément indisponible."
   }
 }

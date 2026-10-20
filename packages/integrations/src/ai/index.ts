@@ -57,3 +57,11 @@ export {
   columnMappingOutputSchema,
 } from "./prompts/column_mapping/v1";
 export type { ColumnMappingInput, ColumnMappingOutput } from "./prompts/column_mapping/v1";
+export {
+  ASSISTANT_DENIED_TEXT,
+  ASSISTANT_MAX_TOOL_CALLS,
+  ASSISTANT_NOT_FOUND_CUSTOMER_TEXT,
+  ASSISTANT_PROMPT_VERSION,
+  ASSISTANT_TOOLS,
+  assistantSystemPrompt,
+} from "./prompts/assistant/v1";
