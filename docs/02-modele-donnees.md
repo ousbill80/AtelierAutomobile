@@ -1761,18 +1761,76 @@ model ApiKey {
   keyHash        String @unique
   prefix         String                          // affiché : "ak_live_3f9a…"
   scopes         String[]
-  lastUsedAt     DateTime?
+  lastUsedAt     DateTime?                       // mis à jour au plus 1 fois/min (RG-M13-30)
   revokedAt      DateTime?
   createdAt      DateTime @default(now())
+  // M13 §14 (partie 3, étape 6.4)
+  createdById    String?
+  expiresAt      DateTime?
+  siteIds        String[]                        // vide = tous les sites
+  environment    String @default("live")         // live | test (clés ak_test_)
 }
 
 model WebhookEndpoint {                           // webhooks sortants vers d'autres systèmes
   id             String @id @default(cuid())
   organizationId String
-  url            String
-  secret         String
+  url            String                          // https public uniquement (anti-SSRF)
+  secret         String                          // JSON chiffré { current, previous?, previousUntil? }
   events         String[]
   isActive       Boolean @default(true)
+  // M13 §14 (partie 3, étape 6.4)
+  description         String?
+  consecutiveFailures Int @default(0)            // 50 → désactivé + notification OWNER
+  disabledAt          DateTime?
+  createdAt           DateTime @default(now())
+  // hors §14 : curseur de diffusion (webhooks.fanout) et auteur
+  fanoutCursor        DateTime?
+  createdById         String?
+}
+
+model WebhookDelivery {                           // M13 §14 — une livraison par (endpoint, événement)
+  id             String @id @default(cuid())
+  organizationId String
+  endpointId     String
+  eventId        String                          // evt_<DomainEvent.id>
+  eventType      String
+  payload        Json                            // hors §14 : corps envoyé, rejoué à chaque reprise
+  attempt        Int @default(0)                 // 8 tentatives : 0, 1 min, 5 min, 30 min, 2 h, 5 h, 10 h, 24 h
+  status         String @default("PENDING")      // PENDING | SUCCEEDED | FAILED
+  responseCode   Int?
+  responseBody   String?                         // tronqué à 2 Ko
+  lastError      String?                         // hors §14
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?                       // hors §14
+  createdAt      DateTime @default(now())
+  @@unique([endpointId, eventId])
+  @@index([endpointId, createdAt])
+  @@index([status, nextAttemptAt])
+}
+
+model IdempotencyKey {                            // M13 §14 — POST rejoués 24 h (RG-M13-33)
+  id             String @id @default(cuid())
+  organizationId String
+  apiKeyId       String
+  key            String
+  requestHash    String                          // sha256(méthode, chemin, corps)
+  responseStatus Int
+  responseBody   Json
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  @@unique([apiKeyId, key])
+}
+
+model ApiRequestLog {                             // hors §14 (étape 6.4) — journal d'accès, 90 j
+  id             String @id @default(cuid())
+  organizationId String
+  apiKeyId       String
+  method         String
+  path           String
+  status         Int
+  durationMs     Int
+  ip             String?                         // tronquée /24
+  createdAt      DateTime @default(now())
 }
 
 // ───────────── Assurances ─────────────

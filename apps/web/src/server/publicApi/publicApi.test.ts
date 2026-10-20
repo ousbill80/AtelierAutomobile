@@ -64,10 +64,8 @@ async function member(organizationId: string, role: "OWNER" | "ADVISOR") {
   );
 }
 
-type Handler = (
-  req: Request,
-  ctx?: { params?: Promise<Record<string, string>> },
-) => Promise<Response>;
+// Route handler quel que soit le type de ses paramètres (contexte passé tel quel).
+type Handler = (req: Request, ctx: never) => Promise<Response>;
 
 async function call(
   handler: Handler,
@@ -89,7 +87,7 @@ async function call(
     headers,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  const res = await handler(req, { params: Promise.resolve(init.params ?? {}) });
+  const res = await handler(req, { params: Promise.resolve(init.params ?? {}) } as never);
   const text = await res.text();
   return {
     status: res.status,

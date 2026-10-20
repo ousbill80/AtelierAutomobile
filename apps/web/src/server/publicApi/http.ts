@@ -256,7 +256,7 @@ export async function runApi(
 }
 
 /** Adapte un gestionnaire au format des route handlers Next.js (`params` asynchrones). */
-export function apiRoute<P extends Record<string, string> = Record<string, never>>(
+export function apiRoute<P extends Record<string, string> = Record<string, string>>(
   options: ApiRouteOptions,
   handler: (ctx: ApiContext) => Promise<ApiResult>,
 ) {
