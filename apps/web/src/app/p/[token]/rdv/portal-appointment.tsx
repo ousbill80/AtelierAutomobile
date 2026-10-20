@@ -6,6 +6,8 @@ import { useState } from "react";
 import { Phone } from "lucide-react";
 import { Button, Select, Textarea } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import type { PortalLabels } from "../../_components/labels";
+import { linkProblemOf, PortalLinkState } from "../../_components/link-state";
 import {
   StatusLabel,
   TYPES,
@@ -16,7 +18,7 @@ import {
   type AppointmentType,
 } from "../../../(app)/rendez-vous/labels";
 
-export function PortalAppointment({ token }: { token: string }) {
+export function PortalAppointment({ token, labels }: { token: string; labels: PortalLabels }) {
   const view = trpc.portal.appointment.get.useQuery({ token }, { retry: false });
   const [mode, setMode] = useState<"view" | "reschedule">("view");
   const [type, setType] = useState<AppointmentType | null>(null);
@@ -57,13 +59,14 @@ export function PortalAppointment({ token }: { token: string }) {
     );
   }
   if (view.isError || !data) {
-    const expired = view.error?.data?.code === "FORBIDDEN";
     return (
       <main className="mx-auto flex w-full max-w-md flex-col gap-3 p-4">
-        <h1 className="text-xl font-semibold">
-          {expired ? ta("portal.expired") : ta("portal.notFound")}
-        </h1>
-        <p className="text-sm text-muted">{ta("portal.expiredHint")}</p>
+        <PortalLinkState
+          problem={linkProblemOf(view.error)}
+          token={token}
+          labels={labels}
+          onRetry={() => view.refetch()}
+        />
       </main>
     );
   }

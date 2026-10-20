@@ -21,6 +21,8 @@
     "./workshop": "./src/workshop/index.ts",
     "./reports": "./src/reports/index.ts",
     "./claims": "./src/claims/index.ts",
+    "./portal": "./src/portal/index.ts",
+    "./portal/tracking": "./src/portal/tracking.ts",
     "./ai": "./src/ai/index.ts",
     "./automations": "./src/automations/index.ts",
     "./calendar": "./src/calendar.ts"

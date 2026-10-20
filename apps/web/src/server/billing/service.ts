@@ -28,6 +28,7 @@ import {
   loadStockContext,
   recomputeInvoiceBalance as recomputeInvoiceBalanceShared,
   releaseReservation,
+  revokePortalTokensFor,
   syncCustomerReceivables,
   tenantSequenceStore,
   type CollectionSettings,
@@ -738,6 +739,15 @@ export async function createCreditNote(
       ...(plan.isFull ? { status: "VOID", voidedAt: org.now, voidReason: input.reason } : {}),
     },
   });
+  if (plan.isFull) {
+    // RG-M14-04 : facture annulée → liens portail révoqués (« Cette facture a été annulée »).
+    await revokePortalTokensFor(tx, {
+      scopes: ["INVOICE"],
+      targetId: original.id,
+      reason: "invoice_voided",
+      now: org.now,
+    });
+  }
   const updated = await recomputeInvoiceBalance(tx, original.id, org.today);
   if (effect.customerCredit > 0) {
     await tx.customerCredit.create({

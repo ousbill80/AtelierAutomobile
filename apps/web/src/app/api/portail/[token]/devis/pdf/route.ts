@@ -7,7 +7,7 @@ import { latestVersionOf, loadOrgQuoteContext, resolveQuoteToken } from "@/serve
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const resolved = await resolveQuoteToken(token, roNow());
+  const resolved = await resolveQuoteToken(token, roNow(), { count: false });
   if (resolved.status !== "ACTIVE")
     return new Response("Lien expiré ou invalide.", { status: 404 });
   const tenantDb = db.forTenant({ organizationId: resolved.token.organizationId });

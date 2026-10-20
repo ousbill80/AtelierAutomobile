@@ -337,5 +337,6 @@ export * from "./workshop";
 
 export type { SearchDocumentPrefix, SearchQueryAnalysis, SearchQueryKind } from "./search";
 export { analyzeSearchQuery, loosenPlate, matchRank, SEARCH_DOCUMENT_PREFIXES } from "./search";
+export * from "./portal";
 export * from "./ai";
 export * from "./automations";

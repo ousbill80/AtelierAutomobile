@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
   const isInvitationPath = pathname.startsWith("/invitation/");
   // Portail client public (`/p/[token]/…`, M03 RDV, M04 suivi et signature à distance, M14) :
   // authentifié par jeton, jamais par session.
-  const isPortalPath = pathname.startsWith("/p/");
+  const isPortalPath = pathname.startsWith("/p/") || pathname.startsWith("/l/");
   const isPublicPath = isAuthPath || isInvitationPath || isPortalPath;
 
   if (!hasSession && !isPublicPath) {
@@ -42,7 +42,15 @@ export function middleware(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  if (isPortalPath) {
+    // M14 RG-M14-06 : pages client jamais indexées, jamais mises en cache partagé, et le jeton
+    // de l'URL n'est jamais transmis dans l'en-tête Referer d'un lien sortant.
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("Cache-Control", "private, no-store");
+  }
+  return response;
 }
 
 export const config = {

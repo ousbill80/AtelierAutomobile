@@ -1,7 +1,7 @@
 // M04 — orchestration des ordres de réparation : contexte d'organisation, numérotation,
 // transitions (statut + historique + événements), totaux, kilométrage, lien de suivi.
 // Toute décision métier vient de `@atelieros/core` (repairOrders) ; ici on lit/écrit en base.
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import {
   businessDate,
@@ -14,6 +14,7 @@ import {
   isDomainError,
   laborRatesFrom,
   OPEN_INVOICE_STATUSES,
+  portalTokenExpiry,
   releasesBayOn,
   renderNumberingPattern,
   repairOrderSettingsFrom,
@@ -32,8 +33,10 @@ import {
 import {
   adminDb,
   collectionSettingsFrom,
+  issuePortalToken,
   loadStockContext,
   repairOrderLineStock,
+  resolvePortalToken as resolveTokenRow,
   syncRepairOrderStock,
   tenantSequenceStore,
   type Prisma,
@@ -332,6 +335,11 @@ export async function applyTransition(tx: Tx, input: ApplyTransitionInput): Prom
     await emitDomainEvent(tx as never, order.organizationId, "repair_order.ready", payload);
   if (to === "DELIVERED") {
     await emitDomainEvent(tx as never, order.organizationId, "repair_order.delivered", payload);
+    // RG-M14-03 : le lien de suivi reste lisible 30 jours après la restitution.
+    await tx.portalToken.updateMany({
+      where: { scope: "REPAIR_ORDER", targetId: order.id, status: "ACTIVE" },
+      data: { expiresAt: portalTokenExpiry("REPAIR_ORDER", { now, deliveredAt: now }) },
+    });
   }
   if (to === "CANCELLED") {
     await emitDomainEvent(tx as never, order.organizationId, "repair_order.cancelled", {
@@ -477,7 +485,10 @@ export function appUrl(): string {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
-/** Crée un jeton portail `REPAIR_ORDER` (90 jours) ; `RepairOrder.publicToken` = hash. */
+/**
+ * Crée un jeton portail `REPAIR_ORDER` (RG-M14-03 : valable tant que l'OR est ouvert, puis 30 j
+ * après la restitution) ; `RepairOrder.publicToken` = hash (A2). Alias court pour les SMS.
+ */
 export async function createTrackingToken(
   tx: Tx,
   input: {
@@ -487,19 +498,15 @@ export async function createTrackingToken(
     createdById: string | null;
     now: Date;
   },
-): Promise<{ token: string; trackingUrl: string; receptionUrl: string }> {
-  const token = randomBytes(24).toString("base64url");
-  const tokenHash = hashToken(token);
-  await tx.portalToken.create({
-    data: {
-      organizationId: input.organizationId,
-      tokenHash,
-      scope: "REPAIR_ORDER",
-      targetId: input.repairOrderId,
-      customerId: input.customerId,
-      createdById: input.createdById,
-      expiresAt: new Date(input.now.getTime() + 90 * 86_400_000),
-    },
+): Promise<{ token: string; trackingUrl: string; receptionUrl: string; shortUrl: string | null }> {
+  const { token, tokenHash, shortCode } = await issuePortalToken(tx, {
+    organizationId: input.organizationId,
+    scope: "REPAIR_ORDER",
+    targetId: input.repairOrderId,
+    customerId: input.customerId,
+    createdById: input.createdById,
+    expiresAt: portalTokenExpiry("REPAIR_ORDER", { now: input.now }),
+    withShortCode: true,
   });
   await tx.repairOrder.update({
     where: { id: input.repairOrderId },
@@ -509,29 +516,20 @@ export async function createTrackingToken(
     token,
     trackingUrl: `${appUrl()}/p/${token}/suivi`,
     receptionUrl: `${appUrl()}/p/${token}/reception`,
+    shortUrl: shortCode ? `${appUrl()}/l/${shortCode}` : null,
   };
 }
 
-/** Résout un jeton public (portail) → OR, hors contexte locataire (lecture par hash). */
-export async function resolvePortalToken(token: string, now: Date) {
-  const record = await adminDb.portalToken.findUnique({ where: { tokenHash: hashToken(token) } });
-  if (
-    !record ||
-    record.scope !== "REPAIR_ORDER" ||
-    record.status !== "ACTIVE" ||
-    record.expiresAt.getTime() < now.getTime()
-  ) {
+/**
+ * Résout un jeton public de suivi d'OR, hors contexte locataire (lecture par hash). Sans
+ * comptage par défaut : les photos et le flux temps réel ne sont pas des ouvertures.
+ */
+export async function resolvePortalToken(token: string, now: Date, count = false) {
+  const resolved = await resolveTokenRow(token, ["REPAIR_ORDER"], now, { count });
+  if (resolved.status !== "ACTIVE") {
     throw new TRPCError({ code: "NOT_FOUND", message: "Lien expiré ou invalide." });
   }
-  await adminDb.portalToken.update({
-    where: { id: record.id },
-    data: {
-      openCount: { increment: 1 },
-      lastOpenedAt: now,
-      firstOpenedAt: record.firstOpenedAt ?? now,
-    },
-  });
-  return record;
+  return resolved.row;
 }
 
 // ───────────── Contrôle du crédit (RG-M09-10) ─────────────
