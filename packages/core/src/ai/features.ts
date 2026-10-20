@@ -1,6 +1,8 @@
 // M17 — catalogue des fonctions IA, activation (RG-M17-10), plans et quotas (RG-M17-07),
 // timeouts (RG-M17-08). Valeurs commerciales centralisées ici (A12).
 
+import { PLAN_CATALOG } from "../billing/plans";
+
 export const AI_FEATURES = [
   "intent_classification",
   "reply_draft",
@@ -48,9 +50,9 @@ export type PlanTierLike = "STARTER" | "PRO" | "NETWORK";
 
 /** M15 RG-M15-19 / A12 — crédits IA par mois. */
 export const AI_CREDITS_BY_PLAN: Record<PlanTierLike, number> = {
-  STARTER: 500,
-  PRO: 3_000,
-  NETWORK: 10_000,
+  STARTER: PLAN_CATALOG.STARTER.quotas.aiCreditsPerMonth ?? 0,
+  PRO: PLAN_CATALOG.PRO.quotas.aiCreditsPerMonth ?? 0,
+  NETWORK: PLAN_CATALOG.NETWORK.quotas.aiCreditsPerMonth ?? 0,
 };
 
 /** RG-M17-07 — plafond par utilisateur et par jour (assistant). */

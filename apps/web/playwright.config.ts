@@ -33,7 +33,8 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       // RG-M13-24 : pilote "inline" pour les imports, sans worker dédié.
-      env: { ...process.env, IMPORT_QUEUE_DRIVER: "inline" },
+      // M15 : abonnement `fake` (changement d'offre appliqué immédiatement, aucun compte réel).
+      env: { ...process.env, IMPORT_QUEUE_DRIVER: "inline", SUBSCRIPTION_BILLING_PROVIDER: "fake" },
     },
     {
       command: "pnpm --filter @atelieros/worker dev",

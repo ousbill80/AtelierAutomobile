@@ -1,4 +1,9 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { DomainError } from "@atelieros/core";
 
@@ -13,6 +18,8 @@ const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
   "image/webp",
   "application/pdf",
   "text/csv",
+  // M15 RG-M15-21 — archive de l'export complet (générée par le serveur, jamais téléversée).
+  "application/zip",
 ]);
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
@@ -63,8 +70,19 @@ export class S3ObjectStorage {
     return { key: input.key };
   }
 
-  async getSignedDownloadUrl(key: string, expiresInSeconds = 300): Promise<string> {
-    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+  async getSignedDownloadUrl(
+    key: string,
+    expiresInSeconds = 300,
+    /** Si fourni, le navigateur télécharge le fichier sous ce nom (Content-Disposition). */
+    downloadFileName?: string,
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ResponseContentDisposition: downloadFileName
+        ? `attachment; filename="${downloadFileName.replace(/"/g, "")}"`
+        : undefined,
+    });
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
   }
 
@@ -99,6 +117,10 @@ export class S3ObjectStorage {
       body as { transformToByteArray: () => Promise<Uint8Array> }
     ).transformToByteArray();
     return bytes;
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 }
 

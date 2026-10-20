@@ -159,6 +159,7 @@ async function main() {
   const organization = await adminDb.organization.create({
     data: {
       name: "Excellence Auto",
+      slug: "excellence-auto", // M15 §14 — identifiant public (portail M14)
       legalName: "Excellence Auto SARL",
       rccm: "CI-ABJ-2015-B-12345",
       ncc: "1234567A",
@@ -173,6 +174,16 @@ async function main() {
       operatingMode: "FULL",
       // Garage de démo déjà configuré : l'espace applicatif ne renvoie pas vers /bienvenue.
       onboardingCompletedAt: new Date(),
+    },
+  });
+
+  // M15 US-M15-07 — jauge « Messages automatiques ce mois » de /parametres/abonnement.
+  await adminDb.usageCounter.create({
+    data: {
+      organizationId: organization.id,
+      metric: "auto_messages",
+      period: "2026-10",
+      used: 812,
     },
   });
 

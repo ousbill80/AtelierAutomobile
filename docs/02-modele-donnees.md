@@ -62,6 +62,14 @@ model Organization {
   operatingMode   OperatingMode @default(FULL)   // REMINDERS_ONLY si le garage garde son ancien logiciel
   settings        Json     @default("{}")        // préférences diverses (voir M15) ; `stock` : allowNegative, dormantDays, countApprovalThreshold, autoIssueOnInvoice, customerPartFee (M07)
                                                  // M05 : settings.quotes = { validityDays 15, validityDaysCompany 30, requireSignature, discountCaps, depositRule, followupWhenVehicleOnSite, showLinePricesToCustomer, termsText }
+  // M15 §14 (étape 6.5)
+  slug                 String   @unique @default(cuid())  // identifiant public, aussi utilisé par M14
+  lifecycleStatus      OrgLifecycle @default(ACTIVE)      // RG-M15-22, machine à états M15 §5
+  deletionRequestedAt  DateTime?
+  deletionScheduledFor DateTime?                          // demande + 30 j
+  planOverrides        Json     @default("{}")            // surcharges de limites par l'équipe AtelierOS (RG-M15-19)
+  settingsVersion      Int      @default(0)               // verrou optimiste
+  supportAccessUntil   DateTime?                          // RG-M15-27
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   sites           Site[]
@@ -70,6 +78,7 @@ model Organization {
 
 enum TaxRegime { RNI RSI RMI ENTREPRENANT }
 enum PlanTier { STARTER PRO NETWORK }
+enum OrgLifecycle { ACTIVE SUSPENDED DELETION_SCHEDULED PURGED }   // M15 §14
 enum OperatingMode { FULL REMINDERS_ONLY }
 
 model Site {
@@ -81,6 +90,7 @@ model Site {
   commune        String?
   phone          String?
   whatsappNumber String?
+  timezone       String?              // M15 §14 — surcharge du fuseau de l'organisation
   openingHours   Json    @default("{}") // { mon: [["08:00","18:00"]], ... }
   isActive       Boolean @default(true)
   createdAt      DateTime @default(now())
@@ -566,7 +576,8 @@ model InspectionTemplate {
   name           String
   items          Json                          // [{ category, label, measurementUnit?, recommendedLaborCode?, recommendedProductCategory? }]
   isDefault      Boolean @default(false)       // M04 §14
-  isActive       Boolean @default(true)        // M04 §14
+  isActive       Boolean @default(true)        // M04 §14 (false = archivé : tient lieu du isArchived de M15 §14)
+  version        Int @default(1)               // M15 §14
 }
 
 model LaborOperation {                         // catalogue de main-d'œuvre
@@ -1595,6 +1606,7 @@ model ChannelConfig {
   webhookVerifyToken String?
   messagingTier      String?                     // palier de messagerie WhatsApp
   lastError          String?
+  updatedAt          DateTime @updatedAt         // M15 §14
   @@unique([organizationId, channel, provider])
 }
 
@@ -1885,6 +1897,31 @@ model Holiday {                                   // jours fériés — source u
   kind           String @default("PUBLIC")       // PUBLIC | CLOSURE (fermeture exceptionnelle)
   isEstimated    Boolean @default(false)         // fêtes religieuses à confirmer
   @@unique([organizationId, siteId, date])
+}
+
+model UsageCounter {                              // M15 §14 — quotas mensuels (RG-M15-20)
+  id             String @id @default(cuid())
+  organizationId String
+  metric         String                          // auto_messages | ai_credits | storage_bytes
+  period         String                          // "2026-10" (mois civil, fuseau de l'organisation)
+  used           Int @default(0)
+  updatedAt      DateTime @updatedAt
+  @@unique([organizationId, metric, period])
+}
+
+model DataExport {                                // M15 §14 — export complet (RG-M15-21)
+  id             String @id @default(cuid())
+  organizationId String
+  requestedById  String                          // Membership.id
+  status         String @default("PENDING")      // PENDING | RUNNING | READY | FAILED | EXPIRED
+  fileUrl        String?                         // clé S3 de l'archive (téléchargement par URL signée)
+  sizeBytes      Int?
+  tableCount     Int?
+  rowCount       Int?
+  expiresAt      DateTime?                       // prête + 48 h
+  error          String?
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
 }
 
 model AuditLog {

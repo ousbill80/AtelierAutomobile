@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Button,
@@ -24,6 +25,8 @@ export default function SitesPage() {
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // M15 RG-M15-20 : limite de l'offre atteinte → lien vers /parametres/abonnement.
+  const [planLimit, setPlanLimit] = useState(false);
 
   const utils = trpc.useUtils();
   const sites = trpc.site.list.useQuery();
@@ -42,6 +45,7 @@ export default function SitesPage() {
     },
     onError(err) {
       setError(err.message);
+      setPlanLimit(err.data?.domainCode === "PLAN_LIMIT_REACHED");
     },
   });
 
@@ -160,6 +164,11 @@ export default function SitesPage() {
             <PhoneInput value={whatsapp} onChange={setWhatsapp} />
           </Field>
           {error ? <p className="error">{error}</p> : null}
+          {planLimit ? (
+            <Link className="btn btn-secondary min-h-11" href="/parametres/abonnement">
+              {t("settings.sites.seePlans")}
+            </Link>
+          ) : null}
           <Button type="submit" block loading={createSite.isPending}>
             {t("settings.sites.createAction")}
           </Button>

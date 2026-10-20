@@ -22,7 +22,8 @@
     "./reports": "./src/reports/index.ts",
     "./claims": "./src/claims/index.ts",
     "./ai": "./src/ai/index.ts",
-    "./automations": "./src/automations/index.ts"
+    "./automations": "./src/automations/index.ts",
+    "./calendar": "./src/calendar.ts"
   },
   "scripts": {
     "lint": "eslint .",

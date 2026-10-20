@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
-import { canAddSite, validateOpeningHours } from "@atelieros/core";
-import { adminDb, db } from "@atelieros/db";
+import { validateOpeningHours } from "@atelieros/core";
+import { assertPlanLimit } from "../plan/limits";
+import { db } from "@atelieros/db";
 import {
   createSiteInputSchema,
   deactivateSiteInputSchema,
@@ -36,19 +37,7 @@ export const siteRouter = router({
     .mutation(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
 
-      const org = await adminDb.organization.findUniqueOrThrow({
-        where: { id: ctx.organizationId },
-      });
-      const activeSiteCount = await tenantDb.site.count({ where: { isActive: true } });
-      if (!canAddSite(org.plan, activeSiteCount)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            org.plan === "STARTER"
-              ? "Passez à l'offre PRO pour gérer plusieurs ateliers."
-              : "Limite de sites atteinte pour votre offre actuelle.",
-        });
-      }
+      await assertPlanLimit(ctx.organizationId, "activeSites");
 
       const existingCode = await tenantDb.site.findFirst({ where: { code: input.code } });
       if (existingCode) {

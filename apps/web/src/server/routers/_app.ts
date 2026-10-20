@@ -52,6 +52,7 @@ import { searchRouter } from "./search";
 import { segmentRouter } from "./segment";
 import { sessionRouter } from "./session";
 import { settingsRouter } from "./settings";
+import { dataExportRouter, planRouter, supportRouter } from "./subscription";
 import { siteRouter } from "./site";
 import { templateRouter } from "./template";
 import { vehicleRouter } from "./vehicle";
@@ -83,6 +84,9 @@ export const appRouter = router({
   holiday: holidayRouter,
   numbering: numberingRouter,
   settings: settingsRouter,
+  plan: planRouter,
+  dataExport: dataExportRouter,
+  support: supportRouter,
   member: memberRouter,
   invitation: invitationRouter,
   role: roleRouter,

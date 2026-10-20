@@ -8,7 +8,13 @@ import {
   OTP_RESEND_COOLDOWN_SECONDS,
 } from "@atelieros/core";
 import { createConsoleMessagingProvider, type MessageChannel } from "@atelieros/integrations";
-import type { OtpPurpose } from "@atelieros/validators";
+import type { OtpPurpose as PublicOtpPurpose } from "@atelieros/validators";
+
+/**
+ * `SENSITIVE_ACTION` (M15 §10) : OTP frais (< 5 min) exigé pour l'export complet et la
+ * suppression du compte. Volontairement absent du schéma public `auth.sendOtp`.
+ */
+type OtpPurpose = PublicOtpPurpose | "SENSITIVE_ACTION";
 
 function verificationKey(identifier: string, purpose: OtpPurpose): string {
   return `${identifier}:${purpose}`;

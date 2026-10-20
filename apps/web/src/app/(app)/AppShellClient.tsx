@@ -24,6 +24,7 @@ import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
 import { GlobalSearch } from "@/components/global-search";
+import { formatDate } from "@atelieros/core/calendar";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
 
@@ -286,6 +287,31 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
             </div>
           </TopbarActions>
         </Topbar>
+        {me.activeOrganization &&
+        (me.activeOrganization.lifecycleStatus === "DELETION_SCHEDULED" ||
+          me.activeOrganization.lifecycleStatus === "SUSPENDED") ? (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-3 border-b border-status-bad bg-surface-2 px-4 py-3 text-sm"
+          >
+            <span aria-hidden="true">⚠</span>
+            <span className="flex-1">
+              {t(`lifecycleBanner.${me.activeOrganization.lifecycleStatus}`, {
+                date: me.activeOrganization.deletionScheduledFor
+                  ? formatDate(
+                      new Date(me.activeOrganization.deletionScheduledFor),
+                      me.activeOrganization.timezone,
+                    )
+                  : "",
+              })}
+            </span>
+            {has("settings:billing") ? (
+              <Link className="btn btn-secondary btn-sm min-h-11" href="/parametres/donnees">
+                {t("lifecycleBanner.manage")}
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
         <Content>{children}</Content>
       </AppMain>
     </AppShell>
