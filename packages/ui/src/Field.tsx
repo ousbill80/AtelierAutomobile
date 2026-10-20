@@ -49,21 +49,55 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Raccourci : enveloppe le champ dans un `Field` avec ce libellé (et `hint`). */
   label?: string;
   hint?: string;
+  leftIcon?: ReactNode;
+  rightAction?: ReactNode;
 }
 
-export function Input({ invalid, className, label, hint, ...rest }: InputProps) {
+export function Input({
+  invalid,
+  className,
+  label,
+  hint,
+  leftIcon,
+  rightAction,
+  ...rest
+}: InputProps) {
+  const generatedId = useId();
+  const inputId = rest.id ?? (label ? generatedId : undefined);
+
   const input = (
     <input
+      id={inputId}
       className={["input", invalid ? "invalid" : "", className ?? ""].filter(Boolean).join(" ")}
       {...rest}
     />
   );
+
+  const element =
+    leftIcon || rightAction ? (
+      <div
+        className={[
+          "input-wrap",
+          leftIcon ? "has-left-icon" : "",
+          rightAction ? "has-right-icon" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {leftIcon ? <span className="input-icon-left">{leftIcon}</span> : null}
+        {input}
+        {rightAction ? <span className="input-icon-right">{rightAction}</span> : null}
+      </div>
+    ) : (
+      input
+    );
+
   return label || hint ? (
-    <Field label={label} hint={hint}>
-      {input}
+    <Field label={label} hint={hint} htmlFor={inputId}>
+      {element}
     </Field>
   ) : (
-    input
+    element
   );
 }
 
