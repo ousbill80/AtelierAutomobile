@@ -225,5 +225,57 @@ export const aiRouter = router({
       }),
   }),
 
+  /** RG-M17-22 — anomalies signalées au gérant ; « Marquer comme justifiée » avec motif (audit). */
+  anomalies: router({
+    list: requirePermission("dashboard:owner")
+      .input(z.object({ includeJustified: z.boolean().default(false) }).default({}))
+      .query(async ({ ctx, input }) => {
+        const tx = db.forTenant({ organizationId: ctx.organizationId });
+        return tx.notification.findMany({
+          where: {
+            membershipId: ctx.membership.id,
+            type: { startsWith: "alert.anomaly." },
+            ...(input.includeJustified ? {} : { readAt: null }),
+          },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        });
+      }),
+
+    justify: requirePermission("dashboard:owner")
+      .input(z.object({ notificationId: z.string(), comment: z.string().trim().min(3).max(1000) }))
+      .mutation(async ({ ctx, input }) => {
+        const tx = db.forTenant({ organizationId: ctx.organizationId });
+        const alert = await tx.notification.findFirst({
+          where: {
+            id: input.notificationId,
+            membershipId: ctx.membership.id,
+            type: { startsWith: "alert.anomaly." },
+          },
+        });
+        if (!alert) throw new TRPCError({ code: "NOT_FOUND", message: "Anomalie introuvable." });
+        const now = new Date();
+        // Justifiée pour tous les destinataires (même objet, même clé de dédoublonnage).
+        await tx.notification.updateMany({
+          where: { dedupeKey: alert.dedupeKey, readAt: null },
+          data: { readAt: now },
+        });
+        await writeAuditLog({
+          organizationId: ctx.organizationId,
+          userId: ctx.user.id,
+          membershipId: ctx.membership.id,
+          action: "anomaly.justified",
+          entity: "Notification",
+          entityId: alert.id,
+          before: { type: alert.type, title: alert.title },
+          after: { justified: true },
+          reason: input.comment,
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+        });
+        return { ok: true };
+      }),
+  }),
+
   ...aiFeatureProcedures,
 });

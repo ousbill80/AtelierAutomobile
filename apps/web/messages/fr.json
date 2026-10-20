@@ -447,7 +447,9 @@
     "cash.closed": "Caisse clôturée",
     "cash.reviewed": "Écart de caisse validé",
     "cash.expense": "Dépense de caisse",
-    "cash.drop": "Versement coffre / banque"
+    "cash.drop": "Versement coffre / banque",
+    "anomaly.justified": "Anomalie marquée comme justifiée",
+    "settings.ai_updated": "Réglages IA modifiés"
   },
   "import": {
     "list": {
@@ -4100,5 +4102,20 @@
     "portal": {
       "why": "Pourquoi ce travail ?"
     }
+  },
+  "aiAnomalies": {
+    "title": "Anomalies",
+    "description": "Détectées chaque matin à 06:00 à partir des remises, de la caisse, du stock et des temps. À vérifier, puis à marquer comme justifiées avec un motif.",
+    "empty": "Aucune anomalie à vérifier.",
+    "loadError": "Impossible de charger les anomalies.",
+    "retry": "Réessayer",
+    "open": "Voir le détail",
+    "justify": "Marquer comme justifiée",
+    "commentLabel": "Motif (obligatoire)",
+    "commentPlaceholder": "Ex. remise commerciale accordée par le gérant au client flotte",
+    "confirm": "Valider",
+    "cancel": "Annuler",
+    "justified": "Anomalie marquée comme justifiée.",
+    "badge": "À vérifier"
   }
 }
