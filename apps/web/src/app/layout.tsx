@@ -1,24 +1,8 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
-import { Sora, Inter, JetBrains_Mono } from "next/font/google";
+import type { CSSProperties, ReactNode } from "react";
 import { TrpcProvider } from "@/trpc/Provider";
+import { fontVariables } from "./fonts";
 import "./globals.css";
-
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "AtelierOS",
@@ -28,10 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html
-      lang="fr"
-      className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
-    >
+    <html lang="fr" className="h-full antialiased" style={fontVariables as CSSProperties}>
       <body className="min-h-full flex flex-col">
         <TrpcProvider>{children}</TrpcProvider>
       </body>
