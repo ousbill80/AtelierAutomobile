@@ -2,6 +2,7 @@
 // de paiement (ticket 80 mm). Données préparées côté serveur ; ce module ne fait que la mise en page.
 import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { amountInWords, formatFCFA } from "@atelieros/core";
+import QRCode from "qrcode";
 
 export interface InvoicePdfLine {
   type: string;
@@ -48,7 +49,13 @@ export interface InvoicePdfData {
   balance: number;
   vatEnabled: boolean;
   paymentTerms: string;
-  fne: { status: string; number?: string | null; qrCode?: string | null };
+  /** `qrCode` : image (data URL) ou contenu décodé du QR, transformé en image au rendu. */
+  fne: {
+    status: string;
+    number?: string | null;
+    qrCode?: string | null;
+    certifiedAt?: string | null;
+  };
   notes?: string | null;
 }
 
@@ -219,12 +226,11 @@ export function InvoiceDocument({ data }: { data: InvoicePdfData }) {
         {data.fne.status !== "NOT_REQUIRED" && data.number && (
           <View style={[styles.box, styles.between]} wrap={false}>
             <View>
-              <Text style={styles.bold}>Facture normalisée électronique (FNE)</Text>
-              {certified && data.fne.number ? (
-                <Text>N° fiscal : {data.fne.number}</Text>
-              ) : (
-                <Text>FNE en attente de certification</Text>
-              )}
+              {fneBlockLines(data.fne).map((line, i) => (
+                <Text key={i} style={i === 0 ? styles.bold : undefined}>
+                  {line}
+                </Text>
+              ))}
             </View>
             {certified && data.fne.qrCode?.startsWith("data:image") && (
               <Image src={data.fne.qrCode} style={{ width: 70, height: 70 }} />
@@ -238,8 +244,27 @@ export function InvoiceDocument({ data }: { data: InvoicePdfData }) {
   );
 }
 
+/** Lignes du bloc FNE (RG-M08-04) : numéro fiscal et date, ou mention d'attente. */
+export function fneBlockLines(fne: InvoicePdfData["fne"]): string[] {
+  const lines = ["Facture normalisée électronique (FNE)"];
+  const certified = fne.status === "CERTIFIED" || fne.status === "MANUAL";
+  if (!certified || !fne.number) return [...lines, "FNE en attente de certification"];
+  lines.push(`N° fiscal : ${fne.number}`);
+  if (fne.certifiedAt) lines.push(`Certifiée le ${day(fne.certifiedAt)}`);
+  return lines;
+}
+
+/** QR FNE : une image fournie est gardée telle quelle, un contenu décodé est encodé en QR. */
+export async function fneQrImage(qrCode: string | null | undefined): Promise<string | null> {
+  if (!qrCode) return null;
+  if (qrCode.startsWith("data:image")) return qrCode;
+  return QRCode.toDataURL(qrCode, { margin: 1, width: 240, errorCorrectionLevel: "M" });
+}
+
 export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
-  return renderToBuffer(<InvoiceDocument data={data} />);
+  const certified = data.fne.status === "CERTIFIED" || data.fne.status === "MANUAL";
+  const qrCode = certified ? await fneQrImage(data.fne.qrCode) : null;
+  return renderToBuffer(<InvoiceDocument data={{ ...data, fne: { ...data.fne, qrCode } }} />);
 }
 
 // ───────────── Reçu de paiement (ticket 80 mm) ─────────────

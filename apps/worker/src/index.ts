@@ -58,6 +58,9 @@ async function main(): Promise<void> {
   const { processQuotesExpireJob } = await import("./jobs/quotes");
   const { CASH_JOB_NAMES, CASH_QUEUE_NAME, scheduleCashJobs } = await import("./queues/cash");
   const { processCashCheckUnclosedJob } = await import("./jobs/cashJobs");
+  const { FNE_JOB_NAMES, FNE_QUEUE_NAME, scheduleFneJobs } = await import("./queues/fne");
+  type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
+  const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
 
   logger.info("AtelierOS worker démarré");
 
@@ -250,6 +253,28 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "cash : un job a échoué");
   });
 
+  // M08 §9 : certification FNE à l'émission et reprises toutes les 10 min (RG-M08-15/16).
+  await scheduleFneJobs();
+
+  const fneWorker = new Worker(
+    FNE_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case FNE_JOB_NAMES.CERTIFY:
+          return processFneCertifyJob(job.data as FneCertifyJobData);
+        case FNE_JOB_NAMES.RETRY:
+          return processFneRetryJob();
+        default:
+          logger.warn({ jobName: job.name }, "fne : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  fneWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "fne : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -262,6 +287,7 @@ async function main(): Promise<void> {
       stockWorker.close(),
       quotesWorker.close(),
       cashWorker.close(),
+      fneWorker.close(),
     ]);
     process.exit(0);
   }

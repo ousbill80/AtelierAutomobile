@@ -24,3 +24,12 @@ export {
 export * from "./stock";
 export { hashPortalToken, issuePortalToken, resolvePortalToken } from "./portal";
 export type { IssuePortalTokenInput, ResolvedPortalToken } from "./portal";
+export {
+  alertUncertifiedFne,
+  certifyInvoiceFne,
+  dueFneInvoiceIds,
+  loadFneConfigRecord,
+  type FneCertifier,
+  type FneCertifyOutcome,
+  type ResolveFneCertifier,
+} from "./fne";

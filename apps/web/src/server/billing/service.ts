@@ -554,6 +554,15 @@ async function applyDeposits(
   }
 }
 
+/**
+ * Mode `api` : première tentative immédiate (job `fne.certify` après commit) ; sans job, le
+ * balayage `fne.retry` la trouve grâce à `fneNextRetryAt` (RG-M08-15). Mode manuel : pas de
+ * tentative automatique, l'utilisateur saisit le numéro FNE (RG-M08-17).
+ */
+function fneFirstAttemptAt(org: OrgBillingContext, fneStatus: string, at: Date): Date | null {
+  return org.fneMode === "api" && fneStatus === "PENDING" ? at : null;
+}
+
 export async function issueInvoice(
   tx: Tx,
   actor: Actor,
@@ -608,6 +617,7 @@ export async function issueInvoice(
       issuedAt: plan.issuedAt,
       dueDate: plan.dueDate,
       fneStatus: plan.fneStatus,
+      fneNextRetryAt: fneFirstAttemptAt(org, plan.fneStatus, plan.issuedAt),
     },
   });
   const issued = await recomputeInvoiceBalance(tx, invoice.id, org.today);
@@ -739,6 +749,11 @@ export async function createCreditNote(
       issuedAt: org.now,
       dueDate: day,
       fneStatus: org.fneMode === "disabled" ? "NOT_REQUIRED" : "PENDING",
+      fneNextRetryAt: fneFirstAttemptAt(
+        org,
+        org.fneMode === "disabled" ? "NOT_REQUIRED" : "PENDING",
+        org.now,
+      ),
     },
   });
   const effect = creditNoteEffect({

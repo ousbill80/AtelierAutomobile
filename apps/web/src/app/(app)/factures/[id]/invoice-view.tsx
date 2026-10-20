@@ -1,7 +1,7 @@
 "use client";
 
 // M08 §7 — /factures/[id] : en-tête (statut + FNE), client / véhicule, lignes, totaux, paiements,
-// avoirs ; actions Émettre, Encaisser, Avoir, PDF, Supprimer le brouillon.
+// avoirs, bloc FNE ; actions Émettre, Encaisser, Avoir, PDF, Supprimer le brouillon, FNE.
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDay } from "@/components/repair-orders/i18n";
 import { FneBadge, InvoiceStatusBadge } from "@/components/billing/badges";
 import { EncaisserModal } from "@/components/billing/encaisser-modal";
+import { FnePanel } from "@/components/billing/fne-panel";
 import { t } from "@/components/billing/i18n";
 
 const OPEN = ["ISSUED", "PARTIALLY_PAID", "OVERDUE"];
@@ -58,12 +59,15 @@ export function InvoiceView({ id }: { id: string }) {
             ? ` · ${t("fields.dueDate")} ${formatDay(inv.dueDate, "UTC")}`
             : ""}
         </p>
-        {!isDraft && (inv.fneStatus === "PENDING" || inv.fneStatus === "FAILED") && (
-          <p className="rounded-md border border-status-warn bg-status-warn-bg p-2 text-sm">
-            ⚠ {t("fnePending")}
-          </p>
-        )}
       </header>
+
+      <FnePanel
+        invoice={inv}
+        mode={d.fneMode}
+        canManage={perms.has("fne:manage")}
+        timeZone={d.timeZone}
+        onChanged={refresh}
+      />
 
       <div className="flex flex-wrap gap-2">
         {isDraft && perms.has("invoice:issue") && (

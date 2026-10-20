@@ -34,8 +34,13 @@ export interface PaymentConfigStore {
 /** Forme minimale de `FneConfig`. */
 export interface FneConfigRecord {
   mode: "api" | "manual" | "disabled";
+  /** Adaptateur du mode `api` : `dgi_api` (DGI) ou `fake` (simulateur, hors production). */
+  provider?: string;
   isActive: boolean;
+  /** JSON chiffré (AES-256-GCM) des identifiants DGI. */
   credentials: string | null;
+  establishmentId?: string | null;
+  pointOfSale?: string | null;
 }
 
 export interface FneConfigStore {
