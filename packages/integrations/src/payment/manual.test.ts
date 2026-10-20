@@ -19,7 +19,7 @@ describe("ManualPaymentProvider", () => {
       url: "http://localhost:3000/paiement-manuel/manual_inv_1",
       providerRef: "manual_inv_1",
     });
-    await expect(provider.getStatus("manual_inv_1")).resolves.toBe("PENDING");
+    await expect(provider.getStatus("manual_inv_1")).resolves.toMatchObject({ status: "PENDING" });
   });
 
   it("reflète le statut mis à jour par le caissier dans le grand livre injecté", async () => {
@@ -34,7 +34,7 @@ describe("ManualPaymentProvider", () => {
 
     ledger.save({ providerRef: "manual_inv_2", status: "PAID" });
 
-    await expect(provider.getStatus("manual_inv_2")).resolves.toBe("PAID");
+    await expect(provider.getStatus("manual_inv_2")).resolves.toMatchObject({ status: "PAID" });
   });
 
   it("n'accepte aucun webhook : la confirmation passe par la caisse, pas par un fournisseur", async () => {
@@ -42,7 +42,8 @@ describe("ManualPaymentProvider", () => {
       "http://localhost:3000",
       createInMemoryManualPaymentLedger(),
     );
-    await expect(provider.parseWebhook({} as Request)).rejects.toThrow(/webhook/);
+    expect(provider.verifyWebhook()).toBe(false);
+    expect(() => provider.parseWebhook()).toThrow(/webhook/);
   });
 
   it("renvoie PENDING pour une référence inconnue plutôt que de lever une erreur", async () => {
@@ -50,6 +51,8 @@ describe("ManualPaymentProvider", () => {
       "http://localhost:3000",
       createInMemoryManualPaymentLedger(),
     );
-    await expect(provider.getStatus("manual_inconnu")).resolves.toBe("PENDING");
+    await expect(provider.getStatus("manual_inconnu")).resolves.toMatchObject({
+      status: "PENDING",
+    });
   });
 });

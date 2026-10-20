@@ -64,6 +64,13 @@ const NAV = [
     label: "nav.settingsFne",
     permission: "settings:fne",
   },
+  // M15 RG-M15-17 — fournisseurs de liens de paiement et numéros marchands.
+  {
+    key: "paiements",
+    href: "/parametres/paiements",
+    label: "nav.settingsPayments",
+    permission: "settings:payments",
+  },
 ] as const;
 
 export default function ParametresLayout({ children }: { children: ReactNode }) {

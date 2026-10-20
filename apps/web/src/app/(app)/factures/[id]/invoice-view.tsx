@@ -1,7 +1,8 @@
 "use client";
 
 // M08 §7 — /factures/[id] : en-tête (statut + FNE), client / véhicule, lignes, totaux, paiements,
-// avoirs, bloc FNE ; actions Émettre, Encaisser, Avoir, PDF, Supprimer le brouillon, FNE.
+// avoirs, bloc FNE ; actions Émettre, Encaisser, Avoir, PDF, Supprimer le brouillon, FNE ;
+// lien de paiement mobile money, envoi au client et lien portail (4.3).
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,7 @@ import { formatDay } from "@/components/repair-orders/i18n";
 import { FneBadge, InvoiceStatusBadge } from "@/components/billing/badges";
 import { EncaisserModal } from "@/components/billing/encaisser-modal";
 import { FnePanel } from "@/components/billing/fne-panel";
+import { PaymentLinkActions, PaymentLinksList } from "@/components/billing/payment-links-panel";
 import { t } from "@/components/billing/i18n";
 
 const OPEN = ["ISSUED", "PARTIALLY_PAID", "OVERDUE"];
@@ -79,6 +81,12 @@ export function InvoiceView({ id }: { id: string }) {
           perms.has("payment:create") && (
             <Button onClick={() => setModal("pay")}>{t("actions.encaisser")}</Button>
           )}
+        <PaymentLinkActions
+          invoice={inv}
+          permissions={perms}
+          timeZone={d.timeZone}
+          onChanged={refresh}
+        />
         <a
           href={`/api/factures/${inv.id}/pdf`}
           target="_blank"
@@ -266,6 +274,15 @@ export function InvoiceView({ id }: { id: string }) {
             </>
           )}
         </section>
+      )}
+
+      {!isDraft && !isCredit && (
+        <PaymentLinksList
+          invoiceId={inv.id}
+          timeZone={d.timeZone}
+          canManage={perms.has("message:send")}
+          onChanged={refresh}
+        />
       )}
 
       {modal === "issue" && (

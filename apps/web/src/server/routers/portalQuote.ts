@@ -22,6 +22,7 @@ import {
   truncateIp,
 } from "../quotes/service";
 import { emitDomainEvent } from "../events/emit";
+import { issueInvoicePortalLink } from "../billing/paymentLinks";
 import { publicProcedure, router } from "../trpc";
 
 // RG-M05-09 / RG-M14-06 — 30 requêtes/min par jeton (mémoire du processus).
@@ -165,6 +166,29 @@ export const portalQuoteRouter = router({
       deposit: out.deposit,
       alreadyDecided: false,
     };
+  }),
+
+  /**
+   * Étape 4.3 (US-M08-03) — « Payer l'acompte » : lien portail de la facture d'acompte émise
+   * (jeton INVOICE distinct : le jeton du devis ne lit jamais la facture lui-même).
+   */
+  depositLink: publicProcedure.input(portalQuoteGetInputSchema).mutation(async ({ input }) => {
+    const now = roNow();
+    const { tenantDb, target } = await resolve(input.token, now);
+    return tenantDb.transaction(async (tx) => {
+      const quote = await latestVersionOf(tx, target);
+      const invoice = quote.depositInvoiceId
+        ? await tx.invoice.findFirst({ where: { id: quote.depositInvoiceId } })
+        : null;
+      if (!invoice || !["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(invoice.status)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "L'acompte n'est pas encore payable en ligne. Contactez le garage.",
+        });
+      }
+      const link = await issueInvoicePortalLink(tx, invoice, null, now);
+      return { url: link.url };
+    });
   }),
 
   /** US-M05-06 : question (boîte de réception M11), rappel ou demande d'actualisation. */

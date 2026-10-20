@@ -1068,6 +1068,17 @@ model PaymentLink {
   expiresAt      DateTime
   paymentId      String?
   createdAt      DateTime @default(now())
+  // M08 étape 4.3 (hors §14, RG-M08-23..25) : moyen choisi, cycle de vie, rapprochement
+  method          PaymentMethod?                 // choisi sur le portail ; null = au choix du client
+  createdById     String?                        // null = lien créé depuis le portail client
+  confirmedAt     DateTime?
+  confirmedAmount Int?                           // montant confirmé par getStatus (écart signalé)
+  closedAt        DateTime?
+  closeReason     String?                        // replaced | cancelled | expired | failed
+  lastCheckedAt   DateTime?                      // dernière vérification chez le fournisseur
+  updatedAt       DateTime @updatedAt
+  @@unique([provider, providerRef])              // un lien par transaction fournisseur (webhook)
+  @@index([status, expiresAt])                   // payments.reconcile, paymentLinks.expire
 }
 
 model CashSession {                              // ouverture / clôture de caisse
@@ -1162,7 +1173,8 @@ model PaymentWebhookLog {                        // M08 §14 — journal des web
 // Paramètres M08 dans Organization.settings : billing.vatRounding ("line" | "total"), billing.allowWalkIn,
 // fne.blockSendUntilCertified, payments.passFeesToCustomer, cash.varianceAlert (5 000), cash.expenseApproval
 // (25 000), cash.oneSessionPerSite (true), cash.expenseCategories, accounting.accounts (plan de comptes
-// SYSCOHADA : 411, 701, 706, 4431, 571, 521, 585…) — lus par core/billing/settings.ts.
+// SYSCOHADA : 411, 701, 706, 4431, 571, 521, 585…), payments.merchantNumbers ({ wave, orangeMoney, mtn,
+// moov }, M15 RG-M15-17, étape 4.3) — lus par core/billing/settings.ts.
 
 // ───────────── Créances et recouvrement ─────────────
 
@@ -1516,10 +1528,16 @@ model OptOut {
 model PaymentProviderConfig {
   id             String @id @default(cuid())
   organizationId String
-  provider       String                          // cinetpay | wave
+  provider       String                          // cinetpay | wave | fake (simulateur, refusé en production)
   isActive       Boolean @default(false)
-  credentials    String                          // chiffré
+  credentials    String                          // JSON chiffré (clés API, secret de webhook)
   methods        PaymentMethod[]
+  // M15 RG-M15-17 étape 4.3 (hors §14) : dernier test
+  lastTestedAt   DateTime?
+  lastTestOk     Boolean?
+  lastError      String?
+  updatedAt      DateTime @updatedAt
+  @@unique([organizationId, provider])
 }
 
 model FneConfig {

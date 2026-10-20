@@ -1,5 +1,6 @@
 // M08 §8 — factures : brouillons (OR, devis, vente comptoir, acompte), émission sans trou,
-// avoirs, échéance, liste et détail. FNE : routeur `fne` ; liens de paiement (4.3) hors périmètre.
+// avoirs, échéance, liste et détail, envoi au client (4.3). FNE : routeur `fne` ; liens de
+// paiement : routeur `paymentLink`.
 import { TRPCError } from "@trpc/server";
 import {
   buildDepositLine,
@@ -18,6 +19,7 @@ import {
   invoiceListInputSchema,
   issueInvoiceInputSchema,
   previewInvoiceInputSchema,
+  sendInvoiceInputSchema,
   updateDueDateInputSchema,
   updateInvoiceInputSchema,
 } from "@atelieros/validators";
@@ -41,6 +43,8 @@ import {
   type Tx,
 } from "../billing/service";
 import { enqueueFneCertifyJob } from "../billing/fneQueue";
+import { issueInvoicePortalLink } from "../billing/paymentLinks";
+import { sendInvoice } from "../billing/send";
 import { requirePermission, requireSite, router } from "../trpc";
 
 const OPEN = ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"] as const;
@@ -690,5 +694,37 @@ export const invoiceRouter = router({
           balance: true,
         },
       });
+    }),
+
+  /** US-M08-14 — envoi WhatsApp / SMS / email : lien portail, lien de paiement du solde, PDF. */
+  send: requirePermission("invoice:read", "message:send")
+    .input(sendInvoiceInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      assertBillingModule(org);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const invoice = await tenantDb.transaction((tx) => loadInvoice(tx, ctx, input.id));
+      return sendInvoice(actorOf(ctx), org, {
+        invoice,
+        channel: input.channel,
+        includePaymentLink: input.includePaymentLink,
+      });
+    }),
+
+  /** M14 §7 « Lien client » : nouveau lien portail de la facture, à copier. */
+  portalLink: requirePermission("invoice:read", "message:send")
+    .input(invoiceIdInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const link = await tenantDb.transaction(async (tx) => {
+        const invoice = await loadInvoice(tx, ctx, input.id);
+        if (invoice.status === "DRAFT" || invoice.status === "VOID") {
+          bad("Seule une facture émise et non annulée a un lien client.");
+        }
+        return issueInvoicePortalLink(tx, invoice, ctx.membership.id, org.now);
+      });
+      await audit(actorOf(ctx), "invoice.portal_link_created", "Invoice", input.id);
+      return { url: link.url };
     }),
 });
