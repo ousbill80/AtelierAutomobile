@@ -1,11 +1,14 @@
 # Étape 2.5 — CI : `pnpm check` (lint + typecheck + tests) puis E2E Playwright, sur chaque
-# push et chaque pull request. Les services reprennent docker/docker-compose.yml (mêmes ports
-# et identifiants que .env.example), pour que la CI tourne comme un poste de dev.
+# pull request et chaque push sur main. Les services reprennent docker/docker-compose.yml (mêmes
+# ports et identifiants que .env.example), pour que la CI tourne comme un poste de dev.
+#
+# Une seule exécution par changement : avant, un push sur une branche ayant une PR lançait la CI
+# deux fois (événements push et pull_request), ce qui doublait la consommation de minutes Actions.
 name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 concurrency:
