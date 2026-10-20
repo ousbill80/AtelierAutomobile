@@ -315,6 +315,7 @@ export const workshopRouter = router({
           repairOrder: cards.find((c) => c.bay?.id === bay.id) ?? null,
         })),
         parking: cards.filter((c) => !c.bay || !bays.some((b) => b.id === c.bay!.id)),
+        timeZone: org.timeZone,
       };
     }),
 
@@ -767,7 +768,6 @@ export const workshopRouter = router({
               nonCustomerH: Math.round((billed?.nonCustomerHours ?? 0) * 100) / 100,
             };
           })
-          .filter((r) => r.presenceH > 0 || r.workedH > 0 || r.billedH > 0 || members.length <= 20)
           .sort((a, b) => a.name.localeCompare(b.name));
       });
     }),

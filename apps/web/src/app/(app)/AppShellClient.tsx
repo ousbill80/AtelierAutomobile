@@ -80,6 +80,19 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
     },
     {
+      href: "/atelier",
+      label: t("nav.workshop"),
+      permission: "workshop:view",
+      // M06 : l'atelier n'existe qu'en gestion complète.
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
+    {
+      href: "/tablette",
+      label: t("nav.tablet"),
+      permission: "time:clock",
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
+    {
       href: "/devis",
       label: t("nav.quotes"),
       permission: "quote:read",

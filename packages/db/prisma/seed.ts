@@ -337,6 +337,8 @@ async function main() {
         role: spec.role,
         skills: spec.skills,
         siteIds: [],
+        // M06 RG-M06-10 : coût horaire interne (coût MO, productivité).
+        hourlyCost: spec.role === "MECHANIC" ? 2_500 : spec.role === "MANAGER" ? 3_500 : null,
       },
     });
     memberships[spec.role] = { userId: user.id, membershipId: membership.id };
@@ -406,6 +408,8 @@ async function main() {
       name,
       standardHours: hours,
       rateType: "STANDARD" as const,
+      // M06 RG-M06-04 : compétence requise pour l'affectation suggérée.
+      requiredSkill: code === "CLIM" ? "climatisation" : null,
     })),
   });
 
@@ -1336,7 +1340,7 @@ async function main() {
       from = to;
     }
     for (const [sortOrder, line] of scenario.lines.entries()) {
-      await adminDb.repairOrderLine.create({
+      const created = await adminDb.repairOrderLine.create({
         data: {
           organizationId: organization.id,
           repairOrderId: order.id,
@@ -1345,6 +1349,37 @@ async function main() {
           approvalSource: line.approval === "APPROVED" ? "CHECK_IN" : null,
           assignedToId: line.type === "LABOR" ? mechanicMembershipId : null,
           sortOrder,
+        },
+      });
+      // M06 : pointages de démonstration sur l'OR en cours (vidange terminée, plaquettes en cours).
+      if (scenario.status === "IN_PROGRESS" && line.type === "LABOR" && line.status !== "PENDING") {
+        const startedAt = new Date(receivedAt.getTime() + 30 * 60_000 * (sortOrder + 1));
+        await adminDb.timeEntry.create({
+          data: {
+            organizationId: organization.id,
+            membershipId: mechanicMembershipId,
+            repairOrderId: order.id,
+            repairOrderLineId: created.id,
+            startedAt,
+            endedAt: line.status === "DONE" ? new Date(startedAt.getTime() + 25 * 60_000) : null,
+          },
+        });
+      }
+    }
+    if (scenario.status === "IN_PROGRESS") {
+      // M06 RG-M06-03 : l'OR en cours occupe le Pont 1 ; le mécanicien a pointé son arrivée.
+      await adminDb.repairOrder.update({
+        where: { id: order.id },
+        data: { bayId: baysYopougon[0]!.id },
+      });
+      const clockIn = new Date(receivedAt.getTime() - 15 * 60_000);
+      await adminDb.attendance.create({
+        data: {
+          organizationId: organization.id,
+          membershipId: mechanicMembershipId,
+          siteId: siteYopougon.id,
+          date: new Date(`${clockIn.toISOString().slice(0, 10)}T00:00:00.000Z`),
+          clockIn,
         },
       });
     }

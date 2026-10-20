@@ -6,6 +6,7 @@ import {
   assertPartRequestTransition,
   decideLineApproval,
   DomainError,
+  isLockedStatus,
   lineAmounts,
   type PartRequestStatusValue,
 } from "@atelieros/core";
@@ -59,6 +60,8 @@ async function addDeliveredPart(
   });
   if (existing) return null;
   const order = await tx.repairOrder.findFirstOrThrow({ where: { id: request.repairOrderId } });
+  // OR restitué, facturé ou annulé : lignes figées (M04 §5), la pièce n'est pas ajoutée.
+  if (isLockedStatus(order.status)) return null;
   const product = await tx.product.findFirstOrThrow({ where: { id: request.productId } });
   const vatRate = org.vatEnabled ? product.vatRate : 0;
   const total = lineAmounts(
