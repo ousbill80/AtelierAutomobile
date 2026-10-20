@@ -242,22 +242,15 @@ describe("M16 — assurances et sinistres", () => {
       expertName: "M. Diabaté",
       expertVisitAt: new Date("2026-10-14T09:00:00.000Z"),
     });
+    // Devis assurance prérempli avec les travaux de l'OR (lignes à la charge de l'assureur).
     const quote = await advisor.claim.createQuote({ id: claimId });
-    await expect(advisor.claim.sendEstimate({ id: claimId, channel: "email" })).rejects.toThrow(
-      /vide/,
-    );
-    await adminDb.quoteLine.create({
-      data: {
-        organizationId: orgA.id,
-        quoteId: quote.quoteId,
-        type: "PART",
-        description: "Pare-choc AV",
-        quantity: 1,
-        unitPrice: 185_000,
-        vatRate: 18,
-        payer: "INSURANCE",
-      },
+    const q = await adminDb.quote.findUniqueOrThrow({
+      where: { id: quote.quoteId },
+      include: { lines: true },
     });
+    expect(q.lines).toHaveLength(5);
+    expect(q.lines.every((l) => l.payer === "INSURANCE")).toBe(true);
+    expect(q.total).toBe(653_720);
     const sent = await advisor.claim.sendEstimate({ id: claimId, channel: "email" });
     expect(sent.claim.status).toBe("ESTIMATE_SENT");
 

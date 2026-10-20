@@ -52,7 +52,7 @@ import { setClaimStatus } from "../claims/sync";
 import { emitDomainEvent } from "../events/emit";
 import { messagingEnqueue } from "../messaging/enqueue";
 import { enqueueMessageSendJob } from "../messaging/queue";
-import { loadOrgQuoteContext } from "../quotes/service";
+import { loadOrgQuoteContext, recomputeQuote } from "../quotes/service";
 import { getAttachmentStorage } from "../storage";
 import { requirePermission, router } from "../trpc";
 import { createQuoteRecord } from "./quote";
@@ -553,6 +553,34 @@ export const claimRouter = router({
           },
           billingNow(),
         );
+        // Prérempli avec les travaux déjà saisis sur l'OR (lignes non annulées), à la charge de
+        // l'assureur ; les lignes de l'OR restent la source de la facturation (pas de lien).
+        if (order) {
+          const roLines = await tx.repairOrderLine.findMany({
+            where: { repairOrderId: order.id, status: { not: "CANCELLED" } },
+            orderBy: { sortOrder: "asc" },
+          });
+          for (const [i, l] of roLines.entries()) {
+            await tx.quoteLine.create({
+              data: {
+                organizationId: ctx.organizationId,
+                quoteId: quote.id,
+                type: l.type,
+                productId: l.productId,
+                laborOperationId: l.laborOperationId,
+                description: l.description,
+                quantity: l.quantity,
+                unitPrice: l.unitPrice,
+                discountRate: l.discountRate,
+                vatRate: l.vatRate,
+                payer: l.payer === "CUSTOMER" ? "CUSTOMER" : "INSURANCE",
+                isCustomerSupplied: l.isCustomerSupplied,
+                sortOrder: i,
+              },
+            });
+          }
+          if (roLines.length > 0) await recomputeQuote(tx, quote.id, qOrg.vatEnabled);
+        }
         await tx.insuranceClaim.update({ where: { id: claim.id }, data: { quoteId: quote.id } });
         await activity(tx, ctx, claim.id, "note", `Devis assurance ${quote.number} créé`, {
           quoteId: quote.id,
