@@ -12,3 +12,7 @@ if (existsSync(envPath)) {
 // `inline` (traitement synchrone, pas de Redis requis) quelle que soit la
 // valeur de `.env` (qui vise `pnpm dev`/prod avec `apps/worker`).
 process.env.IMPORT_QUEUE_DRIVER = "inline";
+
+// M17 — aucun test n'appelle un vrai modèle : fournisseur IA `console` (déterministe) forcé,
+// même si `.env` contient une clé ANTHROPIC_API_KEY.
+process.env.AI_PROVIDER = "console";

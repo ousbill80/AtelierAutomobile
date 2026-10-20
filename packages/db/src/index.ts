@@ -43,3 +43,5 @@ export {
   type ConfirmLinkPaymentResult,
   type ConfirmedProviderStatus,
 } from "./billing/paymentLinks";
+export { aiCreditsUsedThisMonth, createDbAiStore } from "./ai";
+export type { DbAiInteractionRecord, DbAiOrgContext } from "./ai";

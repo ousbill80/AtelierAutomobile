@@ -1938,7 +1938,95 @@ model AiInteraction {                             // trace des appels IA (coût,
   tokensOut      Int?
   createdById    String?
   createdAt      DateTime @default(now())
+  // M17 §14 (étape 6.2) — journal (RG-M17-06/07)
+  promptVersion  String   @default("v1")
+  status         String   @default("OK")     // OK | INVALID_OUTPUT | TIMEOUT | ERROR | QUOTA_EXCEEDED | DISABLED
+  latencyMs      Int?
+  credits        Int      @default(0)
+  model          String?                      // valeur de AI_MODEL utilisée (null = repli sans IA)
+  editDistance   Int?
+  @@index([organizationId, feature, createdAt])
 }
+
+// ── M17 §14 (étape 6.2) — IA et automatisations ──
+
+model AiSuggestion {                              // proposition IA (ou repli) en attente de décision humaine
+  id             String   @id @default(cuid())
+  organizationId String
+  interactionId  String?                        // AiInteraction (null si repli sans IA)
+  feature        String                         // reply_draft | slot | quote_draft | quote_explanation | extraction | promise | optout | rule_tuning | automation
+  targetEntity   String                         // conversation | repair_order | quote | vehicle | purchase_order | reminder_rule | automation_run
+  targetId       String?
+  payload        Json
+  status         AiSuggestionStatus @default(PENDING)
+  isFallback     Boolean  @default(false)
+  decidedById    String?
+  decidedAt      DateTime?
+  expiresAt      DateTime                       // 48 h
+  createdAt      DateTime @default(now())
+  @@index([organizationId, targetEntity, targetId, status])
+}
+enum AiSuggestionStatus { PENDING ACCEPTED EDITED_ACCEPTED DISMISSED EXPIRED }
+
+model AiAssistantThread {                         // assistant lecture seule, conservé 30 jours
+  id             String   @id @default(cuid())
+  organizationId String
+  membershipId   String
+  title          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  expiresAt      DateTime                       // +30 j
+}
+
+model AiAssistantMessage {
+  id             String   @id @default(cuid())
+  organizationId String                         // ajouté au §14 de M17 (04 §3, RLS)
+  threadId       String
+  role           String                         // user | assistant | tool
+  content        Json
+  interactionId  String?
+  createdAt      DateTime @default(now())
+}
+
+model AutomationRule {                            // « si… alors… » sans IA (RG-M17-23)
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  trigger        String                         // "repair_order.status_changed"
+  conditions     Json     @default("[]")        // [{ field, op, value }]
+  actions        Json                           // [{ type: "send_template", templateKey, channel, withPaymentLink }]
+  mode           AutomationMode @default(PROPOSE)
+  delayMinutes   Int      @default(0)
+  siteIds        String[]                       // vide = tous
+  isActive       Boolean  @default(false)
+  activatedAt    DateTime?                      // seuls les événements postérieurs déclenchent la règle
+  templateKey    String?                        // modèle fourni d'origine
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+enum AutomationMode { AUTO PROPOSE }
+
+model AutomationRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  ruleId         String
+  eventId        String                         // DomainEvent.id
+  status         String                         // PENDING | SUCCEEDED | FAILED | SKIPPED
+  result         Json?
+  error          String?
+  depth          Int      @default(0)           // anti-boucle (max 3)
+  scheduledFor   DateTime @default(now())       // exécution différée (delayMinutes)
+  attempts       Int      @default(0)           // FAILED réessayé 3 fois
+  executedAt     DateTime?
+  createdAt      DateTime @default(now())
+  @@unique([ruleId, eventId])
+}
+
+// Ajouts M17 §14 : Customer.riskFactors Json?, Customer.riskScoredAt DateTime?,
+// Customer.bestSendHour Int?, Customer.bestChannel Channel? ; Quote.customerExplanation Json?
+// ({ groupKey: texte validé }) ; Reminder.timeOptimized Boolean @default(false),
+// Reminder.originalScheduledFor DateTime?.
 ```
 
 > Les relations (`@relation`) et les clés étrangères sont à compléter à l'implémentation selon les champs `…Id` ci-dessus. Chaque champ `…Id` pointant vers une autre table **doit** avoir sa relation et un index.

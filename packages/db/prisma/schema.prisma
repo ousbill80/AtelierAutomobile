@@ -122,6 +122,11 @@ model Organization {
   domainEvents           DomainEvent[]
   notifications          Notification[]
   aiInteractions         AiInteraction[]
+  aiSuggestions          AiSuggestion[]
+  aiAssistantThreads     AiAssistantThread[]
+  aiAssistantMessages    AiAssistantMessage[]
+  automationRules        AutomationRule[]
+  automationRuns         AutomationRun[]
   holidays               Holiday[]
   portalTokens           PortalToken[]
   resourceBlocks         ResourceBlock[]
@@ -314,6 +319,9 @@ model Membership {
   attachmentsCreated          Attachment[]          @relation("AttachmentCreatedBy")
   notifications               Notification[]
   aiInteractionsCreated       AiInteraction[]       @relation("AiInteractionCreatedBy")
+  aiSuggestionsDecided        AiSuggestion[]        @relation("AiSuggestionDecidedBy")
+  aiAssistantThreads          AiAssistantThread[]
+  automationRulesCreated      AutomationRule[]      @relation("AutomationRuleCreatedBy")
   invoicesCreated             Invoice[]             @relation("InvoiceCreatedBy")
   portalTokensCreated         PortalToken[]         @relation("PortalTokenCreatedBy")
   paymentLinksCreated         PaymentLink[]         @relation("PaymentLinkCreatedBy")
@@ -381,6 +389,11 @@ model Customer {
   priceListId           String?
   discountRate          Int? // remise par défaut en %
   riskScore             Int? // 0-100, calculé (M09/M17)
+  // M17 §14
+  riskFactors           Json? // [{ code, points, label }]
+  riskScoredAt          DateTime?
+  bestSendHour          Int? // 0-23, heure locale optimale (RG-M17-16)
+  bestChannel           Channel? // canal appris (≠ preferredChannel manuel)
   tags                  String[]
   notes                 String?
   source                String? // "import", "portail", "comptoir"
@@ -1368,6 +1381,8 @@ model Quote {
   createdById            String?
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
+  // M17 §14 — explication client validée (RG-M17-19), affichée sur le portail
+  customerExplanation    Json? // { groupKey: texte validé }
   // M05 §14
   origin                 QuoteOrigin @default(STANDALONE)
   inspectionId           String?
@@ -2410,46 +2425,49 @@ enum ReminderType {
 
 model Reminder {
   // une occurrence planifiée
-  id                String           @id @default(cuid(2))
-  organizationId    String
-  ruleId            String
-  type              ReminderType
-  stepKey           String // "J-30"
-  customerId        String
-  vehicleId         String?
-  invoiceId         String?
-  appointmentId     String?
-  quoteId           String?
-  dueDate           DateTime         @db.Date // échéance de référence (expiration VT, échéance facture…)
-  scheduledFor      DateTime // quand l'envoyer
-  status            ReminderStatus   @default(PLANNED)
-  channel           Channel?
-  renderedBody      String?
-  approvedById      String?
-  approvedAt        DateTime?
-  sentAt            DateTime?
-  skippedReason     String?
-  snoozedUntil      DateTime?
-  outcome           ReminderOutcome?
-  outcomeAt         DateTime?
-  dedupeKey         String // ex. "INSPECTION:veh_123:2026-11-02:J-30"
+  id                   String           @id @default(cuid(2))
+  organizationId       String
+  ruleId               String
+  type                 ReminderType
+  stepKey              String // "J-30"
+  customerId           String
+  vehicleId            String?
+  invoiceId            String?
+  appointmentId        String?
+  quoteId              String?
+  dueDate              DateTime         @db.Date // échéance de référence (expiration VT, échéance facture…)
+  scheduledFor         DateTime // quand l'envoyer
+  status               ReminderStatus   @default(PLANNED)
+  channel              Channel?
+  renderedBody         String?
+  approvedById         String?
+  approvedAt           DateTime?
+  sentAt               DateTime?
+  skippedReason        String?
+  snoozedUntil         DateTime?
+  outcome              ReminderOutcome?
+  outcomeAt            DateTime?
+  dedupeKey            String // ex. "INSPECTION:veh_123:2026-11-02:J-30"
   // M10 §14 — regroupement, priorisation et traçabilité d'envoi (repris dès la Phase 0, cf. 04 §3)
-  sequenceKey       String? // "INSPECTION:veh_123:2026-11-02" (sans le palier)
-  groupKey          String? // regroupement d'envoi (RG-M10-15)
-  messageId         String? // message M11 portant cette relance (partagé dans un groupe)
-  priority          Int              @default(5) // RG-M10-16
-  renderedSubject   String?
-  editedBody        Boolean          @default(false)
-  editedById        String?
-  editedContext     Json?
-  supersededById    String?
-  approvalExpiresAt DateTime?
-  deferCount        Int              @default(0) // reports anti-spam
-  isCatchUp         Boolean          @default(false)
-  attributedAmount  Int? // FCFA récupérés (créances)
-  attributedRevenue Int? // CA de l'OR issu de la relance (VT, révision)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  sequenceKey          String? // "INSPECTION:veh_123:2026-11-02" (sans le palier)
+  groupKey             String? // regroupement d'envoi (RG-M10-15)
+  messageId            String? // message M11 portant cette relance (partagé dans un groupe)
+  priority             Int              @default(5) // RG-M10-16
+  renderedSubject      String?
+  editedBody           Boolean          @default(false)
+  editedById           String?
+  editedContext        Json?
+  supersededById       String?
+  approvalExpiresAt    DateTime?
+  deferCount           Int              @default(0) // reports anti-spam
+  isCatchUp            Boolean          @default(false)
+  attributedAmount     Int? // FCFA récupérés (créances)
+  attributedRevenue    Int? // CA de l'OR issu de la relance (VT, révision)
+  // M17 §14 — meilleur moment d'envoi (RG-M17-16)
+  timeOptimized        Boolean          @default(false)
+  originalScheduledFor DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   organization          Organization  @relation(fields: [organizationId], references: [id])
   rule                  ReminderRule  @relation(fields: [ruleId], references: [id])
@@ -3301,11 +3319,145 @@ model AiInteraction {
   tokensOut      Int?
   createdById    String?
   createdAt      DateTime @default(now())
+  // M17 §14 — journal (RG-M17-06/07)
+  promptVersion  String   @default("v1")
+  status         String   @default("OK") // OK | INVALID_OUTPUT | TIMEOUT | ERROR | QUOTA_EXCEEDED | DISABLED
+  latencyMs      Int?
+  credits        Int      @default(0)
+  model          String? // valeur de AI_MODEL utilisée (null = repli sans IA)
+  editDistance   Int?
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  createdBy    Membership?  @relation("AiInteractionCreatedBy", fields: [createdById], references: [id])
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  createdBy    Membership?    @relation("AiInteractionCreatedBy", fields: [createdById], references: [id])
+  suggestions  AiSuggestion[]
 
   @@index([organizationId, feature])
+  @@index([organizationId, feature, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// M17 §14 — IA et automatisations
+// ═══════════════════════════════════════════════════════════════
+
+model AiSuggestion {
+  // proposition IA (ou repli) en attente de décision humaine (RG-M17-02)
+  id             String             @id @default(cuid(2))
+  organizationId String
+  interactionId  String? // AiInteraction (null si repli sans IA)
+  feature        String // reply_draft | slot | quote_draft | quote_explanation | extraction | promise | optout | rule_tuning | automation
+  targetEntity   String // conversation | repair_order | quote | vehicle | purchase_order | reminder_rule | automation_run
+  targetId       String?
+  payload        Json
+  status         AiSuggestionStatus @default(PENDING)
+  isFallback     Boolean            @default(false)
+  decidedById    String?
+  decidedAt      DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime           @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  interaction  AiInteraction? @relation(fields: [interactionId], references: [id])
+  decidedBy    Membership?    @relation("AiSuggestionDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([organizationId, targetEntity, targetId, status])
+  @@index([organizationId, status, expiresAt])
+}
+
+enum AiSuggestionStatus {
+  PENDING
+  ACCEPTED
+  EDITED_ACCEPTED
+  DISMISSED
+  EXPIRED
+}
+
+model AiAssistantThread {
+  // assistant conversationnel lecture seule (RG-M17-20), conservé 30 jours
+  id             String   @id @default(cuid(2))
+  organizationId String
+  membershipId   String
+  title          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  expiresAt      DateTime // +30 j
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  membership   Membership           @relation(fields: [membershipId], references: [id])
+  messages     AiAssistantMessage[]
+
+  @@index([organizationId, membershipId, updatedAt])
+  @@index([expiresAt])
+}
+
+model AiAssistantMessage {
+  id             String   @id @default(cuid(2))
+  // organizationId ajouté (04 §3 : toute table enfant porte organizationId, pour la RLS)
+  organizationId String
+  threadId       String
+  role           String // user | assistant | tool
+  content        Json
+  interactionId  String?
+  createdAt      DateTime @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  thread       AiAssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, threadId, createdAt])
+}
+
+model AutomationRule {
+  // règle « si… alors… » sans IA (RG-M17-23)
+  id             String         @id @default(cuid(2))
+  organizationId String
+  name           String
+  trigger        String // "repair_order.status_changed"
+  conditions     Json           @default("[]") // [{ field, op, value }]
+  actions        Json // [{ type:"send_template", templateKey:"vehicle_ready", channel:"WHATSAPP", withPaymentLink:true }]
+  mode           AutomationMode @default(PROPOSE)
+  delayMinutes   Int            @default(0)
+  siteIds        String[] // vide = tous
+  isActive       Boolean        @default(false)
+  // écart §14 : date d'activation — seuls les événements postérieurs déclenchent la règle
+  activatedAt    DateTime?
+  templateKey    String? // modèle fourni d'origine
+  createdById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  createdBy    Membership?     @relation("AutomationRuleCreatedBy", fields: [createdById], references: [id])
+  runs         AutomationRun[]
+
+  @@index([organizationId, isActive, trigger])
+}
+
+enum AutomationMode {
+  AUTO
+  PROPOSE
+}
+
+model AutomationRun {
+  id             String    @id @default(cuid(2))
+  organizationId String
+  ruleId         String
+  eventId        String
+  status         String // PENDING | SUCCEEDED | FAILED | SKIPPED
+  result         Json?
+  error          String?
+  depth          Int       @default(0)
+  // écart §14 : exécution différée (delayMinutes) et réessais (FAILED réessayé 3 fois, §5)
+  scheduledFor   DateTime  @default(now())
+  attempts       Int       @default(0)
+  executedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  rule         AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, eventId])
+  @@index([organizationId, status, scheduledFor])
+  @@index([organizationId, ruleId, createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════

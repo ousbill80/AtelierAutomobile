@@ -90,3 +90,5 @@ export { assertUploadable, createS3ObjectStorage, S3ObjectStorage } from "./stor
 export type { S3ObjectStorageConfig, UploadInput } from "./storage";
 export { LocalObjectStorage } from "./storage-local";
 export type { BinaryObjectStorage } from "./storage-local";
+
+export * from "./ai";

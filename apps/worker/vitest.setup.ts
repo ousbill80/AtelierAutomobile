@@ -7,3 +7,7 @@ const envPath = path.resolve(__dirname, "../../.env");
 if (existsSync(envPath)) {
   process.loadEnvFile(envPath);
 }
+
+// M17 — aucun test n'appelle un vrai modèle : fournisseur IA `console` (déterministe) forcé,
+// même si `.env` contient une clé ANTHROPIC_API_KEY.
+process.env.AI_PROVIDER = "console";

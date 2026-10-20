@@ -1,4 +1,5 @@
 import { router } from "../trpc";
+import { aiRouter } from "./ai";
 import { appointmentRouter } from "./appointment";
 import { auditRouter } from "./audit";
 import { authRouter } from "./auth";
@@ -63,6 +64,7 @@ import { techRouter } from "./tech";
 import { workshopRouter } from "./workshop";
 
 export const appRouter = router({
+  ai: aiRouter,
   invoice: invoiceRouter,
   claim: claimRouter,
   insurer: insurerRouter,
