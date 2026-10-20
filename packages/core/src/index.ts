@@ -341,3 +341,21 @@ export * from "./portal";
 export * from "./ai";
 export * from "./automations";
 export * from "./api";
+export {
+  REDACTED,
+  scrubBreadcrumb,
+  scrubErrorEvent,
+  scrubText,
+  scrubUrl,
+  scrubValue,
+  type ErrorReportBreadcrumb,
+  type ErrorReportEvent,
+} from "./observability/sentryScrub";
+export {
+  buildHealthReport,
+  HealthCheckTimeoutError,
+  runHealthCheck,
+  type HealthCheckName,
+  type HealthCheckResult,
+  type HealthReport,
+} from "./observability/health";

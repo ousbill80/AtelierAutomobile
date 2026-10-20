@@ -20,3 +20,6 @@ prisma/generated/
 
 # M04 — stockage local des pièces jointes (STORAGE_DRIVER=local)
 .data/
+
+# Étape 7.2 — dumps chiffrés locaux (jamais versionnés)
+backups/

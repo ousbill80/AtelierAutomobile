@@ -1,0 +1,53 @@
+# Étape 7.2 — image worker BullMQ. Les packages workspace exposent du TypeScript :
+# on exécute avec `tsx` (dépendance de production), pas le `tsc` isolé du worker.
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
+WORKDIR /app
+
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/config/package.json ./packages/config/
+COPY packages/core/package.json ./packages/core/
+COPY packages/db/package.json ./packages/db/
+COPY packages/emails/package.json ./packages/emails/
+COPY packages/import/package.json ./packages/import/
+COPY packages/integrations/package.json ./packages/integrations/
+COPY packages/pdf/package.json ./packages/pdf/
+COPY packages/sync-agent/package.json ./packages/sync-agent/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/validators/package.json ./packages/validators/
+COPY apps/web/package.json ./apps/web/
+COPY apps/worker/package.json ./apps/worker/
+RUN pnpm install --frozen-lockfile
+
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/apps ./apps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY packages ./packages
+COPY apps/worker ./apps/worker
+ENV NODE_ENV=production
+RUN pnpm --filter @atelieros/db exec prisma generate
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+RUN apk add --no-cache wget libc6-compat
+ENV NODE_ENV=production
+ENV WORKER_HEALTH_PORT=3001
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 worker
+
+COPY --from=builder --chown=worker:nodejs /app /app
+
+USER worker
+EXPOSE 3001
+HEALTHCHECK --interval=20s --timeout=5s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1
+CMD ["pnpm", "--filter", "@atelieros/worker", "exec", "tsx", "src/index.ts"]

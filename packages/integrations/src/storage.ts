@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -55,7 +56,18 @@ export class S3ObjectStorage {
   constructor(
     private readonly client: S3Client,
     private readonly bucket: string,
+    /**
+     * Client utilisé pour signer les URL remises au navigateur. Distinct de `client` quand le
+     * serveur joint le stockage par une adresse interne (réseau Docker) que le navigateur ne
+     * connaît pas (étape 7.2, `S3_PUBLIC_ENDPOINT`). Par défaut, le même client.
+     */
+    private readonly presignClient: S3Client = client,
   ) {}
+
+  /** Sonde de santé (`/api/health`) : le bucket existe et les identifiants sont acceptés. */
+  async ping(): Promise<void> {
+    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+  }
 
   async upload(input: UploadInput): Promise<{ key: string }> {
     assertUploadable(input);
@@ -83,7 +95,7 @@ export class S3ObjectStorage {
         ? `attachment; filename="${downloadFileName.replace(/"/g, "")}"`
         : undefined,
     });
-    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+    return getSignedUrl(this.presignClient, command, { expiresIn: expiresInSeconds });
   }
 
   /**
@@ -102,7 +114,7 @@ export class S3ObjectStorage {
       Key: key,
       ContentType: contentType,
     });
-    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+    return getSignedUrl(this.presignClient, command, { expiresIn: expiresInSeconds });
   }
 
   async getObjectBytes(key: string): Promise<Uint8Array> {
@@ -131,6 +143,8 @@ export interface S3ObjectStorageConfig {
   secretAccessKey: string;
   region?: string;
   forcePathStyle?: boolean;
+  /** Adresse du stockage vue du navigateur, pour les URL signées ; vide = `endpoint`. */
+  publicEndpoint?: string;
 }
 
 /**
@@ -138,14 +152,20 @@ export interface S3ObjectStorageConfig {
  * local). Évite que les apps/worker dépendent directement de `@aws-sdk/*`.
  */
 export function createS3ObjectStorage(config: S3ObjectStorageConfig): S3ObjectStorage {
-  const client = new S3Client({
-    region: config.region ?? "us-east-1",
-    endpoint: config.endpoint,
-    forcePathStyle: config.forcePathStyle ?? true,
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
-    },
-  });
-  return new S3ObjectStorage(client, config.bucket);
+  const clientFor = (endpoint: string) =>
+    new S3Client({
+      region: config.region ?? "us-east-1",
+      endpoint,
+      forcePathStyle: config.forcePathStyle ?? true,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+    });
+  const client = clientFor(config.endpoint);
+  const presignClient =
+    config.publicEndpoint && config.publicEndpoint !== config.endpoint
+      ? clientFor(config.publicEndpoint)
+      : client;
+  return new S3ObjectStorage(client, config.bucket, presignClient);
 }

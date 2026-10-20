@@ -17,17 +17,18 @@
     "@atelieros/integrations": "workspace:*",
     "@atelieros/pdf": "workspace:*",
     "@atelieros/validators": "workspace:*",
+    "@sentry/node": "11.5.0",
     "bullmq": "^5.34.4",
     "fflate": "0.8.2",
     "ioredis": "^5.4.2",
     "pino": "^9.6.0",
+    "tsx": "^4.19.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@atelieros/config": "workspace:*",
     "@types/node": "^20",
     "eslint": "^9",
-    "tsx": "^4.19.2",
     "typescript": "^5",
     "vitest": "^2.1.8"
   }

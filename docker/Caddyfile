@@ -1,0 +1,35 @@
+# Étape 7.2 — reverse proxy HTTPS automatique + en-têtes + stockage public.
+{$APP_DOMAIN:localhost} {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    log {
+        output stdout
+        format json
+    }
+
+    # URL signées S3_PUBLIC_ENDPOINT=https://<domaine>/storage (path-style MinIO).
+    handle_path /storage/* {
+        reverse_proxy minio:9000
+    }
+
+    handle {
+        reverse_proxy web:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            health_uri /api/health
+            health_interval 15s
+            health_timeout 5s
+        }
+    }
+}

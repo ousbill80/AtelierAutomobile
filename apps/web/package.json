@@ -21,6 +21,7 @@
     "@atelieros/validators": "workspace:*",
     "@radix-ui/react-progress": "^1.2.1",
     "@radix-ui/react-slot": "^1.5.0",
+    "@sentry/nextjs": "11.5.0",
     "@tanstack/react-query": "^5.104.4",
     "@trpc/client": "^11.19.0",
     "@trpc/react-query": "^11.19.0",
