@@ -436,3 +436,4 @@ export {
   uploadClaimDocumentInputSchema,
 } from "./claims";
 export * from "./paymentLinks";
+export * from "./automations";

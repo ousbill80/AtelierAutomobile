@@ -65,7 +65,10 @@ export type DomainEventType =
   | "quote.declined"
   | "quote.expired"
   | "message.inbound_received"
-  | "customer.updated";
+  | "customer.updated"
+  // M17 — automatisations (RG-M17-23/24)
+  | "customer.created"
+  | "automation.executed";
 
 /** Insère une ligne `DomainEvent` dans la transaction en cours. Ne fait rien d'autre. */
 export async function emitDomainEvent(
