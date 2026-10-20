@@ -23,6 +23,7 @@ import {
 } from "@atelieros/core";
 import type { Invoice, InvoiceStatus, PaymentLink, PaymentMethod, Prisma } from "@prisma/client";
 import { adminDb } from "../client";
+import { syncClaimFromInvoices } from "../claims";
 import {
   attributeAllocations,
   collectionSettingsFrom,
@@ -72,21 +73,23 @@ export async function recomputeInvoiceBalance(
     dueDate: invoice.dueDate,
     today,
   });
-  if (
+  const unchanged =
     next.amountPaid === invoice.amountPaid &&
     next.balance === invoice.balance &&
-    next.status === invoice.status
-  ) {
-    return invoice;
-  }
-  return tx.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      amountPaid: next.amountPaid,
-      balance: next.balance,
-      status: next.status as InvoiceStatus,
-    },
-  });
+    next.status === invoice.status;
+  const updated = unchanged
+    ? invoice
+    : await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          amountPaid: next.amountPaid,
+          balance: next.balance,
+          status: next.status as InvoiceStatus,
+        },
+      });
+  // M16 §9 : facture d'un dossier sinistre émise / réglée / avoirée → statut du dossier.
+  if (updated.insuranceClaimId) await syncClaimFromInvoices(tx, updated.insuranceClaimId, today);
+  return updated;
 }
 
 interface OrgPaymentContext {

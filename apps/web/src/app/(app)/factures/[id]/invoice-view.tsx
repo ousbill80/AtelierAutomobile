@@ -77,7 +77,7 @@ export function InvoiceView({ id }: { id: string }) {
         )}
         {OPEN.includes(inv.status) &&
           !isCredit &&
-          inv.billTo === "CUSTOMER" &&
+          (inv.billTo === "CUSTOMER" || Boolean(inv.insuranceClaimId)) &&
           perms.has("payment:create") && (
             <Button onClick={() => setModal("pay")}>{t("actions.encaisser")}</Button>
           )}

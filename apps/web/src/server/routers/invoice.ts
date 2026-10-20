@@ -127,6 +127,9 @@ export const invoiceRouter = router({
         });
         if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "OR introuvable." });
         requireSite(ctx, order.siteId);
+        if (order.insuranceClaimId) {
+          bad("OR sinistre : facturez depuis le dossier sinistre (« Facturer le sinistre »).");
+        }
         if (!["READY", "DELIVERED", "INVOICED"].includes(order.status)) {
           bad("L'OR doit être prêt (READY) ou restitué pour être facturé.");
         }

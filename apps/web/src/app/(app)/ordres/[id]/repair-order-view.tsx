@@ -3,6 +3,7 @@
 // M04 §7 — fiche OR : en-tête (statut, client, véhicule, promesse), barre d'actions issue de la
 // machine à états, onglets Travaux / Réception / Inspection / Devis / Pièces / Temps /
 // Documents / Historique / Notes internes.
+import { t as tClaims } from "@/components/claims/i18n";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -170,6 +171,25 @@ function Header({
         <RepairOrderStatusBadge status={order.status} />
         {order.late && <StatusBadge tone="bad" label={`⏰ ${t("detail.late")}`} />}
         {order.cashOnly && <StatusBadge tone="warn" label={t("detail.cashOnly")} />}
+        {/* M16 : dossier sinistre lié, ou ouverture d'un dossier depuis l'OR. */}
+        {order.insuranceClaimId && perms.has("insurance:read") ? (
+          <Link
+            href={`/assurances/sinistres/${order.insuranceClaimId}`}
+            className="btn btn-secondary btn-sm min-h-11"
+          >
+            🛡 {tClaims("actions.viewClaim")}
+          </Link>
+        ) : (
+          perms.has("insurance:manage") &&
+          !LOCKED.has(order.status) && (
+            <Link
+              href={`/assurances/sinistres/nouveau?or=${order.id}`}
+              className="btn btn-secondary btn-sm min-h-11"
+            >
+              🛡 {tClaims("actions.openClaim")}
+            </Link>
+          )
+        )}
         {order.isComeback && order.comebackOf && (
           <Link
             href={`/ordres/${order.comebackOf.id}`}

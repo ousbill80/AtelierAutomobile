@@ -22,6 +22,8 @@ import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { paymentRouter } from "./payment";
 import { invoiceRouter } from "./invoice";
+import { claimRouter } from "./claim";
+import { insurerRouter } from "./insurer";
 import { fneRouter } from "./fne";
 import { cashRouter, refundRouter } from "./cash";
 import { accountingRouter } from "./accounting";
@@ -62,6 +64,8 @@ import { workshopRouter } from "./workshop";
 
 export const appRouter = router({
   invoice: invoiceRouter,
+  claim: claimRouter,
+  insurer: insurerRouter,
   fne: fneRouter,
   cash: cashRouter,
   refund: refundRouter,

@@ -1749,6 +1749,23 @@ model InsuranceCompany {
   phone          String?
   email          String?
   paymentTermsDays Int @default(60)
+  // M16 §14
+  customerId        String? @unique             // Customer COMPANY lié, utilisé pour facturer la compagnie (RG-M16-01)
+  legalName         String?
+  ncc               String?
+  rccm              String?
+  address           String?
+  claimsContactName String?
+  claimsPhone       String?                     // E.164
+  claimsEmail       String?
+  accountingEmail   String?
+  laborRate         Int?                        // taux horaire MO convenu (FCFA HT)
+  partsDiscountRate Int?                        // remise pièces convenue (%)
+  requiredDocuments String[]                    // kinds d'Attachment exigés (RG-M16-09)
+  followUpConfig    Json @default("{}")         // { approval:[7,14,21], payment:[0,15,30], repeatEvery:30 }
+  isActive          Boolean @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model InsuranceClaim {
@@ -1757,7 +1774,7 @@ model InsuranceClaim {
   insuranceCompanyId String
   customerId         String
   vehicleId          String
-  claimNumber        String?
+  claimNumber        String?                     // n° de sinistre de l'assureur, obligatoire avant facturation
   policyNumber       String?
   accidentDate       DateTime? @db.Date
   expertName         String?
@@ -1768,8 +1785,68 @@ model InsuranceClaim {
   notes              String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  // M16 §14 — le lien OR existe déjà (RepairOrder.insuranceClaimId) : pas de InsuranceClaim.repairOrderId
+  siteId             String?
+  number             String                      // SIN-YOP-2026-00031 (A4 : SIN numéroté par site)
+  quoteId            String?                     // devis assurance retenu
+  accidentPlace      String?
+  circumstances      String?
+  expertFirm         String?
+  expertPhone        String?
+  expertEmail        String?
+  expertVisitedAt    DateTime?
+  estimateSentAt     DateTime?
+  approvedAt         DateTime?
+  approvalRef        String?
+  depreciationAmount Int @default(0)             // vétusté TTC à la charge du client
+  gapAmount          Int @default(0)             // écart non pris en charge mis à la charge du client
+  gapHandling        String?                     // REVISE | CUSTOMER | GARAGE
+  vatPaidBy          Payer @default(INSURANCE)   // INSURANCE ou CUSTOMER (RG-M16-06)
+  rejectedAt         DateTime?
+  rejectReason       String?
+  closedAt           DateTime?
+  createdById        String?
+  deletedAt          DateTime?
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, insuranceCompanyId])
 }
-enum ClaimStatus { OPENED EXPERT_SCHEDULED ESTIMATE_SENT APPROVED REPAIRING INVOICED PAID REJECTED }
+enum ClaimStatus { OPENED EXPERT_SCHEDULED ESTIMATE_SENT APPROVED REPAIRING INVOICED PARTIALLY_PAID PAID REJECTED CANCELLED }   // M16 §14
+
+model ClaimActivity {                            // M16 §14 — chronologie du dossier sinistre
+  id             String @id @default(cuid())
+  organizationId String
+  claimId        String
+  type           String                          // status_change | call | note | email | whatsapp | visit | followup
+  body           String?
+  data           Json @default("{}")
+  messageId      String?
+  nextActionAt   DateTime?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, claimId, createdAt])
+}
+
+model ClaimFollowUp {                            // M16 §14 — relance planifiée vers l'assureur (RG-M16-08, A7)
+  id             String @id @default(cuid())
+  organizationId String
+  claimId        String
+  invoiceId      String?
+  kind           String                          // approval | payment | expert
+  stepKey        String                          // "J+7", "J+30"
+  scheduledFor   DateTime
+  status         ReminderStatus @default(PLANNED)
+  channel        Channel?
+  messageId      String?
+  sentAt         DateTime?
+  snoozedUntil   DateTime?
+  dedupeKey      String                          // "{claimId}:{kind}:{step}"
+  createdAt      DateTime @default(now())
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, status, scheduledFor])
+}
+// Paramètres M16 dans Organization.settings.claims : releaseBeforeDeductible, defaultPaymentTermsDays,
+// autoSendFollowUps. Attachment.entity = "claim" avec les kinds de RG-M16-09.
 
 // ───────────── Transverse ─────────────
 
