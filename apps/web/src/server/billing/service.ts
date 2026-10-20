@@ -38,6 +38,7 @@ import {
   type ScopedTenantClient,
 } from "@atelieros/db";
 import { writeAuditLog } from "../audit";
+import { syncClaimFromInvoices } from "../claims/sync";
 import { emitDomainEvent } from "../events/emit";
 import { receivablesNow } from "../receivables/helpers";
 import { applyTransition } from "../repairOrders/helpers";
@@ -363,21 +364,24 @@ export async function recomputeInvoiceBalance(tx: Tx, invoiceId: string, today: 
     dueDate: invoice.dueDate,
     today,
   });
-  if (
+  const unchanged =
     next.amountPaid === invoice.amountPaid &&
     next.balance === invoice.balance &&
-    next.status === invoice.status
-  ) {
-    return invoice;
-  }
-  return tx.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      amountPaid: next.amountPaid,
-      balance: next.balance,
-      status: next.status as InvoiceStatus,
-    },
-  });
+    next.status === invoice.status;
+  const updated = unchanged
+    ? invoice
+    : await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          amountPaid: next.amountPaid,
+          balance: next.balance,
+          status: next.status as InvoiceStatus,
+        },
+      });
+  // M16 §9 : facture d'un dossier sinistre émise / réglée / avoirée → statut du dossier.
+  if (updated.insuranceClaimId)
+    await syncClaimFromInvoices(tx, updated.insuranceClaimId, billingNow());
+  return updated;
 }
 
 /** M09 : solde client, dossier de recouvrement et promesses après un mouvement de facture. */

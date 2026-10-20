@@ -40,6 +40,7 @@ import {
   type RepairOrder,
   type ScopedTenantClient,
 } from "@atelieros/db";
+import { syncClaimFromRepairOrder } from "../claims/sync";
 import { emitDomainEvent } from "../events/emit";
 
 type Tx = ScopedTenantClient;
@@ -290,6 +291,13 @@ export async function applyTransition(tx: Tx, input: ApplyTransitionInput): Prom
   }
 
   const updated = await tx.repairOrder.update({ where: { id: order.id }, data });
+  // M16 §9 : OR d'un dossier sinistre passé IN_PROGRESS → dossier REPAIRING.
+  await syncClaimFromRepairOrder(tx, {
+    insuranceClaimId: order.insuranceClaimId,
+    to,
+    now,
+    membershipId: input.membershipId,
+  });
   await tx.repairOrderStatusHistory.create({
     data: {
       organizationId: order.organizationId,

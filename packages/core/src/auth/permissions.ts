@@ -155,6 +155,13 @@ export const PERMISSIONS = [
   // Assurances (M16)
   "insurance:read",
   "insurance:manage",
+  // M16 §10 (A5) : `insurance:read` = claim:view, `insurance:manage` = claim:edit.
+  "claim:approve_record",
+  "claim:absorb_gap",
+  "claim:invoice",
+  "claim:followup",
+  "claim:release_unpaid",
+  "insurer:edit",
   // IA (M17)
   "ai:use",
   "ai:configure",
@@ -271,15 +278,20 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["report:read", ["MANAGER", "ACCOUNTANT"]],
   ["report:financial", ["ACCOUNTANT"]],
   ["import:run", ["MANAGER", "ACCOUNTANT"]],
-  ["insurance:read", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
+  // M16 §10 : le caissier lit les parts (franchise à encaisser).
+  ["insurance:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["insurance:manage", ["MANAGER", "ADVISOR"]],
+  ["claim:approve_record", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
+  ["claim:invoice", ["ADVISOR", "ACCOUNTANT"]],
+  ["claim:followup", ["ACCOUNTANT"]],
+  ["insurer:edit", ["ACCOUNTANT"]],
   ["ai:use", ["MANAGER", "ADVISOR", "MECHANIC", "STOREKEEPER", "CASHIER", "ACCOUNTANT"]],
   // Permissions sans octroi par défaut à aucun rôle non-OWNER (restent ci-dessous pour
   // mémoire, utile pour vérifier l'exhaustivité du catalogue dans les tests) :
   // org:update, site:manage, member:deactivate, role:manage, settings:update,
   // settings:channels, settings:payments, settings:fne, settings:billing,
   // repair_order:deliver_unpaid, invoice:void, invoice:price_below_min, payment:refund,
-  // cash:review, workshop:qc_self,
+  // cash:review, claim:absorb_gap, claim:release_unpaid, workshop:qc_self,
   // receivable:writeoff, receivable:formal_notice, dashboard:owner, integration:manage,
   // ai:configure.
 ];
