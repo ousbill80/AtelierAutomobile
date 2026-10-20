@@ -2,11 +2,13 @@
 // RG-M12-30). Pour chaque organisation dont l'heure locale a atteint `settings.digest.time`,
 // envoie à chaque destinataire (OWNER actifs par défaut) un message M11 `kind = DIGEST`,
 // une seule fois par jour (`idempotencyKey = digest:{membershipId}:{date}`). Message interne :
-// pas soumis à `OptOut`. Chiffres filtrés par `Membership.siteIds`.
+// pas soumis à `OptOut`. Chiffres filtrés par `Membership.siteIds`. Ligne 💡 « faits
+// marquants » rédigée par le service IA (M17 RG-M17-21), jamais bloquante.
 import { digestDedupeKey, isDigestDue, localDay, type Channel } from "@atelieros/core";
 import { adminDb, buildDigestForMembership, db } from "@atelieros/db";
 import { DEFAULT_DIGEST_SETTINGS, digestSettingsSchema } from "@atelieros/validators";
 import { logger } from "../logger";
+import { digestHighlighter } from "./digestHighlight";
 import { enqueueMessageSendJob } from "../queues/messages";
 
 interface Recipient {
@@ -76,6 +78,8 @@ export async function sendOrganizationDigest(organizationId: string, now: Date):
       m,
       now,
       `${process.env.APP_URL ?? "http://localhost:3000"}/tableau-de-bord`,
+      // M17 RG-M17-21 : phrase « faits marquants » (si activée et disponible).
+      { highlight: digestHighlighter(organizationId, m.id, today) },
     );
     try {
       const message = await tenantDb.message.create({
