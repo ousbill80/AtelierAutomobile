@@ -481,7 +481,7 @@ export default function CashSessionsPage() {
           footer={
             <>
               <Button variant="secondary" onClick={() => setReviewing(null)}>
-                {t("common.cancel")}
+                {t("actions.cancel")}
               </Button>
               <Button
                 loading={review.isPending}

@@ -557,11 +557,11 @@ function Board({
             <Search className="size-6" aria-hidden />
           </div>
           <h3 className="mt-3 text-sm font-semibold text-foreground">
-            {hasActiveFilters ? t("emptyFiltered.title") : t("empty")}
+            {hasActiveFilters ? t("emptyFiltered") : t("empty")}
           </h3>
           <p className="mt-1 max-w-sm text-xs text-muted">
             {hasActiveFilters
-              ? t("emptyFiltered.description")
+              ? t("emptyFilteredDescription")
               : t("emptyDescription")}
           </p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
@@ -683,11 +683,11 @@ function List({
           <Search className="size-6" aria-hidden />
         </div>
         <h3 className="mt-3 text-sm font-semibold text-foreground">
-          {hasActiveFilters ? t("emptyFiltered.title") : t("empty")}
+          {hasActiveFilters ? t("emptyFiltered") : t("empty")}
         </h3>
         <p className="mt-1 max-w-sm text-xs text-muted">
           {hasActiveFilters
-            ? t("emptyFiltered.description")
+            ? t("emptyFilteredDescription")
             : t("emptyDescription")}
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">

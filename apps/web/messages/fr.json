@@ -1035,7 +1035,11 @@
       "whatsappMessage": "Bonjour {name}, nous vous contactons concernant votre solde en attente de {amount} chez notre garage AtelierOS. Merci de nous contacter pour convenir du règlement."
     },
     "emptyFiltered": "Aucune créance trouvée pour ces filtres.",
-    "emptyFilteredDescription": "Ajustez vos filtres de retard, onglets ou termes de recherche pour afficher les dossiers."
+    "emptyFilteredDescription": "Ajustez vos filtres de retard, onglets ou termes de recherche pour afficher les dossiers.",
+    "subtitle": "Suivi du recouvrement, balance âgée, promesses de paiement et relances automatiques",
+    "overdueBadge": "{amount} en retard",
+    "remindersSchedule": "Échéancier des relances",
+    "automationRules": "Règles d'automatisation"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -2578,7 +2582,8 @@
       "saved": "Enregistré.",
       "add": "Ajouter",
       "remove": "Retirer",
-      "noCostPermission": "Coût masqué"
+      "noCostPermission": "Coût masqué",
+      "change": "Changer"
     },
     "scanner": {
       "title": "Scanner un code-barres",
@@ -2788,7 +2793,12 @@
       "expectedPo": "Attendue sur {number}",
       "noRo": "Sans OR",
       "partRequestsGap": "Les demandes de pièces des mécaniciens (M06) apparaîtront ici avec l'étape Atelier.",
-      "stale": "Réservée depuis plus de 30 jours (OR inactif)"
+      "stale": "Réservée depuis plus de 30 jours (OR inactif)",
+      "pickProduct": "Choisir une pièce",
+      "pickRo": "Choisir un ordre de réparation",
+      "roSearch": "Rechercher un OR (n°, plaque, client)…",
+      "resellableHint": "Décochez si la pièce n'est plus revendable : elle passera en perte.",
+      "returnReason": "Motif du retour"
     },
     "movements": {
       "title": "Journal des mouvements",
@@ -2847,7 +2857,44 @@
       "netValue": "Écart net valorisé : {value}",
       "ownerRequired": "Au-delà de {threshold}, la validation revient au propriétaire.",
       "validated": "Inventaire validé : {count} correction(s).",
-      "productNotInCount": "Produit ajouté à l'inventaire."
+      "productNotInCount": "Produit ajouté à l'inventaire.",
+      "subtitle": "Comptages physiques, écarts valorisés et validation des corrections de stock.",
+      "emptyFiltered": "Aucun inventaire ne correspond aux filtres.",
+      "emptyFilteredHint": "Modifiez la recherche ou le statut, ou réinitialisez les filtres.",
+      "searchPlaceholder": "N° d'inventaire, site, catégorie, emplacement…",
+      "allStatuses": "Tous les statuts",
+      "resetFilters": "Réinitialiser les filtres",
+      "zeroVariance": "Sans écart",
+      "scopeCatCount": "{count} catégorie(s)",
+      "scopeBinCount": "{count} emplacement(s)",
+      "scopeFull": "Inventaire complet",
+      "kpis": {
+        "total": "Inventaires",
+        "totalHint": "{count} fiche(s) au total",
+        "inProgress": "En cours",
+        "inProgressHint": "{count} comptage(s) non validé(s)",
+        "withVariance": "Avec écart",
+        "withVarianceHint": "Inventaires validés à corriger",
+        "netVariance": "Écart net",
+        "netVarianceHint": "Valeur cumulée des écarts validés"
+      },
+      "columns": {
+        "number": "N°",
+        "site": "Site",
+        "scope": "Périmètre",
+        "status": "Statut",
+        "lines": "Lignes",
+        "variance": "Écart",
+        "createdAt": "Créé le",
+        "validatedAt": "Validé le"
+      },
+      "createModal": {
+        "title": "Nouvel inventaire",
+        "submit": "Créer l'inventaire",
+        "description": "Le stock théorique sera figé au démarrage du comptage.",
+        "noteLabel": "Note interne",
+        "notePlaceholder": "Contexte du comptage (facultatif)"
+      }
     },
     "transfers": {
       "title": "Transferts entre sites",
@@ -2869,6 +2916,34 @@
         "IN_TRANSIT": "En transit",
         "RECEIVED": "Reçu",
         "CANCELLED": "Annulé"
+      },
+      "subtitle": "Expédition, réception et écarts à justifier entre les sites de l'atelier.",
+      "emptyFiltered": "Aucun transfert ne correspond aux filtres.",
+      "emptyFilteredHint": "Modifiez la recherche, le statut ou les sites, ou réinitialisez les filtres.",
+      "receiveSubmit": "Valider la réception",
+      "receiveTactileHint": "Saisissez les quantités reçues pour chaque pièce.",
+      "conformBadge": "Conforme",
+      "receiveReasonLabel": "Motif de l'écart",
+      "receiveReasonPlaceholder": "Expliquez la différence constatée à la réception",
+      "shortfallWarning": "Écart à justifier",
+      "shortfallDetails": "Voir le détail de l'écart",
+      "shortfallModalTitle": "Écarts du transfert {number}",
+      "shortfallModalDesc": "Les quantités reçues diffèrent des quantités expédiées.",
+      "cancelConfirm": "Annuler ce transfert brouillon ?",
+      "kpis": {
+        "inTransit": "En transit",
+        "inTransitHint": "Transferts non encore reçus",
+        "shortfall": "Avec écart",
+        "shortfallHint": "Réceptions non conformes",
+        "completed": "Réceptionnés",
+        "completedHint": "Transferts clôturés",
+        "totalParts": "Pièces transférées",
+        "totalPartsHint": "Lignes sur les transferts listés"
+      },
+      "filters": {
+        "searchPlaceholder": "N° de transfert, site, pièce…",
+        "allStatuses": "Tous les statuts",
+        "reset": "Réinitialiser les filtres"
       }
     },
     "valuation": {
@@ -2901,7 +2976,48 @@
       "noDormant": "Aucune pièce dormante.",
       "noNegatives": "Aucun stock négatif à régulariser.",
       "noBelowCost": "Aucune vente sous le coût enregistrée.",
-      "belowCostHint": "Les ventes sous le CMP saisies sur les devis, OR et factures apparaîtront ici."
+      "belowCostHint": "Les ventes sous le CMP saisies sur les devis, OR et factures apparaîtront ici.",
+      "subtitle": "Valeur au CMP, pièces dormantes, stocks négatifs et ventes sous le coût.",
+      "groupCount": "{count} groupe(s)",
+      "catalogItems": "{count} référence(s)",
+      "exportDone": "Export prêt",
+      "averagePerItem": "Valeur moyenne",
+      "averagePerItemHint": "Par référence valorisée",
+      "searchPlaceholder": "Catégorie, site…",
+      "searchDormant": "Rechercher une pièce dormante…",
+      "negativesAlertTitle": "{count} stock(s) négatif(s)",
+      "negativesAlertDesc": "Régularisez ces écarts avant le prochain inventaire.",
+      "searchNegatives": "Rechercher un stock négatif…",
+      "negativesEmptyDesc": "Aucun stock négatif ne correspond à la recherche.",
+      "inspectProduct": "Voir la fiche produit",
+      "belowCostAlertTitle": "{count} vente(s) sous le coût",
+      "belowCostAlertDesc": "Marge négative : le prix net est inférieur au CMP.",
+      "searchBelowCost": "Rechercher une vente sous le coût…",
+      "belowCostBadge": "Sous le coût",
+      "unitLoss": "Perte unitaire : {loss}",
+      "designationSku": "Désignation / SKU",
+      "unspecifiedProduct": "Produit non précisé",
+      "netInvoicedPrice": "Prix net facturé",
+      "discountLabel": "Remise {rate} %",
+      "averageCostLabel": "Coût moyen pondéré",
+      "linkedDoc": "Document lié",
+      "repairOrderLabel": "OR {number}",
+      "invoiceLabel": "Facture {number}",
+      "directSale": "Vente directe",
+      "justifiedReason": "Motif saisi :",
+      "showTechnicalMeta": "Afficher les métadonnées techniques",
+      "kpis": {
+        "totalValue": "Valeur du stock",
+        "totalValueHint": "Valorisé au CMP",
+        "dormant": "Pièces dormantes",
+        "dormantHint": "{count} référence(s) sans sortie récente",
+        "negatives": "Stocks négatifs",
+        "negativesHint": "{count} à régulariser",
+        "negativesZero": "Aucun stock négatif",
+        "belowCost": "Ventes sous coût",
+        "belowCostHint": "{count} ligne(s) à marge négative",
+        "belowCostZero": "Aucune vente sous le coût"
+      }
     },
     "purchases": {
       "title": "Achats",
@@ -3180,7 +3296,9 @@
       "requestDeposit": "Demander l'acompte ({amount})",
       "insurerPdf": "PDF expertise",
       "delete": "Supprimer le brouillon",
-      "confirmDelete": "Supprimer"
+      "confirmDelete": "Supprimer",
+      "view": "Consulter",
+      "pdf": "Télécharger PDF"
     },
     "flash": {
       "sent": "Devis envoyé ({channel}).",
@@ -3485,7 +3603,8 @@
     "emptyFiltered": {
       "title": "Aucun devis trouvé",
       "description": "Aucun devis ne correspond à vos filtres ou termes de recherche."
-    }
+    },
+    "cancel": "Annuler"
   },
   "billing": {
     "title": "Factures",
@@ -3612,7 +3731,8 @@
       "receipt": "Reçu",
       "print": "Imprimer",
       "close": "Fermer",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "view": "Consulter"
     },
     "issue": {
       "title": "Émettre la facture",
@@ -3854,7 +3974,41 @@
       "late": "Clôture tardive",
       "difference": "Écart",
       "review": "Valider l'écart",
-      "reviewComment": "Commentaire de validation"
+      "reviewComment": "Commentaire de validation",
+      "subtitle": "Ouverture, clôture, écarts et contrôles des caisses par site.",
+      "emptyFiltered": "Aucune session ne correspond aux filtres.",
+      "emptyFilteredHint": "Modifiez la recherche, le statut ou le site, ou réinitialisez les filtres.",
+      "reviewCommentHint": "Expliquez l'écart constaté (obligatoire pour valider).",
+      "reviewTitle": "Valider l'écart de caisse",
+      "reviewSubmit": "Valider l'écart",
+      "reviewRequired": "À contrôler",
+      "reviewedBadge": "Contrôlée",
+      "perfectMatch": "Sans écart",
+      "openedAt": "Ouverte le {date}",
+      "closedAt": "Clôturée le {date}",
+      "openedBy": "Ouverte par {name}",
+      "closedBy": "Clôturée par {name}",
+      "notes": "Note : {notes}",
+      "kpis": {
+        "open": "Sessions ouvertes",
+        "openHint": "Caisses encore en service",
+        "withDifference": "Avec écart",
+        "withDifferenceHint": "Clôtures à justifier",
+        "late": "Clôtures tardives",
+        "lateHint": "Fermées hors horaires",
+        "totalControlled": "Sessions contrôlées",
+        "totalControlledHint": "Écarts déjà validés"
+      },
+      "filters": {
+        "searchPlaceholder": "Rechercher un site, un caissier…",
+        "all": "Toutes",
+        "onlyOpen": "Ouvertes",
+        "needsReview": "À contrôler",
+        "regular": "Sans écart",
+        "hasDifference": "Avec écart",
+        "allSites": "Tous les sites",
+        "reset": "Réinitialiser les filtres"
+      }
     },
     "paymentsList": {
       "title": "Paiements",
@@ -3902,7 +4056,8 @@
       "MOOV_MONEY": "Moov Money",
       "CHEQUE": "Chèque",
       "BANK_TRANSFER": "Virement"
-    }
+    },
+    "allMobileMoney": "Mobile Money (tous)"
   },
   "workshop": {
     "title": "Atelier",

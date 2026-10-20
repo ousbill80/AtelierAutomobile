@@ -77,13 +77,13 @@ export default function CreancesPage() {
               <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("title")}</h1>
               {summary.data && (
                 <span className="rounded-full bg-status-bad-bg px-2.5 py-0.5 text-xs font-semibold text-status-bad">
-                  {formatFCFA(summary.data.total - summary.data.notDue)} en retard
+                  {t("overdueBadge", {
+                    amount: formatFCFA(summary.data.total - summary.data.notDue),
+                  })}
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted">
-              Suivi du recouvrement, balance âgée, promesses de paiement et relances automatiques
-            </p>
+            <p className="text-xs text-muted">{t("subtitle")}</p>
           </div>
         </div>
 
@@ -93,13 +93,13 @@ export default function CreancesPage() {
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition-all hover:bg-surface-2"
           >
             <Clock size={14} className="text-muted" />
-            <span>Échéancier des relances</span>
+            <span>{t("remindersSchedule")}</span>
           </Link>
           <Link
             href="/parametres/relances"
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition-all hover:bg-surface-2"
           >
-            <span>Règles d&apos;automatisation</span>
+            <span>{t("automationRules")}</span>
           </Link>
         </div>
       </div>
@@ -328,7 +328,7 @@ export default function CreancesPage() {
                 bucket === "b90p" ? "bg-status-bad text-white shadow-xs" : "text-muted hover:text-foreground"
               }`}
             >
-              {t("bucketFilter.over60")}
+              {t("bucketFilter.b90p")}
             </button>
           </div>
 

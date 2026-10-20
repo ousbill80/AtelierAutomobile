@@ -484,7 +484,7 @@ export default function CashPage() {
               >
                 <option value="ALL">{tc("paymentsList.allMethods")}</option>
                 <option value="CASH">{tc("methodBadge.CASH")}</option>
-                <option value="MOBILE_MONEY">{tc("kpis.mobileMoney")} (Tous)</option>
+                <option value="MOBILE_MONEY">{tc("allMobileMoney")}</option>
                 <option value="WAVE">{tc("methodBadge.WAVE")}</option>
                 <option value="ORANGE_MONEY">{tc("methodBadge.ORANGE_MONEY")}</option>
                 <option value="MTN_MOMO">{tc("methodBadge.MTN_MOMO")}</option>
