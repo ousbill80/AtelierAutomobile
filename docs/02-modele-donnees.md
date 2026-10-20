@@ -2256,6 +2256,8 @@ model AutomationRun {
 | Un message n'est jamais envoyé à une adresse présente dans `OptOut` (sauf messages transactionnels : facture, véhicule prêt)        | M11                                                  |
 | `Site.code` non modifiable dès qu'une `DocumentSequence` existe pour ce site (il figure dans les numéros déjà émis)                 | M15 (RG-M15-05)                                      |
 
+> **M17 §14 & Phase 7.1 Durcissement** — les audits d'isolation multi-locataires, la vérification des en-têtes de sécurité (CSP, HSTS), le rate limiting en mémoire/Redis et le masquage des secrets dans les logs sont validés et testés. Aucun index manquant sur les listes principales sous contrainte d'isolation `organizationId`.
+
 ## 4. Variables de modèles de messages
 
 Disponibles dans `MessageTemplate.body` (moteur **Handlebars**, sans exécution de code) :
