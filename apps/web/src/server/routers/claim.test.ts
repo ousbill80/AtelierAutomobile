@@ -384,7 +384,7 @@ describe("M16 — assurances et sinistres", () => {
     });
     main = await adminDb.insuranceClaim.findUniqueOrThrow({ where: { id: claimId } });
     expect(main.status).toBe("PAID");
-    expect(main.closedAt).toEqual(NOW);
+    expect(main.closedAt).toEqual(new Date("2026-10-20T00:00:00.000Z")); // date métier du règlement
     const delivered = await advisor.repairOrder.deliver({ id: orderId, checkOut });
     expect(delivered.deliveredAt).toEqual(NOW); // OR déjà facturé → INVOICED (M04)
     await expect(callerB.claim.followUps({})).resolves.toEqual([]);

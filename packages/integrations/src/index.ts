@@ -30,12 +30,26 @@ export { decryptSecret, encryptSecret, loadEncryptionKey } from "./encryption";
 export type {
   CreatePaymentLinkInput,
   CreatePaymentLinkResult,
+  OnlinePaymentMethod,
   PaymentEvent,
   PaymentProvider,
   PaymentStatus,
+  PaymentStatusResult,
 } from "./payment/provider";
+export { hmacSha256Hex, PaymentProviderError, safeEqualHex } from "./payment/provider";
 export { createInMemoryManualPaymentLedger, ManualPaymentProvider } from "./payment/manual";
 export type { ManualPaymentLedger, ManualPaymentRecord } from "./payment/manual";
+export {
+  createInMemorySimulatorLedger,
+  defaultSimulatorLedger,
+  FakePaymentProvider,
+  SIMULATOR_SIGNATURE_HEADER,
+} from "./payment/fake";
+export type { SimulatedOutcome, SimulatedPayment, SimulatorLedger } from "./payment/fake";
+export { CinetPayProvider, cinetPayMethod } from "./payment/cinetpay";
+export type { CinetPayCredentials } from "./payment/cinetpay";
+export { WaveProvider } from "./payment/wave";
+export type { WaveCredentials } from "./payment/wave";
 
 export type {
   FneCertifyResult,
@@ -61,7 +75,13 @@ export type {
 export { isLocalProvider } from "./registry/types";
 export { resolveMessagingProvider } from "./registry/messaging";
 export type { MessagingRegistryDeps } from "./registry/messaging";
-export { resolvePaymentProvider } from "./registry/payment";
+export {
+  buildPaymentProvider,
+  PAYMENT_CREDENTIAL_FIELDS,
+  PAYMENT_PROVIDERS,
+  resolvePaymentProvider,
+} from "./registry/payment";
+export type { PaymentProviderName } from "./registry/payment";
 export type { PaymentRegistryDeps } from "./registry/payment";
 export { resolveFneProvider } from "./registry/fne";
 export type { FneRegistryDeps } from "./registry/fne";

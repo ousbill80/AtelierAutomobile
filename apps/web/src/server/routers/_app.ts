@@ -33,6 +33,9 @@ import { quickReplyRouter } from "./quickReply";
 import { inspectionRouter, inspectionTemplateRouter } from "./inspection";
 import { portalRepairOrderRouter } from "./portalRepairOrder";
 import { portalQuoteRouter } from "./portalQuote";
+import { portalInvoiceRouter } from "./portalInvoice";
+import { paymentLinkRouter } from "./paymentLink";
+import { paymentProvidersRouter } from "./paymentProviders";
 import { quoteRouter } from "./quote";
 import { quoteLineRouter } from "./quoteLine";
 import { laborOperationRouter } from "./laborOperation";
@@ -99,6 +102,8 @@ export const appRouter = router({
   reminderSettings: reminderSettingsRouter,
   collections: collectionsRouter,
   payment: paymentRouter,
+  paymentLink: paymentLinkRouter,
+  paymentProviders: paymentProvidersRouter,
   dashboard: dashboardRouter,
   alerts: alertsRouter,
   digest: digestRouter,
@@ -128,6 +133,7 @@ export const appRouter = router({
     appointment: portalAppointmentRouter,
     repairOrder: portalRepairOrderRouter,
     quote: portalQuoteRouter,
+    invoice: portalInvoiceRouter,
   }),
 });
 

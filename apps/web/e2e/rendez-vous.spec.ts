@@ -191,15 +191,27 @@ test("parcours RDV : création, confirmation, déplacement, portail, arrivée, O
   await outbox.close();
 
   // 3. Glisser-déposer sur Pont 2 à 11:00 → message « déplacé » (case cochée par défaut).
+  // Revenir sur l'onglet du planning relance ses requêtes (refetch au focus) : un glisser-déposer
+  // HTML5 lancé pendant ce rendu peut perdre son `drop` sans aucune erreur. On attend que le
+  // réseau soit au repos, puis on rejoue le geste tant que la mise à jour n'est pas partie.
   const pont2Column = page.locator(`[data-column="${pont2.id}"]`);
-  const box = await card.boundingBox();
-  const grab = (box?.height ?? 0) / 2;
-  await Promise.all([
-    page.waitForResponse((res) => res.url().includes("appointment.update") && res.ok()),
-    card.dragTo(pont2Column, {
+  await page.bringToFront();
+  await page.waitForLoadState("networkidle");
+  await expect(async () => {
+    // Une tentative précédente a abouti (réponse lente) : la carte est déjà sur Pont 2.
+    if ((await pont2Column.locator('[data-testid="appt-card"]').count()) === 1) return;
+    await expect(pont1Column.locator('[data-testid="appt-card"]')).toHaveCount(1);
+    const box = await card.boundingBox();
+    const grab = (box?.height ?? 0) / 2;
+    const updated = page.waitForResponse(
+      (res) => res.url().includes("appointment.update") && res.ok(),
+      { timeout: 5_000 },
+    );
+    await card.dragTo(pont2Column, {
       targetPosition: { x: 40, y: ((11 * 60 - 8 * 60) / 15) * SLOT_PX + grab },
-    }),
-  ]);
+    });
+    await updated;
+  }).toPass({ timeout: 40_000, intervals: [500, 1_000, 2_000] });
   await expect(pont2Column.locator('[data-testid="appt-card"]')).toHaveCount(1);
   const moved = await adminDb.appointment.findUniqueOrThrow({ where: { id: appointment.id } });
   expect(moved.bayId).toBe(pont2.id);

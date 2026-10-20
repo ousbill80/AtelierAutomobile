@@ -3,6 +3,7 @@
 import {
   businessDate,
   groupQuoteLines,
+  isInvoicePayable,
   isPastValidity,
   signatureRequired,
   type QuoteStatus,
@@ -30,6 +31,13 @@ export async function buildQuotePublicView(
       select: { name: true, phone: true, address: true, logoUrl: true },
     }),
   ]);
+  // M08 US-M08-03 / étape 4.3 : acompte payable en ligne une fois sa facture émise.
+  const depositInvoice = quote.depositInvoiceId
+    ? await tx.invoice.findFirst({
+        where: { id: quote.depositInvoiceId },
+        select: { status: true, balance: true },
+      })
+    : null;
   const totals = totalsFor(quote, lines, org.vatEnabled);
   const groups = groupQuoteLines(lines, totals.lines);
   const labelOf = new Map(groups.map((g) => [g.key, g.label]));
@@ -115,6 +123,8 @@ export async function buildQuotePublicView(
     requireSignature: signatureRequired(org.quotes.requireSignature, quote.total),
     termsText: org.quotes.termsText,
     depositAmount: quote.depositAmount,
+    depositPayable: depositInvoice ? isInvoicePayable(depositInvoice) : false,
+    depositPaid: depositInvoice?.status === "PAID",
     contentHash: quoteContentHash(quote, lines),
   };
 }

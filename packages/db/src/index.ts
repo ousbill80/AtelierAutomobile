@@ -33,3 +33,13 @@ export {
   type FneCertifyOutcome,
   type ResolveFneCertifier,
 } from "./fne";
+export { setClaimStatus, syncClaimFromInvoices, syncClaimFromRepairOrder } from "./claims";
+export {
+  confirmLinkPayment,
+  expireStalePaymentLinks,
+  loadPaymentConfigRecord,
+  paymentLinksToReconcile,
+  recomputeInvoiceBalance,
+  type ConfirmLinkPaymentResult,
+  type ConfirmedProviderStatus,
+} from "./billing/paymentLinks";

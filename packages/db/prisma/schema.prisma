@@ -316,6 +316,7 @@ model Membership {
   aiInteractionsCreated       AiInteraction[]       @relation("AiInteractionCreatedBy")
   invoicesCreated             Invoice[]             @relation("InvoiceCreatedBy")
   portalTokensCreated         PortalToken[]         @relation("PortalTokenCreatedBy")
+  paymentLinksCreated         PaymentLink[]         @relation("PaymentLinkCreatedBy")
   customerNotesCreated        CustomerNote[]        @relation("CustomerNoteCreatedBy")
   duplicateDismissalsCreated  DuplicateDismissal[]  @relation("DuplicateDismissalDismissedBy")
   customerSegmentsCreated     CustomerSegment[]     @relation("CustomerSegmentCreatedBy")
@@ -2030,23 +2031,35 @@ model PaymentAllocation {
 }
 
 model PaymentLink {
-  id             String        @id @default(cuid(2))
-  organizationId String
-  invoiceId      String
-  provider       String
-  providerRef    String
-  url            String
-  amount         Int
-  status         PaymentStatus @default(PENDING)
-  expiresAt      DateTime
-  paymentId      String?
-  createdAt      DateTime      @default(now())
+  id              String         @id @default(cuid(2))
+  organizationId  String
+  invoiceId       String
+  provider        String
+  providerRef     String
+  url             String
+  amount          Int
+  status          PaymentStatus  @default(PENDING)
+  expiresAt       DateTime
+  paymentId       String?
+  createdAt       DateTime       @default(now())
+  // M08 hors §14 (étape 4.3, RG-M08-23..25) : moyen choisi, cycle de vie et rapprochement
+  method          PaymentMethod? // moyen choisi sur le portail (null = au choix du client)
+  createdById     String? // null = portail client
+  confirmedAt     DateTime?
+  confirmedAmount Int? // montant confirmé par getStatus (peut différer de amount)
+  closedAt        DateTime?
+  closeReason     String? // replaced | cancelled | expired | failed
+  lastCheckedAt   DateTime?
+  updatedAt       DateTime       @default(now()) @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   invoice      Invoice      @relation(fields: [invoiceId], references: [id])
   payment      Payment?     @relation(fields: [paymentId], references: [id])
+  createdBy    Membership?  @relation("PaymentLinkCreatedBy", fields: [createdById], references: [id])
 
+  @@unique([provider, providerRef])
   @@index([organizationId, invoiceId])
+  @@index([status, expiresAt]) // payments.reconcile, paymentLinks.expire
 }
 
 model CashSession {
@@ -2739,10 +2752,15 @@ model PaymentProviderConfig {
   isActive       Boolean         @default(false)
   credentials    String // chiffré
   methods        PaymentMethod[]
+  // M15 RG-M15-17 hors §14 (étape 4.3) : résultat du dernier test
+  lastTestedAt   DateTime?
+  lastTestOk     Boolean?
+  lastError      String?
+  updatedAt      DateTime        @default(now()) @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
-  @@index([organizationId, provider])
+  @@unique([organizationId, provider])
 }
 
 model FneConfig {

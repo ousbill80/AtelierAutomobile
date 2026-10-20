@@ -37,6 +37,9 @@ export function QuotePortalView({ token }: { token: string }) {
     },
   });
   const ask = trpc.portal.quote.ask.useMutation({ onSuccess: () => setAskOpen(false) });
+  const depositLink = trpc.portal.quote.depositLink.useMutation({
+    onSuccess: ({ url }) => window.location.assign(url),
+  });
 
   const view = query.data;
   // Valeurs par défaut : urgents « Accepter », optionnels « non choisi » (US-M05-05).
@@ -308,9 +311,27 @@ export function QuotePortalView({ token }: { token: string }) {
         </section>
       )}
 
-      {step === "done" && view.depositAmount ? (
+      {step === "done" && view.depositAmount && !view.depositPayable && !view.depositPaid ? (
         <p className="rounded-md bg-surface-2 p-3">
           {t("portal.deposit", { amount: formatFCFA(view.depositAmount) })}
+        </p>
+      ) : null}
+      {view.depositAmount && view.depositPayable ? (
+        <section className="flex flex-col gap-2 rounded-md bg-surface-2 p-3">
+          <p>{t("portal.deposit", { amount: formatFCFA(view.depositAmount) })}</p>
+          <Button loading={depositLink.isPending} onClick={() => depositLink.mutate({ token })}>
+            {t("portal.payDeposit", { amount: formatFCFA(view.depositAmount) })}
+          </Button>
+          {depositLink.error && (
+            <p role="alert" className="text-status-bad">
+              ⚠ {depositLink.error.message}
+            </p>
+          )}
+        </section>
+      ) : null}
+      {view.depositAmount && view.depositPaid ? (
+        <p role="status" className="rounded-md bg-surface-2 p-3 text-status-ok">
+          ✓ {t("portal.depositPaid", { amount: formatFCFA(view.depositAmount) })}
         </p>
       ) : null}
 

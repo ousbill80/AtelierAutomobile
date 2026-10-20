@@ -435,3 +435,4 @@ export {
   updateInsurerInputSchema,
   uploadClaimDocumentInputSchema,
 } from "./claims";
+export * from "./paymentLinks";
