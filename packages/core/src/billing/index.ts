@@ -5,3 +5,4 @@ export * from "./settings";
 export * from "./status";
 export * from "./syscohada";
 export * from "./fne";
+export * from "./paymentLinks";

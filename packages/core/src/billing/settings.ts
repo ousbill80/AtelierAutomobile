@@ -74,6 +74,15 @@ export interface BillingSettings {
   oneSessionPerSite: boolean;
   expenseCategories: string[];
   accounts: AccountingAccounts;
+  /** RG-M15-17 : numéros marchands affichés quand aucun fournisseur de paiement n'est actif. */
+  merchantNumbers: MerchantNumbers;
+}
+
+export interface MerchantNumbers {
+  wave: string | null;
+  orangeMoney: string | null;
+  mtn: string | null;
+  moov: string | null;
 }
 
 export const DEFAULT_BILLING_SETTINGS: BillingSettings = {
@@ -86,6 +95,7 @@ export const DEFAULT_BILLING_SETTINGS: BillingSettings = {
   oneSessionPerSite: true,
   expenseCategories: [...DEFAULT_EXPENSE_CATEGORIES],
   accounts: DEFAULT_ACCOUNTS,
+  merchantNumbers: { wave: null, orangeMoney: null, mtn: null, moov: null },
 };
 
 type Raw = Record<string, unknown>;
@@ -143,5 +153,17 @@ export function billingSettingsFrom(settings: unknown): BillingSettings {
       },
       defaultExpense: str(accounts.defaultExpense, DEFAULT_ACCOUNTS.defaultExpense),
     },
+    merchantNumbers: merchantNumbersFrom(payments.merchantNumbers),
+  };
+}
+
+function merchantNumbersFrom(value: unknown): MerchantNumbers {
+  const raw = obj(value);
+  const pick = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
+  return {
+    wave: pick(raw.wave),
+    orangeMoney: pick(raw.orangeMoney),
+    mtn: pick(raw.mtn),
+    moov: pick(raw.moov),
   };
 }

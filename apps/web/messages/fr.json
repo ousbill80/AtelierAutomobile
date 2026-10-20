@@ -140,7 +140,8 @@
     "accountingExports": "Exports comptables",
     "workshop": "Atelier",
     "tablet": "Tablette atelier",
-    "settingsFne": "FNE"
+    "settingsFne": "FNE",
+    "settingsPayments": "Paiements"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -2815,7 +2816,9 @@
       "acceptedTotal": "Total accepté",
       "chooseAll": "Choisissez pour chaque travail.",
       "validate": "Valider mon choix",
-      "declineAll": "Je refuse ce devis"
+      "declineAll": "Je refuse ce devis",
+      "payDeposit": "Payer l'acompte de {amount}",
+      "depositPaid": "Acompte de {amount} reçu. Merci !"
     }
   },
   "billing": {
@@ -2941,7 +2944,9 @@
       "invoiceRo": "Facturer",
       "viewInvoice": "Voir la facture",
       "receipt": "Reçu",
-      "print": "Imprimer"
+      "print": "Imprimer",
+      "close": "Fermer",
+      "cancel": "Annuler"
     },
     "issue": {
       "title": "Émettre la facture",
@@ -3033,6 +3038,68 @@
       "qrImageSelected": "Image sélectionnée : {name}",
       "qrImageTooBig": "Image trop lourde : 300 Ko au plus.",
       "submit": "Enregistrer la FNE"
+    },
+    "paymentLinks": {
+      "title": "Liens de paiement",
+      "create": "Lien de paiement",
+      "createTitle": "Lien de paiement mobile money",
+      "amount": "Montant (au plus le solde)",
+      "expiry": "Valable",
+      "hours": "{count} h",
+      "days": "{count} jours",
+      "sendNow": "Envoyer tout de suite",
+      "noSend": "Ne pas envoyer (copier le lien)",
+      "submit": "Créer le lien",
+      "empty": "Aucun lien de paiement pour cette facture.",
+      "copy": "Copier",
+      "copied": "Lien copié",
+      "open": "Ouvrir",
+      "check": "Vérifier",
+      "cancel": "Annuler le lien",
+      "createdBy": "par {name}",
+      "byPortal": "depuis le portail",
+      "expiresAt": "expire le {date}",
+      "confirmedAt": "payé le {date}",
+      "mismatch": "Montant reçu {amount}",
+      "status": {
+        "PENDING": "En attente",
+        "CONFIRMED": "Payé",
+        "FAILED": "Clos",
+        "REFUNDED": "Remboursé",
+        "EXPIRED": "Expiré"
+      },
+      "closeReason": {
+        "replaced": "remplacé par un nouveau lien",
+        "cancelled": "annulé",
+        "expired": "expiré sans paiement",
+        "failed": "paiement échoué"
+      },
+      "checkResult": {
+        "created": "Paiement reçu et enregistré.",
+        "duplicate": "Paiement déjà enregistré.",
+        "pending": "Toujours en attente de paiement.",
+        "failed": "Lien clos sans paiement.",
+        "unknown_link": "Lien inconnu du fournisseur."
+      },
+      "notConfigured": "Aucun fournisseur de paiement en ligne n'est configuré.",
+      "configure": "Configurer dans Paramètres > Paiements"
+    },
+    "send": {
+      "action": "Envoyer",
+      "title": "Envoyer la facture au client",
+      "channel": "Canal",
+      "channels": {
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email"
+      },
+      "withPaymentLink": "Joindre un lien de paiement du solde",
+      "hint": "Le client reçoit un lien pour voir la facture, la télécharger et la payer par mobile money.",
+      "submit": "Envoyer",
+      "sent": "Facture envoyée à {to}.",
+      "copyLink": "Copier le lien client",
+      "linkCopied": "Lien client copié",
+      "sentAt": "Envoyée le {date}"
     }
   },
   "cash": {
@@ -3493,5 +3560,102 @@
     "recentEmpty": "Aucune facture émise pour le moment.",
     "counts": "Factures émises : {certified} certifiées, {pending} non certifiées",
     "loadError": "Impossible de charger les paramètres FNE."
+  },
+  "invoicePortal": {
+    "loading": "Chargement de la facture…",
+    "expired": "Ce lien a expiré. Contactez le garage pour recevoir un nouveau lien.",
+    "invalid": "Lien expiré ou invalide.",
+    "voided": "Cette facture a été annulée.",
+    "invoice": "Facture",
+    "deposit": "Facture d'acompte",
+    "date": "Date",
+    "dueDate": "Échéance",
+    "vehicle": "Véhicule",
+    "lines": "Détail",
+    "qty": "Qté",
+    "subtotal": "Total HT",
+    "discount": "Remise",
+    "vat": "TVA",
+    "total": "Total TTC",
+    "paid": "Déjà payé",
+    "balance": "Reste à payer",
+    "statusPaid": "Payée",
+    "statusDue": "Solde dû",
+    "paidBadge": "Payé ✓",
+    "fneTitle": "Facture normalisée (FNE)",
+    "fneNumber": "N° FNE {number}",
+    "fnePending": "Facture en cours de certification.",
+    "pdf": "Télécharger le PDF",
+    "payTitle": "Payer par mobile money",
+    "payWith": "Payer {amount} avec {method}",
+    "methods": {
+      "WAVE": "Wave",
+      "ORANGE_MONEY": "Orange Money",
+      "MTN_MOMO": "MTN MoMo",
+      "MOOV_MONEY": "Moov Money",
+      "CARD": "Carte bancaire"
+    },
+    "redirecting": "Ouverture du paiement…",
+    "waiting": "Paiement en cours de confirmation… Cette page se met à jour toute seule.",
+    "notConfirmed": "Nous n'avons pas encore reçu la confirmation. Si vous avez été débité, ne repayez pas : le garage est prévenu.",
+    "thanks": "Merci ! Votre paiement de {amount} a bien été reçu.",
+    "receipt": "Reçu {number}",
+    "merchantTitle": "Payer par transfert mobile money",
+    "merchantHint": "Indiquez {number} en référence de votre transfert.",
+    "merchant": {
+      "wave": "Wave",
+      "orangeMoney": "Orange Money",
+      "mtn": "MTN MoMo",
+      "moov": "Moov Money"
+    },
+    "unavailable": "Le paiement en ligne est momentanément indisponible. Contactez le garage.",
+    "call": "Appeler le garage",
+    "rccm": "RCCM {value}",
+    "ncc": "NCC {value}",
+    "returnTitle": "Paiement en cours de confirmation",
+    "returnText": "Merci ! Le garage reçoit la confirmation de votre opérateur et vous envoie votre reçu. Si vous avez été débité, ne repayez pas.",
+    "simulatorTitle": "Simulateur de paiement",
+    "simulatorHint": "Environnement de test : aucun argent réel n'est débité.",
+    "simulatorPay": "Payer {amount}",
+    "simulatorFail": "Simuler un échec",
+    "simulatorGone": "Ce paiement simulé est introuvable ou déjà traité."
+  },
+  "paymentSettings": {
+    "title": "Paiements en ligne",
+    "description": "Liens de paiement mobile money envoyés aux clients et affichés sur la page facture du portail.",
+    "providers": {
+      "cinetpay": "CinetPay (Wave, Orange Money, MTN, Moov, carte)",
+      "wave": "Wave Business",
+      "fake": "Simulateur (test, hors production)"
+    },
+    "fields": {
+      "apiKey": "Clé API",
+      "siteId": "Identifiant du site",
+      "secretKey": "Clé secrète (signature)",
+      "webhookSecret": "Secret du webhook"
+    },
+    "filled": "enregistré",
+    "keepHint": "Laissez vide pour conserver la valeur enregistrée.",
+    "methods": "Moyens proposés",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "save": "Enregistrer",
+    "saved": "Enregistré",
+    "test": "Tester",
+    "testOk": "Test réussi le {date}",
+    "testKo": "Échec du test : {error}",
+    "webhookUrl": "URL de notification à déclarer chez le fournisseur",
+    "simulatorHint": "Le simulateur ouvre une page de paiement fictive et confirme le paiement par un webhook signé. Interdit en production.",
+    "merchantTitle": "Numéros marchands",
+    "merchantHint": "Affichés sur la page facture et dans les messages quand aucun fournisseur n'est actif.",
+    "merchant": {
+      "wave": "Wave",
+      "orangeMoney": "Orange Money",
+      "mtn": "MTN MoMo",
+      "moov": "Moov Money"
+    },
+    "loadError": "Impossible de charger les paramètres de paiement."
   }
 }

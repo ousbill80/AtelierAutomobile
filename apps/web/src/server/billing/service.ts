@@ -9,7 +9,6 @@ import {
   computeDraftTotals,
   creditNoteEffect,
   DEFAULT_NUMBERING_CONFIG,
-  deriveInvoiceStatus,
   isDomainError,
   lineBaseQty,
   planCreditNote,
@@ -27,13 +26,13 @@ import {
   issueReservedForLine,
   issueStock,
   loadStockContext,
+  recomputeInvoiceBalance as recomputeInvoiceBalanceShared,
   releaseReservation,
   syncCustomerReceivables,
   tenantSequenceStore,
   type CollectionSettings,
   type Invoice,
   type InvoiceLine,
-  type InvoiceStatus,
   type Prisma,
   type ScopedTenantClient,
 } from "@atelieros/db";
@@ -343,41 +342,9 @@ export async function createDraft(
 
 // ───────────── Solde et statut (RG-M08-10/11) ─────────────
 
-/** Recalcule `amountPaid`, `balance` et le statut dérivé d'une facture émise. */
+/** Recalcule `amountPaid`, `balance` et le statut dérivé d'une facture émise (partagé avec le worker). */
 export async function recomputeInvoiceBalance(tx: Tx, invoiceId: string, today: Date) {
-  const invoice = await tx.invoice.findFirstOrThrow({ where: { id: invoiceId } });
-  if (invoice.status === "DRAFT") return invoice;
-  const allocations = await tx.paymentAllocation.findMany({
-    where: { invoiceId, voidedAt: null },
-    select: { amount: true, paymentId: true, payment: { select: { status: true } } },
-  });
-  const amountPaid = allocations
-    .filter((a) => !a.paymentId || a.payment?.status === "CONFIRMED")
-    .reduce((s, a) => s + a.amount, 0);
-  const next = deriveInvoiceStatus({
-    status: invoice.status,
-    type: invoice.type,
-    total: invoice.total,
-    amountPaid,
-    creditedAmount: invoice.creditedAmount,
-    dueDate: invoice.dueDate,
-    today,
-  });
-  if (
-    next.amountPaid === invoice.amountPaid &&
-    next.balance === invoice.balance &&
-    next.status === invoice.status
-  ) {
-    return invoice;
-  }
-  return tx.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      amountPaid: next.amountPaid,
-      balance: next.balance,
-      status: next.status as InvoiceStatus,
-    },
-  });
+  return recomputeInvoiceBalanceShared(tx, invoiceId, today);
 }
 
 /** M09 : solde client, dossier de recouvrement et promesses après un mouvement de facture. */

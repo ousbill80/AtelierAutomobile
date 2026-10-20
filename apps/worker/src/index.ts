@@ -65,6 +65,10 @@ async function main(): Promise<void> {
   const { FNE_JOB_NAMES, FNE_QUEUE_NAME, scheduleFneJobs } = await import("./queues/fne");
   type FneCertifyJobData = import("./queues/fne").FneCertifyJobData;
   const { processFneCertifyJob, processFneRetryJob } = await import("./jobs/fne");
+  const { PAYMENTS_JOB_NAMES, PAYMENTS_QUEUE_NAME, schedulePaymentJobs } =
+    await import("./queues/payments");
+  const { processPaymentLinksExpireJob, processPaymentsReconcileJob } =
+    await import("./jobs/payments");
 
   logger.info("AtelierOS worker démarré");
 
@@ -296,6 +300,28 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "fne : un job a échoué");
   });
 
+  // M08 §9 : rapprochement des liens de paiement (30 min) et expiration (horaire), RG-M08-25.
+  await schedulePaymentJobs();
+
+  const paymentsWorker = new Worker(
+    PAYMENTS_QUEUE_NAME,
+    async (job: Job) => {
+      switch (job.name) {
+        case PAYMENTS_JOB_NAMES.RECONCILE:
+          return processPaymentsReconcileJob();
+        case PAYMENTS_JOB_NAMES.EXPIRE_LINKS:
+          return processPaymentLinksExpireJob();
+        default:
+          logger.warn({ jobName: job.name }, "payments : job inconnu, ignoré");
+          return undefined;
+      }
+    },
+    { connection: createRedisConnection() },
+  );
+  paymentsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "payments : un job a échoué");
+  });
+
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
     await Promise.all([
@@ -310,6 +336,7 @@ async function main(): Promise<void> {
       cashWorker.close(),
       workshopWorker.close(),
       fneWorker.close(),
+      paymentsWorker.close(),
     ]);
     process.exit(0);
   }
