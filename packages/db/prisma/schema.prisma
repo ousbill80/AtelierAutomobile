@@ -911,6 +911,8 @@ model RepairOrder {
   @@index([organizationId, status])
   @@index([organizationId, vehicleId])
   @@index([organizationId, siteId, status])
+  @@index([organizationId, createdAt]) // M12 : OR ouverts (RG-M12-12)
+  @@index([organizationId, deliveredAt]) // M12 : OR livrés (RG-M12-12)
 }
 
 enum WarrantyDecision {
@@ -1192,6 +1194,7 @@ model TimeEntry {
   @@index([organizationId, repairOrderId])
   @@index([organizationId, membershipId])
   @@index([organizationId, membershipId, startedAt])
+  @@index([organizationId, startedAt]) // M12 : heures pointées par site (RG-M12-14)
 }
 
 enum TimeEntryKind {
@@ -1405,6 +1408,7 @@ model Quote {
   @@index([organizationId, status, sentAt])
   @@index([organizationId, repairOrderId])
   @@index([organizationId, customerId])
+  @@index([organizationId, decidedAt]) // M12 : taux d'acceptation (RG-M12-13)
 }
 
 enum QuoteOrigin {
@@ -1889,6 +1893,7 @@ model Invoice {
   @@index([organizationId, status, dueDate])
   @@index([organizationId, customerId, status])
   @@index([fneStatus, fneNextRetryAt]) // fne.retry (RG-M08-15)
+  @@index([organizationId, issuedAt]) // M12 : agrégats CA par période (RG-M12-05)
 }
 
 enum InvoiceType {
@@ -1984,6 +1989,7 @@ model Payment {
   @@unique([organizationId, number])
   @@unique([provider, providerRef])
   @@index([organizationId, method, reference])
+  @@index([organizationId, receivedAt]) // M12 : encaissements par période (RG-M12-20)
 }
 
 enum PaymentMethod {
@@ -2164,6 +2170,7 @@ model Refund {
 
   @@index([organizationId, customerId])
   @@index([organizationId, cashSessionId])
+  @@index([organizationId, createdAt]) // M12 : remboursements en négatif (RG-M12-20)
 }
 
 model CustomerCredit {
@@ -2468,6 +2475,7 @@ model Reminder {
   @@index([organizationId, sequenceKey])
   @@index([organizationId, customerId, status])
   @@index([organizationId, groupKey])
+  @@index([organizationId, sentAt]) // M12 : rapport « Performances des relances »
 }
 
 enum ReminderStatus {

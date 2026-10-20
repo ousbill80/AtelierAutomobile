@@ -35,3 +35,9 @@ export {
   type InvoicePdfLine,
   type ReceiptPdfData,
 } from "./invoice";
+export {
+  renderReportPdf,
+  ReportDocument,
+  type ReportPdfColumn,
+  type ReportPdfData,
+} from "./report";

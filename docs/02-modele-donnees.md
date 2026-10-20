@@ -1866,6 +1866,8 @@ model AiInteraction {                             // trace des appels IA (coût,
 
 > Les relations (`@relation`) et les clés étrangères sont à compléter à l'implémentation selon les champs `…Id` ci-dessus. Chaque champ `…Id` pointant vers une autre table **doit** avoir sa relation et un index.
 
+> **M12 §14 (étape 6.1, migration `20261020003000_m12_rapports`)** — les rapports et le tableau de bord agrègent en SQL à la demande (`GROUP BY` via `db.forTenant(ctx).queryRaw`, sous RLS) : les modèles `KpiDaily` et `ReportExport` du PRD **ne sont pas créés** à cette étape (pas de rollup journalier ni d'export asynchrone ; exports synchrones limités à 100 000 lignes, journalisés dans `AuditLog` action `report.export`). Index ajoutés pour les filtres de période : `Invoice(organizationId, issuedAt)`, `Payment(organizationId, receivedAt)`, `Refund(organizationId, createdAt)`, `RepairOrder(organizationId, createdAt)` et `(organizationId, deliveredAt)`, `Quote(organizationId, decidedAt)`, `TimeEntry(organizationId, startedAt)`, `Reminder(organizationId, sentAt)`. Les champs `Notification.severity` / `dedupeKey` (alertes) existent depuis l'étape 2.4.
+
 ## 3. Règles d'intégrité
 
 | Règle                                                                                                                               | Où                                                   |

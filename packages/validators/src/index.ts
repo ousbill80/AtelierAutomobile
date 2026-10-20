@@ -356,7 +356,7 @@ export {
 } from "./settings";
 export * from "./receivables";
 
-export type { DashboardInput, DigestSettings } from "./dashboard";
+export type { DashboardInput, DigestSettings, ReportFilters } from "./dashboard";
 export {
   alertsListInputSchema,
   alertsMarkReadInputSchema,
@@ -365,6 +365,11 @@ export {
   digestSettingsSchema,
   digestUpdateSettingsInputSchema,
   dashboardPeriodSchema,
+  compareSitesInputSchema,
+  customPeriodSchema,
+  reportFiltersSchema,
+  reportPreviewInputSchema,
+  reportSlugSchema,
 } from "./dashboard";
 export * from "./stock";
 export * from "./appointment";

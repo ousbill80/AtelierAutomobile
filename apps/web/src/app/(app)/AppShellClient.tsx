@@ -65,7 +65,24 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     me.allowedSites.length > 1 ? (activeSite?.name ?? t("common.allSites")) : activeSite?.name;
 
   const mainItems = [
-    { href: "/tableau-de-bord", label: t("nav.ownerDashboard"), permission: "dashboard:owner" },
+    {
+      href: "/tableau-de-bord",
+      label: t("nav.ownerDashboard"),
+      // M12 §10 : onglets selon les permissions de lecture ; MECHANIC sans accès.
+      permission: [
+        "dashboard:owner",
+        "repair_order:read",
+        "reminder:read",
+        "report:financial",
+        "cash:operate",
+      ],
+      hidden: me.membership?.role === "MECHANIC",
+    },
+    {
+      href: "/rapports",
+      label: t("nav.reports"),
+      permission: ["report:read", "report:financial"],
+    },
     { href: "/rendez-vous", label: t("nav.appointments"), permission: "appointment:read" },
     {
       href: "/rendez-vous/aujourdhui",
@@ -122,7 +139,11 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     { href: "/stock", label: t("nav.stock"), permission: "stock:read" },
     { href: "/achats", label: t("nav.purchases"), permission: "purchase:read" },
     { href: "/import", label: t("nav.import"), permission: "import:run" },
-  ].filter((item) => has(item.permission) && !("hidden" in item && item.hidden));
+  ].filter(
+    (item) =>
+      (Array.isArray(item.permission) ? item.permission.some(has) : has(item.permission)) &&
+      !("hidden" in item && item.hidden),
+  );
 
   const settingsItems = [
     { href: "/parametres/equipe", label: t("nav.settingsTeam"), permission: "member:read" },
