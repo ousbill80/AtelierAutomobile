@@ -63,7 +63,7 @@ model Organization {
   settings        Json     @default("{}")        // préférences diverses (voir M15) ; `stock` : allowNegative, dormantDays, countApprovalThreshold, autoIssueOnInvoice, customerPartFee (M07)
                                                  // M05 : settings.quotes = { validityDays 15, validityDaysCompany 30, requireSignature, discountCaps, depositRule, followupWhenVehicleOnSite, showLinePricesToCustomer, termsText }
   // M15 §14 (étape 6.5)
-  slug                 String   @unique @default(cuid())  // identifiant public, aussi utilisé par M14
+  slug                 String   @unique @default(cuid())  // identifiant public (/p/connexion?g={slug}, M14) ; obligatoire depuis M15
   lifecycleStatus      OrgLifecycle @default(ACTIVE)      // RG-M15-22, machine à états M15 §5
   deletionRequestedAt  DateTime?
   deletionScheduledFor DateTime?                          // demande + 30 j

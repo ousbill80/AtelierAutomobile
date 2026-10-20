@@ -9,15 +9,20 @@ ALTER TABLE "ChannelConfig" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT
 -- AlterTable
 ALTER TABLE "InspectionTemplate" ADD COLUMN "version" INTEGER NOT NULL DEFAULT 1;
 
--- AlterTable : `slug` est rempli pour les organisations existantes avant d'être rendu obligatoire.
+-- AlterTable
 ALTER TABLE "Organization" ADD COLUMN "deletionRequestedAt" TIMESTAMP(3),
 ADD COLUMN "deletionScheduledFor" TIMESTAMP(3),
 ADD COLUMN "lifecycleStatus" "OrgLifecycle" NOT NULL DEFAULT 'ACTIVE',
 ADD COLUMN "planOverrides" JSONB NOT NULL DEFAULT '{}',
 ADD COLUMN "settingsVersion" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN "slug" TEXT,
 ADD COLUMN "supportAccessUntil" TIMESTAMP(3);
 
+-- `Organization.slug` : créé nullable (avec son index unique) par M14 (migration
+-- 20261020005000_m14_portail, PR #27) ; créé ici seulement s'il n'existe pas encore, pour que
+-- l'ordre de fusion des étapes 6.3 et 6.5 soit indifférent. M15 le rend obligatoire après avoir
+-- rempli les valeurs manquantes.
+ALTER TABLE "Organization" ADD COLUMN IF NOT EXISTS "slug" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "Organization_slug_key" ON "Organization"("slug");
 UPDATE "Organization" SET "slug" = "id" WHERE "slug" IS NULL;
 ALTER TABLE "Organization" ALTER COLUMN "slug" SET NOT NULL;
 
@@ -59,9 +64,6 @@ CREATE UNIQUE INDEX "UsageCounter_organizationId_metric_period_key" ON "UsageCou
 
 -- CreateIndex
 CREATE INDEX "DataExport_organizationId_createdAt_idx" ON "DataExport"("organizationId", "createdAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Organization_slug_key" ON "Organization"("slug");
 
 -- AddForeignKey
 ALTER TABLE "UsageCounter" ADD CONSTRAINT "UsageCounter_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
