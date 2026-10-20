@@ -9,7 +9,6 @@ export async function initServerSentry(): Promise<void> {
     dsn: process.env.SENTRY_DSN,
     environment: process.env.SENTRY_ENVIRONMENT || process.env.APP_ENV || "development",
     release: process.env.ATELIEROS_VERSION,
-    sendDefaultPii: false,
     // Erreurs seulement : pas de traces de performance (volume, données de requêtes).
     tracesSampleRate: 0,
     beforeSend: (event) => scrubErrorEvent(event),
