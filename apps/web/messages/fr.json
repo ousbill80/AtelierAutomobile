@@ -139,7 +139,8 @@
     "cashSessions": "Sessions de caisse",
     "accountingExports": "Exports comptables",
     "workshop": "Atelier",
-    "tablet": "Tablette atelier"
+    "tablet": "Tablette atelier",
+    "settingsFne": "FNE"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -2850,7 +2851,7 @@
       "drafts": "Brouillons",
       "open": "À encaisser",
       "paid": "Payées",
-      "fne_pending": "Non certifiées FNE",
+      "fne_pending": "Non certifiées",
       "credit_notes": "Avoirs"
     },
     "empty": {
@@ -2949,7 +2950,7 @@
       "submit": "Émettre la facture",
       "missingIdentity": "Émission impossible : renseignez {fields} dans Paramètres > Entreprise."
     },
-    "fnePending": "FNE en attente de certification : la saisie du numéro FNE arrive à l'étape suivante (FNE).",
+    "fnePending": "FNE en attente de certification : saisissez le numéro FNE obtenu sur la plateforme DGI ou attendez la certification automatique.",
     "payments": {
       "title": "Paiements",
       "empty": "Aucun paiement enregistré.",
@@ -3006,6 +3007,32 @@
     "ro": {
       "invoiced": "Facture {number}",
       "draft": "Brouillon de facture"
+    },
+    "fneBlock": {
+      "title": "Facture normalisée électronique (FNE)",
+      "number": "N° fiscal",
+      "certifiedAt": "Certifiée le",
+      "attempts": "Tentatives : {count}",
+      "nextRetry": "Prochaine tentative automatique : {date}",
+      "failed": "Certification FNE en échec",
+      "rejected": "Rejet de la DGI : corrigez les informations puis réessayez, ou créez un avoir et une nouvelle facture si l'erreur porte sur le contenu.",
+      "manualHint": "Mode manuel : certifiez la facture sur la plateforme DGI puis saisissez son numéro FNE et son QR code.",
+      "retry": "Réessayer la certification",
+      "setManual": "Saisir le numéro FNE",
+      "retryDone": "Certification relancée.",
+      "source": {
+        "MANUAL": "Saisie manuelle",
+        "CERTIFIED": "Certification automatique"
+      }
+    },
+    "fneManual": {
+      "title": "Saisir la FNE obtenue sur la plateforme DGI",
+      "number": "Numéro FNE",
+      "qrCode": "Contenu du QR code (lien ou texte décodé)",
+      "qrImage": "Ou importez l'image du QR code (PNG ou JPEG, 300 Ko au plus)",
+      "qrImageSelected": "Image sélectionnée : {name}",
+      "qrImageTooBig": "Image trop lourde : 300 Ko au plus.",
+      "submit": "Enregistrer la FNE"
     }
   },
   "cash": {
@@ -3433,5 +3460,38 @@
     },
     "signOut": "Changer d'utilisateur",
     "office": "Retour au bureau"
+  },
+  "fneSettings": {
+    "title": "Facture normalisée électronique (FNE)",
+    "intro": "Depuis l'arrêté n°0337 du 9 mai 2025, vos factures doivent être normalisées par la DGI. Choisissez comment AtelierOS obtient le numéro FNE de chaque facture et avoir.",
+    "mode": "Mode",
+    "modes": {
+      "manual": "Manuel : je saisis le numéro FNE obtenu sur la plateforme DGI",
+      "api": "API : certification automatique à l'émission",
+      "disabled": "Désactivé : organisation non assujettie (essai)"
+    },
+    "provider": "Service de certification",
+    "providers": {
+      "dgi_api": "API DGI (identifiants fournis par la DGI)",
+      "fake": "Simulateur (démonstration, aucune facture envoyée à la DGI)"
+    },
+    "baseUrl": "Adresse du service DGI",
+    "apiKey": "Clé d'accès DGI",
+    "credentialsSaved": "Identifiants enregistrés (chiffrés). Laissez vide pour les conserver.",
+    "credentialsMissing": "Aucun identifiant enregistré.",
+    "establishmentId": "Identifiant d'établissement",
+    "pointOfSale": "Point de vente",
+    "reason": "Motif de la désactivation",
+    "disabledWarning": "Attention : depuis l'arrêté n°0337 du 9 mai 2025, vos factures doivent être normalisées. La désactivation est réservée aux organisations non assujetties.",
+    "save": "Enregistrer",
+    "saved": "Paramètres FNE enregistrés.",
+    "test": "Tester la certification",
+    "lastTest": "Dernier test le {date} : {result}",
+    "testOk": "réussi",
+    "testKo": "échec",
+    "recent": "Dernières certifications",
+    "recentEmpty": "Aucune facture émise pour le moment.",
+    "counts": "Factures émises : {certified} certifiées, {pending} non certifiées",
+    "loadError": "Impossible de charger les paramètres FNE."
   }
 }

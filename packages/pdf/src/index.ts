@@ -25,6 +25,8 @@ export {
   type QuotePdfVariant,
 } from "./quote";
 export {
+  fneBlockLines,
+  fneQrImage,
   InvoiceDocument,
   ReceiptDocument,
   renderInvoicePdf,

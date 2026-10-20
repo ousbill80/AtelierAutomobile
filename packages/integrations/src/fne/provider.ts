@@ -1,17 +1,32 @@
-export interface FneInvoicePayload {
-  invoiceId: string;
-  number: string;
-  issuedAt: Date;
-  totalTtc: number;
-  totalVat: number;
-  customer: { name: string; taxId?: string };
-}
+import { DomainError, type FneErrorKind, type FneInvoicePayload } from "@atelieros/core";
+
+export type { FneInvoicePayload } from "@atelieros/core";
 
 export interface FneCertifyResult {
   fneNumber: string;
   qrCode: string;
   signedAt: Date;
   raw: unknown;
+}
+
+export interface FneHealthStatus {
+  ok: boolean;
+  detail: string;
+}
+
+/**
+ * Erreur d'un adaptateur FNE. `kind = "transient"` (réseau, service DGI indisponible) : reprise
+ * automatique avec backoff ; `kind = "rejected"` (rejet de validation renvoyé par la DGI) : pas de
+ * reprise automatique, l'erreur est affichée pour correction (RG-M08-15).
+ */
+export class FneProviderError extends DomainError {
+  readonly kind: FneErrorKind;
+
+  constructor(kind: FneErrorKind, message: string, details?: Record<string, unknown>) {
+    super(kind === "rejected" ? "fne.rejected" : "fne.unavailable", message, details);
+    this.name = "FneProviderError";
+    this.kind = kind;
+  }
 }
 
 /**
@@ -21,6 +36,9 @@ export interface FneCertifyResult {
  * numéro et le QR code obtenus sur la plateforme web DGI, sans appel programmatique.
  */
 export interface FneProvider {
+  /** `invoice.idempotencyKey` est transmise si la spécification le permet (RG-M08-15). */
   certify(invoice: FneInvoicePayload): Promise<FneCertifyResult>;
   cancel?(fneNumber: string, reason: string): Promise<void>;
+  /** « Tester la certification » (RG-M15-18) : test d'authentification, sans facture réelle. */
+  healthCheck?(): Promise<FneHealthStatus>;
 }

@@ -2,6 +2,7 @@
 import { formatDate, METHOD_LABELS, type PaymentMethodLike } from "@atelieros/core";
 import { renderInvoicePdf, renderReceiptPdf } from "@atelieros/pdf";
 import type { Invoice, Payment } from "@atelieros/db";
+import { getAttachmentStorage } from "../storage";
 import type { OrgBillingContext, Tx } from "./service";
 
 function paymentTerms(invoice: Invoice, terms: number): string {
@@ -9,6 +10,21 @@ function paymentTerms(invoice: Invoice, terms: number): string {
     return "Avoir à valoir sur vos prochaines factures ou remboursable.";
   if (terms <= 0) return "Paiement comptant à réception de la facture.";
   return `Paiement à ${terms} jours, au plus tard le ${invoice.dueDate ? formatDate(invoice.dueDate, "UTC") : "—"}.`;
+}
+
+/** QR FNE importé en image (RG-M08-17, `Attachment kind = "fne_qr"`) → data URL pour le PDF. */
+async function fneQrCodeFor(tx: Tx, qrCode: string | null): Promise<string | null> {
+  if (!qrCode?.startsWith("attachment:")) return qrCode;
+  const attachment = await tx.attachment.findFirst({
+    where: { id: qrCode.slice("attachment:".length), kind: "fne_qr" },
+  });
+  if (!attachment) return null;
+  try {
+    const bytes = await getAttachmentStorage().getObjectBytes(attachment.url);
+    return `data:${attachment.mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
+  } catch {
+    return null;
+  }
 }
 
 export async function renderInvoicePdfFor(tx: Tx, org: OrgBillingContext, invoice: Invoice) {
@@ -74,7 +90,12 @@ export async function renderInvoicePdfFor(tx: Tx, org: OrgBillingContext, invoic
     balance: invoice.balance,
     vatEnabled: org.vatEnabled,
     paymentTerms: paymentTerms(invoice, customer.paymentTermsDays),
-    fne: { status: invoice.fneStatus, number: invoice.fneNumber, qrCode: invoice.fneQrCode },
+    fne: {
+      status: invoice.fneStatus,
+      number: invoice.fneNumber,
+      qrCode: await fneQrCodeFor(tx, invoice.fneQrCode),
+      certifiedAt: invoice.fneCertifiedAt?.toISOString() ?? null,
+    },
     notes: invoice.type === "CREDIT_NOTE" ? `Motif : ${invoice.notes ?? ""}` : invoice.notes,
   });
 }

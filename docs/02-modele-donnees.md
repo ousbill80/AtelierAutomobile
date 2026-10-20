@@ -1076,6 +1076,7 @@ model Invoice {
   lines            InvoiceLine[]
   @@unique([organizationId, number])
   @@index([organizationId, status, dueDate])
+  @@index([fneStatus, fneNextRetryAt])        // job fne.retry (étape 4.2)
 }
 enum InvoiceType { INVOICE CREDIT_NOTE DEPOSIT }
 enum InvoiceStatus { DRAFT ISSUED PARTIALLY_PAID PAID OVERDUE VOID WRITTEN_OFF DISPUTED }
@@ -1617,6 +1618,12 @@ model FneConfig {
   establishmentId String?
   pointOfSale    String?
   isActive       Boolean @default(false)
+  // M08 étape 4.2 (hors §14) : adaptateur du mode api et dernier test (RG-M15-18)
+  provider       String @default("dgi_api")      // dgi_api | fake (simulateur, refusé en production)
+  lastTestedAt   DateTime?
+  lastTestOk     Boolean?
+  lastError      String?
+  updatedAt      DateTime @updatedAt
 }
 
 // ───────────── Import / synchronisation ─────────────

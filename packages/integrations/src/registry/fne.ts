@@ -1,23 +1,64 @@
 import { DomainError } from "@atelieros/core";
+import { decryptSecret } from "../encryption";
+import { DgiApiFneProvider, type DgiApiCredentials, type FetchLike } from "../fne/dgi-api";
+import { FakeFneProvider } from "../fne/fake";
 import { ManualFneProvider } from "../fne/manual";
 import type { FneProvider } from "../fne/provider";
 import type { FneConfigStore } from "./types";
 
+export interface FneRegistryDeps {
+  store: FneConfigStore;
+  /** Clé maîtresse, ou fonction qui la charge (lue seulement pour l'adaptateur `dgi_api`). */
+  encryptionKey?: Buffer | (() => Buffer);
+  /** `false` en production : le simulateur ne doit jamais certifier une vraie facture. */
+  allowSimulator?: boolean;
+  fetch?: FetchLike;
+}
+
 /** Résout le fournisseur FNE actif. `mode` "manual" ou "disabled" (ou aucune config) →
- * {@link ManualFneProvider} : la certification automatique n'est possible qu'en mode
- * "api", qui dépend de la spécification DGI non encore obtenue (01-architecture-technique.md §10). */
+ * {@link ManualFneProvider} ; `mode = "api"` → adaptateur `dgi_api` (identifiants déchiffrés
+ * ici, jamais renvoyés) ou simulateur `fake` hors production. */
 export async function resolveFneProvider(
   organizationId: string,
-  store: FneConfigStore,
+  deps: FneRegistryDeps,
 ): Promise<FneProvider> {
-  const config = await store.get(organizationId);
+  const config = await deps.store.get(organizationId);
 
   if (!config || config.mode !== "api") {
     return new ManualFneProvider();
   }
 
-  throw new DomainError(
-    "fne.api_mode_not_implemented",
-    "Mode FNE « api » pas encore implémenté : en attente de la spécification DGI.",
+  if (config.provider === "fake") {
+    if (deps.allowSimulator === false) {
+      throw new DomainError(
+        "fne.simulator_forbidden",
+        "Le simulateur FNE est interdit en production : configurez les identifiants DGI.",
+      );
+    }
+    return new FakeFneProvider();
+  }
+
+  if (config.provider !== "dgi_api") {
+    throw new DomainError(
+      "fne.provider_unknown",
+      `Fournisseur FNE « ${config.provider} » inconnu.`,
+      { provider: config.provider },
+    );
+  }
+  if (!config.credentials || !deps.encryptionKey) {
+    throw new DomainError(
+      "fne.credentials_missing",
+      "Identifiants DGI absents : renseignez-les dans Paramètres > FNE.",
+    );
+  }
+  const key = typeof deps.encryptionKey === "function" ? deps.encryptionKey() : deps.encryptionKey;
+  const credentials = JSON.parse(decryptSecret(config.credentials, key)) as DgiApiCredentials;
+  return new DgiApiFneProvider(
+    {
+      ...credentials,
+      establishmentId: config.establishmentId ?? credentials.establishmentId ?? null,
+      pointOfSale: config.pointOfSale ?? credentials.pointOfSale ?? null,
+    },
+    deps.fetch,
   );
 }

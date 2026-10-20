@@ -37,8 +37,18 @@ export type {
 export { createInMemoryManualPaymentLedger, ManualPaymentProvider } from "./payment/manual";
 export type { ManualPaymentLedger, ManualPaymentRecord } from "./payment/manual";
 
-export type { FneCertifyResult, FneInvoicePayload, FneProvider } from "./fne/provider";
+export type {
+  FneCertifyResult,
+  FneHealthStatus,
+  FneInvoicePayload,
+  FneProvider,
+} from "./fne/provider";
+export { FneProviderError } from "./fne/provider";
 export { ManualFneProvider } from "./fne/manual";
+export { FakeFneProvider } from "./fne/fake";
+export type { FakeFneOptions } from "./fne/fake";
+export { DgiApiFneProvider } from "./fne/dgi-api";
+export type { DgiApiCredentials, FetchLike } from "./fne/dgi-api";
 
 export type {
   FneConfigRecord,
@@ -54,6 +64,7 @@ export type { MessagingRegistryDeps } from "./registry/messaging";
 export { resolvePaymentProvider } from "./registry/payment";
 export type { PaymentRegistryDeps } from "./registry/payment";
 export { resolveFneProvider } from "./registry/fne";
+export type { FneRegistryDeps } from "./registry/fne";
 
 export { assertUploadable, createS3ObjectStorage, S3ObjectStorage } from "./storage";
 export type { S3ObjectStorageConfig, UploadInput } from "./storage";

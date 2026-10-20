@@ -39,6 +39,8 @@ export type DomainEventType =
   | "invoice.issued"
   | "invoice.voided"
   | "invoice.credit_note_issued"
+  | "invoice.fne_certified"
+  | "invoice.fne_failed"
   | "cash.session_closed"
   | "cash.session_not_closed"
   | "collection.promised"
