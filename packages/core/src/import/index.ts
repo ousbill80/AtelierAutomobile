@@ -118,7 +118,7 @@ export {
   normalizePairingCode,
   PAIRING_CODE_LENGTH,
   pairingExpiresAt,
-  SYNC_BATCH_SIZE,
+  AGENT_SYNC_BATCH_SIZE,
 } from "./agent";
 
 export type { WatchRule } from "./watch";

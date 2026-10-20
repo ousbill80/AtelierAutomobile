@@ -10,7 +10,7 @@ import {
   isClockSkewed,
   isDomainError,
   normalizePairingCode,
-  SYNC_BATCH_SIZE,
+  AGENT_SYNC_BATCH_SIZE,
   SYNC_ENTITY_ORDER,
   type SyncEntity,
 } from "@atelieros/core";
@@ -120,7 +120,7 @@ export async function handleConfig(req: Request): Promise<Response> {
 const batchSchema = z.object({
   entity: z.enum(SYNC_ENTITY_ORDER),
   columns: z.array(z.string().min(1).max(128)).min(1).max(200),
-  rows: z.array(z.array(z.string().max(10_000))).max(SYNC_BATCH_SIZE),
+  rows: z.array(z.array(z.string().max(10_000))).max(AGENT_SYNC_BATCH_SIZE),
 });
 
 async function readJsonBody(req: Request): Promise<unknown> {

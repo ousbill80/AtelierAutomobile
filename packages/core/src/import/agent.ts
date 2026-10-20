@@ -17,7 +17,7 @@ export const AGENT_OFFLINE_AFTER_MS = 15 * 60 * 1000;
 /** M13 §11 : horloge de l'agent décalée de plus de 5 min → avertissement. */
 export const AGENT_CLOCK_SKEW_WARNING_MS = 5 * 60 * 1000;
 /** RG-M13-28 : lots de 500 lignes. */
-export const SYNC_BATCH_SIZE = 500;
+export const AGENT_SYNC_BATCH_SIZE = 500;
 /** RG-M13-28 : file locale conservée 7 jours si internet est coupé. */
 export const AGENT_QUEUE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -86,7 +86,7 @@ export function isClockSkewed(agentTime: Date, serverNow: Date): boolean {
   return Math.abs(agentTime.getTime() - serverNow.getTime()) > AGENT_CLOCK_SKEW_WARNING_MS;
 }
 
-export function chunkRows<T>(rows: readonly T[], size = SYNC_BATCH_SIZE): T[][] {
+export function chunkRows<T>(rows: readonly T[], size = AGENT_SYNC_BATCH_SIZE): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < rows.length; i += size) chunks.push(rows.slice(i, i + size));
   return chunks;
