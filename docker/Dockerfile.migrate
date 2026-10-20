@@ -1,0 +1,8 @@
+# Étape 7.2 — one-shot `prisma migrate deploy`, sans l'application.
+FROM node:20-alpine
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
+COPY packages/db/prisma ./prisma
+COPY packages/db/package.json ./package.json
+RUN pnpm add prisma@6.19.3
+CMD ["pnpm", "exec", "prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"]

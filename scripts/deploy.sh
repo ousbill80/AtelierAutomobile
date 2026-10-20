@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# scripts/deploy.sh — Déploiement et mise à jour sans coupure (Étape 7.2)
-# Sauvegarde préalable -> Migration DB -> Build images -> Bascule saine avec healthcheck
-# ==============================================================================
+# Étape 7.2 — mise à jour : sauvegarde, images, migrations, bascule si /api/health est vert.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,57 +7,67 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${ROOT_DIR}"
 
 COMPOSE_FILE="docker/docker-compose.prod.yml"
+export ATELIEROS_VERSION="${ATELIEROS_VERSION:-$(git rev-parse --short HEAD 2>/dev/null || echo dev)}"
 
-echo "=== Déploiement AtelierOS en cours ==="
-
-# 1. Sauvegarde préventive de la base de données
-echo "→ [1/5] Sauvegarde préventive de la base de données..."
-if [ -f "scripts/backup.sh" ]; then
-  bash scripts/backup.sh || echo "Avertissement : la sauvegarde préventive a échoué mais le déploiement continue."
+required_vars=(POSTGRES_PASSWORD POSTGRES_APP_PASSWORD REDIS_PASSWORD S3_ACCESS_KEY S3_SECRET_KEY ENCRYPTION_KEY AUTH_SECRET)
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
 fi
+for name in "${required_vars[@]}"; do
+  if [ -z "${!name:-}" ]; then
+    echo "ERREUR: variable ${name} manquante dans .env" >&2
+    exit 1
+  fi
+done
 
-# 2. Construction des nouvelles images Docker
-echo "→ [2/5] Construction des nouvelles images (web, worker)..."
-docker compose -f "${COMPOSE_FILE}" build web worker
+echo "=== Déploiement AtelierOS (${ATELIEROS_VERSION}) ==="
 
-# 3. Application des migrations de schéma Prisma
-echo "→ [3/5] Application des migrations Prisma..."
-if command -v pnpm >/dev/null 2>&1; then
-  pnpm --filter @atelieros/db exec prisma migrate deploy
-else
-  docker compose -f "${COMPOSE_FILE}" run --rm web pnpm --filter @atelieros/db exec prisma migrate deploy
-fi
+echo "→ [0/6] Services de données (postgres, redis, minio)..."
+docker compose -f "${COMPOSE_FILE}" up -d --wait postgres redis minio
+docker compose -f "${COMPOSE_FILE}" run --rm minio-init
 
-# 4. Démarrage / mise à jour du service Web avec validation de santé
-echo "→ [4/5] Démarrage du nouveau conteneur Web et attente de santé..."
-docker compose -f "${COMPOSE_FILE}" up -d --no-deps web
+echo "→ [1/6] Sauvegarde préventive..."
+bash scripts/backup.sh
 
-# Attente de la sonde de santé HTTP (/api/health)
+echo "→ [2/6] Construction des images web, worker, migrate..."
+docker compose -f "${COMPOSE_FILE}" --profile tools build web worker migrate
+
+echo "→ [3/6] Migrations Prisma..."
+docker compose -f "${COMPOSE_FILE}" --profile tools run --rm migrate
+
+echo "→ [4/6] Mot de passe du rôle applicatif atelieros_app..."
+docker compose -f "${COMPOSE_FILE}" exec -T postgres \
+  psql -U "${POSTGRES_USER:-atelieros}" -d "${POSTGRES_DB:-atelieros}" \
+  -c "ALTER ROLE atelieros_app WITH PASSWORD '${POSTGRES_APP_PASSWORD}';"
+
+echo "→ [5/6] Bascule web (santé obligatoire)..."
+docker compose -f "${COMPOSE_FILE}" up -d --no-deps --wait web
 HEALTHY=0
-for i in $(seq 1 30); do
-  echo "  Attente de santé (${i}/30)..."
-  if docker compose -f "${COMPOSE_FILE}" exec -T web wget --no-verbose --tries=1 --spider http://localhost:3000/api/health 2>/dev/null; then
+for i in $(seq 1 40); do
+  if docker compose -f "${COMPOSE_FILE}" exec -T web \
+    wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health 2>/dev/null; then
     HEALTHY=1
     break
   fi
-  sleep 2
+  echo "  Attente de /api/health (${i}/40)..."
+  sleep 3
 done
-
 if [ "${HEALTHY}" -eq 0 ]; then
-  echo "ERREUR : Le conteneur Web ne répond pas sur /api/health après 60 secondes !" >&2
+  echo "ERREUR: /api/health n'a pas répondu, bascule annulée. L'ancien conteneur reste à inspecter." >&2
+  docker compose -f "${COMPOSE_FILE}" logs --tail=80 web >&2
   exit 1
 fi
-echo "✓ Conteneur Web sain et opérationnel."
 
-# 5. Mise à jour du Worker d'arrière-plan et rechargement Caddy
-echo "→ [5/5] Mise à jour du Worker et rechargement Caddy..."
-docker compose -f "${COMPOSE_FILE}" up -d --no-deps worker
-
-# Recharger Caddy pour prendre en compte toute modification de config sans couper les connexions
-if docker compose -f "${COMPOSE_FILE}" ps caddy | grep -q "Up"; then
-  docker compose -f "${COMPOSE_FILE}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile || true
+echo "→ [6/6] Worker + Caddy..."
+docker compose -f "${COMPOSE_FILE}" up -d --no-deps --wait worker
+docker compose -f "${COMPOSE_FILE}" run --rm minio-init
+if docker compose -f "${COMPOSE_FILE}" ps caddy --status running >/dev/null 2>&1; then
+  docker compose -f "${COMPOSE_FILE}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 else
   docker compose -f "${COMPOSE_FILE}" up -d caddy
 fi
 
-echo "=== Déploiement terminé avec succès ! ==="
+echo "=== Déploiement ${ATELIEROS_VERSION} terminé ==="

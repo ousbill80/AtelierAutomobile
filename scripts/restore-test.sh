@@ -1,74 +1,87 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# scripts/restore-test.sh — Test automatisé de restauration de sauvegarde (Étape 7.2)
-# Vérifie l'intégrité, déchiffre et valide le dump PostgreSQL sans impacter la prod
-# ==============================================================================
+# Étape 7.2 — déchiffre la dernière sauvegarde et la restaure dans une base éphémère.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Charger l'environnement si présent
 if [ -f "${ROOT_DIR}/.env" ]; then
+  set -a
   # shellcheck disable=SC1091
   source "${ROOT_DIR}/.env"
+  set +a
 fi
 
 BACKUP_DIR="${BACKUP_DIR:-${ROOT_DIR}/backups}"
 KEY="${BACKUP_ENCRYPTION_KEY:-${ENCRYPTION_KEY:-}}"
-
-# Fichier à tester : premier argument ou le plus récent dans le dossier backups
-TARGET_FILE="${1:-$(find "${BACKUP_DIR}" -name "atelieros_db_*.sql.gz.enc" | sort | tail -n 1)}"
+COMPOSE_FILE="${ROOT_DIR}/docker/docker-compose.prod.yml"
+PG_USER="${POSTGRES_USER:-atelieros}"
+TARGET_FILE="${1:-$(find "${BACKUP_DIR}" -name "atelieros_db_*.dump.enc" | sort | tail -n 1)}"
+TEST_DB="atelieros_restore_test_$$"
 
 if [ -z "${TARGET_FILE}" ] || [ ! -f "${TARGET_FILE}" ]; then
-  echo "ERREUR: Aucune sauvegarde chiffrée trouvée dans ${BACKUP_DIR}." >&2
+  echo "ERREUR: aucune sauvegarde chiffrée dans ${BACKUP_DIR}." >&2
   exit 1
 fi
-
 if [ -z "${KEY}" ]; then
-  echo "ERREUR: BACKUP_ENCRYPTION_KEY ou ENCRYPTION_KEY requise pour déchiffrer." >&2
+  echo "ERREUR: BACKUP_ENCRYPTION_KEY ou ENCRYPTION_KEY requise." >&2
   exit 1
 fi
 
-echo "=== Test de restauration pour : ${TARGET_FILE} ==="
+echo "=== Test de restauration : ${TARGET_FILE} ==="
 
-# 1. Vérification du checksum sha256 si disponible
 if [ -f "${TARGET_FILE}.sha256" ]; then
-  echo "→ [1/3] Vérification de l'empreinte sha256..."
+  echo "→ [1/4] Empreinte SHA-256..."
   (cd "$(dirname "${TARGET_FILE}")" && sha256sum -c "$(basename "${TARGET_FILE}.sha256")")
 else
-  echo "→ [1/3] Pas de fichier .sha256, passage à l'étape suivante."
+  echo "→ [1/4] Pas de fichier .sha256, étape ignorée."
 fi
 
-# 2. Déchiffrement vers un fichier temporaire sécurisé
-TMP_DUMP="$(mktemp /tmp/atelieros_restore_XXXXXX.sql.gz)"
-trap 'rm -f "${TMP_DUMP}"' EXIT
+TMP_DUMP="$(mktemp /tmp/atelieros_restore_XXXXXX.dump)"
+cleanup() {
+  rm -f "${TMP_DUMP}"
+  if [ -f "${COMPOSE_FILE}" ] && command -v docker >/dev/null 2>&1; then
+    docker compose -f "${COMPOSE_FILE}" exec -T postgres \
+      psql -U "${PG_USER}" -d postgres -c "DROP DATABASE IF EXISTS ${TEST_DB};" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
 
-echo "→ [2/3] Déchiffrement AES-256-CBC..."
+echo "→ [2/4] Déchiffrement..."
 openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
   -in "${TARGET_FILE}" \
   -out "${TMP_DUMP}" \
   -pass "pass:${KEY}"
 
-# 3. Validation de l'archive PostgreSQL avec pg_restore -l
-echo "→ [3/3] Validation de la structure de l'archive PostgreSQL (pg_restore --list)..."
-TABLE_COUNT=0
+echo "→ [3/4] Catalogue de l'archive..."
 if command -v pg_restore >/dev/null 2>&1; then
   TABLE_COUNT="$(pg_restore -l "${TMP_DUMP}" | grep -c "TABLE DATA" || true)"
 elif command -v docker >/dev/null 2>&1; then
-  # Utiliser un conteneur postgres temporaire si l'outil local n'est pas installé
-  TABLE_COUNT="$(docker run --rm -v "${TMP_DUMP}:/dump.sql.gz:ro" postgres:16-alpine pg_restore -l /dump.sql.gz | grep -c "TABLE DATA" || true)"
+  TABLE_COUNT="$(docker run --rm -v "${TMP_DUMP}:/dump.dump:ro" postgres:16-alpine \
+    pg_restore -l /dump.dump | grep -c "TABLE DATA" || true)"
 else
-  echo "AVERTISSEMENT: pg_restore ou docker non trouvé, test du format binaire uniquement."
-  # Test de compression
-  gzip -t "${TMP_DUMP}"
-  TABLE_COUNT=1
-fi
-
-if [ "${TABLE_COUNT}" -gt 0 ]; then
-  echo "✓ Test de restauration RÉUSSI : ${TABLE_COUNT} tables de données détectées et intègres."
-  exit 0
-else
-  echo "ERREUR: Aucune table valide détectée dans la sauvegarde !" >&2
+  echo "ERREUR: pg_restore ou docker requis." >&2
   exit 1
 fi
+
+if [ "${TABLE_COUNT}" -eq 0 ]; then
+  echo "ERREUR: aucune table dans l'archive." >&2
+  exit 1
+fi
+echo "  ${TABLE_COUNT} tables de données."
+
+echo "→ [4/4] Restauration dans la base éphémère ${TEST_DB}..."
+if [ ! -f "${COMPOSE_FILE}" ]; then
+  echo "Avertissement: compose de production absent, validation catalogue seulement."
+  echo "✓ Test de restauration RÉUSSI (catalogue)."
+  exit 0
+fi
+
+docker compose -f "${COMPOSE_FILE}" exec -T postgres \
+  psql -U "${PG_USER}" -d postgres -c "DROP DATABASE IF EXISTS ${TEST_DB};"
+docker compose -f "${COMPOSE_FILE}" exec -T postgres \
+  psql -U "${PG_USER}" -d postgres -c "CREATE DATABASE ${TEST_DB};"
+docker compose -f "${COMPOSE_FILE}" exec -T postgres \
+  pg_restore -U "${PG_USER}" -d "${TEST_DB}" --no-owner --no-acl < "${TMP_DUMP}"
+
+echo "✓ Test de restauration RÉUSSI : ${TABLE_COUNT} tables, base ${TEST_DB} puis détruite."

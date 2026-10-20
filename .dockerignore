@@ -1,0 +1,11 @@
+.git
+.claude
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+apps/web/.next
+apps/web/.data
+apps/worker/dist
+backups
+**/*.log

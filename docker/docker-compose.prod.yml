@@ -1,8 +1,6 @@
-# ==============================================================================
-# docker-compose.prod.yml — AtelierOS Déploiement VPS Production
-# Caddy (HTTPS auto) + Next.js (web) + BullMQ (worker) + Postgres + Redis + MinIO
-# ==============================================================================
-
+# Étape 7.2 — stack de production. Seul Caddy expose 80/443.
+# Les URL internes (postgres, redis, minio) sont imposées ici pour ne pas
+# hériter des localhost du .env de développement.
 name: atelieros-prod
 
 services:
@@ -12,13 +10,13 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp" # Support HTTP/3
+      - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
-      - APP_DOMAIN=${APP_DOMAIN:-localhost}
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
     depends_on:
       web:
         condition: service_healthy
@@ -33,13 +31,30 @@ services:
     env_file:
       - ../.env
     environment:
-      - NODE_ENV=production
-      - PORT=3000
+      NODE_ENV: production
+      APP_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      ATELIEROS_VERSION: ${ATELIEROS_VERSION:-dev}
+      APP_URL: ${APP_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atelieros}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-atelieros}?schema=public
+      DATABASE_APP_URL: postgresql://atelieros_app:${POSTGRES_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-atelieros}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - atelieros-network
 
@@ -51,28 +66,59 @@ services:
     env_file:
       - ../.env
     environment:
-      - NODE_ENV=production
-      - WORKER_HEALTH_PORT=3001
+      NODE_ENV: production
+      APP_ENV: production
+      WORKER_HEALTH_PORT: "3001"
+      ATELIEROS_VERSION: ${ATELIEROS_VERSION:-dev}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atelieros}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-atelieros}?schema=public
+      DATABASE_APP_URL: postgresql://atelieros_app:${POSTGRES_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-atelieros}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - atelieros-network
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.migrate
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atelieros}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-atelieros}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
     networks:
       - atelieros-network
 
   postgres:
     image: postgres:16-alpine
+    container_name: atelieros-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-atelieros}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atelieros_prod_secret}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
       POSTGRES_DB: ${POSTGRES_DB:-atelieros}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - backups_data:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atelieros}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atelieros} -d ${POSTGRES_DB:-atelieros}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,28 +127,51 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: atelieros-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD requis}"]
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - atelieros-network
 
-  # Stockage objet local (utilisé si S3_DRIVER=s3 local ou MinIO sur VPS)
   minio:
     image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
+    container_name: atelieros-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-atelieros}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-atelieros_minio_secret}
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?S3_ACCESS_KEY requis}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?S3_SECRET_KEY requis}
     volumes:
       - minio_data:/data
+    networks:
+      - atelieros-network
+
+  minio-init:
+    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+    depends_on:
+      - minio
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        for i in $$(seq 1 30); do
+          mc alias set local http://minio:9000 "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY" && break
+          sleep 2
+        done
+        mc mb --ignore-existing "local/$$S3_BUCKET"
+        echo "bucket $$S3_BUCKET prêt"
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-atelieros-production}
+    restart: "no"
     networks:
       - atelieros-network
 
@@ -116,4 +185,3 @@ volumes:
   minio_data:
   caddy_data:
   caddy_config:
-  backups_data:

@@ -6,36 +6,36 @@
 
 ## 1. Stack retenue et pourquoi
 
-| Couche | Choix | Raison |
-|---|---|---|
-| Langage | **TypeScript** strict partout | Un seul langage front/back/worker, typage de bout en bout, excellent avec les agents IA |
-| Monorepo | **pnpm workspaces + Turborepo** | Partage des types, du domaine et de l'UI entre web et worker |
-| Application web | **Next.js (App Router)** + React Server Components | SSR rapide sur réseau lent, routes API, un seul déploiement |
-| API interne | **tRPC** (front ↔ back) | Typage de bout en bout sans générer de client |
-| API publique | **REST + OpenAPI** (route handlers Next.js, `/api/v1/*`) | Intégration avec le logiciel existant du garage et partenaires |
-| Base de données | **PostgreSQL** | Fiable, transactions, JSONB, recherche plein texte, `pg_trgm` pour la recherche floue de plaques/noms |
-| ORM | **Prisma** | Schéma lisible, migrations, très bien maîtrisé par les agents IA |
-| Validation | **Zod** | Schémas partagés front/back/API |
-| Files de tâches | **BullMQ + Redis** | Relances planifiées, envois, imports, synchronisations, retries |
-| Authentification | **Better Auth** (email/téléphone + mot de passe, OTP SMS/WhatsApp, sessions) | Auto-hébergé, organisations et rôles |
-| UI | **Tailwind CSS + shadcn/ui + Radix**, icônes **Lucide** | Composants accessibles et modifiables |
-| Tableaux | **TanStack Table** | Tri, filtres, sélection, pagination serveur |
-| Formulaires | **React Hook Form + Zod** | |
-| Graphiques | **Recharts** | |
-| Calendrier/planning | **FullCalendar** (vue ressources) ou composant maison sur `@dnd-kit` | Glisser-déposer des RDV sur les ponts |
-| PDF | **@react-pdf/renderer** | Devis, OR, factures, reçus |
-| Fichiers | Stockage **compatible S3** (MinIO en local, Cloudflare R2 ou S3 en prod) | Photos de réception, signatures, pièces jointes |
-| PWA / hors-ligne | **Serwist** (service worker) + **Dexie** (IndexedDB) | Tablette mécanicien hors-ligne |
-| E-mails | **Resend** ou SMTP (Nodemailer) + **React Email** | |
-| WhatsApp | **WhatsApp Cloud API (Meta)** ; mode « lien wa.me » sans API | |
-| SMS | Adaptateurs : **Orange SMS API (CI)**, **Twilio**, fournisseur générique HTTP | Le garage choisit selon prix et couverture |
-| Paiement mobile | Adaptateurs : **CinetPay** (agrégateur Wave/Orange/MTN/Moov/carte), **Wave Business API** en direct | Lien de paiement + webhook |
-| FNE (DGI) | Adaptateur `fne` (API DGI) avec mode « saisie manuelle du n° FNE » en secours | Obligation fiscale |
-| IA | **API Claude (Anthropic)** via un service `ai` interne | Assistant, rédaction, extraction, prédictions |
-| Observabilité | **Sentry** (erreurs), **pino** (logs JSON), **OpenTelemetry** optionnel | |
-| Tests | **Vitest** (unitaires/intégration), **Playwright** (E2E), **Testcontainers** ou base Postgres de test | |
-| Qualité | ESLint, Prettier, `tsc --noEmit`, Husky + lint-staged | |
-| Déploiement | **Docker Compose** sur VPS (web, worker, postgres, redis, minio, caddy) ; alternative Vercel + Neon + Upstash | |
+| Couche              | Choix                                                                                                         | Raison                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Langage             | **TypeScript** strict partout                                                                                 | Un seul langage front/back/worker, typage de bout en bout, excellent avec les agents IA               |
+| Monorepo            | **pnpm workspaces + Turborepo**                                                                               | Partage des types, du domaine et de l'UI entre web et worker                                          |
+| Application web     | **Next.js (App Router)** + React Server Components                                                            | SSR rapide sur réseau lent, routes API, un seul déploiement                                           |
+| API interne         | **tRPC** (front ↔ back)                                                                                       | Typage de bout en bout sans générer de client                                                         |
+| API publique        | **REST + OpenAPI** (route handlers Next.js, `/api/v1/*`)                                                      | Intégration avec le logiciel existant du garage et partenaires                                        |
+| Base de données     | **PostgreSQL**                                                                                                | Fiable, transactions, JSONB, recherche plein texte, `pg_trgm` pour la recherche floue de plaques/noms |
+| ORM                 | **Prisma**                                                                                                    | Schéma lisible, migrations, très bien maîtrisé par les agents IA                                      |
+| Validation          | **Zod**                                                                                                       | Schémas partagés front/back/API                                                                       |
+| Files de tâches     | **BullMQ + Redis**                                                                                            | Relances planifiées, envois, imports, synchronisations, retries                                       |
+| Authentification    | **Better Auth** (email/téléphone + mot de passe, OTP SMS/WhatsApp, sessions)                                  | Auto-hébergé, organisations et rôles                                                                  |
+| UI                  | **Tailwind CSS + shadcn/ui + Radix**, icônes **Lucide**                                                       | Composants accessibles et modifiables                                                                 |
+| Tableaux            | **TanStack Table**                                                                                            | Tri, filtres, sélection, pagination serveur                                                           |
+| Formulaires         | **React Hook Form + Zod**                                                                                     |                                                                                                       |
+| Graphiques          | **Recharts**                                                                                                  |                                                                                                       |
+| Calendrier/planning | **FullCalendar** (vue ressources) ou composant maison sur `@dnd-kit`                                          | Glisser-déposer des RDV sur les ponts                                                                 |
+| PDF                 | **@react-pdf/renderer**                                                                                       | Devis, OR, factures, reçus                                                                            |
+| Fichiers            | Stockage **compatible S3** (MinIO en local, Cloudflare R2 ou S3 en prod)                                      | Photos de réception, signatures, pièces jointes                                                       |
+| PWA / hors-ligne    | **Serwist** (service worker) + **Dexie** (IndexedDB)                                                          | Tablette mécanicien hors-ligne                                                                        |
+| E-mails             | **Resend** ou SMTP (Nodemailer) + **React Email**                                                             |                                                                                                       |
+| WhatsApp            | **WhatsApp Cloud API (Meta)** ; mode « lien wa.me » sans API                                                  |                                                                                                       |
+| SMS                 | Adaptateurs : **Orange SMS API (CI)**, **Twilio**, fournisseur générique HTTP                                 | Le garage choisit selon prix et couverture                                                            |
+| Paiement mobile     | Adaptateurs : **CinetPay** (agrégateur Wave/Orange/MTN/Moov/carte), **Wave Business API** en direct           | Lien de paiement + webhook                                                                            |
+| FNE (DGI)           | Adaptateur `fne` (API DGI) avec mode « saisie manuelle du n° FNE » en secours                                 | Obligation fiscale                                                                                    |
+| IA                  | **API Claude (Anthropic)** via un service `ai` interne                                                        | Assistant, rédaction, extraction, prédictions                                                         |
+| Observabilité       | **Sentry** (erreurs), **pino** (logs JSON), **OpenTelemetry** optionnel                                       |                                                                                                       |
+| Tests               | **Vitest** (unitaires/intégration), **Playwright** (E2E), **Testcontainers** ou base Postgres de test         |                                                                                                       |
+| Qualité             | ESLint, Prettier, `tsc --noEmit`, Husky + lint-staged                                                         |                                                                                                       |
+| Déploiement         | **Docker Compose** sur VPS (web, worker, postgres, redis, minio, caddy) ; alternative Vercel + Neon + Upstash |                                                                                                       |
 
 ## 2. Structure du dépôt
 
@@ -126,34 +126,34 @@ atelieros/
 
 Bus interne simple (table `DomainEvent` + file BullMQ `events`) pour découpler les modules :
 
-| Événement | Émis par | Consommé par |
-|---|---|---|
-| `vehicle.mileage_recorded` | M02, M04 | M10 (recalcul révision), M17 (km moyen) |
-| `vehicle.inspection_updated` | M02, M04 | M10 (VT) |
-| `appointment.created/updated/cancelled` | M03 | M10 (rappel RDV), M11 |
-| `repair_order.status_changed` | M04 | M11 (notif client), M12 |
-| `quote.sent / accepted / declined / expired` | M05 | M10 (relance devis), M04 |
-| `invoice.issued / voided` | M08 | M09, M10 (créances), M08 (FNE) |
-| `payment.received` | M08, webhooks | M09 (stop relances), M11 (reçu) |
-| `message.inbound_received` | M11 | M17 (classement d'intention), M10 (stop si « STOP ») |
-| `stock.below_minimum` | M07 | M12 (alerte), M07 (suggestion de commande) |
+| Événement                                    | Émis par      | Consommé par                                         |
+| -------------------------------------------- | ------------- | ---------------------------------------------------- |
+| `vehicle.mileage_recorded`                   | M02, M04      | M10 (recalcul révision), M17 (km moyen)              |
+| `vehicle.inspection_updated`                 | M02, M04      | M10 (VT)                                             |
+| `appointment.created/updated/cancelled`      | M03           | M10 (rappel RDV), M11                                |
+| `repair_order.status_changed`                | M04           | M11 (notif client), M12                              |
+| `quote.sent / accepted / declined / expired` | M05           | M10 (relance devis), M04                             |
+| `invoice.issued / voided`                    | M08           | M09, M10 (créances), M08 (FNE)                       |
+| `payment.received`                           | M08, webhooks | M09 (stop relances), M11 (reçu)                      |
+| `message.inbound_received`                   | M11           | M17 (classement d'intention), M10 (stop si « STOP ») |
+| `stock.below_minimum`                        | M07           | M12 (alerte), M07 (suggestion de commande)           |
 
 Les consommateurs sont **idempotents** (clé `eventId`).
 
 ## 6. Tâches planifiées (worker)
 
-| Tâche | Fréquence | Rôle |
-|---|---|---|
-| `reminders.plan` | toutes les heures | Calcule les relances dues (M10) pour chaque organisation selon son fuseau |
-| `reminders.dispatch` | toutes les 5 min | Envoie les relances validées/automatiques dans la plage horaire autorisée |
-| `receivables.age` | tous les jours 01:00 | Met à jour statuts « en retard », ancienneté, scores |
-| `vehicles.estimate_mileage` | tous les jours 02:00 | Kilométrage estimé du jour, prochaine révision |
-| `imports.watch` | toutes les 15 min | Dossier surveillé / synchro base externe (M13) |
-| `fne.retry` | toutes les 10 min | Re-soumet les factures non certifiées |
-| `payments.reconcile` | toutes les 30 min | Vérifie les liens de paiement en attente |
-| `digest.owner` | tous les jours 07:30 | Résumé quotidien du gérant (WhatsApp/email) |
-| `stock.reorder_suggestions` | tous les jours 03:00 | Suggestions de réapprovisionnement |
-| `backups.verify` | hebdomadaire | Contrôle d'une restauration |
+| Tâche                       | Fréquence            | Rôle                                                                      |
+| --------------------------- | -------------------- | ------------------------------------------------------------------------- |
+| `reminders.plan`            | toutes les heures    | Calcule les relances dues (M10) pour chaque organisation selon son fuseau |
+| `reminders.dispatch`        | toutes les 5 min     | Envoie les relances validées/automatiques dans la plage horaire autorisée |
+| `receivables.age`           | tous les jours 01:00 | Met à jour statuts « en retard », ancienneté, scores                      |
+| `vehicles.estimate_mileage` | tous les jours 02:00 | Kilométrage estimé du jour, prochaine révision                            |
+| `imports.watch`             | toutes les 15 min    | Dossier surveillé / synchro base externe (M13)                            |
+| `fne.retry`                 | toutes les 10 min    | Re-soumet les factures non certifiées                                     |
+| `payments.reconcile`        | toutes les 30 min    | Vérifie les liens de paiement en attente                                  |
+| `digest.owner`              | tous les jours 07:30 | Résumé quotidien du gérant (WhatsApp/email)                               |
+| `stock.reorder_suggestions` | tous les jours 03:00 | Suggestions de réapprovisionnement                                        |
+| `backups.verify`            | hebdomadaire         | Contrôle d'une restauration                                               |
 
 Toutes les tâches : **verrou par organisation**, retries avec backoff exponentiel, journalisées, rejouables.
 
@@ -190,6 +190,12 @@ APP_URL=
 ENCRYPTION_KEY=            # 32 octets base64
 AUTH_SECRET=
 S3_ENDPOINT= S3_BUCKET= S3_ACCESS_KEY= S3_SECRET_KEY=
+S3_PUBLIC_ENDPOINT=       # URL vue du navigateur (prod : https://domaine/storage)
+S3_REGION=                # vide = us-east-1
+POSTGRES_APP_PASSWORD=    # rôle atelieros_app (sans BYPASSRLS)
+REDIS_PASSWORD=           # production uniquement
+BACKUP_ENCRYPTION_KEY=    # sauvegardes AES-256, distincte de ENCRYPTION_KEY
+ATELIEROS_VERSION=        # tag d'image / SHA, renvoyé par /api/health
 ANTHROPIC_API_KEY=
 SENTRY_DSN=
 DEFAULT_TIMEZONE=Africa/Abidjan

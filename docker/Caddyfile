@@ -1,13 +1,7 @@
-# ==============================================================================
-# Caddyfile — AtelierOS
-# Reverse proxy HTTPS automatique, compression et durcissement des en-têtes
-# ==============================================================================
-
+# Étape 7.2 — reverse proxy HTTPS automatique + en-têtes + stockage public.
 {$APP_DOMAIN:localhost} {
-    # Encodage et compression des réponses
     encode zstd gzip
 
-    # En-têtes de sécurité recommandés (01 §8 et RGPD / bonnes pratiques)
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
@@ -17,22 +11,25 @@
         -Server
     }
 
-    # Journalisation d'accès au format JSON pour supervision
     log {
         output stdout
         format json
     }
 
-    # Reverse proxy vers l'application Next.js
-    reverse_proxy web:3000 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+    # URL signées S3_PUBLIC_ENDPOINT=https://<domaine>/storage (path-style MinIO).
+    handle_path /storage/* {
+        reverse_proxy minio:9000
+    }
 
-        # Détection active des pannes
-        health_uri /api/health
-        health_interval 15s
-        health_timeout 5s
+    handle {
+        reverse_proxy web:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            health_uri /api/health
+            health_interval 15s
+            health_timeout 5s
+        }
     }
 }
