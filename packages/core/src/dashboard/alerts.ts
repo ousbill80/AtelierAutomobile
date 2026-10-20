@@ -1,7 +1,8 @@
-// RG-M12-27 — alertes système calculées (partie 1, étape 2.4) : channel_error,
-// sms_balance_low, import_stale, receivable_45d, promise_broken. Chaque alerte est
-// dédoublonnée par objet et par jour (`alert.<code>:<objectId>:<yyyy-MM-dd>`).
-// RG-M12-28 — tri du bloc Alertes.
+// RG-M12-27 — alertes système calculées par `alerts.scan` : channel_error, sms_balance_low,
+// import_stale, receivable_45d, promise_broken (étape 2.4), credit_limit, discount_high,
+// stock_below_min (étape 6.1). Chaque alerte est dédoublonnée par objet et par jour
+// (`alert.<code>:<objectId>:<yyyy-MM-dd>`). Les 4 autres codes sont déjà notifiés par leur
+// module à l'événement (voir ALERT_NOTIFICATION_TYPES). RG-M12-28 — tri du bloc Alertes.
 import { daysOverdue } from "../receivables/aging";
 import { asOfDate } from "./receivables";
 
@@ -11,8 +12,22 @@ export const ALERT_CODES = [
   "import_stale",
   "receivable_45d",
   "promise_broken",
+  "credit_limit",
+  "discount_high",
+  "stock_below_min",
 ] as const;
 export type AlertCode = (typeof ALERT_CODES)[number];
+
+/**
+ * RG-M12-27 — alertes déjà émises par leur module au moment de l'événement (M04, M08) : le bloc
+ * Alertes et le résumé quotidien les lisent sous leur type d'origine, sans doublon.
+ */
+export const ALERT_NOTIFICATION_TYPES = {
+  "cash.variance": "cash_difference",
+  "repair_order.late": "ro_late",
+  "repair_order.not_collected": "ro_ready_not_delivered",
+  "invoice.fne_uncertified": "fne_failed",
+} as const;
 export type AlertSeverity = "info" | "warning" | "critical";
 
 export const DEFAULT_ALERT_THRESHOLDS = {
@@ -23,6 +38,8 @@ export const DEFAULT_ALERT_THRESHOLDS = {
   importStaleDays: 3,
   agentOfflineHours: 24,
   receivableDays: 45,
+  /** `settings.discounts.maxRateWithoutApproval` (M08), défaut 15 %. */
+  maxDiscountRate: 15,
 } as const;
 export type AlertThresholds = { [K in keyof typeof DEFAULT_ALERT_THRESHOLDS]: number };
 
@@ -69,10 +86,33 @@ export interface AlertScanInput {
   brokenPromises: readonly { id: string; amount: number; customerName: string }[];
   /** M13 (US-M13-07) : agents locaux ; hors ligne depuis > 24 h → `import_stale`. */
   agents?: readonly { id: string; name: string; status: string; lastSeenAt: Date | null }[];
+  /** Clients dont l'encours dépasse `Customer.creditLimit`. */
+  creditLimits?: readonly {
+    customerId: string;
+    customerName: string;
+    outstanding: number;
+    creditLimit: number | null;
+  }[];
+  /** Factures émises récemment avec leur plus forte remise de ligne (%). */
+  discountedInvoices?: readonly {
+    id: string;
+    number: string | null;
+    customerName: string;
+    maxDiscountRate: number;
+  }[];
+  /** Événements `stock.below_minimum` du jour (M07). */
+  stockBelowMinimum?: readonly {
+    productId: string;
+    siteId: string;
+    productName: string;
+    available: number;
+  }[];
   thresholds?: Partial<AlertThresholds>;
 }
 
 const OWNER = ["OWNER"] as const;
+const OWNER_ACCOUNTANT = ["OWNER", "ACCOUNTANT"] as const;
+const STOREKEEPER = ["STOREKEEPER"] as const;
 
 function candidate(
   code: AlertCode,
@@ -81,6 +121,7 @@ function candidate(
   today: string,
   params: AlertCandidate["params"],
   link: string,
+  roles: readonly string[] = OWNER,
 ): AlertCandidate {
   return {
     code,
@@ -89,7 +130,7 @@ function candidate(
     dedupeKey: `alert.${code}:${objectId}:${today}`,
     params,
     link,
-    roles: OWNER,
+    roles,
   };
 }
 
@@ -205,6 +246,52 @@ export function evaluateAlerts(input: AlertScanInput): AlertCandidate[] {
         input.today,
         { customer: promise.customerName, amount: promise.amount },
         "/creances",
+      ),
+    );
+  }
+  for (const c of input.creditLimits ?? []) {
+    if (c.creditLimit === null || c.creditLimit <= 0 || c.outstanding <= c.creditLimit) continue;
+    alerts.push(
+      candidate(
+        "credit_limit",
+        "warning",
+        c.customerId,
+        input.today,
+        { customer: c.customerName, outstanding: c.outstanding, creditLimit: c.creditLimit },
+        `/clients/${c.customerId}`,
+        OWNER_ACCOUNTANT,
+      ),
+    );
+  }
+
+  for (const invoice of input.discountedInvoices ?? []) {
+    if (invoice.maxDiscountRate <= t.maxDiscountRate) continue;
+    alerts.push(
+      candidate(
+        "discount_high",
+        "info",
+        invoice.id,
+        input.today,
+        {
+          number: invoice.number ?? "",
+          customer: invoice.customerName,
+          rate: invoice.maxDiscountRate,
+        },
+        `/factures/${invoice.id}`,
+      ),
+    );
+  }
+
+  for (const item of input.stockBelowMinimum ?? []) {
+    alerts.push(
+      candidate(
+        "stock_below_min",
+        "warning",
+        `${item.productId}:${item.siteId}`,
+        input.today,
+        { product: item.productName, available: item.available },
+        `/stock/${item.productId}`,
+        STOREKEEPER,
       ),
     );
   }

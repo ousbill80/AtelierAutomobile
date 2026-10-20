@@ -81,6 +81,15 @@ export const PERMISSIONS = [
   "time:clock",
   "time:edit",
   "attendance:manage",
+  // M06 §10 (A5) : kanban/ponts, CQ sur son propre travail, demandes de pièces, sous-traitance,
+  // productivité. Les autres actions M06 réutilisent : workshop:move → repair_order:update,
+  // workshop:assign → repair_order:assign, timeentry:own → time:clock, timeentry:others et
+  // timeentry:edit → time:edit, workshop:qc → repair_order:qc.
+  "workshop:view",
+  "workshop:qc_self",
+  "partrequest:create",
+  "workshop:subcontract",
+  "workshop:productivity",
   // Stock (M07)
   "stock:read",
   "stock:issue",
@@ -93,6 +102,11 @@ export const PERMISSIONS = [
   "purchase:create",
   "purchase:approve",
   "supplier:manage",
+  // M07 (A5) : réserver (conseiller), compter / valider un inventaire, valorisation.
+  "stock:reserve",
+  "stock:count",
+  "stock:count_validate",
+  "stock:valuation",
   // Facturation (M08)
   "invoice:read",
   "invoice:create",
@@ -106,6 +120,13 @@ export const PERMISSIONS = [
   "cash:operate",
   "cash:close",
   "cash:expense",
+  // M08 §10 (A5) : échéance, FNE, annulation de paiement, validation d'écart et de dépense, exports.
+  "invoice:edit_due",
+  "fne:manage",
+  "payment:void",
+  "cash:review",
+  "cash:expense_approve",
+  "accounting:export",
   // Créances (M09)
   "receivable:read",
   "receivable:manage",
@@ -134,6 +155,13 @@ export const PERMISSIONS = [
   // Assurances (M16)
   "insurance:read",
   "insurance:manage",
+  // M16 §10 (A5) : `insurance:read` = claim:view, `insurance:manage` = claim:edit.
+  "claim:approve_record",
+  "claim:absorb_gap",
+  "claim:invoice",
+  "claim:followup",
+  "claim:release_unpaid",
+  "insurer:edit",
   // IA (M17)
   "ai:use",
   "ai:configure",
@@ -199,6 +227,10 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["task:read_all", ["MANAGER"]],
   ["time:edit", ["MANAGER"]],
   ["attendance:manage", ["MANAGER"]],
+  ["workshop:view", ["MANAGER", "ADVISOR", "STOREKEEPER"]],
+  ["partrequest:create", ["MANAGER", "ADVISOR", "MECHANIC"]],
+  ["workshop:subcontract", ["MANAGER"]],
+  ["workshop:productivity", ["MANAGER"]],
   ["stock:read", ["MANAGER", "ADVISOR", "MECHANIC", "STOREKEEPER", "ACCOUNTANT"]],
   ["stock:issue", ["MANAGER", "STOREKEEPER"]],
   ["stock:receive", ["MANAGER", "STOREKEEPER"]],
@@ -210,6 +242,10 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["purchase:approve", ["MANAGER"]],
   ["product:manage", ["MANAGER", "STOREKEEPER"]],
   ["product:view_cost", ["MANAGER", "STOREKEEPER", "ACCOUNTANT"]],
+  ["stock:reserve", ["MANAGER", "ADVISOR", "STOREKEEPER"]],
+  ["stock:count", ["MANAGER", "STOREKEEPER"]],
+  ["stock:count_validate", ["MANAGER"]],
+  ["stock:valuation", ["MANAGER", "ACCOUNTANT"]],
   ["invoice:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["payment:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["invoice:create", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
@@ -219,6 +255,11 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["cash:operate", ["MANAGER", "CASHIER"]],
   ["cash:close", ["MANAGER", "CASHIER"]],
   ["cash:expense", ["MANAGER", "CASHIER"]],
+  ["invoice:edit_due", ["ACCOUNTANT"]],
+  ["fne:manage", ["ACCOUNTANT"]],
+  ["payment:void", ["ACCOUNTANT"]],
+  ["cash:expense_approve", ["MANAGER"]],
+  ["accounting:export", ["ACCOUNTANT"]],
   ["receivable:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["receivable:manage", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["receivable:dispute", ["MANAGER", "ACCOUNTANT"]],
@@ -237,14 +278,20 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["report:read", ["MANAGER", "ACCOUNTANT"]],
   ["report:financial", ["ACCOUNTANT"]],
   ["import:run", ["MANAGER", "ACCOUNTANT"]],
-  ["insurance:read", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
+  // M16 §10 : le caissier lit les parts (franchise à encaisser).
+  ["insurance:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["insurance:manage", ["MANAGER", "ADVISOR"]],
+  ["claim:approve_record", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
+  ["claim:invoice", ["ADVISOR", "ACCOUNTANT"]],
+  ["claim:followup", ["ACCOUNTANT"]],
+  ["insurer:edit", ["ACCOUNTANT"]],
   ["ai:use", ["MANAGER", "ADVISOR", "MECHANIC", "STOREKEEPER", "CASHIER", "ACCOUNTANT"]],
   // Permissions sans octroi par défaut à aucun rôle non-OWNER (restent ci-dessous pour
   // mémoire, utile pour vérifier l'exhaustivité du catalogue dans les tests) :
   // org:update, site:manage, member:deactivate, role:manage, settings:update,
   // settings:channels, settings:payments, settings:fne, settings:billing,
   // repair_order:deliver_unpaid, invoice:void, invoice:price_below_min, payment:refund,
+  // cash:review, claim:absorb_gap, claim:release_unpaid, workshop:qc_self,
   // receivable:writeoff, receivable:formal_notice, dashboard:owner, integration:manage,
   // ai:configure.
 ];

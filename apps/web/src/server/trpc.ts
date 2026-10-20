@@ -1,9 +1,24 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import type { Permission } from "@atelieros/core";
+import { isDomainError, type Permission } from "@atelieros/core";
 import type { Ctx, CtxMembership, CtxSession, CtxUser } from "./context";
 
-const t = initTRPC.context<Ctx>().create({ transformer: superjson });
+const t = initTRPC.context<Ctx>().create({
+  transformer: superjson,
+  // Code métier (`DomainError.code`) exposé au client quand une procédure lève une erreur
+  // dont la cause est une DomainError — ex. M03 : SLOT_CONFLICT, DUPLICATE_SAME_DAY (forçables).
+  errorFormatter({ shape, error }) {
+    const cause = error.cause;
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        domainCode: isDomainError(cause) ? cause.code : null,
+        domainDetails: isDomainError(cause) ? (cause.details ?? null) : null,
+      },
+    };
+  },
+});
 
 export const router = t.router;
 export const middleware = t.middleware;

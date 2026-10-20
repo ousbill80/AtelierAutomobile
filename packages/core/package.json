@@ -13,7 +13,16 @@
     "./src/plate": "./src/plate.ts",
     "./src/auth/password-policy": "./src/auth/password-policy.ts",
     "./money": "./src/money/index.ts",
-    "./repairOrders": "./src/repairOrders/index.ts"
+    "./inventory": "./src/inventory/index.ts",
+    "./planning": "./src/planning/index.ts",
+    "./repairOrders": "./src/repairOrders/index.ts",
+    "./quotes": "./src/quotes/index.ts",
+    "./billing": "./src/billing/index.ts",
+    "./workshop": "./src/workshop/index.ts",
+    "./reports": "./src/reports/index.ts",
+    "./claims": "./src/claims/index.ts",
+    "./ai": "./src/ai/index.ts",
+    "./automations": "./src/automations/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

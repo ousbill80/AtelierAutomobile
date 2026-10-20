@@ -44,6 +44,47 @@ const NAV = [
     label: "nav.settingsInspection",
     permission: "inspection:template_manage",
   },
+  // M05 — devis et catalogue de main-d'œuvre.
+  {
+    key: "devis",
+    href: "/parametres/devis",
+    label: "nav.settingsQuotes",
+    permission: "settings:update",
+  },
+  {
+    key: "catalogue-mo",
+    href: "/parametres/catalogue-mo",
+    label: "nav.settingsLaborCatalog",
+    permission: "labor_catalog:manage",
+  },
+  // M08 / M15 RG-M15-18 — facture normalisée électronique.
+  {
+    key: "fne",
+    href: "/parametres/fne",
+    label: "nav.settingsFne",
+    permission: "settings:fne",
+  },
+  // M15 RG-M15-17 — fournisseurs de liens de paiement et numéros marchands.
+  {
+    key: "paiements",
+    href: "/parametres/paiements",
+    label: "nav.settingsPayments",
+    permission: "settings:payments",
+  },
+  // M17 RG-M17-10 — fonctions IA, consommation et journal.
+  {
+    key: "ia",
+    href: "/parametres/ia",
+    label: "nav.settingsAi",
+    permission: "ai:configure",
+  },
+  // M17 RG-M17-23 — automatisations « si… alors… » (ai:configure + reminder:rules_manage).
+  {
+    key: "automatisations",
+    href: "/parametres/automatisations",
+    label: "automations.nav",
+    permission: "ai:configure",
+  },
 ] as const;
 
 export default function ParametresLayout({ children }: { children: ReactNode }) {

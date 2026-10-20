@@ -10,7 +10,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [pg_trgm]
+  extensions = [pg_trgm, btree_gist]
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -59,6 +59,10 @@ model Organization {
   vehicleRecommendations VehicleRecommendation[] // M04 §14
   timeEntries            TimeEntry[]
   attendances            Attendance[]
+  qualityChecks          QualityCheck[] // M06 §14
+  partRequests           PartRequest[] // M06 §14
+  workNotes              WorkNote[] // M06 §14
+  techSyncOperations     TechSyncOperation[] // M06 (hors §14)
   quotes                 Quote[]
   quoteLines             QuoteLine[]
   products               Product[]
@@ -67,6 +71,11 @@ model Organization {
   suppliers              Supplier[]
   purchaseOrders         PurchaseOrder[]
   purchaseOrderLines     PurchaseOrderLine[]
+  stockReservations      StockReservation[]
+  stockCounts            StockCount[]
+  stockCountLines        StockCountLine[]
+  stockTransfers         StockTransfer[]
+  stockTransferLines     StockTransferLine[]
   invoices               Invoice[]
   invoiceLines           InvoiceLine[]
   payments               Payment[]
@@ -74,6 +83,10 @@ model Organization {
   paymentLinks           PaymentLink[]
   cashSessions           CashSession[]
   expenses               Expense[]
+  cashDrops              CashDrop[]
+  refunds                Refund[]
+  customerCredits        CustomerCredit[]
+  paymentWebhookLogs     PaymentWebhookLog[]
   collectionCases        CollectionCase[]
   paymentPromises        PaymentPromise[]
   collectionNotes        CollectionNote[]
@@ -103,14 +116,22 @@ model Organization {
   webhookEndpoints       WebhookEndpoint[]
   insuranceCompanies     InsuranceCompany[]
   insuranceClaims        InsuranceClaim[]
+  claimActivities        ClaimActivity[]
+  claimFollowUps         ClaimFollowUp[]
   attachments            Attachment[]
   documentSequences      DocumentSequence[]
   auditLogs              AuditLog[]
   domainEvents           DomainEvent[]
   notifications          Notification[]
   aiInteractions         AiInteraction[]
+  aiSuggestions          AiSuggestion[]
+  aiAssistantThreads     AiAssistantThread[]
+  aiAssistantMessages    AiAssistantMessage[]
+  automationRules        AutomationRule[]
+  automationRuns         AutomationRun[]
   holidays               Holiday[]
   portalTokens           PortalToken[]
+  resourceBlocks         ResourceBlock[]
   invitations            Invitation[]
   rolePermissions        RolePermission[]
   trustedDevices         TrustedDevice[]
@@ -153,19 +174,29 @@ model Site {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  bays           Bay[]
-  appointments   Appointment[]
-  repairOrders   RepairOrder[]
-  quotes         Quote[]
-  stockLevels    StockLevel[]
-  stockMovements StockMovement[]
-  purchaseOrders PurchaseOrder[]
-  invoices       Invoice[]
-  payments       Payment[]
-  cashSessions   CashSession[]
-  expenses       Expense[]
-  holidays       Holiday[]
+  organization      Organization       @relation(fields: [organizationId], references: [id])
+  bays              Bay[]
+  appointments      Appointment[]
+  repairOrders      RepairOrder[]
+  quotes            Quote[]
+  stockLevels       StockLevel[]
+  stockMovements    StockMovement[]
+  purchaseOrders    PurchaseOrder[]
+  stockReservations StockReservation[]
+  stockCounts       StockCount[]
+  transfersOut      StockTransfer[]    @relation("StockTransferFrom")
+  transfersIn       StockTransfer[]    @relation("StockTransferTo")
+  invoices          Invoice[]
+  payments          Payment[]
+  cashSessions      CashSession[]
+  expenses          Expense[]
+  cashDrops         CashDrop[] // M08 §14
+  refunds           Refund[] // M08 §14
+  insuranceClaims   InsuranceClaim[] // M16 §14
+  holidays          Holiday[]
+  resourceBlocks    ResourceBlock[]
+  attendances       Attendance[] // M06 §14
+  partRequests      PartRequest[] // M06 §14
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -179,12 +210,16 @@ model Bay {
   name           String // "Pont 1", "Carrosserie", "Diagnostic"
   type           BayType  @default(LIFT)
   isActive       Boolean  @default(true)
+  // M03 §14
+  sortOrder      Int      @default(0) // ordre des colonnes du planning
+  color          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  repairOrders RepairOrder[]
+  site           Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  repairOrders   RepairOrder[]
+  resourceBlocks ResourceBlock[]
 
   @@index([organizationId, siteId])
 }
@@ -249,6 +284,10 @@ model Membership {
   mileageReadingsCreated      MileageReading[]      @relation("MileageReadingCreatedBy")
   vehicleEventsCreated        VehicleEvent[]        @relation("VehicleEventCreatedBy")
   appointmentsAsAdvisor       Appointment[]         @relation("AppointmentAdvisor")
+  appointmentsAsMechanic      Appointment[]         @relation("AppointmentMechanic")
+  appointmentsCreated         Appointment[]         @relation("AppointmentCreatedBy")
+  resourceBlocksFor           ResourceBlock[]       @relation("ResourceBlockMembership")
+  resourceBlocksCreated       ResourceBlock[]       @relation("ResourceBlockCreatedBy")
   repairOrdersAsAdvisor       RepairOrder[]         @relation("RepairOrderAdvisor")
   repairOrdersAsQc            RepairOrder[]         @relation("RepairOrderQc")
   repairOrderLinesAssigned    RepairOrderLine[]     @relation("RepairOrderLineAssignee")
@@ -257,10 +296,19 @@ model Membership {
   attendances                 Attendance[]
   quotesCreated               Quote[]               @relation("QuoteCreatedBy")
   stockMovementsCreated       StockMovement[]       @relation("StockMovementCreatedBy")
+  stockReservationsCreated    StockReservation[]    @relation("StockReservationCreatedBy")
+  stockCountsValidated        StockCount[]          @relation("StockCountValidatedBy")
+  stockCountsCreated          StockCount[]          @relation("StockCountCreatedBy")
+  stockCountLinesCounted      StockCountLine[]      @relation("StockCountLineCountedBy")
+  stockTransfersCreated       StockTransfer[]       @relation("StockTransferCreatedBy")
   paymentsReceived            Payment[]             @relation("PaymentReceivedBy")
   cashSessionsOpened          CashSession[]         @relation("CashSessionOpenedBy")
   cashSessionsClosed          CashSession[]         @relation("CashSessionClosedBy")
   expensesCreated             Expense[]             @relation("ExpenseCreatedBy")
+  expensesApproved            Expense[]             @relation("ExpenseApprovedBy")
+  cashSessionsReviewed        CashSession[]         @relation("CashSessionReviewedBy")
+  cashDropsCreated            CashDrop[]            @relation("CashDropCreatedBy")
+  refundsCreated              Refund[]              @relation("RefundCreatedBy")
   collectionCasesAssigned     CollectionCase[]      @relation("CollectionCaseAssignee")
   paymentPromisesCreated      PaymentPromise[]      @relation("PaymentPromiseCreatedBy")
   collectionNotesCreated      CollectionNote[]      @relation("CollectionNoteCreatedBy")
@@ -273,12 +321,21 @@ model Membership {
   attachmentsCreated          Attachment[]          @relation("AttachmentCreatedBy")
   notifications               Notification[]
   aiInteractionsCreated       AiInteraction[]       @relation("AiInteractionCreatedBy")
+  aiSuggestionsDecided        AiSuggestion[]        @relation("AiSuggestionDecidedBy")
+  aiAssistantThreads          AiAssistantThread[]
+  automationRulesCreated      AutomationRule[]      @relation("AutomationRuleCreatedBy")
   invoicesCreated             Invoice[]             @relation("InvoiceCreatedBy")
   portalTokensCreated         PortalToken[]         @relation("PortalTokenCreatedBy")
+  paymentLinksCreated         PaymentLink[]         @relation("PaymentLinkCreatedBy")
   customerNotesCreated        CustomerNote[]        @relation("CustomerNoteCreatedBy")
   duplicateDismissalsCreated  DuplicateDismissal[]  @relation("DuplicateDismissalDismissedBy")
   customerSegmentsCreated     CustomerSegment[]     @relation("CustomerSegmentCreatedBy")
   quickRepliesCreated         QuickReply[]          @relation("QuickReplyCreatedBy")
+  qualityChecks               QualityCheck[]        @relation("QualityCheckBy") // M06 §14
+  partRequestsCreated         PartRequest[]         @relation("PartRequestBy") // M06 §14
+  partRequestsHandled         PartRequest[]         @relation("PartRequestHandledBy") // M06 §14
+  workNotesWritten            WorkNote[]            @relation("WorkNoteAuthor") // M06 §14
+  workNotesApproved           WorkNote[]            @relation("WorkNoteApprovedBy") // M06 §14
 
   @@unique([organizationId, userId])
   @@index([organizationId])
@@ -306,56 +363,63 @@ enum RecordOrigin {
 }
 
 model Customer {
-  id                   String       @id @default(cuid(2))
-  organizationId       String
-  type                 CustomerType @default(INDIVIDUAL)
-  firstName            String?
-  lastName             String?
-  companyName          String?
-  displayName          String // calculé : "Kouassi Jean-Marc" ou "SOTRA Logistique SARL"
-  civility             Civility?
-  phone                String? // E.164, principal
-  phone2               String?
-  hasWhatsapp          Boolean? // null = inconnu, détecté au 1er envoi
-  whatsappPhone        String? // si différent
-  email                String?
-  address              String?
-  commune              String?
-  ncc                  String? // entreprises
-  rccm                 String?
-  preferredChannel     Channel? // null = suit l'ordre par défaut
-  remindersConsent     Boolean      @default(true)
-  marketingConsent     Boolean      @default(false)
-  optedOutAt           DateTime? // a répondu STOP
-  doNotRemind          Boolean      @default(false) // décision interne
-  doNotRemindReason    String?
-  paymentTermsDays     Int          @default(0) // 0 = comptant
-  creditLimit          Int? // en FCFA
-  priceListId          String?
-  discountRate         Int? // remise par défaut en %
-  riskScore            Int? // 0-100, calculé (M09/M17)
-  tags                 String[]
-  notes                String?
-  source               String? // "import", "portail", "comptoir"
-  origin               RecordOrigin @default(NATIVE)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  deletedAt            DateTime?
+  id                    String       @id @default(cuid(2))
+  organizationId        String
+  type                  CustomerType @default(INDIVIDUAL)
+  firstName             String?
+  lastName              String?
+  companyName           String?
+  displayName           String // calculé : "Kouassi Jean-Marc" ou "SOTRA Logistique SARL"
+  civility              Civility?
+  phone                 String? // E.164, principal
+  phone2                String?
+  hasWhatsapp           Boolean? // null = inconnu, détecté au 1er envoi
+  whatsappPhone         String? // si différent
+  email                 String?
+  address               String?
+  commune               String?
+  ncc                   String? // entreprises
+  rccm                  String?
+  preferredChannel      Channel? // null = suit l'ordre par défaut
+  remindersConsent      Boolean      @default(true)
+  marketingConsent      Boolean      @default(false)
+  optedOutAt            DateTime? // a répondu STOP
+  doNotRemind           Boolean      @default(false) // décision interne
+  doNotRemindReason     String?
+  paymentTermsDays      Int          @default(0) // 0 = comptant
+  creditLimit           Int? // en FCFA
+  priceListId           String?
+  discountRate          Int? // remise par défaut en %
+  riskScore             Int? // 0-100, calculé (M09/M17)
+  // M17 §14
+  riskFactors           Json? // [{ code, points, label }]
+  riskScoredAt          DateTime?
+  bestSendHour          Int? // 0-23, heure locale optimale (RG-M17-16)
+  bestChannel           Channel? // canal appris (≠ preferredChannel manuel)
+  tags                  String[]
+  notes                 String?
+  source                String? // "import", "portail", "comptoir"
+  origin                RecordOrigin @default(NATIVE)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  deletedAt             DateTime?
   // M02 §14
-  consentUpdatedAt     DateTime?
-  consentSource        String? // counter | phone | whatsapp_reply | portal | import | staff
-  mergedIntoId         String? // client cible après fusion (RG-M02-08)
-  anonymizedAt         DateTime?
-  lastVisitAt          DateTime? // dénormalisé (dernier OR livré ou facture), pour tri/filtre
+  consentUpdatedAt      DateTime?
+  consentSource         String? // counter | phone | whatsapp_reply | portal | import | staff
+  mergedIntoId          String? // client cible après fusion (RG-M02-08)
+  anonymizedAt          DateTime?
+  lastVisitAt           DateTime? // dénormalisé (dernier OR livré ou facture), pour tri/filtre
   // M11 §14
-  hasWhatsappCheckedAt DateTime?
-  emailInvalidAt       DateTime?
+  hasWhatsappCheckedAt  DateTime?
+  emailInvalidAt        DateTime?
   // M10 §14
-  phoneInvalidAt       DateTime? // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
+  phoneInvalidAt        DateTime? // RG-M10-32 : 2 échecs définitifs sur ce numéro → plus d'envoi
   // M09 §14
-  creditHold           Boolean      @default(false)
-  creditHoldReason     String?
-  riskComponents       Json? // { A, B, C, D, E } pour l'affichage (RG-M09-12)
+  creditHold            Boolean      @default(false)
+  creditHoldReason      String?
+  riskComponents        Json? // { A, B, C, D, E } pour l'affichage (RG-M09-12)
+  // M05 §14
+  requiresPurchaseOrder Boolean      @default(false) // flotte : bon de commande client exigé
 
   organization    Organization      @relation(fields: [organizationId], references: [id])
   vehicles        Vehicle[]
@@ -365,6 +429,9 @@ model Customer {
   quotes          Quote[]
   invoices        Invoice[]
   payments        Payment[]
+  refunds         Refund[] // M08 §14
+  credits         CustomerCredit[] // M08 §14
+  insurer         InsuranceCompany? @relation("InsurerCustomer") // M16 : Customer d'une compagnie
   collectionCases CollectionCase[]
   creditOverrides CreditOverride[]
   reminders       Reminder[]
@@ -672,23 +739,41 @@ model VehicleModel {
 // ═══════════════════════════════════════════════════════════════
 
 model Appointment {
-  id             String            @id @default(cuid(2))
-  organizationId String
-  siteId         String
-  customerId     String
-  vehicleId      String?
-  bayId          String?
-  advisorId      String? // Membership.id
-  startsAt       DateTime
-  endsAt         DateTime
-  type           AppointmentType
-  status         AppointmentStatus @default(BOOKED)
-  source         AppointmentSource @default(STAFF)
-  reminderId     String? // relance à l'origine du RDV (attribution M12)
-  notes          String?
-  repairOrderId  String? // OR créé à l'arrivée
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id                String            @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  customerId        String
+  vehicleId         String?
+  bayId             String?
+  advisorId         String? // Membership.id
+  startsAt          DateTime
+  endsAt            DateTime
+  type              AppointmentType
+  status            AppointmentStatus @default(BOOKED)
+  source            AppointmentSource @default(STAFF)
+  reminderId        String? // relance à l'origine du RDV (attribution M12)
+  notes             String?
+  repairOrderId     String? // OR créé à l'arrivée
+  // M03 §14
+  mechanicId        String? // Membership.id du mécanicien prévu
+  complaint         String? // motif / doléances (repris dans l'OR)
+  laborOperationIds String[] // opérations prévues (durée, devis)
+  quoteId           String? // RDV planifié pour exécuter un devis accepté (relation posée par M05)
+  confirmedAt       DateTime?
+  confirmedVia      String? // phone | whatsapp | sms | portal | in_person
+  arrivedAt         DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       String? // CUSTOMER | GARAGE
+  cancelReason      String?
+  noShowAt          DateTime?
+  completedAt       DateTime?
+  groupId           String? // RDV groupés (flotte)
+  overbooked        Boolean           @default(false) // surréservation volontaire
+  outsideHours      Boolean           @default(false)
+  publicToken       String?           @unique // hash du jeton PortalToken (A2), raccourci de recherche
+  createdById       String? // Membership.id
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   organization            Organization  @relation(fields: [organizationId], references: [id])
   site                    Site          @relation(fields: [siteId], references: [id])
@@ -696,13 +781,43 @@ model Appointment {
   vehicle                 Vehicle?      @relation(fields: [vehicleId], references: [id])
   bay                     Bay?          @relation(fields: [bayId], references: [id])
   advisor                 Membership?   @relation("AppointmentAdvisor", fields: [advisorId], references: [id])
+  mechanic                Membership?   @relation("AppointmentMechanic", fields: [mechanicId], references: [id])
+  createdBy               Membership?   @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
   reminder                Reminder?     @relation("AppointmentReminder", fields: [reminderId], references: [id])
   repairOrder             RepairOrder?  @relation("AppointmentResultingOrder", fields: [repairOrderId], references: [id])
   originatingRepairOrders RepairOrder[] @relation("RepairOrderOrigin")
   linkedReminders         Reminder[]    @relation("ReminderAppointment")
 
+  // Contrainte d'exclusion (migration SQL, extension btree_gist, RG-M03-02) :
+  // ALTER TABLE "Appointment" ADD CONSTRAINT appointment_no_overlap
+  //   EXCLUDE USING gist ("bayId" WITH =, tsrange("startsAt","endsAt",'[)') WITH &&)
+  //   WHERE ("bayId" IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW') AND NOT overbooked);
   @@index([organizationId, siteId, startsAt])
   @@index([organizationId, customerId])
+  @@index([organizationId, status, startsAt])
+  @@index([organizationId, groupId])
+}
+
+model ResourceBlock {
+  // M03 §14 — indisponibilités : pont, mécanicien ou site entier
+  id             String   @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  bayId          String?
+  membershipId   String? // mécanicien absent
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String // "Maintenance pont", "Congé", "Formation"
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  site         Site         @relation(fields: [siteId], references: [id])
+  bay          Bay?         @relation(fields: [bayId], references: [id])
+  membership   Membership?  @relation("ResourceBlockMembership", fields: [membershipId], references: [id])
+  createdBy    Membership?  @relation("ResourceBlockCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, siteId, startsAt])
 }
 
 enum AppointmentType {
@@ -800,6 +915,9 @@ model RepairOrder {
   quotes                Quote[]
   invoices              Invoice[]
   timeEntries           TimeEntry[]
+  qualityChecks         QualityCheck[] // M06 §14
+  partRequests          PartRequest[] // M06 §14
+  workNotes             WorkNote[] // M06 §14
   purchaseOrders        PurchaseOrder[]
   resultingAppointments Appointment[]              @relation("AppointmentResultingOrder")
   stockMovements        StockMovement[]
@@ -812,6 +930,8 @@ model RepairOrder {
   @@index([organizationId, status])
   @@index([organizationId, vehicleId])
   @@index([organizationId, siteId, status])
+  @@index([organizationId, createdAt]) // M12 : OR ouverts (RG-M12-12)
+  @@index([organizationId, deliveredAt]) // M12 : OR livrés (RG-M12-12)
 }
 
 enum WarrantyDecision {
@@ -875,6 +995,10 @@ model RepairOrderLine {
   completedAt           DateTime?
   completedById         String? // Membership.id
   cancelReason          String? // M04 : motif d'annulation/refus de la ligne (historique)
+  // M06 §14 — sous-traitance : subcontractorId/subcontractCost/subcontractDueAt du PRD sont
+  // les champs M04 supplierId/costPrice/subcontractExpectedAt ; subcontractStatus (M04, texte)
+  // prend les valeurs de SubcontractStatus (TO_SEND | SENT | RETURNED | CANCELLED).
+  subcontractReturnedAt DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -885,6 +1009,8 @@ model RepairOrderLine {
   assignedTo     Membership?     @relation("RepairOrderLineAssignee", fields: [assignedToId], references: [id])
   quoteLine      QuoteLine?      @relation(fields: [quoteLineId], references: [id])
   timeEntries    TimeEntry[]
+  partRequests   PartRequest[] // M06 §14
+  workNotes      WorkNote[] // M06 §14
 
   @@index([organizationId, repairOrderId])
   @@index([repairOrderId])
@@ -984,22 +1110,30 @@ model InspectionTemplate {
 
 model LaborOperation {
   // catalogue de main-d'œuvre
-  id             String        @id @default(cuid(2))
-  organizationId String
-  code           String
-  name           String // "Vidange moteur + filtre"
-  category       String?
-  standardHours  Float // temps barème
-  rateType       LaborRateType @default(STANDARD)
-  fixedPrice     Int? // forfait éventuel
-  isActive       Boolean       @default(true)
+  id                  String        @id @default(cuid(2))
+  organizationId      String
+  code                String
+  name                String // "Vidange moteur + filtre"
+  category            String?
+  standardHours       Float // temps barème
+  rateType            LaborRateType @default(STANDARD)
+  fixedPrice          Int? // forfait éventuel
+  isActive            Boolean       @default(true)
+  // M05 §14
+  customerDescription String? // explication par défaut pour le client
+  defaultParts        Json          @default("[]") // [{ productId? , category?, quantity }]
+  vehicleOverrides    Json          @default("[]") // [{ make, model?, yearFrom?, yearTo?, standardHours }]
+  isServiceOperation  Boolean       @default(false) // compte comme « révision » (M02 RG-M02-13)
+  requiredSkill       String? // M06 §14 : doit correspondre à une valeur de Membership.skills
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   organization     Organization      @relation(fields: [organizationId], references: [id])
   repairOrderLines RepairOrderLine[]
   quoteLines       QuoteLine[]
   invoiceLines     InvoiceLine[]
 
-  @@index([organizationId, code])
+  @@unique([organizationId, code])
 }
 
 model RepairOrderStatusHistory {
@@ -1052,16 +1186,24 @@ enum LaborRateType {
 
 model TimeEntry {
   // pointage mécanicien sur une tâche
-  id                String    @id @default(cuid(2))
+  id                String        @id @default(cuid(2))
   organizationId    String
   membershipId      String
   repairOrderId     String
   repairOrderLineId String?
   startedAt         DateTime
   endedAt           DateTime?
-  pauseMinutes      Int       @default(0)
+  pauseMinutes      Int           @default(0)
   note              String?
-  source            String    @default("tablet") // tablet | web | offline-sync
+  source            String        @default("tablet") // tablet | web | offline-sync
+  // M06 §14
+  kind              TimeEntryKind @default(WORK)
+  pausedAt          DateTime?
+  pauseReason       String? // parts | lunch | approval | other
+  clientOpId        String?       @unique // idempotence de la synchro hors-ligne
+  deviceId          String?
+  needsReview       Boolean       @default(false)
+  reviewReason      String? // M06 (hors §14) : motif du signalement (chevauchement, clôture auto…)
 
   organization    Organization     @relation(fields: [organizationId], references: [id])
   membership      Membership       @relation(fields: [membershipId], references: [id])
@@ -1070,6 +1212,14 @@ model TimeEntry {
 
   @@index([organizationId, repairOrderId])
   @@index([organizationId, membershipId])
+  @@index([organizationId, membershipId, startedAt])
+  @@index([organizationId, startedAt]) // M12 : heures pointées par site (RG-M12-14)
+}
+
+enum TimeEntryKind {
+  WORK
+  DIAGNOSTIC
+  REWORK
 }
 
 model Attendance {
@@ -1080,11 +1230,127 @@ model Attendance {
   date           DateTime  @db.Date
   clockIn        DateTime?
   clockOut       DateTime?
+  // M06 §14
+  siteId         String?
+  breakMinutes   Int       @default(60)
+  autoClosed     Boolean   @default(false)
 
   organization Organization @relation(fields: [organizationId], references: [id])
   membership   Membership   @relation(fields: [membershipId], references: [id])
+  site         Site?        @relation(fields: [siteId], references: [id])
 
+  @@unique([organizationId, membershipId, date])
   @@index([organizationId, membershipId, date])
+}
+
+// ───────────── M06 §14 — atelier : contrôle qualité, demandes de pièces, remarques ─────────────
+
+model QualityCheck {
+  id             String   @id @default(cuid(2))
+  organizationId String
+  repairOrderId  String
+  checkedById    String // Membership.id
+  result         QcResult
+  checklist      Json     @default("{}") // { "road_test": true, "wheel_torque": true, … }
+  comment        String?
+  reworkLineIds  String[]
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  repairOrder  RepairOrder  @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  checkedBy    Membership   @relation("QualityCheckBy", fields: [checkedById], references: [id])
+
+  @@index([organizationId, repairOrderId])
+}
+
+enum QcResult {
+  PASSED
+  FAILED
+}
+
+model PartRequest {
+  // demande de pièce tablette → magasin (traitée dans M07)
+  id                String            @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  repairOrderId     String
+  repairOrderLineId String?
+  requestedById     String // Membership.id
+  productId         String?
+  freeText          String? // si produit introuvable
+  quantity          Float
+  urgency           Priority          @default(NORMAL)
+  status            PartRequestStatus @default(REQUESTED)
+  handledById       String?
+  purchaseOrderId   String?
+  rejectReason      String?
+  clientOpId        String?           @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  site            Site             @relation(fields: [siteId], references: [id])
+  repairOrder     RepairOrder      @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  repairOrderLine RepairOrderLine? @relation(fields: [repairOrderLineId], references: [id])
+  requestedBy     Membership       @relation("PartRequestBy", fields: [requestedById], references: [id])
+  handledBy       Membership?      @relation("PartRequestHandledBy", fields: [handledById], references: [id])
+  product         Product?         @relation(fields: [productId], references: [id])
+
+  @@index([organizationId, siteId, status])
+  @@index([organizationId, repairOrderId])
+}
+
+enum PartRequestStatus {
+  REQUESTED
+  PREPARING
+  ORDERED
+  DELIVERED
+  REJECTED
+  CANCELLED
+}
+
+model WorkNote {
+  // remarques mécanicien sur un OR / une ligne
+  id                String   @id @default(cuid(2))
+  organizationId    String
+  repairOrderId     String
+  repairOrderLineId String?
+  authorId          String // Membership.id
+  body              String
+  visibleToCustomer Boolean  @default(false)
+  approvedById      String? // conseiller ayant validé la diffusion
+  clientOpId        String?  @unique
+  createdAt         DateTime @default(now())
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  repairOrder     RepairOrder      @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  repairOrderLine RepairOrderLine? @relation(fields: [repairOrderLineId], references: [id])
+  author          Membership       @relation("WorkNoteAuthor", fields: [authorId], references: [id])
+  approvedBy      Membership?      @relation("WorkNoteApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([organizationId, repairOrderId])
+}
+
+model TechSyncOperation {
+  // M06 (hors §14) — journal des opérations tablette appliquées (RG-M06-14 : idempotence par
+  // clientOpId pour toutes les opérations, y compris pause/reprise/inspection sans ligne créée).
+  id             String    @id @default(cuid(2))
+  organizationId String
+  clientOpId     String
+  membershipId   String // acteur (mécanicien identifié)
+  deviceId       String?
+  type           String // task.start | task.pause | … (TechOp)
+  status         String // ok | rejected
+  error          String?
+  entityId       String?
+  deviceAt       DateTime?
+  appliedAt      DateTime // horodatage corrigé (serverOffset)
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, clientOpId])
+  @@index([organizationId, membershipId, createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1092,34 +1358,62 @@ model Attendance {
 // ═══════════════════════════════════════════════════════════════
 
 model Quote {
-  id              String      @id @default(cuid(2))
-  organizationId  String
-  siteId          String
-  number          String // DEV-YOP-2026-00017
-  version         Int         @default(1)
-  customerId      String
-  vehicleId       String?
-  repairOrderId   String?
-  status          QuoteStatus @default(DRAFT)
-  validUntil      DateTime    @db.Date
-  publicToken     String?     @unique
-  sentAt          DateTime?
-  viewedAt        DateTime?
-  decidedAt       DateTime?
-  decisionChannel String? // portal | whatsapp | in_person | phone
-  signatureUrl    String?
-  signerName      String?
-  declineReason   String?
-  subtotal        Int         @default(0)
-  discountTotal   Int         @default(0)
-  vatTotal        Int         @default(0)
-  total           Int         @default(0)
-  insuranceShare  Int         @default(0)
-  customerShare   Int         @default(0)
-  notes           String?
-  createdById     String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                     String      @id @default(cuid(2))
+  organizationId         String
+  siteId                 String
+  number                 String // DEV-YOP-2026-00017
+  version                Int         @default(1)
+  customerId             String
+  vehicleId              String?
+  repairOrderId          String?
+  status                 QuoteStatus @default(DRAFT)
+  validUntil             DateTime    @db.Date
+  publicToken            String?     @unique
+  sentAt                 DateTime?
+  viewedAt               DateTime?
+  decidedAt              DateTime?
+  decisionChannel        String? // portal | whatsapp | in_person | phone
+  signatureUrl           String?
+  signerName             String?
+  declineReason          String?
+  subtotal               Int         @default(0)
+  discountTotal          Int         @default(0)
+  vatTotal               Int         @default(0)
+  total                  Int         @default(0)
+  insuranceShare         Int         @default(0)
+  customerShare          Int         @default(0)
+  notes                  String?
+  createdById            String?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  // M17 §14 — explication client validée (RG-M17-19), affichée sur le portail
+  customerExplanation    Json? // { groupKey: texte validé }
+  // M05 §14
+  origin                 QuoteOrigin @default(STANDALONE)
+  inspectionId           String?
+  insuranceClaimId       String?
+  supersedesId           String? // version précédente
+  supersededAt           DateTime? // renseigné quand une version plus récente existe
+  globalDiscountRate     Int? // %
+  globalDiscountAmount   Int? // FCFA (exclusif avec le taux)
+  discountReason         String?
+  discountApprovalStatus String? // NONE | PENDING | APPROVED | REJECTED
+  discountApprovedById   String?
+  sentVia                String? // WHATSAPP | SMS | EMAIL | WA_LINK | LINK_ONLY
+  sentTo                 String? // adresse effective
+  recipientContactId     String?
+  decisionHash           String? // SHA-256 du contenu signé
+  decisionIp             String?
+  decisionUserAgent      String?
+  decisionMessageId      String? // message WhatsApp servant de preuve
+  recordedById           String? // membre ayant saisi une décision hors portail
+  decisionCounterpart    String? // interlocuteur au téléphone
+  acceptedTotal          Int         @default(0) // TTC des lignes acceptées (dénormalisé)
+  depositAmount          Int?
+  depositInvoiceId       String?
+  customerPoNumber       String? // bon de commande du client entreprise
+  convertedAt            DateTime?
+  deletedAt              DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
@@ -1132,6 +1426,18 @@ model Quote {
   reminders    Reminder[]
 
   @@unique([organizationId, number, version])
+  @@index([organizationId, status, sentAt])
+  @@index([organizationId, repairOrderId])
+  @@index([organizationId, customerId])
+  @@index([organizationId, decidedAt]) // M12 : taux d'acceptation (RG-M12-13)
+}
+
+enum QuoteOrigin {
+  REPAIR_ORDER
+  INSPECTION
+  STANDALONE
+  APPOINTMENT
+  INSURANCE
 }
 
 enum QuoteStatus {
@@ -1146,22 +1452,35 @@ enum QuoteStatus {
 }
 
 model QuoteLine {
-  id               String            @id @default(cuid(2))
-  organizationId   String
-  quoteId          String
-  type             LineType
-  productId        String?
-  laborOperationId String?
-  description      String
-  quantity         Float
-  unitPrice        Int
-  discountRate     Int               @default(0)
-  vatRate          Int
-  isOptional       Boolean           @default(false)
-  priority         InspectionResult? // URGENT / WATCH pour l'affichage client
-  accepted         Boolean? // null = pas encore décidé
-  payer            Payer             @default(CUSTOMER)
-  sortOrder        Int               @default(0)
+  id                  String            @id @default(cuid(2))
+  organizationId      String
+  quoteId             String
+  type                LineType
+  productId           String?
+  laborOperationId    String?
+  description         String
+  quantity            Float
+  unitPrice           Int
+  discountRate        Int               @default(0)
+  vatRate             Int
+  isOptional          Boolean           @default(false)
+  priority            InspectionResult? // URGENT / WATCH pour l'affichage client
+  accepted            Boolean? // null = pas encore décidé
+  payer               Payer             @default(CUSTOMER)
+  sortOrder           Int               @default(0)
+  // M05 §14
+  groupKey            String? // regroupe MO + pièces d'un même travail
+  groupLabel          String? // "Plaquettes avant"
+  requiresGroupKey    String? // dépendance (ex. disques nécessite plaquettes)
+  customerExplanation String? // texte simple affiché au client
+  inspectionItemId    String?
+  photoAttachmentIds  String[]
+  costPrice           Int? // coût unitaire estimé (marge)
+  isCustomerSupplied  Boolean           @default(false)
+  declineReason       String?
+  lineSubtotal        Int               @default(0) // HT après remise (calculé)
+  lineVat             Int               @default(0)
+  lineTotal           Int               @default(0)
 
   organization     Organization      @relation(fields: [organizationId], references: [id])
   quote            Quote             @relation(fields: [quoteId], references: [id], onDelete: Cascade)
@@ -1170,6 +1489,7 @@ model QuoteLine {
   repairOrderLines RepairOrderLine[]
 
   @@index([organizationId, quoteId])
+  @@index([quoteId])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1177,7 +1497,7 @@ model QuoteLine {
 // ═══════════════════════════════════════════════════════════════
 
 model Product {
-  id                String   @id @default(cuid(2))
+  id                String    @id @default(cuid(2))
   organizationId    String
   sku               String
   name              String
@@ -1185,20 +1505,25 @@ model Product {
   oemReference      String?
   barcode           String?
   category          String? // Filtration, Freinage, Lubrifiants…
-  unit              String   @default("pièce") // pièce, litre, kit
-  purchasePrice     Int      @default(0) // dernier prix d'achat
-  averageCost       Int      @default(0) // CMP
-  salePrice         Int      @default(0)
+  unit              String    @default("pièce") // pièce, litre, kit
+  purchasePrice     Int       @default(0) // dernier prix d'achat
+  averageCost       Int       @default(0) // CMP
+  salePrice         Int       @default(0)
   minSalePrice      Int?
-  vatRate           Int      @default(18)
-  minStock          Int      @default(0)
+  vatRate           Int       @default(18)
+  minStock          Int       @default(0)
   reorderQty        Int?
-  isStocked         Boolean  @default(true) // false = commandé à la demande
+  isStocked         Boolean   @default(true) // false = commandé à la demande
   compatibleWith    String[] // "Toyota Corolla 2014-2019"
   defaultSupplierId String?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  // M07 §14
+  quantityScale     Int       @default(1) // 10 pour litre/kg : quantités de stock en dixièmes (RG-M07-01)
+  packSize          Int       @default(1) // conditionnement d'achat (en unités d'affichage)
+  crossReferences   String[] // références équivalentes / anciennes
+  lastIssuedAt      DateTime? // dénormalisé pour les dormantes (RG-M07-11)
 
   organization       Organization        @relation(fields: [organizationId], references: [id])
   defaultSupplier    Supplier?           @relation(fields: [defaultSupplierId], references: [id])
@@ -1208,8 +1533,14 @@ model Product {
   repairOrderLines   RepairOrderLine[]
   quoteLines         QuoteLine[]
   invoiceLines       InvoiceLine[]
+  stockReservations  StockReservation[]
+  stockCountLines    StockCountLine[]
+  stockTransferLines StockTransferLine[]
+  partRequests       PartRequest[] // M06 §14
 
   @@unique([organizationId, sku])
+  @@index([organizationId, barcode])
+  @@index([defaultSupplierId])
 }
 
 model StockLevel {
@@ -1220,6 +1551,9 @@ model StockLevel {
   onHand         Int     @default(0)
   reserved       Int     @default(0) // réservé pour des OR
   binLocation    String? // "Étagère B3"
+  // M07 §14 — surcharges par site (unités de base)
+  minStock       Int?
+  maxStock       Int?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
@@ -1227,30 +1561,48 @@ model StockLevel {
 
   @@unique([siteId, productId])
   @@index([organizationId])
+  @@index([productId])
 }
 
 model StockMovement {
-  id              String            @id @default(cuid(2))
-  organizationId  String
-  siteId          String
-  productId       String
-  type            StockMovementType
-  quantity        Int // positif entrée, négatif sortie
-  unitCost        Int?
-  repairOrderId   String?
-  purchaseOrderId String?
-  reason          String?
-  createdById     String?
-  createdAt       DateTime          @default(now())
+  id                String            @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  productId         String
+  type              StockMovementType
+  quantity          Int // positif entrée, négatif sortie
+  unitCost          Int?
+  repairOrderId     String?
+  purchaseOrderId   String?
+  reason            String?
+  createdById       String?
+  createdAt         DateTime          @default(now())
+  // M07 §14
+  costAfter         Int? // CMP après le mouvement (historique de valorisation, RG-M07-09)
+  repairOrderLineId String? // ligne d'OR (M04), sans relation : branchée par l'étape 3.2
+  reservationId     String?
+  transferId        String?
+  countId           String?
+  reasonCode        String? // casse | perte | vol | peremption | demonte | erreur | autre
 
-  organization  Organization   @relation(fields: [organizationId], references: [id])
-  site          Site           @relation(fields: [siteId], references: [id])
-  product       Product        @relation(fields: [productId], references: [id])
-  repairOrder   RepairOrder?   @relation(fields: [repairOrderId], references: [id])
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  createdBy     Membership?    @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
+  organization  Organization      @relation(fields: [organizationId], references: [id])
+  site          Site              @relation(fields: [siteId], references: [id])
+  product       Product           @relation(fields: [productId], references: [id])
+  repairOrder   RepairOrder?      @relation(fields: [repairOrderId], references: [id])
+  purchaseOrder PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
+  createdBy     Membership?       @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
+  reservation   StockReservation? @relation(fields: [reservationId], references: [id])
+  transfer      StockTransfer?    @relation(fields: [transferId], references: [id])
+  count         StockCount?       @relation(fields: [countId], references: [id])
 
   @@index([organizationId, siteId, productId])
+  @@index([organizationId, productId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([repairOrderId])
+  @@index([purchaseOrderId])
+  @@index([reservationId])
+  @@index([transferId])
+  @@index([countId])
 }
 
 enum StockMovementType {
@@ -1296,6 +1648,7 @@ model PurchaseOrder {
   repairOrderId  String? // commande liée à un OR
   total          Int                 @default(0)
   notes          String?
+  createdAt      DateTime            @default(now()) // M07 §14 (tri des listes)
 
   organization   Organization        @relation(fields: [organizationId], references: [id])
   site           Site                @relation(fields: [siteId], references: [id])
@@ -1303,8 +1656,11 @@ model PurchaseOrder {
   repairOrder    RepairOrder?        @relation(fields: [repairOrderId], references: [id])
   lines          PurchaseOrderLine[]
   stockMovements StockMovement[]
+  reservations   StockReservation[]
 
   @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([supplierId])
 }
 
 enum PurchaseOrderStatus {
@@ -1315,6 +1671,152 @@ enum PurchaseOrderStatus {
   CANCELLED
 }
 
+// M07 §14 — réservations de pièces pour un OR (RG-M07-04). `repairOrderId` /
+// `repairOrderLineId` sans relation : les OR (M04) sont branchés par l'étape 3.2.
+model StockReservation {
+  id                String                 @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  productId         String
+  repairOrderId     String?
+  repairOrderLineId String?
+  quantity          Int // unités de base
+  status            StockReservationStatus @default(RESERVED)
+  purchaseOrderId   String? // commande attendue si BACKORDERED
+  note              String?
+  createdById       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  site           Site            @relation(fields: [siteId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  purchaseOrder  PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  createdBy      Membership?     @relation("StockReservationCreatedBy", fields: [createdById], references: [id])
+  stockMovements StockMovement[]
+
+  @@index([organizationId, siteId, productId, status])
+  @@index([organizationId, repairOrderId])
+  @@index([productId])
+  @@index([purchaseOrderId])
+}
+
+enum StockReservationStatus {
+  RESERVED
+  BACKORDERED
+  ISSUED
+  RELEASED
+}
+
+// M07 §14 — inventaires (RG-M07-10), numérotés INV-{site}-{année}-{seq} (A4).
+model StockCount {
+  id             String           @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  number         String // INV-YOP-2026-00003
+  scope          Json             @default("{}") // { categories?: [], bins?: [] } ; vide = complet
+  status         StockCountStatus @default(DRAFT)
+  startedAt      DateTime?
+  submittedAt    DateTime?
+  validatedAt    DateTime?
+  validatedById  String?
+  varianceValue  Int              @default(0)
+  createdById    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  site           Site             @relation(fields: [siteId], references: [id])
+  validatedBy    Membership?      @relation("StockCountValidatedBy", fields: [validatedById], references: [id])
+  createdBy      Membership?      @relation("StockCountCreatedBy", fields: [createdById], references: [id])
+  lines          StockCountLine[]
+  stockMovements StockMovement[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, siteId, status])
+}
+
+enum StockCountStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  VALIDATED
+  CANCELLED
+}
+
+model StockCountLine {
+  id              String    @id @default(cuid(2))
+  organizationId  String
+  stockCountId    String
+  productId       String
+  expectedQty     Int // onHand figé au démarrage (+ mouvements avant comptage)
+  countedQty      Int?
+  unitCost        Int // CMP au démarrage
+  movedAfterCount Boolean   @default(false) // mouvement survenu après le comptage (RG-M07-10)
+  countedById     String?
+  countedAt       DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  stockCount   StockCount   @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id])
+  countedBy    Membership?  @relation("StockCountLineCountedBy", fields: [countedById], references: [id])
+
+  @@unique([stockCountId, productId])
+  @@index([organizationId, stockCountId])
+  @@index([productId])
+}
+
+// M07 §14 — transferts inter-sites (RG-M07-15), numérotés TR-{site}-{année}-{seq} (A4).
+model StockTransfer {
+  id             String              @id @default(cuid(2))
+  organizationId String
+  number         String // TR-YOP-2026-00012
+  fromSiteId     String
+  toSiteId       String
+  status         StockTransferStatus @default(DRAFT)
+  shippedAt      DateTime?
+  receivedAt     DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  fromSite       Site                @relation("StockTransferFrom", fields: [fromSiteId], references: [id])
+  toSite         Site                @relation("StockTransferTo", fields: [toSiteId], references: [id])
+  createdBy      Membership?         @relation("StockTransferCreatedBy", fields: [createdById], references: [id])
+  lines          StockTransferLine[]
+  stockMovements StockMovement[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([fromSiteId])
+  @@index([toSiteId])
+}
+
+enum StockTransferStatus {
+  DRAFT
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+model StockTransferLine {
+  id              String @id @default(cuid(2))
+  organizationId  String
+  stockTransferId String
+  productId       String
+  quantity        Int // unités de base
+  receivedQty     Int    @default(0)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@index([organizationId, stockTransferId])
+  @@index([productId])
+}
+
 model PurchaseOrderLine {
   id              String @id @default(cuid(2))
   organizationId  String
@@ -1323,12 +1825,14 @@ model PurchaseOrderLine {
   quantity        Int
   receivedQty     Int    @default(0)
   unitCost        Int
+  receivedCost    Int? // M07 §14 — dernier coût réel reçu (écart de prix)
 
   organization  Organization  @relation(fields: [organizationId], references: [id])
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product       Product       @relation(fields: [productId], references: [id])
 
   @@index([organizationId, purchaseOrderId])
+  @@index([productId])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1381,6 +1885,13 @@ model Invoice {
   writeOffReason    String?
   disputedAt        DateTime?
   collectionCaseId  String?
+  // M08 §14
+  creditedAmount    Int           @default(0) // Σ |total| des avoirs émis sur cette facture
+  costTotal         Int           @default(0) // coût pièces + MO (marge, M12), figé à l'émission
+  fneAttempts       Int           @default(0)
+  fneNextRetryAt    DateTime?
+  fneErrorKind      String? // transient | rejected
+  sentAt            DateTime?
 
   organization    Organization        @relation(fields: [organizationId], references: [id])
   site            Site                @relation(fields: [siteId], references: [id])
@@ -1394,6 +1905,7 @@ model Invoice {
   insuranceClaim  InsuranceClaim?     @relation(fields: [insuranceClaimId], references: [id])
   createdBy       Membership?         @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
   lines           InvoiceLine[]
+  depositLines    InvoiceLine[]       @relation("InvoiceLineDeposit") // lignes de déduction de cet acompte
   allocations     PaymentAllocation[]
   paymentLinks    PaymentLink[]
   reminders       Reminder[]
@@ -1401,6 +1913,8 @@ model Invoice {
   @@unique([organizationId, number])
   @@index([organizationId, status, dueDate])
   @@index([organizationId, customerId, status])
+  @@index([fneStatus, fneNextRetryAt]) // fne.retry (RG-M08-15)
+  @@index([organizationId, issuedAt]) // M12 : agrégats CA par période (RG-M12-05)
 }
 
 enum InvoiceType {
@@ -1429,28 +1943,35 @@ enum FneStatus {
 }
 
 model InvoiceLine {
-  id               String   @id @default(cuid(2))
-  organizationId   String
-  invoiceId        String
-  type             LineType
-  productId        String?
-  laborOperationId String?
-  description      String
-  quantity         Float
-  unitPrice        Int
-  discountRate     Int      @default(0)
-  vatRate          Int
-  lineSubtotal     Int // calculé et figé à l'émission
-  lineVat          Int
-  lineTotal        Int
-  sortOrder        Int      @default(0)
+  id                String   @id @default(cuid(2))
+  organizationId    String
+  invoiceId         String
+  type              LineType
+  productId         String?
+  laborOperationId  String?
+  description       String
+  quantity          Float
+  unitPrice         Int
+  discountRate      Int      @default(0)
+  vatRate           Int
+  lineSubtotal      Int // calculé et figé à l'émission
+  lineVat           Int
+  lineTotal         Int
+  sortOrder         Int      @default(0)
+  // M08 §14
+  costAmount        Int      @default(0) // CMP × qté (pièces) ou coût MO, figé à l'émission
+  depositInvoiceId  String? // ligne de déduction d'acompte
+  payer             Payer    @default(CUSTOMER)
+  repairOrderLineId String?
 
   organization   Organization    @relation(fields: [organizationId], references: [id])
   invoice        Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  depositInvoice Invoice?        @relation("InvoiceLineDeposit", fields: [depositInvoiceId], references: [id])
   product        Product?        @relation(fields: [productId], references: [id])
   laborOperation LaborOperation? @relation(fields: [laborOperationId], references: [id])
 
   @@index([organizationId, invoiceId])
+  @@index([organizationId, depositInvoiceId])
 }
 
 model Payment {
@@ -1472,6 +1993,10 @@ model Payment {
   notes          String?
   origin         RecordOrigin  @default(NATIVE)
   createdAt      DateTime      @default(now())
+  // M08 §14
+  voidedAt       DateTime?
+  voidReason     String?
+  payerPhone     String? // numéro mobile money payeur (rapprochement)
 
   organization Organization        @relation(fields: [organizationId], references: [id])
   site         Site                @relation(fields: [siteId], references: [id])
@@ -1480,9 +2005,12 @@ model Payment {
   receivedBy   Membership?         @relation("PaymentReceivedBy", fields: [receivedById], references: [id])
   allocations  PaymentAllocation[]
   paymentLinks PaymentLink[]
+  refunds      Refund[]
 
   @@unique([organizationId, number])
   @@unique([provider, providerRef])
+  @@index([organizationId, method, reference])
+  @@index([organizationId, receivedAt]) // M12 : encaissements par période (RG-M12-20)
 }
 
 enum PaymentMethod {
@@ -1506,39 +2034,55 @@ enum PaymentStatus {
 }
 
 model PaymentAllocation {
-  id             String @id @default(cuid(2))
-  organizationId String
-  paymentId      String
-  invoiceId      String
-  amount         Int
+  id               String    @id @default(cuid(2))
+  organizationId   String
+  paymentId        String? // M08 §14 : null pour l'affectation d'un crédit client
+  invoiceId        String
+  amount           Int
+  // M08 §14
+  customerCreditId String? // affectation d'un crédit client (avoir payé, trop-perçu)
+  voidedAt         DateTime? // paiement annulé / chèque rejeté : l'affectation ne compte plus
 
-  organization Organization        @relation(fields: [organizationId], references: [id])
-  payment      Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  invoice      Invoice             @relation(fields: [invoiceId], references: [id])
-  attribution  PaymentAttribution?
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  payment        Payment?            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice        Invoice             @relation(fields: [invoiceId], references: [id])
+  customerCredit CustomerCredit?     @relation(fields: [customerCreditId], references: [id])
+  attribution    PaymentAttribution?
 
   @@index([organizationId, paymentId])
   @@index([organizationId, invoiceId])
 }
 
 model PaymentLink {
-  id             String        @id @default(cuid(2))
-  organizationId String
-  invoiceId      String
-  provider       String
-  providerRef    String
-  url            String
-  amount         Int
-  status         PaymentStatus @default(PENDING)
-  expiresAt      DateTime
-  paymentId      String?
-  createdAt      DateTime      @default(now())
+  id              String         @id @default(cuid(2))
+  organizationId  String
+  invoiceId       String
+  provider        String
+  providerRef     String
+  url             String
+  amount          Int
+  status          PaymentStatus  @default(PENDING)
+  expiresAt       DateTime
+  paymentId       String?
+  createdAt       DateTime       @default(now())
+  // M08 hors §14 (étape 4.3, RG-M08-23..25) : moyen choisi, cycle de vie et rapprochement
+  method          PaymentMethod? // moyen choisi sur le portail (null = au choix du client)
+  createdById     String? // null = portail client
+  confirmedAt     DateTime?
+  confirmedAmount Int? // montant confirmé par getStatus (peut différer de amount)
+  closedAt        DateTime?
+  closeReason     String? // replaced | cancelled | expired | failed
+  lastCheckedAt   DateTime?
+  updatedAt       DateTime       @default(now()) @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   invoice      Invoice      @relation(fields: [invoiceId], references: [id])
   payment      Payment?     @relation(fields: [paymentId], references: [id])
+  createdBy    Membership?  @relation("PaymentLinkCreatedBy", fields: [createdById], references: [id])
 
+  @@unique([provider, providerRef])
   @@index([organizationId, invoiceId])
+  @@index([status, expiresAt]) // payments.reconcile, paymentLinks.expire
 }
 
 model CashSession {
@@ -1555,20 +2099,30 @@ model CashSession {
   countedCash    Int?
   difference     Int?
   notes          String?
+  // M08 §14
+  denominations  Json? // { "10000": 42, "5000": 30, … }
+  lateClose      Boolean   @default(false)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewComment  String? // M08 (hors §14) : commentaire de validation de l'écart (cash.review)
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
   openedBy     Membership   @relation("CashSessionOpenedBy", fields: [openedById], references: [id])
   closedBy     Membership?  @relation("CashSessionClosedBy", fields: [closedById], references: [id])
+  reviewedBy   Membership?  @relation("CashSessionReviewedBy", fields: [reviewedById], references: [id])
   payments     Payment[]
   expenses     Expense[]
+  drops        CashDrop[]
+  refunds      Refund[]
 
   @@index([organizationId, siteId])
+  @@index([organizationId, siteId, closedAt])
 }
 
 model Expense {
   // décaissements de caisse (petites dépenses)
-  id             String   @id @default(cuid(2))
+  id             String    @id @default(cuid(2))
   organizationId String
   siteId         String
   cashSessionId  String?
@@ -1577,13 +2131,102 @@ model Expense {
   description    String
   paidAt         DateTime
   createdById    String?
+  // M08 (hors §14) : justificatif (US-M08-12) et validation au-delà du seuil (RG-M08-30)
+  attachmentId   String?
+  approvedById   String?
+  approvedAt     DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
   cashSession  CashSession? @relation(fields: [cashSessionId], references: [id])
   createdBy    Membership?  @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  approvedBy   Membership?  @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
 
   @@index([organizationId, siteId])
+}
+
+model CashDrop {
+  // M08 §14 — versement coffre / banque depuis la caisse (RG-M08-28)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  siteId         String
+  cashSessionId  String
+  amount         Int
+  destination    String // safe | bank
+  reference      String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  site         Site         @relation(fields: [siteId], references: [id])
+  cashSession  CashSession  @relation(fields: [cashSessionId], references: [id])
+  createdBy    Membership?  @relation("CashDropCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, cashSessionId])
+}
+
+model Refund {
+  // M08 §14 — remboursement d'un trop-perçu ou d'un avoir payé (RG-M08-22)
+  id               String        @id @default(cuid(2))
+  organizationId   String
+  siteId           String
+  customerId       String
+  paymentId        String?
+  customerCreditId String?
+  method           PaymentMethod
+  amount           Int
+  reference        String?
+  cashSessionId    String?
+  reason           String
+  createdById      String?
+  createdAt        DateTime      @default(now())
+
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  site           Site            @relation(fields: [siteId], references: [id])
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  payment        Payment?        @relation(fields: [paymentId], references: [id])
+  customerCredit CustomerCredit? @relation(fields: [customerCreditId], references: [id])
+  cashSession    CashSession?    @relation(fields: [cashSessionId], references: [id])
+  createdBy      Membership?     @relation("RefundCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, customerId])
+  @@index([organizationId, cashSessionId])
+  @@index([organizationId, createdAt]) // M12 : remboursements en négatif (RG-M12-20)
+}
+
+model CustomerCredit {
+  // M08 §14 — crédit client issu d'un trop-perçu ou d'un avoir payé (RG-M08-12)
+  id             String   @id @default(cuid(2))
+  organizationId String
+  customerId     String
+  sourceType     String // payment | credit_note
+  sourceId       String
+  amount         Int
+  remaining      Int
+  createdAt      DateTime @default(now())
+
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  customer     Customer            @relation(fields: [customerId], references: [id])
+  allocations  PaymentAllocation[]
+  refunds      Refund[]
+
+  @@index([organizationId, customerId])
+}
+
+model PaymentWebhookLog {
+  // M08 §14 — journal des webhooks de paiement (RG-M08-24, étape 4.3)
+  id             String   @id @default(cuid(2))
+  organizationId String?
+  provider       String
+  providerRef    String?
+  signatureValid Boolean
+  payload        Json
+  outcome        String // created | duplicate | rejected | error
+  receivedAt     DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([provider, providerRef])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1791,46 +2434,49 @@ enum ReminderType {
 
 model Reminder {
   // une occurrence planifiée
-  id                String           @id @default(cuid(2))
-  organizationId    String
-  ruleId            String
-  type              ReminderType
-  stepKey           String // "J-30"
-  customerId        String
-  vehicleId         String?
-  invoiceId         String?
-  appointmentId     String?
-  quoteId           String?
-  dueDate           DateTime         @db.Date // échéance de référence (expiration VT, échéance facture…)
-  scheduledFor      DateTime // quand l'envoyer
-  status            ReminderStatus   @default(PLANNED)
-  channel           Channel?
-  renderedBody      String?
-  approvedById      String?
-  approvedAt        DateTime?
-  sentAt            DateTime?
-  skippedReason     String?
-  snoozedUntil      DateTime?
-  outcome           ReminderOutcome?
-  outcomeAt         DateTime?
-  dedupeKey         String // ex. "INSPECTION:veh_123:2026-11-02:J-30"
+  id                   String           @id @default(cuid(2))
+  organizationId       String
+  ruleId               String
+  type                 ReminderType
+  stepKey              String // "J-30"
+  customerId           String
+  vehicleId            String?
+  invoiceId            String?
+  appointmentId        String?
+  quoteId              String?
+  dueDate              DateTime         @db.Date // échéance de référence (expiration VT, échéance facture…)
+  scheduledFor         DateTime // quand l'envoyer
+  status               ReminderStatus   @default(PLANNED)
+  channel              Channel?
+  renderedBody         String?
+  approvedById         String?
+  approvedAt           DateTime?
+  sentAt               DateTime?
+  skippedReason        String?
+  snoozedUntil         DateTime?
+  outcome              ReminderOutcome?
+  outcomeAt            DateTime?
+  dedupeKey            String // ex. "INSPECTION:veh_123:2026-11-02:J-30"
   // M10 §14 — regroupement, priorisation et traçabilité d'envoi (repris dès la Phase 0, cf. 04 §3)
-  sequenceKey       String? // "INSPECTION:veh_123:2026-11-02" (sans le palier)
-  groupKey          String? // regroupement d'envoi (RG-M10-15)
-  messageId         String? // message M11 portant cette relance (partagé dans un groupe)
-  priority          Int              @default(5) // RG-M10-16
-  renderedSubject   String?
-  editedBody        Boolean          @default(false)
-  editedById        String?
-  editedContext     Json?
-  supersededById    String?
-  approvalExpiresAt DateTime?
-  deferCount        Int              @default(0) // reports anti-spam
-  isCatchUp         Boolean          @default(false)
-  attributedAmount  Int? // FCFA récupérés (créances)
-  attributedRevenue Int? // CA de l'OR issu de la relance (VT, révision)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  sequenceKey          String? // "INSPECTION:veh_123:2026-11-02" (sans le palier)
+  groupKey             String? // regroupement d'envoi (RG-M10-15)
+  messageId            String? // message M11 portant cette relance (partagé dans un groupe)
+  priority             Int              @default(5) // RG-M10-16
+  renderedSubject      String?
+  editedBody           Boolean          @default(false)
+  editedById           String?
+  editedContext        Json?
+  supersededById       String?
+  approvalExpiresAt    DateTime?
+  deferCount           Int              @default(0) // reports anti-spam
+  isCatchUp            Boolean          @default(false)
+  attributedAmount     Int? // FCFA récupérés (créances)
+  attributedRevenue    Int? // CA de l'OR issu de la relance (VT, révision)
+  // M17 §14 — meilleur moment d'envoi (RG-M17-16)
+  timeOptimized        Boolean          @default(false)
+  originalScheduledFor DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   organization          Organization  @relation(fields: [organizationId], references: [id])
   rule                  ReminderRule  @relation(fields: [ruleId], references: [id])
@@ -1853,6 +2499,7 @@ model Reminder {
   @@index([organizationId, sequenceKey])
   @@index([organizationId, customerId, status])
   @@index([organizationId, groupKey])
+  @@index([organizationId, sentAt]) // M12 : rapport « Performances des relances »
 }
 
 enum ReminderStatus {
@@ -2133,20 +2780,31 @@ model PaymentProviderConfig {
   isActive       Boolean         @default(false)
   credentials    String // chiffré
   methods        PaymentMethod[]
+  // M15 RG-M15-17 hors §14 (étape 4.3) : résultat du dernier test
+  lastTestedAt   DateTime?
+  lastTestOk     Boolean?
+  lastError      String?
+  updatedAt      DateTime        @default(now()) @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
-  @@index([organizationId, provider])
+  @@unique([organizationId, provider])
 }
 
 model FneConfig {
-  id              String  @id @default(cuid(2))
-  organizationId  String  @unique
-  mode            String  @default("manual") // api | manual | disabled
+  id              String    @id @default(cuid(2))
+  organizationId  String    @unique
+  mode            String    @default("manual") // api | manual | disabled
   credentials     String? // chiffré
   establishmentId String?
   pointOfSale     String?
-  isActive        Boolean @default(false)
+  isActive        Boolean   @default(false)
+  // M08 étape 4.2 (hors §14) : adaptateur du mode api et résultat du dernier test (RG-M15-18).
+  provider        String    @default("dgi_api") // dgi_api | fake (simulateur, hors production)
+  lastTestedAt    DateTime?
+  lastTestOk      Boolean?
+  lastError       String?
+  updatedAt       DateTime  @default(now()) @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 }
@@ -2359,14 +3017,32 @@ model WebhookEndpoint {
 // ═══════════════════════════════════════════════════════════════
 
 model InsuranceCompany {
-  id               String  @id @default(cuid(2))
-  organizationId   String
-  name             String
-  phone            String?
-  email            String?
-  paymentTermsDays Int     @default(60)
+  id                String   @id @default(cuid(2))
+  organizationId    String
+  name              String
+  phone             String?
+  email             String?
+  paymentTermsDays  Int      @default(60)
+  // M16 §14
+  customerId        String?  @unique // Customer COMPANY utilisé pour facturer la compagnie (RG-M16-01)
+  legalName         String?
+  ncc               String?
+  rccm              String?
+  address           String?
+  claimsContactName String?
+  claimsPhone       String? // E.164
+  claimsEmail       String?
+  accountingEmail   String?
+  laborRate         Int? // taux horaire MO convenu (FCFA HT)
+  partsDiscountRate Int? // remise pièces convenue (%)
+  requiredDocuments String[] // kinds d'Attachment exigés (RG-M16-09)
+  followUpConfig    Json     @default("{}") // { approval:[7,14,21], payment:[0,15,30], repeatEvery:30 }
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   organization Organization     @relation(fields: [organizationId], references: [id])
+  customer     Customer?        @relation("InsurerCustomer", fields: [customerId], references: [id])
   vehicles     Vehicle[]
   claims       InsuranceClaim[]
 
@@ -2390,15 +3066,42 @@ model InsuranceClaim {
   notes              String?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
+  // M16 §14 (le lien OR existe déjà : RepairOrder.insuranceClaimId)
+  siteId             String?
+  number             String // SIN-YOP-2026-00031 (A4 : numérotation par site)
+  quoteId            String? // devis assurance retenu
+  accidentPlace      String?
+  circumstances      String?
+  expertFirm         String?
+  expertPhone        String?
+  expertEmail        String?
+  expertVisitedAt    DateTime?
+  estimateSentAt     DateTime?
+  approvedAt         DateTime?
+  approvalRef        String?
+  depreciationAmount Int         @default(0) // vétusté TTC à la charge du client
+  gapAmount          Int         @default(0) // écart non pris en charge mis à la charge du client
+  gapHandling        String? // REVISE | CUSTOMER | GARAGE
+  vatPaidBy          Payer       @default(INSURANCE) // INSURANCE ou CUSTOMER (RG-M16-06)
+  rejectedAt         DateTime?
+  rejectReason       String?
+  closedAt           DateTime?
+  createdById        String?
+  deletedAt          DateTime?
 
   organization     Organization     @relation(fields: [organizationId], references: [id])
   insuranceCompany InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id])
   customer         Customer         @relation(fields: [customerId], references: [id])
   vehicle          Vehicle          @relation(fields: [vehicleId], references: [id])
+  site             Site?            @relation(fields: [siteId], references: [id])
   repairOrders     RepairOrder[]
   invoices         Invoice[]
+  activities       ClaimActivity[]
+  followUps        ClaimFollowUp[]
 
+  @@unique([organizationId, number])
   @@index([organizationId, status])
+  @@index([organizationId, insuranceCompanyId])
 }
 
 enum ClaimStatus {
@@ -2408,8 +3111,53 @@ enum ClaimStatus {
   APPROVED
   REPAIRING
   INVOICED
+  PARTIALLY_PAID // M16 §14
   PAID
   REJECTED
+  CANCELLED // M16 §14
+}
+
+model ClaimActivity {
+  // M16 §14 — chronologie du dossier sinistre
+  id             String    @id @default(cuid(2))
+  organizationId String
+  claimId        String
+  type           String // status_change | call | note | email | whatsapp | visit | followup
+  body           String?
+  data           Json      @default("{}")
+  messageId      String?
+  nextActionAt   DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  claim        InsuranceClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, claimId, createdAt])
+}
+
+model ClaimFollowUp {
+  // M16 §14 — relance planifiée vers l'assureur (RG-M16-08) ; pas un Reminder M10 (A7)
+  id             String         @id @default(cuid(2))
+  organizationId String
+  claimId        String
+  invoiceId      String?
+  kind           String // approval | payment | expert
+  stepKey        String // "J+7", "J+30"
+  scheduledFor   DateTime
+  status         ReminderStatus @default(PLANNED)
+  channel        Channel?
+  messageId      String?
+  sentAt         DateTime?
+  snoozedUntil   DateTime?
+  dedupeKey      String
+  createdAt      DateTime       @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  claim        InsuranceClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, status, scheduledFor])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2439,7 +3187,7 @@ model DocumentSequence {
   id             String  @id @default(cuid(2))
   organizationId String
   siteId         String?
-  docType        String // OR | DEV | FAC | AV | REC | BC
+  docType        String // OR | DEV | FAC | AV | REC | BC | INV | TR
   year           Int
   lastValue      Int     @default(0)
 
@@ -2631,11 +3379,147 @@ model AiInteraction {
   tokensOut      Int?
   createdById    String?
   createdAt      DateTime @default(now())
+  // M17 §14 — journal (RG-M17-06/07)
+  promptVersion  String   @default("v1")
+  status         String   @default("OK") // OK | INVALID_OUTPUT | TIMEOUT | ERROR | QUOTA_EXCEEDED | DISABLED
+  latencyMs      Int?
+  credits        Int      @default(0)
+  model          String? // valeur de AI_MODEL utilisée (null = repli sans IA)
+  editDistance   Int?
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  createdBy    Membership?  @relation("AiInteractionCreatedBy", fields: [createdById], references: [id])
+  // M17 : suppression en cascade avec l'organisation (journal technique, jamais supprimé en
+  // production — l'organisation y est anonymisée), membre supprimé → auteur effacé.
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    Membership?    @relation("AiInteractionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  suggestions  AiSuggestion[]
 
   @@index([organizationId, feature])
+  @@index([organizationId, feature, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// M17 §14 — IA et automatisations
+// ═══════════════════════════════════════════════════════════════
+
+model AiSuggestion {
+  // proposition IA (ou repli) en attente de décision humaine (RG-M17-02)
+  id             String             @id @default(cuid(2))
+  organizationId String
+  interactionId  String? // AiInteraction (null si repli sans IA)
+  feature        String // reply_draft | slot | quote_draft | quote_explanation | extraction | promise | optout | rule_tuning | automation
+  targetEntity   String // conversation | repair_order | quote | vehicle | purchase_order | reminder_rule | automation_run
+  targetId       String?
+  payload        Json
+  status         AiSuggestionStatus @default(PENDING)
+  isFallback     Boolean            @default(false)
+  decidedById    String?
+  decidedAt      DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime           @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  interaction  AiInteraction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  decidedBy    Membership?    @relation("AiSuggestionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, targetEntity, targetId, status])
+  @@index([organizationId, status, expiresAt])
+}
+
+enum AiSuggestionStatus {
+  PENDING
+  ACCEPTED
+  EDITED_ACCEPTED
+  DISMISSED
+  EXPIRED
+}
+
+model AiAssistantThread {
+  // assistant conversationnel lecture seule (RG-M17-20), conservé 30 jours
+  id             String   @id @default(cuid(2))
+  organizationId String
+  membershipId   String
+  title          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  expiresAt      DateTime // +30 j
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  membership   Membership           @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  messages     AiAssistantMessage[]
+
+  @@index([organizationId, membershipId, updatedAt])
+  @@index([expiresAt])
+}
+
+model AiAssistantMessage {
+  id             String   @id @default(cuid(2))
+  // organizationId ajouté (04 §3 : toute table enfant porte organizationId, pour la RLS)
+  organizationId String
+  threadId       String
+  role           String // user | assistant | tool
+  content        Json
+  interactionId  String?
+  createdAt      DateTime @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread       AiAssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, threadId, createdAt])
+}
+
+model AutomationRule {
+  // règle « si… alors… » sans IA (RG-M17-23)
+  id             String         @id @default(cuid(2))
+  organizationId String
+  name           String
+  trigger        String // "repair_order.status_changed"
+  conditions     Json           @default("[]") // [{ field, op, value }]
+  actions        Json // [{ type:"send_template", templateKey:"vehicle_ready", channel:"WHATSAPP", withPaymentLink:true }]
+  mode           AutomationMode @default(PROPOSE)
+  delayMinutes   Int            @default(0)
+  siteIds        String[] // vide = tous
+  isActive       Boolean        @default(false)
+  // écart §14 : date d'activation — seuls les événements postérieurs déclenchent la règle
+  activatedAt    DateTime?
+  templateKey    String? // modèle fourni d'origine
+  createdById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    Membership?     @relation("AutomationRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  runs         AutomationRun[]
+
+  @@index([organizationId, isActive, trigger])
+}
+
+enum AutomationMode {
+  AUTO
+  PROPOSE
+}
+
+model AutomationRun {
+  id             String    @id @default(cuid(2))
+  organizationId String
+  ruleId         String
+  eventId        String
+  status         String // PENDING | SUCCEEDED | FAILED | SKIPPED
+  result         Json?
+  error          String?
+  depth          Int       @default(0)
+  // écart §14 : exécution différée (delayMinutes) et réessais (FAILED réessayé 3 fois, §5)
+  scheduledFor   DateTime  @default(now())
+  attempts       Int       @default(0)
+  executedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rule         AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, eventId])
+  @@index([organizationId, status, scheduledFor])
+  @@index([organizationId, ruleId, createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -15,15 +15,28 @@ export {
   today,
 } from "./calendar";
 
-export type { InvoiceLineInput, InvoiceLineTotals, InvoiceTotals } from "./money";
+export type {
+  DocumentLineInput,
+  DocumentTotals,
+  InvoiceLineInput,
+  InvoiceLineTotals,
+  InvoiceTotals,
+  VatRounding,
+} from "./money";
 export {
+  amountInWords,
+  computeDocumentTotals,
   computeInvoiceTotals,
   computeLine,
   formatFCFA,
   parseFCFA,
   roundHalfUp,
+  toFrenchWords,
   ttcToHt,
 } from "./money";
+
+export * from "./billing";
+export * from "./claims";
 
 export type { NormalizedPhone, PhoneLineType, PhoneStatus } from "./phone";
 export { convertLegacyNumber, isValidPhoneCI, normalizePhoneCI, phoneLineType } from "./phone";
@@ -312,4 +325,14 @@ export { isWithinSendWindow, nextSendWindowStart } from "./messaging/sendWindow"
 
 export * from "./receivables";
 export * from "./dashboard";
+export * from "./reports";
+export * from "./inventory";
+export * from "./planning";
 export * from "./repairOrders";
+export * from "./quotes";
+export * from "./workshop";
+
+export type { SearchDocumentPrefix, SearchQueryAnalysis, SearchQueryKind } from "./search";
+export { analyzeSearchQuery, loosenPlate, matchRank, SEARCH_DOCUMENT_PREFIXES } from "./search";
+export * from "./ai";
+export * from "./automations";

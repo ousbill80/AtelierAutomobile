@@ -1,10 +1,12 @@
 import { DomainError } from "@atelieros/core";
-import type {
-  CreatePaymentLinkInput,
-  CreatePaymentLinkResult,
-  PaymentEvent,
-  PaymentProvider,
-  PaymentStatus,
+import {
+  unpaidStatus,
+  type CreatePaymentLinkInput,
+  type CreatePaymentLinkResult,
+  type PaymentEvent,
+  type PaymentProvider,
+  type PaymentStatus,
+  type PaymentStatusResult,
 } from "./provider";
 
 export interface ManualPaymentRecord {
@@ -36,6 +38,8 @@ export function createInMemoryManualPaymentLedger(): ManualPaymentLedger {
  * facture payée après avoir reçu l'argent (espèces, virement, ou Wave/OM confirmé de visu).
  */
 export class ManualPaymentProvider implements PaymentProvider {
+  readonly name = "manual";
+
   constructor(
     private readonly appUrl: string,
     private readonly ledger: ManualPaymentLedger,
@@ -47,14 +51,18 @@ export class ManualPaymentProvider implements PaymentProvider {
     return { url: `${this.appUrl}/paiement-manuel/${providerRef}`, providerRef };
   }
 
-  async parseWebhook(_req: Request): Promise<PaymentEvent> {
+  verifyWebhook(): boolean {
+    return false;
+  }
+
+  parseWebhook(): PaymentEvent {
     throw new DomainError(
       "payment.manual_no_webhook",
       "Le fournisseur de paiement manuel ne reçoit pas de webhook : la confirmation se fait depuis l'écran de caisse.",
     );
   }
 
-  async getStatus(providerRef: string): Promise<PaymentStatus> {
-    return this.ledger.get(providerRef)?.status ?? "PENDING";
+  async getStatus(providerRef: string): Promise<PaymentStatusResult> {
+    return unpaidStatus(this.ledger.get(providerRef)?.status ?? "PENDING");
   }
 }

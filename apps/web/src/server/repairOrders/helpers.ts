@@ -14,11 +14,13 @@ import {
   isDomainError,
   laborRatesFrom,
   OPEN_INVOICE_STATUSES,
+  releasesBayOn,
   renderNumberingPattern,
   repairOrderSettingsFrom,
   repairOrderTotals,
   systemClock,
   warrantySettingsFrom,
+  workshopSettingsFrom,
   type AgingInvoice,
   type Clock,
   type NumberingConfig,
@@ -30,11 +32,16 @@ import {
 import {
   adminDb,
   collectionSettingsFrom,
+  loadStockContext,
+  repairOrderLineStock,
+  syncRepairOrderStock,
   tenantSequenceStore,
   type Prisma,
   type RepairOrder,
   type ScopedTenantClient,
 } from "@atelieros/db";
+import { requestAutomationDispatch } from "../automations/queue";
+import { syncClaimFromRepairOrder } from "../claims/sync";
 import { emitDomainEvent } from "../events/emit";
 
 type Tx = ScopedTenantClient;
@@ -185,7 +192,7 @@ export async function transitionFacts(
         approval: { in: ["APPROVED", "NOT_REQUIRED"] },
         isCustomerSupplied: false,
       },
-      select: { productId: true, quantity: true },
+      select: { id: true, productId: true, quantity: true },
     }),
   ]);
   const openCount = await tx.timeEntry.count({
@@ -193,7 +200,7 @@ export async function transitionFacts(
   });
   // Sorties = mouvements négatifs (ISSUE_TO_RO), retours positifs : solde < 0 → pièces dehors.
   const issued = -(movements._sum.quantity ?? 0);
-  const unavailable = await countUnavailableParts(tx, order.siteId, partLines);
+  const unavailable = await countUnavailableParts(tx, order, partLines);
   return {
     openTimeEntries: openCount,
     openTimeEntryName: openEntries[0]?.membership.user.name ?? null,
@@ -204,20 +211,43 @@ export async function transitionFacts(
 }
 
 /**
- * M07 (interface) : pièce disponible si `onHand − reserved ≥ quantité` au site de l'OR. Une
+ * M07 (RG-M04-09) : une ligne de pièce est disponible si ses réservations RESERVED et ses
+ * sorties couvrent sa quantité ; une réservation BACKORDERED la rend manquante. Sans
+ * réservation (OR pas encore approuvé) : `onHand − reserved ≥ quantité` au site de l'OR. Une
  * pièce hors catalogue (sans `productId`) est considérée « à commander ».
  */
 export async function countUnavailableParts(
   tx: Tx,
-  siteId: string,
-  lines: { productId: string | null; quantity: number }[],
+  order: Pick<RepairOrder, "id" | "siteId">,
+  lines: { id: string; productId: string | null; quantity: number }[],
 ): Promise<number> {
   const productIds = lines.map((l) => l.productId).filter((p): p is string => !!p);
-  const levels = productIds.length
-    ? await tx.stockLevel.findMany({ where: { siteId, productId: { in: productIds } } })
-    : [];
+  const [levels, stock] = await Promise.all([
+    productIds.length
+      ? tx.stockLevel.findMany({ where: { siteId: order.siteId, productId: { in: productIds } } })
+      : [],
+    repairOrderLineStock(tx, order.id),
+  ]);
   const available = new Map(levels.map((l) => [l.productId, l.onHand - l.reserved]));
-  return lines.filter((l) => !l.productId || (available.get(l.productId) ?? 0) < l.quantity).length;
+  return lines.filter((l) => {
+    if (!l.productId) return true;
+    const state = stock.find((s) => s.lineId === l.id);
+    if (state && state.reserved + state.backordered + state.issued > 0) {
+      return state.backordered > 0 || state.reserved + state.issued < state.target;
+    }
+    return (available.get(l.productId) ?? 0) < l.quantity;
+  }).length;
+}
+
+/** M07 : ajuste les réservations de pièces de l'OR à son statut et à ses lignes. */
+export async function syncOrderStock(
+  tx: Tx,
+  order: Pick<RepairOrder, "id" | "organizationId">,
+  now: Date,
+  membershipId: string | null,
+): Promise<void> {
+  const stock = await loadStockContext(order.organizationId);
+  await syncRepairOrderStock(tx, stock, order.id, now, membershipId);
 }
 
 export interface ApplyTransitionInput {
@@ -249,8 +279,26 @@ export async function applyTransition(tx: Tx, input: ApplyTransitionInput): Prom
     data.cancelReason = input.reason ?? null;
   }
   if (to === "INVOICED") data.invoicedAt = now;
+  // M06 RG-M06-03 : READY libère le pont (sauf `atelier.keepBayUntilDelivery`), comme la
+  // restitution et l'annulation.
+  if (order.bayId && data.bay === undefined) {
+    const org = await adminDb.organization.findUnique({
+      where: { id: order.organizationId },
+      select: { settings: true },
+    });
+    if (releasesBayOn(to, workshopSettingsFrom(org?.settings).keepBayUntilDelivery)) {
+      data.bay = { disconnect: true };
+    }
+  }
 
   const updated = await tx.repairOrder.update({ where: { id: order.id }, data });
+  // M16 §9 : OR d'un dossier sinistre passé IN_PROGRESS → dossier REPAIRING.
+  await syncClaimFromRepairOrder(tx, {
+    insuranceClaimId: order.insuranceClaimId,
+    to,
+    now,
+    membershipId: input.membershipId,
+  });
   await tx.repairOrderStatusHistory.create({
     data: {
       organizationId: order.organizationId,
@@ -274,6 +322,12 @@ export async function applyTransition(tx: Tx, input: ApplyTransitionInput): Prom
     byMembershipId: input.membershipId,
   };
   await emitDomainEvent(tx as never, order.organizationId, "repair_order.status_changed", payload);
+  // M17 RG-M17-24 : passage immédiat des automatisations (appelé dans la transaction de
+  // l'appelant : léger délai pour le commit ; le passage de chaque minute rattrape sinon).
+  await requestAutomationDispatch(
+    { organizationId: order.organizationId, trigger: "repair_order.status_changed" },
+    { delayMs: 1500 },
+  );
   if (to === "READY")
     await emitDomainEvent(tx as never, order.organizationId, "repair_order.ready", payload);
   if (to === "DELIVERED") {
@@ -285,6 +339,8 @@ export async function applyTransition(tx: Tx, input: ApplyTransitionInput): Prom
       reason: input.reason ?? null,
     });
   }
+  // RG-M04-09 : APPROVED → réservations des pièces, CANCELLED → libération.
+  await syncOrderStock(tx, updated, now, input.membershipId);
   return updated;
 }
 

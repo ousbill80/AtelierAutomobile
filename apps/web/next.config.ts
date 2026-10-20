@@ -12,7 +12,7 @@ if (existsSync(envPath)) {
 const nextConfig: NextConfig = {
   /* config options here */
   // @react-pdf/renderer (relevé de compte M09) : chargé côté Node, pas bundlé.
-  serverExternalPackages: ["@react-pdf/renderer", "@node-rs/argon2"],
+  serverExternalPackages: ["@react-pdf/renderer", "@node-rs/argon2", "exceljs"],
   turbopack: {
     rules: {
       "*.css": {

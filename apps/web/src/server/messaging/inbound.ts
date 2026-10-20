@@ -3,7 +3,8 @@
 // (whatsapp, sms/[provider], email/[provider]).
 //
 // Simplifications documentées :
-// - RG-M11-20 (classement IA de l'intention) : M17 n'existe pas encore, `intent` reste null.
+// - RG-M11-20 (classement IA de l'intention) : délégué à M17 (`ai/inbox.ts`, RG-M17-11/12),
+//   après l'enregistrement du message, hors mots-clés STOP/START.
 // - RG-M11-21 (assignation au dernier conseiller) : nécessite M03/M04/M10, non branché ; une
 //   nouvelle conversation reste toujours non assignée (file commune).
 import { adminDb, db } from "@atelieros/db";
@@ -16,6 +17,7 @@ import {
   type OutboundMessageStatus,
 } from "@atelieros/core";
 import type { ProviderMessageStatus } from "@atelieros/integrations";
+import { processInboundAi } from "../ai/inbox";
 import { emitDomainEvent } from "../events/emit";
 import { markMessageFailedWithFallback } from "./fallback";
 import { enqueueMessageSendJob } from "./queue";
@@ -155,7 +157,27 @@ export async function recordInboundMessage(input: InboundMessageInput): Promise<
     stop,
     occurredAt: input.occurredAt.toISOString(),
   });
+
+  if (!stop && !isStartKeyword(input.body)) {
+    // M17 : classification + brouillon. Attente bornée (RG-M17-01 : « dans les 10 s ») pour ne
+    // jamais retenir le webhook ; au-delà, le traitement se poursuit en arrière-plan.
+    const work = processInboundAi({
+      organizationId: input.organizationId,
+      conversationId: conversation.id,
+      messageId: message.id,
+    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      work,
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, INBOUND_AI_WAIT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
+  }
 }
+
+const INBOUND_AI_WAIT_MS = 9_000;
 
 async function handleOptOut(
   tx: TenantDb,

@@ -36,6 +36,25 @@ describe("buildDigestText (RG-M12-30)", () => {
     );
   });
 
+  it("mode FULL : lignes HIER, OR et AUJOURD'HUI conformes à l'exemple RG-M12-30", () => {
+    const lines = buildDigestText({
+      ...input,
+      yesterday: {
+        revenueHt: 1_245_000,
+        collected: 980_000,
+        byMethod: { CASH: 310_000, WAVE: 520_000, ORANGE_MONEY: 150_000 },
+      },
+      orders: { opened: 9, delivered: 7, inProgress: 14 },
+      today: { appointments: 11, promised: 5, blockedParts: 2 },
+    }).split("\n");
+    expect(lines.slice(1, 4)).toEqual([
+      "HIER : CA 1 245 000 FCFA HT · encaissé 980 000 FCFA (Wave 520 000 · Espèces 310 000 · OM 150 000)",
+      "OR : 9 ouverts · 7 livrés · 14 en cours",
+      "AUJOURD'HUI : 11 RDV · 5 véhicules promis · 2 OR bloqués (pièces > 48 h)",
+    ]);
+    expect(lines[4]).toMatch(/^ARGENT DEHORS/);
+  });
+
   it("omet les sections vides ; version REMINDERS_ONLY", () => {
     const text = buildDigestText({
       ...input,

@@ -30,10 +30,16 @@ function getMessagesQueue(): Queue {
 }
 
 /** `jobId = message.id` (RG-M11-01) : un retry BullMQ sur le même id ne duplique jamais le job. */
-export async function enqueueMessageSendJob(messageId: string): Promise<void> {
+export async function enqueueMessageSendJob(messageId: string, delayMs = 0): Promise<void> {
   await getMessagesQueue().add(
     MESSAGES_SEND_JOB_NAME,
     { messageId },
-    { jobId: messageId, attempts: 5, backoff: { type: "atelieros-messaging" } },
+    {
+      jobId: messageId,
+      attempts: 5,
+      backoff: { type: "atelieros-messaging" },
+      // M03 RG-M03-08 : message transactionnel différé à 07:00 hors fenêtre 22:00-07:00.
+      ...(delayMs > 0 ? { delay: delayMs } : {}),
+    },
   );
 }

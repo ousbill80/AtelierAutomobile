@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "@atelieros/core": "workspace:*",
-    "@react-pdf/renderer": "^4.1.6"
+    "@react-pdf/renderer": "^4.1.6",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@atelieros/config": "workspace:*",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "eslint": "^9",
     "react": "^19",

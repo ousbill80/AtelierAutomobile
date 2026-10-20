@@ -1,11 +1,36 @@
 import { z } from "zod";
 
-// M12 §8 — entrées du tableau de bord (partie 1, étape 2.4).
+// M12 §8 — entrées du tableau de bord et des rapports.
 // Doit rester aligné sur PERIOD_PRESETS (packages/core/src/dashboard/period.ts).
-export const dashboardPeriodSchema = z.enum(["today", "7d", "month", "prev_month", "30d"]);
+export const dashboardPeriodSchema = z.enum([
+  "today",
+  "7d",
+  "month",
+  "prev_month",
+  "30d",
+  "quarter",
+  "year",
+]);
+
+const isoDay = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide : utilisez le format AAAA-MM-JJ.");
+
+/** Période « Personnalisée » (US-M12-02) : du `from` au `to` inclus, 366 jours au plus. */
+export const customPeriodSchema = z
+  .object({ from: isoDay, to: isoDay })
+  .refine((p) => p.from <= p.to, { message: "La date de début doit précéder la date de fin." })
+  .refine(
+    (p) =>
+      new Date(`${p.to}T00:00:00Z`).getTime() - new Date(`${p.from}T00:00:00Z`).getTime() <=
+      366 * 86_400_000,
+    { message: "Choisissez une période d'un an au plus." },
+  );
 
 export const dashboardInputSchema = z.object({
   period: dashboardPeriodSchema.default("month"),
+  /** Si présent, remplace `period` (période personnalisée). */
+  custom: customPeriodSchema.optional(),
   siteId: z.string().min(1).optional(),
 });
 export type DashboardInput = z.infer<typeof dashboardInputSchema>;
@@ -34,3 +59,38 @@ export type DigestSettings = z.infer<typeof digestSettingsSchema>;
 export const DEFAULT_DIGEST_SETTINGS: DigestSettings = digestSettingsSchema.parse({});
 
 export const digestUpdateSettingsInputSchema = digestSettingsSchema;
+
+// M12 §8 — rapports exportables (`reports.preview`, `reports.compareSites`, export REST).
+export const reportSlugSchema = z.enum([
+  "ventes",
+  "encaissements",
+  "balance-agee",
+  "rentabilite-or",
+  "stock-valorise",
+  "relances",
+  "productivite",
+  "clients",
+  "top-pieces",
+]);
+
+export const reportFiltersSchema = z.object({
+  from: isoDay.optional(),
+  to: isoDay.optional(),
+  /** Date de situation (balance âgée, stock valorisé) ; défaut : aujourd'hui. */
+  asOf: isoDay.optional(),
+  siteId: z.string().min(1).optional(),
+  /** Rapport « Ventes » : regroupement (M12 §7). */
+  groupBy: z.enum(["none", "day", "month", "customer"]).default("none"),
+});
+export type ReportFilters = z.infer<typeof reportFiltersSchema>;
+
+export const reportPreviewInputSchema = z.object({
+  slug: reportSlugSchema,
+  filters: reportFiltersSchema.default({}),
+  cursor: z.number().int().min(0).default(0),
+});
+
+export const compareSitesInputSchema = z.object({
+  period: dashboardPeriodSchema.default("month"),
+  custom: customPeriodSchema.optional(),
+});

@@ -219,6 +219,10 @@ describe("repairOrder routers (M04)", () => {
     await adminDb.repairOrder.deleteMany({ where });
     await adminDb.documentSequence.deleteMany({ where });
     await adminDb.laborOperation.deleteMany({ where });
+    // M07 : réservations, mouvements et niveaux créés par le branchement stock ↔ OR.
+    await adminDb.stockMovement.deleteMany({ where });
+    await adminDb.stockReservation.deleteMany({ where });
+    await adminDb.stockLevel.deleteMany({ where });
     await adminDb.product.deleteMany({ where });
     await adminDb.vehicle.deleteMany({ where });
     await adminDb.customer.deleteMany({ where });

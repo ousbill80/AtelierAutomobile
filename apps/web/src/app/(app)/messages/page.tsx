@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button, EmptyState, StatusBadge } from "@atelieros/ui";
+import { IntentBadge } from "@/components/ai/intent-badge";
 import { trpc } from "@/trpc/react";
 
 const CHANNEL_LABEL: Record<string, string> = { WHATSAPP: "WhatsApp", SMS: "SMS", EMAIL: "Email" };
@@ -148,7 +149,8 @@ export default function MessagesPage() {
               </p>
               <p className="text-sm text-muted">{conversation.externalAddress}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <IntentBadge intent={conversation.lastIntent} />
               {conversation.unreadCount > 0 && (
                 <StatusBadge tone="bad">{conversation.unreadCount} non lu(s)</StatusBadge>
               )}

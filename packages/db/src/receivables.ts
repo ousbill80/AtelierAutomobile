@@ -427,33 +427,41 @@ export async function attributeAllocations(
   }
 }
 
-/** `SequenceStore` sans trou sur `DocumentSequence`, dans la transaction de l'appelant. */
+/**
+ * `SequenceStore` sans trou sur `DocumentSequence`, dans la transaction de l'appelant
+ * (RG-M08-01). La ligne est créée au besoin par `INSERT … ON CONFLICT DO NOTHING` (index unique,
+ * y compris l'index partiel `siteId IS NULL` des séquences fiscales), puis incrémentée par un
+ * `UPDATE … lastValue + 1` qui verrouille la ligne jusqu'à la fin de la transaction : deux
+ * émissions concurrentes reçoivent des numéros consécutifs, et un rollback ne consomme rien.
+ */
 export function tenantSequenceStore(tx: Tx): SequenceStore {
   return {
     async getAndIncrement(key: DocumentSequenceKey): Promise<number> {
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const existing = await tx.documentSequence.findFirst({
-          where: { siteId: key.siteId, docType: key.docType, year: key.year },
-        });
-        if (!existing) {
-          await tx.documentSequence.create({
-            data: {
+      const where = { siteId: key.siteId, docType: key.docType, year: key.year };
+      const existing = await tx.documentSequence.findFirst({ where, select: { id: true } });
+      if (!existing) {
+        await tx.documentSequence.createMany({
+          data: [
+            {
               organizationId: key.organizationId,
               siteId: key.siteId,
               docType: key.docType,
               year: key.year,
-              lastValue: 1,
+              lastValue: 0,
             },
-          });
-          return 1;
-        }
-        const { count } = await tx.documentSequence.updateMany({
-          where: { id: existing.id, lastValue: existing.lastValue },
-          data: { lastValue: existing.lastValue + 1 },
+          ],
+          skipDuplicates: true,
         });
-        if (count === 1) return existing.lastValue + 1;
       }
-      throw new Error("Numérotation : conflit persistant sur DocumentSequence.");
+      const { count } = await tx.documentSequence.updateMany({
+        where,
+        data: { lastValue: { increment: 1 } },
+      });
+      if (count !== 1) {
+        throw new Error("Numérotation : séquence DocumentSequence introuvable ou en double.");
+      }
+      const row = await tx.documentSequence.findFirstOrThrow({ where });
+      return row.lastValue;
     },
   };
 }

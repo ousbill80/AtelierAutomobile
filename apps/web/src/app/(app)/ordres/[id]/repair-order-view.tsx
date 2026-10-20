@@ -3,6 +3,7 @@
 // M04 §7 — fiche OR : en-tête (statut, client, véhicule, promesse), barre d'actions issue de la
 // machine à états, onglets Travaux / Réception / Inspection / Devis / Pièces / Temps /
 // Documents / Historique / Notes internes.
+import { t as tClaims } from "@/components/claims/i18n";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,7 @@ import {
   type BodyView,
 } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { RepairOrderInvoiceButton } from "@/components/billing/repair-order-invoice-button";
 import {
   InspectionResultBadge,
   LineApprovalBadge,
@@ -39,6 +41,8 @@ import {
 } from "@/components/repair-orders/i18n";
 import { LineForm } from "@/components/repair-orders/line-form";
 import type { RepairOrderDetail, RepairOrderLineDetail } from "@/components/repair-orders/types";
+import { QuoteStatusBadge } from "@/components/quotes/badges";
+import { QuoteDraftPanel } from "@/components/ai-quotes/quote-draft-panel";
 
 const TAB_KEYS = [
   "work",
@@ -124,7 +128,7 @@ export function RepairOrderView({ id }: { id: string }) {
           onError={onError}
         />
       )}
-      {tab === "quotes" && <QuotesTab order={order} />}
+      {tab === "quotes" && <QuotesTab order={order} perms={perms} />}
       {tab === "parts" && <PartsTab order={order} />}
       {tab === "time" && <TimeTab order={order} />}
       {tab === "documents" && <DocumentsTab order={order} />}
@@ -168,6 +172,25 @@ function Header({
         <RepairOrderStatusBadge status={order.status} />
         {order.late && <StatusBadge tone="bad" label={`⏰ ${t("detail.late")}`} />}
         {order.cashOnly && <StatusBadge tone="warn" label={t("detail.cashOnly")} />}
+        {/* M16 : dossier sinistre lié, ou ouverture d'un dossier depuis l'OR. */}
+        {order.insuranceClaimId && perms.has("insurance:read") ? (
+          <Link
+            href={`/assurances/sinistres/${order.insuranceClaimId}`}
+            className="btn btn-secondary btn-sm min-h-11"
+          >
+            🛡 {tClaims("actions.viewClaim")}
+          </Link>
+        ) : (
+          perms.has("insurance:manage") &&
+          !LOCKED.has(order.status) && (
+            <Link
+              href={`/assurances/sinistres/nouveau?or=${order.id}`}
+              className="btn btn-secondary btn-sm min-h-11"
+            >
+              🛡 {tClaims("actions.openClaim")}
+            </Link>
+          )
+        )}
         {order.isComeback && order.comebackOf && (
           <Link
             href={`/ordres/${order.comebackOf.id}`}
@@ -420,6 +443,12 @@ function ActionBar({
               {t("detail.deliver")}
             </Link>
           )}
+        {["READY", "DELIVERED", "INVOICED"].includes(order.status) && perms.has("invoice:read") && (
+          <RepairOrderInvoiceButton
+            repairOrderId={order.id}
+            canCreate={perms.has("invoice:create")}
+          />
+        )}
         {perms.has("repair_order:update") && !LOCKED.has(order.status) && (
           <Button
             size="sm"
@@ -741,6 +770,7 @@ function LineRow({
         </span>
         <LineApprovalBadge approval={line.approval} />
         {line.approvalSource && <span>({t(`approvalSource.${line.approvalSource}`)})</span>}
+        <LineStockBadge state={line.stockState} />
         <StatusBadge
           tone={line.status === "DONE" ? "ok" : line.status === "IN_PROGRESS" ? "warn" : "off"}
           label={t(`lineStatus.${line.status}`)}
@@ -1075,6 +1105,11 @@ function InspectionTab({
     onSuccess: (r) => onDone(t("inspection.added", { count: r.created })),
     onError,
   });
+  // M05 US-M05-01 : devis depuis l'inspection (un groupe par point urgent / à surveiller).
+  const createQuote = trpc.quote.createFromInspection.useMutation({
+    onSuccess: (r) => router.push(`/devis/${r.id}`),
+    onError,
+  });
   const canPerform =
     perms.has("inspection:perform") && !LOCKED.has(order.status) && order.status !== "DRAFT";
   if (order.inspections.length === 0) {
@@ -1152,15 +1187,17 @@ function InspectionTab({
                   >
                     {t("inspection.addToOrder")}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="min-h-11"
-                    disabled
-                    title={t("inspection.quoteSoon")}
-                  >
-                    {t("inspection.createQuote")}
-                  </Button>
+                  {perms.has("quote:create") && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="min-h-11"
+                      loading={createQuote.isPending}
+                      onClick={() => createQuote.mutate({ inspectionId: inspection.id })}
+                    >
+                      {t("inspection.createQuote")}
+                    </Button>
+                  )}
                 </div>
               )}
           </div>
@@ -1170,18 +1207,96 @@ function InspectionTab({
   );
 }
 
-function QuotesTab({ order }: { order: RepairOrderDetail }) {
-  if (order.quotes.length === 0) return <EmptyState title={t("quotes.none")} />;
+/** M07 : « Pièce manquante » tant qu'une réservation attend une réception (RG-M07-04). */
+function LineStockBadge({
+  state,
+  showAll = false,
+}: {
+  state: "none" | "reserved" | "partial" | "missing" | "issued" | null;
+  showAll?: boolean;
+}) {
+  if (!state) return null;
+  if (state === "missing" || state === "partial") {
+    return <StatusBadge tone="bad" label={t(`parts.stock.${state}`)} />;
+  }
+  if (!showAll) return null;
   return (
-    <ul className="flex flex-col gap-2 text-sm">
-      {order.quotes.map((q) => (
-        <li key={q.id} className="flex justify-between rounded-md bg-surface p-3">
-          <span className="font-mono">{q.number}</span>
-          <span>{q.status}</span>
-          <span>{formatFCFA(q.total)}</span>
-        </li>
-      ))}
-    </ul>
+    <StatusBadge
+      tone={state === "reserved" || state === "issued" ? "ok" : "off"}
+      label={t(`parts.stock.${state}`)}
+    />
+  );
+}
+
+function QuotesTab({ order, perms }: { order: RepairOrderDetail; perms: Set<string> }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  // M05 : devis reprenant les lignes en attente d'accord (« accord tracé » M04 → devis).
+  const fromPending = trpc.quote.createFromRepairOrderPending.useMutation({
+    onSuccess: (r) => router.push(`/devis/${r.id}`),
+    onError: (e) => setError(e.message),
+  });
+  const create = trpc.quote.create.useMutation({
+    onSuccess: (r) => router.push(`/devis/${r.id}`),
+    onError: (e) => setError(e.message),
+  });
+  const pending = order.lines.some(
+    (l) => l.approval === "PENDING" && l.status !== "CANCELLED" && !l.quoteLineId,
+  );
+  const canCreate = perms.has("quote:create") && !LOCKED.has(order.status);
+  return (
+    <section className="flex flex-col gap-2 text-sm">
+      {canCreate && (
+        <div className="flex flex-wrap gap-2">
+          {pending && (
+            <Button
+              size="sm"
+              className="min-h-11"
+              loading={fromPending.isPending}
+              onClick={() => fromPending.mutate({ repairOrderId: order.id })}
+            >
+              {t("quotes.fromPending")}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="secondary"
+            className="min-h-11"
+            loading={create.isPending}
+            onClick={() => create.mutate({ repairOrderId: order.id, origin: "REPAIR_ORDER" })}
+          >
+            {t("quotes.new")}
+          </Button>
+        </div>
+      )}
+      {canCreate && perms.has("ai:use") && <QuoteDraftPanel repairOrderId={order.id} />}
+      {error && (
+        <p role="alert" className="text-status-bad">
+          ⚠ {error}
+        </p>
+      )}
+      {order.quotes.length === 0 ? (
+        <EmptyState title={t("quotes.none")} />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {order.quotes.map((q) => (
+            <li key={q.id}>
+              <Link
+                href={`/devis/${q.id}`}
+                className="flex flex-wrap justify-between gap-2 rounded-md bg-surface p-3 hover:text-accent"
+              >
+                <span className="font-mono">
+                  {q.number}
+                  {q.version > 1 ? ` v${q.version}` : ""}
+                </span>
+                <QuoteStatusBadge status={q.status} />
+                <span>{formatFCFA(q.total)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -1204,7 +1319,10 @@ function PartsTab({ order }: { order: RepairOrderDetail }) {
             {l.isCustomerSupplied ? (
               <StatusBadge tone="off" label={t("parts.customerSupplied")} />
             ) : l.productId ? (
-              <LineApprovalBadge approval={l.approval} />
+              <span className="flex flex-wrap gap-1">
+                <LineApprovalBadge approval={l.approval} />
+                <LineStockBadge state={l.stockState} showAll />
+              </span>
             ) : (
               <StatusBadge tone="warn" label={t("parts.toOrder")} />
             )}

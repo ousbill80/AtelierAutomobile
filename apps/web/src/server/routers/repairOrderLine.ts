@@ -1,8 +1,22 @@
 // M04 §8 — routeur `repairOrderLine` : ajout, modification (verrou optimiste), retrait,
 // statut (utilisé par M06), affectation, suivi de sous-traitance.
 import { TRPCError } from "@trpc/server";
-import { decideLineApproval, isLockedStatus, isWorkableLine, lineAmounts } from "@atelieros/core";
-import { db, type RepairOrder, type RepairOrderLine, type ScopedTenantClient } from "@atelieros/db";
+import {
+  decideLineApproval,
+  hasSkill,
+  isLockedStatus,
+  isWorkableLine,
+  lineAmounts,
+} from "@atelieros/core";
+import {
+  db,
+  issueReservedForLine,
+  loadStockContext,
+  syncRepairOrderStock,
+  type RepairOrder,
+  type RepairOrderLine,
+  type ScopedTenantClient,
+} from "@atelieros/db";
 import {
   addLineInputSchema,
   assignLineInputSchema,
@@ -20,8 +34,10 @@ import {
   badRequest,
   loadOrgRoContext,
   notFound,
+  notify,
   recomputeTotals,
   roNow,
+  syncOrderStock,
 } from "../repairOrders/helpers";
 import {
   afterLineChange,
@@ -122,6 +138,8 @@ export const repairOrderLineRouter = router({
           approval: created.approval,
         });
         const totals = await recomputeTotals(tx, order.id, org.vatEnabled);
+        // M07 : une pièce ajoutée à un OR déjà approuvé est réservée aussitôt.
+        await syncOrderStock(tx, order, roNow(), ctx.membership.id);
         return { line: created, totals };
       });
     }),
@@ -282,6 +300,12 @@ export const repairOrderLineRouter = router({
           completedById: input.status === "DONE" ? ctx.membership.id : null,
         },
       });
+      if (input.status === "DONE" && line.status !== "DONE") {
+        // RG-M04-09 : ligne validée → sortie des pièces réservées pour elle (ISSUE_TO_RO).
+        const stock = await loadStockContext(ctx.organizationId);
+        await syncRepairOrderStock(tx, stock, order.id, now, ctx.membership.id);
+        await issueReservedForLine(tx, stock, line.id, now, ctx.membership.id);
+      }
       await afterLineChange(tx, ctx, org, order.id, now);
       return updated;
     });
@@ -296,16 +320,33 @@ export const repairOrderLineRouter = router({
       return tenantDb.transaction(async (tx) => {
         const { line, order } = await loadLine(tx, ctx, input.id);
         if (isLockedStatus(order.status)) lockedError();
+        let skillWarning: string | null = null;
         if (input.membershipId) {
           const member = await tx.membership.findFirst({
             where: { id: input.membershipId, isActive: true },
+            include: { user: { select: { name: true } } },
           });
           if (!member) badRequest("Mécanicien introuvable.");
+          // M06 US-M06-03 : avertissement non bloquant si la compétence requise manque.
+          const op = line.laborOperationId
+            ? await tx.laborOperation.findFirst({ where: { id: line.laborOperationId } })
+            : null;
+          if (op?.requiredSkill && !hasSkill(member.skills, op.requiredSkill)) {
+            skillWarning = `${member.user.name} n'a pas la compétence ${op.requiredSkill}`;
+          }
         }
         const updated = await tx.repairOrderLine.update({
           where: { id: line.id },
           data: { assignedToId: input.membershipId },
         });
+        // M06 US-M06-03 : le mécanicien reçoit une notification (tablette à la prochaine synchro).
+        if (input.membershipId && input.membershipId !== line.assignedToId) {
+          await notify(tx, ctx.organizationId, [input.membershipId], {
+            type: "workshop.task_assigned",
+            title: `Nouvelle tâche — ${order.number} : ${line.description}`,
+            link: "/tablette/taches",
+          });
+        }
         // §5 start_diagnosis : l'affectation d'un mécanicien lance le diagnostic.
         if (input.membershipId && order.status === "CHECKED_IN") {
           await applyTransition(tx, {
@@ -317,7 +358,7 @@ export const repairOrderLineRouter = router({
           });
         }
         void org;
-        return updated;
+        return { ...updated, skillWarning };
       });
     }),
 

@@ -111,7 +111,7 @@ function ConnexionForm() {
         <Link href="/inscription">{t("auth.signIn.createAccount")}</Link>
       </p>
       <p>
-        <Link href="/atelier">{t("auth.signIn.useAtelierMode")}</Link>
+        <Link href="/tablette/connexion">{t("auth.signIn.useAtelierMode")}</Link>
       </p>
     </>
   );

@@ -45,7 +45,7 @@ type OrgCtx = Ctx & {
   organizationId: string;
 };
 
-async function loadInspection(tx: Tx, ctx: OrgCtx, inspectionId: string) {
+async function loadInspection(tx: Tx, ctx: Pick<OrgCtx, "allowedSiteIds">, inspectionId: string) {
   const inspection = await tx.inspection.findFirst({
     where: { id: inspectionId },
     include: { items: { orderBy: { sortOrder: "asc" } }, template: { select: { name: true } } },
@@ -58,6 +58,75 @@ async function loadInspection(tx: Tx, ctx: OrgCtx, inspectionId: string) {
 
 function templateItems(value: Prisma.JsonValue): InspectionTemplateItem[] {
   return Array.isArray(value) ? (value as unknown as InspectionTemplateItem[]) : [];
+}
+
+/**
+ * Fin d'inspection (US-M04-06, US-M06-08) : résumé, DIAGNOSING → AWAITING_APPROVAL si besoin,
+ * notification du conseiller et événement `inspection.completed`. Partagé avec `tech.sync`.
+ */
+export async function completeInspectionTx(
+  tx: Tx,
+  ctx: Pick<OrgCtx, "allowedSiteIds" | "organizationId"> & { actorId: string },
+  inspectionId: string,
+  now: Date,
+) {
+  const { inspection, order } = await loadInspection(tx, ctx, inspectionId);
+  if (inspection.completedAt) badRequest("L'inspection est déjà terminée.");
+  const summary = summarizeInspection(inspection.items);
+  const updated = await tx.inspection.update({
+    where: { id: inspection.id },
+    data: {
+      completedAt: now,
+      performedById: inspection.performedById ?? ctx.actorId,
+      summary: summary as unknown as Prisma.InputJsonValue,
+    },
+  });
+  let orStatus = order.status;
+  const next = statusAfterInspection(order.status, summary);
+  if (next !== order.status) {
+    // US-M04-06 : DIAGNOSING → AWAITING_APPROVAL (transition système request_approval).
+    const moved = await applyTransition(tx, {
+      order,
+      to: next,
+      transition: "request_approval",
+      reason: "Inspection terminée",
+      membershipId: null,
+      now,
+    });
+    orStatus = moved.status;
+  }
+  await notify(tx, ctx.organizationId, [order.advisorId], {
+    type: "inspection.completed",
+    title: inspectionCompletedMessage(order.number, summary),
+    link: `/ordres/${order.id}`,
+  });
+  await emitDomainEvent(tx as never, ctx.organizationId, "inspection.completed", {
+    inspectionId: inspection.id,
+    repairOrderId: order.id,
+    summary,
+  });
+  return { inspection: updated, summary, orStatus };
+}
+
+/** Point d'inspection depuis la tablette (US-M06-08) : refusé si l'inspection est terminée. */
+export async function saveInspectionItemTx(
+  tx: Tx,
+  ctx: Pick<OrgCtx, "allowedSiteIds">,
+  input: {
+    itemId: string;
+    result: Prisma.InspectionItemUpdateInput["result"];
+    measurement?: string | null;
+    comment?: string | null;
+  },
+) {
+  const item = await tx.inspectionItem.findFirst({ where: { id: input.itemId } });
+  if (!item) notFound("Point d'inspection introuvable.");
+  const { inspection } = await loadInspection(tx, ctx, item.inspectionId);
+  if (inspection.completedAt) badRequest("L'inspection est terminée.");
+  return tx.inspectionItem.update({
+    where: { id: item.id },
+    data: { result: input.result, measurement: input.measurement, comment: input.comment },
+  });
 }
 
 const performProcedure = requirePermission("inspection:perform");
@@ -178,44 +247,9 @@ export const inspectionRouter = router({
     .mutation(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const now = roNow();
-      return tenantDb.transaction(async (tx) => {
-        const { inspection, order } = await loadInspection(tx, ctx, input.inspectionId);
-        if (inspection.completedAt) badRequest("L'inspection est déjà terminée.");
-        const summary = summarizeInspection(inspection.items);
-        const updated = await tx.inspection.update({
-          where: { id: inspection.id },
-          data: {
-            completedAt: now,
-            performedById: inspection.performedById ?? ctx.membership.id,
-            summary: summary as unknown as Prisma.InputJsonValue,
-          },
-        });
-        let orStatus = order.status;
-        const next = statusAfterInspection(order.status, summary);
-        if (next !== order.status) {
-          // US-M04-06 : DIAGNOSING → AWAITING_APPROVAL (transition système request_approval).
-          const moved = await applyTransition(tx, {
-            order,
-            to: next,
-            transition: "request_approval",
-            reason: "Inspection terminée",
-            membershipId: null,
-            now,
-          });
-          orStatus = moved.status;
-        }
-        await notify(tx, ctx.organizationId, [order.advisorId], {
-          type: "inspection.completed",
-          title: inspectionCompletedMessage(order.number, summary),
-          link: `/ordres/${order.id}`,
-        });
-        await emitDomainEvent(tx as never, ctx.organizationId, "inspection.completed", {
-          inspectionId: inspection.id,
-          repairOrderId: order.id,
-          summary,
-        });
-        return { inspection: updated, summary, orStatus };
-      });
+      return tenantDb.transaction((tx) =>
+        completeInspectionTx(tx, { ...ctx, actorId: ctx.membership.id }, input.inspectionId, now),
+      );
     }),
 
   /**

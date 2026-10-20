@@ -23,7 +23,7 @@ function addressFor(channel: Channel, recipient: Recipient): string | null {
 export async function sendOrganizationDigest(organizationId: string, now: Date): Promise<number> {
   const org = await adminDb.organization.findUniqueOrThrow({
     where: { id: organizationId },
-    select: { name: true, timezone: true, operatingMode: true, settings: true },
+    select: { id: true, name: true, timezone: true, operatingMode: true, settings: true },
   });
   const raw = (org.settings as { digest?: unknown } | null)?.digest ?? {};
   const settings = digestSettingsSchema.catch(DEFAULT_DIGEST_SETTINGS).parse(raw);

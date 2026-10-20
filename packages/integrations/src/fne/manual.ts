@@ -14,4 +14,11 @@ export class ManualFneProvider implements FneProvider {
       "Mode FNE manuel : saisissez le numéro et le QR code obtenus sur la plateforme DGI, aucune certification automatique n'est disponible.",
     );
   }
+
+  async healthCheck() {
+    return {
+      ok: true,
+      detail: "Mode manuel : saisissez le numéro et le QR code FNE sur chaque facture.",
+    };
+  }
 }

@@ -13,12 +13,14 @@ import {
 import type { Customer, Prisma, RepairOrder, ScopedTenantClient } from "@atelieros/db";
 import type { LineInput } from "@atelieros/validators";
 import { writeAuditLog } from "../audit";
+import { emitDomainEvent } from "../events/emit";
 import type { Ctx, CtxMembership, CtxSession, CtxUser } from "../context";
 import {
   applyTransition,
   badRequest,
   membersWithRoles,
   notify,
+  syncOrderStock,
   transitionFacts,
   type OrgRoContext,
 } from "./helpers";
@@ -128,9 +130,17 @@ export async function preAuthorizedTotal(
   return lines.reduce((s, l) => s + lineAmounts(l, vatEnabled).total, 0);
 }
 
+/**
+ * Contexte minimal d'un enchaînement automatique (aussi utilisé par le portail devis, M05) :
+ * sans membre (décision du client), les mouvements de stock sont tracés comme automatiques.
+ */
+export type SystemCtx = Pick<OrgCtx, "organizationId" | "permissions"> & {
+  membership?: { id: string } | null;
+};
+
 async function trySystemTransition(
   tx: Tx,
-  ctx: OrgCtx,
+  ctx: SystemCtx,
   org: OrgRoContext,
   repairOrderId: string,
   transition: RepairOrderTransition,
@@ -163,12 +173,14 @@ async function trySystemTransition(
  */
 export async function afterLineChange(
   tx: Tx,
-  ctx: OrgCtx,
+  ctx: SystemCtx,
   org: OrgRoContext,
   repairOrderId: string,
   now: Date,
 ): Promise<void> {
   const order = await tx.repairOrder.findFirstOrThrow({ where: { id: repairOrderId } });
+  // M07 : réservations ajustées aux lignes (ajout, quantité, refus, annulation).
+  await syncOrderStock(tx, order, now, ctx.membership?.id ?? null);
   const lines = await tx.repairOrderLine.findMany({ where: { repairOrderId } });
   const live = lines.filter((l) => l.status !== "CANCELLED");
   if (order.status === "APPROVED" && live.some((l) => l.status !== "PENDING")) {
@@ -184,6 +196,11 @@ export async function afterLineChange(
           type: "repair_order.qc_needed",
           title: `Contrôle qualité à faire — ${order.number}`,
           link: `/ordres/${order.id}/controle-qualite`,
+        });
+        // M06 §9 : dernière tâche terminée → « prêt pour contrôle qualité ».
+        await emitDomainEvent(tx as never, ctx.organizationId, "workshop.ro_ready_for_qc", {
+          repairOrderId: order.id,
+          number: order.number,
         });
       }
     }

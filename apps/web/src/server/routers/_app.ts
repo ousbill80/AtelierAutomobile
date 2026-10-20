@@ -1,4 +1,7 @@
 import { router } from "../trpc";
+import { aiRouter } from "./ai";
+import { appointmentRouter } from "./appointment";
+import { automationsRouter } from "./automations";
 import { auditRouter } from "./audit";
 import { authRouter } from "./auth";
 import { deviceRouter } from "./device";
@@ -10,6 +13,7 @@ import { customerRouter } from "./customer";
 import { alertsRouter, dashboardRouter, digestRouter } from "./dashboard";
 import { dataSourcesRouter } from "./dataSources";
 import { syncAgentsRouter } from "./syncAgents";
+import { reportsRouter } from "./reports";
 import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
@@ -22,9 +26,24 @@ import { holidayRouter } from "./holiday";
 import { numberingRouter } from "./numbering";
 import { orgRouter } from "./org";
 import { paymentRouter } from "./payment";
+import { invoiceRouter } from "./invoice";
+import { claimRouter } from "./claim";
+import { insurerRouter } from "./insurer";
+import { fneRouter } from "./fne";
+import { cashRouter, refundRouter } from "./cash";
+import { accountingRouter } from "./accounting";
+import { planningRouter, planningSettingsRouter, resourceBlockRouter } from "./planning";
+import { portalAppointmentRouter } from "./portal";
 import { quickReplyRouter } from "./quickReply";
 import { inspectionRouter, inspectionTemplateRouter } from "./inspection";
 import { portalRepairOrderRouter } from "./portalRepairOrder";
+import { portalQuoteRouter } from "./portalQuote";
+import { portalInvoiceRouter } from "./portalInvoice";
+import { paymentLinkRouter } from "./paymentLink";
+import { paymentProvidersRouter } from "./paymentProviders";
+import { quoteRouter } from "./quote";
+import { quoteLineRouter } from "./quoteLine";
+import { laborOperationRouter } from "./laborOperation";
 import { repairOrderRouter } from "./repairOrder";
 import { repairOrderLineRouter } from "./repairOrderLine";
 import { reminderRulesRouter } from "./reminderRules";
@@ -38,8 +57,26 @@ import { settingsRouter } from "./settings";
 import { siteRouter } from "./site";
 import { templateRouter } from "./template";
 import { vehicleRouter } from "./vehicle";
+import { productRouter } from "./product";
+import { purchaseOrderRouter } from "./purchaseOrder";
+import { stockRouter } from "./stock";
+import { stockCountRouter } from "./stockCount";
+import { stockTransferRouter } from "./stockTransfer";
+import { supplierRouter } from "./supplier";
+import { partRequestRouter } from "./partRequest";
+import { techRouter } from "./tech";
+import { workshopRouter } from "./workshop";
 
 export const appRouter = router({
+  ai: aiRouter,
+  automations: automationsRouter,
+  invoice: invoiceRouter,
+  claim: claimRouter,
+  insurer: insurerRouter,
+  fne: fneRouter,
+  cash: cashRouter,
+  refund: refundRouter,
+  accounting: accountingRouter,
   auth: authRouter,
   me: meRouter,
   session: sessionRouter,
@@ -74,14 +111,40 @@ export const appRouter = router({
   reminderSettings: reminderSettingsRouter,
   collections: collectionsRouter,
   payment: paymentRouter,
+  paymentLink: paymentLinkRouter,
+  paymentProviders: paymentProvidersRouter,
   dashboard: dashboardRouter,
   alerts: alertsRouter,
   digest: digestRouter,
+  reports: reportsRouter,
+  // M07 — stock, pièces, fournisseurs, achats
+  product: productRouter,
+  stock: stockRouter,
+  stockCount: stockCountRouter,
+  stockTransfer: stockTransferRouter,
+  supplier: supplierRouter,
+  purchaseOrder: purchaseOrderRouter,
+  appointment: appointmentRouter,
+  planning: planningRouter,
+  resourceBlock: resourceBlockRouter,
+  planningSettings: planningSettingsRouter,
   repairOrder: repairOrderRouter,
   repairOrderLine: repairOrderLineRouter,
   inspection: inspectionRouter,
   inspectionTemplate: inspectionTemplateRouter,
-  portal: router({ repairOrder: portalRepairOrderRouter }),
+  quote: quoteRouter,
+  quoteLine: quoteLineRouter,
+  laborOperation: laborOperationRouter,
+  // M06 — atelier, tablette mécanicien, demandes de pièces
+  workshop: workshopRouter,
+  tech: techRouter,
+  partRequest: partRequestRouter,
+  portal: router({
+    appointment: portalAppointmentRouter,
+    repairOrder: portalRepairOrderRouter,
+    quote: portalQuoteRouter,
+    invoice: portalInvoiceRouter,
+  }),
 });
 
 export type AppRouter = typeof appRouter;

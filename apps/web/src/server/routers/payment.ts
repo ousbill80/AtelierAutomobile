@@ -11,8 +11,27 @@ import {
   tenantSequenceStore,
   type InvoiceStatus,
 } from "@atelieros/db";
-import { recordPaymentInputSchema } from "@atelieros/validators";
+import {
+  allocatePaymentInputSchema,
+  createPaymentInputSchema,
+  paymentIdInputSchema,
+  paymentListInputSchema,
+  paymentReasonInputSchema,
+  recordPaymentInputSchema,
+  suggestAllocationInputSchema,
+} from "@atelieros/validators";
 import { z } from "zod";
+import { actorOf, resolveSiteId } from "../billing/context";
+import {
+  allocateLater,
+  confirmCheque,
+  failCheque,
+  planAllocation,
+  receiptUrl,
+  recordCounterPayment,
+  voidPayment,
+} from "../billing/payments";
+import { loadOrgBillingContext } from "../billing/service";
 import { emitDomainEvent } from "../events/emit";
 import {
   isoToDate,
@@ -23,6 +42,144 @@ import {
 import { requirePermission, requireSite, router } from "../trpc";
 
 export const paymentRouter = router({
+  /** M08 §8 `payment.create` — encaissement au comptoir (caisse, référence, affectation, reçu). */
+  create: requirePermission("payment:create")
+    .input(createPaymentInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      return tenantDb.transaction(
+        async (tx) => {
+          let siteId = input.siteId ?? null;
+          if (!siteId && input.currentInvoiceId) {
+            siteId =
+              (
+                await tx.invoice.findFirst({
+                  where: { id: input.currentInvoiceId },
+                  select: { siteId: true },
+                })
+              )?.siteId ?? null;
+          }
+          const resolved = await resolveSiteId(tx, ctx, siteId);
+          return recordCounterPayment(tx, actorOf(ctx), org, { ...input, siteId: resolved });
+        },
+        { timeout: 20_000, maxWait: 20_000 },
+      );
+    }),
+
+  /** RG-M08-19 — répartition proposée (plus anciennes d'abord, facture courante en tête). */
+  suggestAllocation: requirePermission("payment:create")
+    .input(suggestAllocationInputSchema)
+    .query(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      return tenantDb.transaction(async (tx) => {
+        const { plan, invoices } = await planAllocation(tx, input);
+        return {
+          allocations: plan.allocations,
+          unallocated: plan.unallocated,
+          openInvoices: invoices
+            .filter((i) => i.balance > 0)
+            .map((i) => ({
+              id: i.id,
+              number: i.number,
+              balance: i.balance,
+              dueDate: i.dueDate,
+              issuedAt: i.issuedAt,
+              status: i.status,
+            })),
+        };
+      });
+    }),
+
+  allocate: requirePermission("payment:create")
+    .input(allocatePaymentInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      return tenantDb.transaction((tx) => allocateLater(tx, actorOf(ctx), org, input));
+    }),
+
+  void: requirePermission("payment:void")
+    .input(paymentReasonInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      return tenantDb.transaction((tx) => voidPayment(tx, actorOf(ctx), org, input));
+    }),
+
+  confirmCheque: requirePermission("payment:void")
+    .input(paymentIdInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      return tenantDb.transaction((tx) => confirmCheque(tx, actorOf(ctx), org, input.id));
+    }),
+
+  failCheque: requirePermission("payment:void")
+    .input(paymentReasonInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      return tenantDb.transaction((tx) => failCheque(tx, actorOf(ctx), org, input));
+    }),
+
+  /** /caisse/paiements — tous les paiements (méthode, statut, non affectés). */
+  list: requirePermission("payment:read")
+    .input(paymentListInputSchema)
+    .query(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const rows = await tenantDb.payment.findMany({
+        where: {
+          ...(ctx.allowedSiteIds !== "ALL" ? { siteId: { in: ctx.allowedSiteIds } } : {}),
+          ...(input.siteId ? { siteId: input.siteId } : {}),
+          ...(input.method ? { method: input.method } : {}),
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.unallocatedOnly ? { unallocated: { gt: 0 } } : {}),
+        },
+        orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        include: {
+          customer: { select: { id: true, displayName: true } },
+          allocations: {
+            where: { voidedAt: null },
+            select: { amount: true, invoice: { select: { id: true, number: true } } },
+          },
+        },
+      });
+      const hasMore = rows.length > input.limit;
+      const items = hasMore ? rows.slice(0, input.limit) : rows;
+      return {
+        items: items.map((p) => ({ ...p, receiptUrl: receiptUrl(p.id) })),
+        nextCursor: hasMore ? items[items.length - 1]!.id : null,
+        timeZone: org.timeZone,
+      };
+    }),
+
+  get: requirePermission("payment:read")
+    .input(paymentIdInputSchema)
+    .query(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const payment = await tenantDb.payment.findFirst({
+        where: { id: input.id },
+        include: {
+          customer: { select: { id: true, displayName: true } },
+          allocations: {
+            select: {
+              amount: true,
+              voidedAt: true,
+              invoice: { select: { id: true, number: true, balance: true } },
+            },
+          },
+          refunds: { select: { id: true, amount: true, method: true, createdAt: true } },
+        },
+      });
+      if (!payment) throw new TRPCError({ code: "NOT_FOUND", message: "Paiement introuvable." });
+      requireSite(ctx, payment.siteId);
+      return { ...payment, receiptUrl: receiptUrl(payment.id) };
+    }),
+
   record: requirePermission("payment:create")
     .input(recordPaymentInputSchema)
     .mutation(async ({ ctx, input }) => {

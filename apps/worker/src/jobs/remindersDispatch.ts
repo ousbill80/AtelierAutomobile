@@ -5,6 +5,7 @@
 // (seulement les délégués de modèle) ; on utilise à la place une mise à jour conditionnelle
 // atomique (`updateMany({ where: { status: "PLANNED" } })`) comme garde-fou de concurrence,
 // suffisant tant qu'un seul worker consomme la file des relances.
+import { createHash, randomBytes } from "node:crypto";
 import { adminDb, db } from "@atelieros/db";
 import {
   antiSpamAllows,
@@ -217,7 +218,10 @@ async function revalidate(tenantDb: TenantDb, reminder: DueReminder): Promise<Re
     if (
       !appointment ||
       !["BOOKED", "CONFIRMED"].includes(appointment.status) ||
-      appointment.startsAt.getTime() !== reminder.dueDate.getTime()
+      // `dueDate` est un @db.Date : remindersPlan y écrit `startsAt`, que Prisma tronque au jour
+      // UTC. On compare donc le jour UTC des deux côtés (et non l'instant exact) — M03.
+      appointment.startsAt.toISOString().slice(0, 10) !==
+        reminder.dueDate.toISOString().slice(0, 10)
     ) {
       return { ok: false, reason: "Rendez-vous annulé ou replanifié." };
     }
@@ -225,6 +229,9 @@ async function revalidate(tenantDb: TenantDb, reminder: DueReminder): Promise<Re
   if (reminder.type === "QUOTE_FOLLOWUP" && reminder.quote) {
     if (!["SENT", "VIEWED"].includes(reminder.quote.status)) {
       return { ok: false, reason: "Devis accepté, refusé ou expiré." };
+    }
+    if (reminder.quote.supersededAt || reminder.quote.deletedAt) {
+      return { ok: false, reason: "Devis remplacé par une nouvelle version." };
     }
   }
   if (reminder.type === "VEHICLE_READY" && reminder.vehicleId) {
@@ -242,6 +249,27 @@ type GarageInfo = ReturnType<typeof garageNamespace>;
 async function loadGarageInfo(organizationId: string): Promise<GarageInfo> {
   const org = await adminDb.organization.findUnique({ where: { id: organizationId } });
   return garageNamespace(org ?? {});
+}
+
+async function quoteLink(
+  tenantDb: TenantDb,
+  quote: { id: string; organizationId: string; customerId: string; validUntil: Date },
+  reminderId: string,
+): Promise<string> {
+  const token = randomBytes(32).toString("base64url");
+  await tenantDb.portalToken.create({
+    data: {
+      organizationId: quote.organizationId,
+      tokenHash: createHash("sha256").update(token).digest("hex"),
+      scope: "QUOTE",
+      targetId: quote.id,
+      customerId: quote.customerId,
+      reminderId,
+      expiresAt: new Date(quote.validUntil.getTime() + 31 * 86_400_000),
+    },
+  });
+  const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return `${appUrl}/p/${token}/devis`;
 }
 
 async function buildContext(
@@ -334,10 +362,16 @@ async function buildContext(
     }
   }
   if (group.type === "QUOTE_FOLLOWUP" && first.quote) {
+    const [y, m, d] = first.quote.validUntil.toISOString().slice(0, 10).split("-");
     base.devis = {
       numero: first.quote.number,
       montant: formatFCFA(first.quote.total),
-      validite: first.quote.validUntil.toISOString().slice(0, 10),
+      validite: `${d}/${m}/${y}`,
+    };
+    // M05 RG-M05-09 / A2 : nouveau jeton portail QUOTE (le clair n'est jamais stocké).
+    base.lien = {
+      ...(base.lien as Record<string, string>),
+      devis: await quoteLink(tenantDb, first.quote, first.id),
     };
   }
   if (group.type === "APPOINTMENT" && first.appointmentId) {

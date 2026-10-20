@@ -23,6 +23,7 @@ import type { AppRouter } from "@/server/routers/_app";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
+import { GlobalSearch } from "@/components/global-search";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
 
@@ -64,7 +65,30 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     me.allowedSites.length > 1 ? (activeSite?.name ?? t("common.allSites")) : activeSite?.name;
 
   const mainItems = [
-    { href: "/tableau-de-bord", label: t("nav.ownerDashboard"), permission: "dashboard:owner" },
+    {
+      href: "/tableau-de-bord",
+      label: t("nav.ownerDashboard"),
+      // M12 §10 : onglets selon les permissions de lecture ; MECHANIC sans accès.
+      permission: [
+        "dashboard:owner",
+        "repair_order:read",
+        "reminder:read",
+        "report:financial",
+        "cash:operate",
+      ],
+      hidden: me.membership?.role === "MECHANIC",
+    },
+    {
+      href: "/rapports",
+      label: t("nav.reports"),
+      permission: ["report:read", "report:financial"],
+    },
+    { href: "/rendez-vous", label: t("nav.appointments"), permission: "appointment:read" },
+    {
+      href: "/rendez-vous/aujourdhui",
+      label: t("nav.appointmentsToday"),
+      permission: "appointment:read",
+    },
     {
       href: "/ordres",
       label: t("nav.repairOrders"),
@@ -72,15 +96,62 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       // M15 RG-M15-23 : masqué en mode « Relances seules ».
       hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
     },
+    {
+      href: "/atelier",
+      label: t("nav.workshop"),
+      permission: "workshop:view",
+      // M06 : l'atelier n'existe qu'en gestion complète.
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
+    {
+      href: "/tablette",
+      label: t("nav.tablet"),
+      permission: "time:clock",
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
+    {
+      href: "/devis",
+      label: t("nav.quotes"),
+      permission: "quote:read",
+      // RG-M05-17 : module devis masqué en mode « Relances seules ».
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
+    { href: "/factures", label: t("nav.invoices"), permission: "invoice:read" },
+    {
+      href: "/assurances",
+      label: t("nav.insurance"),
+      permission: "insurance:read",
+      // M16 : dossiers sinistre rattachés aux OR → gestion complète seulement.
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
+    {
+      href: "/caisse",
+      label: t("nav.cash"),
+      permission: "payment:read",
+      // M08 : la caisse n'existe qu'en gestion complète.
+      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
+    },
     { href: "/clients", label: t("nav.customers"), permission: "customer:read" },
     { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
     { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },
     { href: "/messages", label: t("nav.messages"), permission: "message:read" },
+    { href: "/assistant", label: t("nav.assistant"), permission: "ai:use" },
     { href: "/relances", label: t("nav.reminders"), permission: "reminder:read" },
     { href: "/relances/echeances", label: t("nav.dueDates"), permission: "reminder:read" },
+    {
+      href: "/relances/resultats",
+      label: t("nav.reminderResults"),
+      permission: "reminder:read",
+    },
     { href: "/creances", label: t("nav.receivables"), permission: "receivable:read" },
+    { href: "/stock", label: t("nav.stock"), permission: "stock:read" },
+    { href: "/achats", label: t("nav.purchases"), permission: "purchase:read" },
     { href: "/import", label: t("nav.import"), permission: "import:run" },
-  ].filter((item) => has(item.permission) && !("hidden" in item && item.hidden));
+  ].filter(
+    (item) =>
+      (Array.isArray(item.permission) ? item.permission.some(has) : has(item.permission)) &&
+      !("hidden" in item && item.hidden),
+  );
 
   const settingsItems = [
     { href: "/parametres/equipe", label: t("nav.settingsTeam"), permission: "member:read" },
@@ -103,6 +174,11 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       permission: "reminder:rules_manage",
     },
     {
+      href: "/parametres/planning",
+      label: t("nav.settingsPlanning"),
+      permission: "planning:manage",
+    },
+    {
       href: "/parametres/ordres",
       label: t("nav.settingsRepairOrders"),
       permission: "settings:update",
@@ -111,6 +187,12 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
       href: "/parametres/inspection",
       label: t("nav.settingsInspection"),
       permission: "inspection:template_manage",
+    },
+    { href: "/parametres/devis", label: t("nav.settingsQuotes"), permission: "settings:update" },
+    {
+      href: "/parametres/catalogue-mo",
+      label: t("nav.settingsLaborCatalog"),
+      permission: "labor_catalog:manage",
     },
   ].filter((item) => has(item.permission));
 
@@ -172,7 +254,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
               </DropdownMenu>
             </div>
           ) : null}
-          <SearchBox placeholder={t("common.search")} />
+          {has("customer:read") ? <GlobalSearch /> : <SearchBox placeholder={t("common.search")} />}
           <TopbarActions>
             <IconButton aria-label="Notifications" />
             <div className="dropdown-wrap">

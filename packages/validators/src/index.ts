@@ -143,6 +143,7 @@ export type {
   CustomerListInput,
   MergeCustomerInput,
   SetConsentInput,
+  UpdateContactInput,
   VehicleQuickCreateInput,
 } from "./customer";
 export {
@@ -159,6 +160,7 @@ export {
   deleteContactInputSchema,
   deleteCustomerInputSchema,
   dismissDuplicateInputSchema,
+  listContactsInputSchema,
   mergeCustomerInputSchema,
   mergePreviewInputSchema,
   reactivateRemindersInputSchema,
@@ -278,6 +280,7 @@ export type {
   ReminderSettingsUpdateInput,
   ReminderSkipInput,
   ReminderSnoozeInput,
+  ReminderHistoryInput,
   ReminderStatsInput,
   ReminderStepInput,
   ReminderTypeInput,
@@ -307,6 +310,8 @@ export {
   reminderSkipInputSchema,
   reminderSkipReasonSchema,
   reminderSnoozeInputSchema,
+  reminderHistoryInputSchema,
+  reminderHistoryStatusSchema,
   reminderStatsInputSchema,
   reminderStatusSchema,
   reminderStepSchema,
@@ -351,7 +356,7 @@ export {
 } from "./settings";
 export * from "./receivables";
 
-export type { DashboardInput, DigestSettings } from "./dashboard";
+export type { DashboardInput, DigestSettings, ReportFilters } from "./dashboard";
 export {
   alertsListInputSchema,
   alertsMarkReadInputSchema,
@@ -360,6 +365,11 @@ export {
   digestSettingsSchema,
   digestUpdateSettingsInputSchema,
   dashboardPeriodSchema,
+  compareSitesInputSchema,
+  customPeriodSchema,
+  reportFiltersSchema,
+  reportPreviewInputSchema,
+  reportSlugSchema,
 } from "./dashboard";
 
 export type { DataSourceCreateInput } from "./dataSources";
@@ -375,4 +385,74 @@ export {
   watchRulesSchema,
 } from "./dataSources";
 
+export * from "./stock";
+export * from "./appointment";
 export * from "./repairOrder";
+export * from "./quote";
+
+export type { AccountingExportInput, InvoiceLineFormInput } from "./billing";
+export {
+  accountingExportInputSchema,
+  allocatePaymentInputSchema,
+  cashDropInputSchema,
+  cashExpenseInputSchema,
+  cashSessionsInputSchema,
+  cashSiteInputSchema,
+  closeCashInputSchema,
+  createDepositInputSchema,
+  createDirectInvoiceInputSchema,
+  createFromQuoteInputSchema,
+  createFromRepairOrderInputSchema,
+  createPaymentInputSchema,
+  createRefundInputSchema,
+  creditNoteInputSchema,
+  invoiceIdInputSchema,
+  invoiceLineInputSchema,
+  invoiceListInputSchema,
+  invoiceStatusSchema,
+  issueInvoiceInputSchema,
+  openCashInputSchema,
+  paymentIdInputSchema,
+  paymentListInputSchema,
+  paymentReasonInputSchema,
+  previewInvoiceInputSchema,
+  reviewCashInputSchema,
+  suggestAllocationInputSchema,
+  updateDueDateInputSchema,
+  updateInvoiceInputSchema,
+} from "./billing";
+export * from "./workshop";
+
+export type { FneConfigUpdateInput, FneSetManualInput } from "./fne";
+export {
+  fneConfigUpdateInputSchema,
+  fneInvoiceInputSchema,
+  fneModeSchema,
+  fneProviderSchema,
+  fneSetManualInputSchema,
+} from "./fne";
+
+export type { InsurerInput } from "./claims";
+export {
+  claimActivityInputSchema,
+  claimAttachmentKindSchema,
+  claimFollowUpsInputSchema,
+  claimIdInputSchema,
+  claimListInputSchema,
+  claimReasonInputSchema,
+  claimStatusSchema,
+  createClaimInputSchema,
+  insurerInputSchema,
+  insurerStatsInputSchema,
+  recordApprovalInputSchema,
+  recordExpertVisitInputSchema,
+  scheduleExpertInputSchema,
+  sendEstimateInputSchema,
+  sendFollowUpInputSchema,
+  snoozeFollowUpInputSchema,
+  updateClaimInputSchema,
+  updateInsurerInputSchema,
+  uploadClaimDocumentInputSchema,
+} from "./claims";
+export * from "./paymentLinks";
+export * from "./automations";

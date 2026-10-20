@@ -1,4 +1,4 @@
-// M04 — GET /api/attachments/{id} : photo ou signature d'un OR. Session + permission
+// M04/M16 — GET /api/attachments/{id} : photo ou signature d'un OR, pièce d'un sinistre. Session + permission
 // `repair_order:read` + portée par site vérifiées ; l'objet est relu depuis le stockage.
 import { db } from "@atelieros/db";
 import { createContext } from "@/server/context";
@@ -18,15 +18,40 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!ctx.user || !organizationId || !ctx.membership) {
     return error(401, "Session invalide ou expirée.");
   }
-  if (!ctx.permissions.has("repair_order:read")) {
-    return error(403, "Permission manquante : repair_order:read");
-  }
   const tenantDb = db.forTenant({ organizationId });
   const attachment = await tenantDb.attachment.findFirst({ where: { id } });
   if (!attachment) return error(404, "Fichier introuvable.");
-  if (attachment.entity === "repair_order") {
-    const order = await tenantDb.repairOrder.findFirst({
+  // M16 : pièces d'un dossier sinistre → `insurance:read` + portée du site du dossier.
+  const permission = attachment.entity === "claim" ? "insurance:read" : "repair_order:read";
+  if (!ctx.permissions.has(permission)) {
+    return error(403, `Permission manquante : ${permission}`);
+  }
+  if (attachment.entity === "claim") {
+    const claim = await tenantDb.insuranceClaim.findFirst({
       where: { id: attachment.entityId },
+      select: { siteId: true },
+    });
+    if (
+      !claim ||
+      (ctx.allowedSiteIds !== "ALL" &&
+        (!claim.siteId || !ctx.allowedSiteIds.includes(claim.siteId)))
+    ) {
+      return error(404, "Fichier introuvable.");
+    }
+  }
+  if (attachment.entity === "repair_order" || attachment.entity === "repair_order_line") {
+    // M06 : photo de travaux rattachée à une ligne d'OR → même contrôle de site que l'OR.
+    const orderId =
+      attachment.entity === "repair_order"
+        ? attachment.entityId
+        : (
+            await tenantDb.repairOrderLine.findFirst({
+              where: { id: attachment.entityId },
+              select: { repairOrderId: true },
+            })
+          )?.repairOrderId;
+    const order = await tenantDb.repairOrder.findFirst({
+      where: { id: orderId ?? "" },
       select: { siteId: true },
     });
     if (!order || (ctx.allowedSiteIds !== "ALL" && !ctx.allowedSiteIds.includes(order.siteId))) {

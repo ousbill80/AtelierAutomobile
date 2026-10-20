@@ -60,7 +60,8 @@ model Organization {
   invoiceFooter   String?
   plan            PlanTier @default(STARTER)
   operatingMode   OperatingMode @default(FULL)   // REMINDERS_ONLY si le garage garde son ancien logiciel
-  settings        Json     @default("{}")        // préférences diverses (voir M15)
+  settings        Json     @default("{}")        // préférences diverses (voir M15) ; `stock` : allowNegative, dormantDays, countApprovalThreshold, autoIssueOnInvoice, customerPartFee (M07)
+                                                 // M05 : settings.quotes = { validityDays 15, validityDaysCompany 30, requireSignature, discountCaps, depositRule, followupWhenVehicleOnSite, showLinePricesToCustomer, termsText }
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   sites           Site[]
@@ -95,6 +96,8 @@ model Bay {                              // pont / poste de travail
   name           String                  // "Pont 1", "Carrosserie", "Diagnostic"
   type           BayType @default(LIFT)
   isActive       Boolean @default(true)
+  sortOrder      Int     @default(0)     // M03 §14 : ordre des colonnes du planning
+  color          String?                 // M03 §14
 }
 enum BayType { LIFT DIAGNOSTIC BODYWORK PAINT WASH OTHER }
 
@@ -122,6 +125,7 @@ model Membership {
   siteIds        String[]                // vide = tous les sites
   hourlyCost     Int?                    // coût horaire interne (mécaniciens)
   skills         String[]                // "moteur", "électricité", "climatisation", "carrosserie"
+  pinHash        String?                 // M01/M06 §14 : PIN tablette partagée (argon2), créé une seule fois (04 §1)
   isActive       Boolean @default(true)
   createdAt      DateTime @default(now())
   @@unique([organizationId, userId])
@@ -177,6 +181,7 @@ model Customer {
   creditHold         Boolean @default(false)   // RG-M09-10 : crédit suspendu
   creditHoldReason   String?
   riskComponents     Json?                     // { A, B, C, D, E } du riskScore (RG-M09-12)
+  requiresPurchaseOrder Boolean @default(false) // M05 §14 : flotte, n° de bon de commande exigé
   vehicles           Vehicle[]
   contacts           CustomerContact[]
   @@index([organizationId, displayName])
@@ -372,12 +377,54 @@ model Appointment {
   reminderId     String?                       // relance à l'origine du RDV (attribution M12)
   notes          String?
   repairOrderId  String?                       // OR créé à l'arrivée
+  // M03 §14
+  mechanicId        String?                    // Membership.id du mécanicien prévu
+  complaint         String?                    // motif / doléances (repris dans l'OR)
+  laborOperationIds String[]                   // opérations prévues (durée, devis)
+  quoteId           String?                    // RDV planifié pour exécuter un devis accepté (relation posée par M05)
+  confirmedAt       DateTime?
+  confirmedVia      String?                    // phone | whatsapp | sms | portal | in_person
+  arrivedAt         DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       String?                    // CUSTOMER | GARAGE
+  cancelReason      String?
+  noShowAt          DateTime?
+  completedAt       DateTime?                  // M03 : horodatage du passage COMPLETED (OR livré ou « Terminer sans OR »)
+  groupId           String?                    // RDV groupés (flotte, RG-M03-14)
+  overbooked        Boolean  @default(false)   // surréservation volontaire (planning:manage)
+  outsideHours      Boolean  @default(false)   // forcé hors horaires (badge « Hors horaires »)
+  publicToken       String?  @unique           // hash du PortalToken (A2) — raccourci de recherche
+  createdById       String?                    // Membership.id
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  @@index([organizationId, siteId, startsAt])
+  @@index([organizationId, customerId])
+  @@index([organizationId, status, startsAt])
+  @@index([organizationId, groupId])
+  // Contrainte d'exclusion (migration 20261019180000_m03_rendez_vous, extension btree_gist) :
+  //   EXCLUDE USING gist ("bayId" WITH =, tsrange("startsAt","endsAt",'[)') WITH &&)
+  //   WHERE ("bayId" IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW') AND NOT overbooked)
+  // (tsrange et non tstzrange : les colonnes DateTime Prisma sont des TIMESTAMP(3) en UTC.)
 }
 enum AppointmentType { SERVICE INSPECTION_PREP REPAIR DIAGNOSTIC BODYWORK TIRES OTHER }
 enum AppointmentStatus { BOOKED CONFIRMED ARRIVED NO_SHOW CANCELLED COMPLETED }
 enum AppointmentSource { STAFF PHONE WHATSAPP PORTAL REMINDER }
+
+model ResourceBlock {                            // M03 §14 — indisponibilités : pont, mécanicien ou site entier
+  id             String   @id @default(cuid())
+  organizationId String
+  siteId         String
+  bayId          String?                       // pont bloqué (maintenance, panne)
+  membershipId   String?                       // mécanicien absent (congé, formation)
+  startsAt       DateTime                      // bayId et membershipId null = site entier fermé
+  endsAt         DateTime
+  reason         String                        // "Maintenance pont", "Congé", "Formation"
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, siteId, startsAt])
+}
+// Paramètres M03 dans Organization.settings : appointments.* et planning.* (M03 §6) ;
+// les jours fériés restent dans Holiday (04 A1), pas de clé settings.holidays.
 
 // ───────────── Ordres de réparation ─────────────
 
@@ -462,8 +509,8 @@ model RepairOrderLine {
   isCustomerSupplied    Boolean  @default(false)  // pièce fournie par le client (unitPrice 0, non garantie)
   costPrice             Int?                      // coût unitaire (sous-traitance, pièce hors stock)
   supplierId            String?                   // sous-traitant / fournisseur ponctuel
-  subcontractStatus     String?                   // TO_SEND | SENT | RETURNED
-  subcontractExpectedAt DateTime?
+  subcontractStatus     String?                   // TO_SEND | SENT | RETURNED | CANCELLED (M06 SubcontractStatus)
+  subcontractExpectedAt DateTime?                 // M06 « subcontractDueAt » (retour prévu)
   approvalSource        String?                   // CHECK_IN | PRE_AUTHORIZED | QUOTE | PHONE | IN_PERSON
   inspectionItemId      String?
   warrantyMonths        Int?
@@ -472,6 +519,9 @@ model RepairOrderLine {
   warrantyUntilMileage  Int?
   completedAt           DateTime?
   completedById         String?                   // Membership.id
+  // M06 §14 — subcontractorId / subcontractCost / subcontractDueAt / subcontractStatus du PRD M06
+  // réutilisent supplierId / costPrice / subcontractExpectedAt / subcontractStatus (M04), sans doublon.
+  subcontractReturnedAt DateTime?                 // M06 §14 : date de retour effective (RETURNED)
   cancelReason          String?                   // M04 (hors §14) : motif d'annulation / refus client
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt       // verrou optimiste (M04 §11)
@@ -529,6 +579,15 @@ model LaborOperation {                         // catalogue de main-d'œuvre
   rateType       LaborRateType @default(STANDARD)
   fixedPrice     Int?                          // forfait éventuel
   isActive       Boolean @default(true)
+  // M05 §14
+  customerDescription String?                  // explication par défaut pour le client
+  defaultParts   Json @default("[]")           // kit : [{ productId?, category?, quantity }]
+  vehicleOverrides Json @default("[]")         // [{ make, model?, yearFrom?, yearTo?, standardHours }]
+  isServiceOperation Boolean @default(false)   // compte comme « révision » (M02 RG-M02-13)
+  requiredSkill  String?                       // M06 §14 : valeur attendue dans Membership.skills (RG-M06-04)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([organizationId, code])
 }
 enum LaborRateType { STANDARD DIAGNOSTIC BODYWORK ELECTRICAL }
 
@@ -574,7 +633,17 @@ model TimeEntry {                              // pointage mécanicien sur une t
   pauseMinutes     Int @default(0)
   note             String?
   source           String @default("tablet")  // tablet | web | offline-sync
+  // M06 §14
+  kind             TimeEntryKind @default(WORK)
+  pausedAt         DateTime?                  // pause en cours (RG-M06-07)
+  pauseReason      String?                    // parts | lunch | approval | other
+  clientOpId       String? @unique            // idempotence de la synchro hors-ligne
+  deviceId         String?
+  needsReview      Boolean @default(false)    // à revoir (chevauchement, clôture auto, ligne annulée)
+  reviewReason     String?                    // M06 (hors §14) : motif du signalement
+  @@index([organizationId, membershipId, startedAt])
 }
+enum TimeEntryKind { WORK DIAGNOSTIC REWORK }   // M06 §14
 
 model Attendance {                             // présence journalière
   id             String @id @default(cuid())
@@ -583,7 +652,80 @@ model Attendance {                             // présence journalière
   date           DateTime @db.Date
   clockIn        DateTime?
   clockOut       DateTime?
+  // M06 §14
+  siteId         String?
+  breakMinutes   Int @default(60)
+  autoClosed     Boolean @default(false)      // clôturée par le worker (workshop.close_stale)
+  @@unique([organizationId, membershipId, date])
 }
+
+model QualityCheck {                           // M06 §14 — contrôles qualité successifs d'un OR
+  id             String @id @default(cuid())
+  organizationId String
+  repairOrderId  String
+  checkedById    String                       // Membership.id
+  result         QcResult
+  checklist      Json @default("{}")          // { "road_test": true, "wheel_torque": true, … }
+  comment        String?
+  reworkLineIds  String[]
+  createdAt      DateTime @default(now())
+  @@index([organizationId, repairOrderId])
+}
+enum QcResult { PASSED FAILED }
+
+model PartRequest {                            // M06 §14 — demande de pièce tablette → magasin (M07)
+  id                String @id @default(cuid())
+  organizationId    String
+  siteId            String
+  repairOrderId     String
+  repairOrderLineId String?
+  requestedById     String                    // Membership.id
+  productId         String?
+  freeText          String?                   // si produit introuvable
+  quantity          Float
+  urgency           Priority @default(NORMAL)
+  status            PartRequestStatus @default(REQUESTED)
+  handledById       String?
+  purchaseOrderId   String?
+  rejectReason      String?
+  clientOpId        String? @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([organizationId, siteId, status])
+}
+enum PartRequestStatus { REQUESTED PREPARING ORDERED DELIVERED REJECTED CANCELLED }
+
+model WorkNote {                               // M06 §14 — remarques mécanicien sur un OR / une ligne
+  id                String @id @default(cuid())
+  organizationId    String
+  repairOrderId     String
+  repairOrderLineId String?
+  authorId          String                    // Membership.id
+  body              String
+  visibleToCustomer Boolean @default(false)
+  approvedById      String?                   // conseiller ayant validé la diffusion (M14)
+  clientOpId        String? @unique
+  createdAt         DateTime @default(now())
+}
+
+model TechSyncOperation {                      // M06 (hors §14) — journal des opérations tablette appliquées
+  id             String @id @default(cuid())
+  organizationId String
+  clientOpId     String                       // UUID v4 généré par la tablette (RG-M06-14 : idempotence)
+  membershipId   String                       // acteur identifié
+  deviceId       String?
+  type           String                       // task.start | task.pause | inspection.setItem | …
+  status         String                       // ok | rejected
+  error          String?
+  entityId       String?
+  deviceAt       DateTime?                    // heure appareil
+  appliedAt      DateTime                     // heure corrigée de serverOffset
+  createdAt      DateTime @default(now())
+  @@unique([organizationId, clientOpId])
+}
+// Conventions M06 (sans schéma) : Attachment.entity accepte `repair_order_line`, `quality_check`,
+// `part_request` ; Attachment.kind accepte `photo_work`. Organization.settings.atelier :
+// qcRequired, qcChecklist, sharedTablets, keepBayUntilDelivery, photoRequiredOnUrgent.
 
 // ───────────── Devis ─────────────
 
@@ -616,10 +758,40 @@ model Quote {
   createdById      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  // M05 §14
+  origin           QuoteOrigin @default(STANDALONE)
+  inspectionId     String?
+  insuranceClaimId String?
+  supersedesId     String?                    // version précédente
+  supersededAt     DateTime?                  // une version plus récente existe (lecture seule)
+  globalDiscountRate   Int?                   // %
+  globalDiscountAmount Int?                   // FCFA (exclusif avec le taux)
+  discountReason   String?
+  discountApprovalStatus String?              // NONE | PENDING | APPROVED | REJECTED
+  discountApprovedById String?
+  sentVia          String?                    // WHATSAPP | SMS | EMAIL | WA_LINK | LINK_ONLY
+  sentTo           String?
+  recipientContactId String?
+  decisionHash     String?                    // SHA-256 du contenu signé
+  decisionIp       String?
+  decisionUserAgent String?
+  decisionMessageId String?                   // message WhatsApp servant de preuve
+  recordedById     String?                    // membre ayant saisi une décision hors portail
+  decisionCounterpart String?                 // interlocuteur au téléphone
+  acceptedTotal    Int @default(0)            // TTC des lignes acceptées (dénormalisé)
+  depositAmount    Int?
+  depositInvoiceId String?
+  customerPoNumber String?                    // bon de commande du client entreprise
+  convertedAt      DateTime?
+  deletedAt        DateTime?
   lines            QuoteLine[]
   @@unique([organizationId, number, version])
+  @@index([organizationId, status, sentAt])
+  @@index([organizationId, repairOrderId])
+  @@index([organizationId, customerId])
 }
 enum QuoteStatus { DRAFT SENT VIEWED ACCEPTED PARTIALLY_ACCEPTED DECLINED EXPIRED CONVERTED }
+enum QuoteOrigin { REPAIR_ORDER INSPECTION STANDALONE APPOINTMENT INSURANCE }   // M05 §14
 
 model QuoteLine {
   id              String @id @default(cuid())
@@ -637,6 +809,20 @@ model QuoteLine {
   accepted        Boolean?                   // null = pas encore décidé
   payer           Payer @default(CUSTOMER)
   sortOrder       Int @default(0)
+  // M05 §14 (organizationId : A3 §3, déjà présent)
+  groupKey        String?                    // regroupe MO + pièces d'un même travail
+  groupLabel      String?                    // "Plaquettes avant"
+  requiresGroupKey String?                   // dépendance (disques nécessite plaquettes)
+  customerExplanation String?                // texte simple affiché au client
+  inspectionItemId String?
+  photoAttachmentIds String[]
+  costPrice       Int?                       // coût unitaire estimé (marge)
+  isCustomerSupplied Boolean @default(false)
+  declineReason   String?
+  lineSubtotal    Int @default(0)            // HT après remises (calculé)
+  lineVat         Int @default(0)
+  lineTotal       Int @default(0)
+  @@index([quoteId])
 }
 
 // ───────────── Stock et achats ─────────────
@@ -664,7 +850,12 @@ model Product {
   isActive        Boolean @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  quantityScale   Int @default(1)             // M07 §14 — 10 pour litre/kg : quantités de stock en dixièmes
+  packSize        Int @default(1)             // M07 §14 — conditionnement d'achat (unités d'affichage)
+  crossReferences String[]                    // M07 §14 — références équivalentes / anciennes
+  lastIssuedAt    DateTime?                   // M07 §14 — dénormalisé pour les dormantes
   @@unique([organizationId, sku])
+  @@index([organizationId, barcode])          // M07 §14 (+ index trigram name/sku/oemReference)
 }
 
 model StockLevel {
@@ -675,6 +866,8 @@ model StockLevel {
   onHand         Int @default(0)
   reserved       Int @default(0)              // réservé pour des OR
   binLocation    String?                      // "Étagère B3"
+  minStock       Int?                         // M07 §14 — surcharge par site (unités de base)
+  maxStock       Int?                         // M07 §14
   @@unique([siteId, productId])
 }
 
@@ -691,6 +884,13 @@ model StockMovement {
   reason          String?
   createdById     String?
   createdAt       DateTime @default(now())
+  costAfter         Int?                      // M07 §14 — CMP après le mouvement (valorisation à date)
+  repairOrderLineId String?                   // M07 §14
+  reservationId     String?                   // M07 §14
+  transferId        String?                   // M07 §14
+  countId           String?                   // M07 §14
+  reasonCode        String?                   // M07 §14 — casse | perte | vol | peremption | demonte | erreur | autre
+  @@index([organizationId, productId, createdAt])
 }
 enum StockMovementType { PURCHASE_RECEIPT ISSUE_TO_RO RETURN_FROM_RO ADJUSTMENT TRANSFER_OUT TRANSFER_IN COUNT_CORRECTION SUPPLIER_RETURN }
 
@@ -720,6 +920,7 @@ model PurchaseOrder {
   repairOrderId  String?                      // commande liée à un OR
   total          Int @default(0)
   notes          String?
+  createdAt      DateTime @default(now())     // M07 §14
   lines          PurchaseOrderLine[]
   @@unique([organizationId, number])
 }
@@ -732,6 +933,87 @@ model PurchaseOrderLine {
   quantity        Int
   receivedQty     Int @default(0)
   unitCost        Int
+  receivedCost    Int?                        // M07 §14 — dernier coût réel reçu (écart de prix)
+}
+
+// M07 §14 — réservations, inventaires, transferts. Quantités en unités de base (RG-M07-01).
+model StockReservation {
+  id                String @id @default(cuid())
+  organizationId    String
+  siteId            String
+  productId         String
+  repairOrderId     String?                   // OR (M04) ; sans relation tant que M04 n'est pas branché
+  repairOrderLineId String?
+  quantity          Int
+  status            StockReservationStatus @default(RESERVED)
+  purchaseOrderId   String?                   // commande attendue si BACKORDERED
+  note              String?
+  createdById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([organizationId, siteId, productId, status])
+}
+enum StockReservationStatus { RESERVED BACKORDERED ISSUED RELEASED }
+
+model StockCount {
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String
+  number         String                       // INV-YOP-2026-00003
+  scope          Json @default("{}")          // { categories?: [], bins?: [] } ; vide = complet
+  status         StockCountStatus @default(DRAFT)
+  startedAt      DateTime?
+  submittedAt    DateTime?
+  validatedAt    DateTime?
+  validatedById  String?
+  varianceValue  Int @default(0)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          StockCountLine[]
+  @@unique([organizationId, number])
+}
+enum StockCountStatus { DRAFT IN_PROGRESS SUBMITTED VALIDATED CANCELLED }
+
+model StockCountLine {
+  id              String @id @default(cuid())
+  organizationId  String                      // RLS (04 §3)
+  stockCountId    String
+  productId       String
+  expectedQty     Int                         // onHand figé au démarrage
+  countedQty      Int?
+  unitCost        Int                         // CMP au démarrage
+  movedAfterCount Boolean @default(false)     // RG-M07-10
+  countedById     String?
+  countedAt       DateTime?
+  @@unique([stockCountId, productId])
+}
+
+model StockTransfer {
+  id             String @id @default(cuid())
+  organizationId String
+  number         String                       // TR-YOP-2026-00012
+  fromSiteId     String
+  toSiteId       String
+  status         StockTransferStatus @default(DRAFT)
+  shippedAt      DateTime?
+  receivedAt     DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          StockTransferLine[]
+  @@unique([organizationId, number])
+}
+enum StockTransferStatus { DRAFT IN_TRANSIT RECEIVED CANCELLED }
+
+model StockTransferLine {
+  id              String @id @default(cuid())
+  organizationId  String                      // RLS (04 §3)
+  stockTransferId String
+  productId       String
+  quantity        Int
+  receivedQty     Int @default(0)
 }
 
 // ───────────── Facturation, paiements, caisse ─────────────
@@ -757,7 +1039,9 @@ model Invoice {
   vatTotal         Int @default(0)
   total            Int @default(0)
   amountPaid       Int @default(0)
-  balance          Int @default(0)            // total - amountPaid (dénormalisé, maintenu en transaction)
+  balance          Int @default(0)            // total - amountPaid - creditedAmount, jamais négatif (RG-M08-10)
+  // subtotal = HT net après remises (Σ lineSubtotal) ; HT brut = subtotal + discountTotal (M08).
+  // Un avoir (CREDIT_NOTE) porte des montants négatifs, balance 0 (RG-M08-12).
   mileage          Int?
   notes            String?
   publicToken      String? @unique
@@ -779,12 +1063,20 @@ model Invoice {
   writeOffReason   String?
   disputedAt       DateTime?                   // RG-M09-08
   collectionCaseId String?                     // dossier de recouvrement de rattachement
+  // M08 §14
+  creditedAmount   Int @default(0)             // Σ |total| des avoirs émis sur cette facture (RG-M08-10/12)
+  costTotal        Int @default(0)             // coût pièces + MO figé à l'émission (marge, M12)
+  fneAttempts      Int @default(0)             // RG-M08-15 (étape 4.2)
+  fneNextRetryAt   DateTime?
+  fneErrorKind     String?                     // transient | rejected
+  sentAt           DateTime?
   createdById      String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   lines            InvoiceLine[]
   @@unique([organizationId, number])
   @@index([organizationId, status, dueDate])
+  @@index([fneStatus, fneNextRetryAt])        // job fne.retry (étape 4.2)
 }
 enum InvoiceType { INVOICE CREDIT_NOTE DEPOSIT }
 enum InvoiceStatus { DRAFT ISSUED PARTIALLY_PAID PAID OVERDUE VOID WRITTEN_OFF DISPUTED }
@@ -805,6 +1097,11 @@ model InvoiceLine {
   lineVat         Int
   lineTotal       Int
   sortOrder       Int @default(0)
+  // M08 §14
+  costAmount      Int @default(0)             // CMP × qté (pièces) ou coût MO, figé à l'émission
+  depositInvoiceId String?                    // ligne de déduction d'acompte (US-M08-03)
+  payer           Payer @default(CUSTOMER)
+  repairOrderLineId String?
 }
 
 model Payment {
@@ -825,18 +1122,26 @@ model Payment {
   unallocated      Int @default(0)            // acompte / trop-perçu
   notes            String?
   createdAt        DateTime @default(now())
+  // M08 §14
+  voidedAt         DateTime?                  // RG-M08-21 : saisie annulée (status FAILED, reçu conservé)
+  voidReason       String?
+  payerPhone       String?                    // numéro mobile money payeur (rapprochement)
   allocations      PaymentAllocation[]
   @@unique([organizationId, number])
   @@unique([provider, providerRef])
+  @@index([organizationId, method, reference]) // RG-M08-26 : unicité de référence vérifiée à la saisie
 }
 enum PaymentMethod { CASH WAVE ORANGE_MONEY MTN_MOMO MOOV_MONEY CARD BANK_TRANSFER CHEQUE INSURANCE OTHER }
 enum PaymentStatus { PENDING CONFIRMED FAILED REFUNDED }
 
 model PaymentAllocation {
   id         String @id @default(cuid())
-  paymentId  String
+  paymentId  String?                          // M08 §14 : null pour l'affectation d'un crédit client
   invoiceId  String
   amount     Int
+  // M08 §14
+  customerCreditId String?                    // affectation d'un crédit client (avoir payé, trop-perçu)
+  voidedAt   DateTime?                        // paiement annulé / chèque rejeté : ne compte plus
 }
 
 model PaymentLink {
@@ -851,6 +1156,17 @@ model PaymentLink {
   expiresAt      DateTime
   paymentId      String?
   createdAt      DateTime @default(now())
+  // M08 étape 4.3 (hors §14, RG-M08-23..25) : moyen choisi, cycle de vie, rapprochement
+  method          PaymentMethod?                 // choisi sur le portail ; null = au choix du client
+  createdById     String?                        // null = lien créé depuis le portail client
+  confirmedAt     DateTime?
+  confirmedAmount Int?                           // montant confirmé par getStatus (écart signalé)
+  closedAt        DateTime?
+  closeReason     String?                        // replaced | cancelled | expired | failed
+  lastCheckedAt   DateTime?                      // dernière vérification chez le fournisseur
+  updatedAt       DateTime @updatedAt
+  @@unique([provider, providerRef])              // un lien par transaction fournisseur (webhook)
+  @@index([status, expiresAt])                   // payments.reconcile, paymentLinks.expire
 }
 
 model CashSession {                              // ouverture / clôture de caisse
@@ -866,6 +1182,13 @@ model CashSession {                              // ouverture / clôture de cais
   countedCash    Int?
   difference     Int?
   notes          String?
+  // M08 §14
+  denominations  Json?                         // { "10000": 42, "5000": 30, … }
+  lateClose      Boolean @default(false)       // RG-M08-29
+  reviewedById   String?                       // CLOSED → REVIEWED (cash:review)
+  reviewedAt     DateTime?
+  reviewComment  String?                       // M08 (hors §14) : commentaire de validation de l'écart
+  @@index([organizationId, siteId, closedAt])
 }
 
 model Expense {                                  // décaissements de caisse (petites dépenses)
@@ -878,7 +1201,68 @@ model Expense {                                  // décaissements de caisse (pe
   description    String
   paidAt         DateTime
   createdById    String?
+  // M08 (hors §14) : justificatif (US-M08-12) et validation au-delà de settings.cash.expenseApproval (RG-M08-30)
+  attachmentId   String?
+  approvedById   String?
+  approvedAt     DateTime?
 }
+
+model CashDrop {                                 // M08 §14 — versement coffre / banque depuis la caisse (RG-M08-28)
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String
+  cashSessionId  String
+  amount         Int
+  destination    String                        // safe | bank
+  reference      String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+}
+
+model Refund {                                   // M08 §14 — remboursement (RG-M08-22)
+  id               String @id @default(cuid())
+  organizationId   String
+  siteId           String
+  customerId       String
+  paymentId        String?                     // trop-perçu d'un paiement
+  customerCreditId String?                     // ou crédit client (avoir payé)
+  method           PaymentMethod
+  amount           Int
+  reference        String?
+  cashSessionId    String?                     // espèces : sortie de la session de caisse
+  reason           String
+  createdById      String?
+  createdAt        DateTime @default(now())
+}
+
+model CustomerCredit {                           // M08 §14 — crédit client issu d'un avoir payé (RG-M08-12)
+  id             String @id @default(cuid())
+  organizationId String
+  customerId     String
+  sourceType     String                        // payment | credit_note
+  sourceId       String
+  amount         Int
+  remaining      Int
+  createdAt      DateTime @default(now())
+  @@index([organizationId, customerId])
+}
+
+model PaymentWebhookLog {                        // M08 §14 — journal des webhooks de paiement (RG-M08-24, étape 4.3)
+  id             String @id @default(cuid())
+  organizationId String?                       // null si l'organisation de l'URL est inconnue (RLS : invisible côté app)
+  provider       String
+  providerRef    String?
+  signatureValid Boolean
+  payload        Json
+  outcome        String                        // created | duplicate | rejected | error
+  receivedAt     DateTime @default(now())
+  @@index([provider, providerRef])
+}
+// Paramètres M08 dans Organization.settings : billing.vatRounding ("line" | "total"), billing.allowWalkIn,
+// fne.blockSendUntilCertified, payments.passFeesToCustomer, cash.varianceAlert (5 000), cash.expenseApproval
+// (25 000), cash.oneSessionPerSite (true), cash.expenseCategories, accounting.accounts (plan de comptes
+// SYSCOHADA : 411, 701, 706, 4431, 571, 521, 585…), payments.merchantNumbers ({ wave, orangeMoney, mtn,
+// moov }, M15 RG-M15-17, étape 4.3) — lus par core/billing/settings.ts.
 
 // ───────────── Créances et recouvrement ─────────────
 
@@ -1232,10 +1616,16 @@ model OptOut {
 model PaymentProviderConfig {
   id             String @id @default(cuid())
   organizationId String
-  provider       String                          // cinetpay | wave
+  provider       String                          // cinetpay | wave | fake (simulateur, refusé en production)
   isActive       Boolean @default(false)
-  credentials    String                          // chiffré
+  credentials    String                          // JSON chiffré (clés API, secret de webhook)
   methods        PaymentMethod[]
+  // M15 RG-M15-17 étape 4.3 (hors §14) : dernier test
+  lastTestedAt   DateTime?
+  lastTestOk     Boolean?
+  lastError      String?
+  updatedAt      DateTime @updatedAt
+  @@unique([organizationId, provider])
 }
 
 model FneConfig {
@@ -1246,6 +1636,12 @@ model FneConfig {
   establishmentId String?
   pointOfSale    String?
   isActive       Boolean @default(false)
+  // M08 étape 4.2 (hors §14) : adaptateur du mode api et dernier test (RG-M15-18)
+  provider       String @default("dgi_api")      // dgi_api | fake (simulateur, refusé en production)
+  lastTestedAt   DateTime?
+  lastTestOk     Boolean?
+  lastError      String?
+  updatedAt      DateTime @updatedAt
 }
 
 // ───────────── Import / synchronisation ─────────────
@@ -1388,6 +1784,23 @@ model InsuranceCompany {
   phone          String?
   email          String?
   paymentTermsDays Int @default(60)
+  // M16 §14
+  customerId        String? @unique             // Customer COMPANY lié, utilisé pour facturer la compagnie (RG-M16-01)
+  legalName         String?
+  ncc               String?
+  rccm              String?
+  address           String?
+  claimsContactName String?
+  claimsPhone       String?                     // E.164
+  claimsEmail       String?
+  accountingEmail   String?
+  laborRate         Int?                        // taux horaire MO convenu (FCFA HT)
+  partsDiscountRate Int?                        // remise pièces convenue (%)
+  requiredDocuments String[]                    // kinds d'Attachment exigés (RG-M16-09)
+  followUpConfig    Json @default("{}")         // { approval:[7,14,21], payment:[0,15,30], repeatEvery:30 }
+  isActive          Boolean @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model InsuranceClaim {
@@ -1396,7 +1809,7 @@ model InsuranceClaim {
   insuranceCompanyId String
   customerId         String
   vehicleId          String
-  claimNumber        String?
+  claimNumber        String?                     // n° de sinistre de l'assureur, obligatoire avant facturation
   policyNumber       String?
   accidentDate       DateTime? @db.Date
   expertName         String?
@@ -1407,8 +1820,68 @@ model InsuranceClaim {
   notes              String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  // M16 §14 — le lien OR existe déjà (RepairOrder.insuranceClaimId) : pas de InsuranceClaim.repairOrderId
+  siteId             String?
+  number             String                      // SIN-YOP-2026-00031 (A4 : SIN numéroté par site)
+  quoteId            String?                     // devis assurance retenu
+  accidentPlace      String?
+  circumstances      String?
+  expertFirm         String?
+  expertPhone        String?
+  expertEmail        String?
+  expertVisitedAt    DateTime?
+  estimateSentAt     DateTime?
+  approvedAt         DateTime?
+  approvalRef        String?
+  depreciationAmount Int @default(0)             // vétusté TTC à la charge du client
+  gapAmount          Int @default(0)             // écart non pris en charge mis à la charge du client
+  gapHandling        String?                     // REVISE | CUSTOMER | GARAGE
+  vatPaidBy          Payer @default(INSURANCE)   // INSURANCE ou CUSTOMER (RG-M16-06)
+  rejectedAt         DateTime?
+  rejectReason       String?
+  closedAt           DateTime?
+  createdById        String?
+  deletedAt          DateTime?
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, insuranceCompanyId])
 }
-enum ClaimStatus { OPENED EXPERT_SCHEDULED ESTIMATE_SENT APPROVED REPAIRING INVOICED PAID REJECTED }
+enum ClaimStatus { OPENED EXPERT_SCHEDULED ESTIMATE_SENT APPROVED REPAIRING INVOICED PARTIALLY_PAID PAID REJECTED CANCELLED }   // M16 §14
+
+model ClaimActivity {                            // M16 §14 — chronologie du dossier sinistre
+  id             String @id @default(cuid())
+  organizationId String
+  claimId        String
+  type           String                          // status_change | call | note | email | whatsapp | visit | followup
+  body           String?
+  data           Json @default("{}")
+  messageId      String?
+  nextActionAt   DateTime?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  @@index([organizationId, claimId, createdAt])
+}
+
+model ClaimFollowUp {                            // M16 §14 — relance planifiée vers l'assureur (RG-M16-08, A7)
+  id             String @id @default(cuid())
+  organizationId String
+  claimId        String
+  invoiceId      String?
+  kind           String                          // approval | payment | expert
+  stepKey        String                          // "J+7", "J+30"
+  scheduledFor   DateTime
+  status         ReminderStatus @default(PLANNED)
+  channel        Channel?
+  messageId      String?
+  sentAt         DateTime?
+  snoozedUntil   DateTime?
+  dedupeKey      String                          // "{claimId}:{kind}:{step}"
+  createdAt      DateTime @default(now())
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, status, scheduledFor])
+}
+// Paramètres M16 dans Organization.settings.claims : releaseBeforeDeductible, defaultPaymentTermsDays,
+// autoSendFollowUps. Attachment.entity = "claim" avec les kinds de RG-M16-09.
 
 // ───────────── Transverse ─────────────
 
@@ -1430,10 +1903,12 @@ model DocumentSequence {
   id             String @id @default(cuid())
   organizationId String
   siteId         String?
-  docType        String                          // OR | DEV | FAC | AV | REC | BC
+  docType        String                          // OR | DEV | FAC | AV | REC | BC | INV | TR (M07)
   year           Int
   lastValue      Int @default(0)
   @@unique([organizationId, siteId, docType, year])
+  // M08 (RG-M08-01) : index unique partiel (organizationId, docType, year) WHERE siteId IS NULL
+  // (migration SQL) — une seule séquence fiscale FAC/AV/REC par organisation et année, même en concurrence.
 }
 
 model Holiday {                                   // jours fériés — source unique (A1), M15 §14
@@ -1498,10 +1973,100 @@ model AiInteraction {                             // trace des appels IA (coût,
   tokensOut      Int?
   createdById    String?
   createdAt      DateTime @default(now())
+  // M17 §14 (étape 6.2) — journal (RG-M17-06/07)
+  promptVersion  String   @default("v1")
+  status         String   @default("OK")     // OK | INVALID_OUTPUT | TIMEOUT | ERROR | QUOTA_EXCEEDED | DISABLED
+  latencyMs      Int?
+  credits        Int      @default(0)
+  model          String?                      // valeur de AI_MODEL utilisée (null = repli sans IA)
+  editDistance   Int?
+  @@index([organizationId, feature, createdAt])
 }
+
+// ── M17 §14 (étape 6.2) — IA et automatisations ──
+
+model AiSuggestion {                              // proposition IA (ou repli) en attente de décision humaine
+  id             String   @id @default(cuid())
+  organizationId String
+  interactionId  String?                        // AiInteraction (null si repli sans IA)
+  feature        String                         // reply_draft | slot | quote_draft | quote_explanation | extraction | promise | optout | rule_tuning | automation
+  targetEntity   String                         // conversation | repair_order | quote | vehicle | purchase_order | reminder_rule | automation_run
+  targetId       String?
+  payload        Json
+  status         AiSuggestionStatus @default(PENDING)
+  isFallback     Boolean  @default(false)
+  decidedById    String?
+  decidedAt      DateTime?
+  expiresAt      DateTime                       // 48 h
+  createdAt      DateTime @default(now())
+  @@index([organizationId, targetEntity, targetId, status])
+}
+enum AiSuggestionStatus { PENDING ACCEPTED EDITED_ACCEPTED DISMISSED EXPIRED }
+
+model AiAssistantThread {                         // assistant lecture seule, conservé 30 jours
+  id             String   @id @default(cuid())
+  organizationId String
+  membershipId   String
+  title          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  expiresAt      DateTime                       // +30 j
+}
+
+model AiAssistantMessage {
+  id             String   @id @default(cuid())
+  organizationId String                         // ajouté au §14 de M17 (04 §3, RLS)
+  threadId       String
+  role           String                         // user | assistant | tool
+  content        Json
+  interactionId  String?
+  createdAt      DateTime @default(now())
+}
+
+model AutomationRule {                            // « si… alors… » sans IA (RG-M17-23)
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  trigger        String                         // "repair_order.status_changed"
+  conditions     Json     @default("[]")        // [{ field, op, value }]
+  actions        Json                           // [{ type: "send_template", templateKey, channel, withPaymentLink }]
+  mode           AutomationMode @default(PROPOSE)
+  delayMinutes   Int      @default(0)
+  siteIds        String[]                       // vide = tous
+  isActive       Boolean  @default(false)
+  activatedAt    DateTime?                      // seuls les événements postérieurs déclenchent la règle
+  templateKey    String?                        // modèle fourni d'origine
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+enum AutomationMode { AUTO PROPOSE }
+
+model AutomationRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  ruleId         String
+  eventId        String                         // DomainEvent.id
+  status         String                         // PENDING | SUCCEEDED | FAILED | SKIPPED
+  result         Json?
+  error          String?
+  depth          Int      @default(0)           // anti-boucle (max 3)
+  scheduledFor   DateTime @default(now())       // exécution différée (delayMinutes)
+  attempts       Int      @default(0)           // FAILED réessayé 3 fois
+  executedAt     DateTime?
+  createdAt      DateTime @default(now())
+  @@unique([ruleId, eventId])
+}
+
+// Ajouts M17 §14 : Customer.riskFactors Json?, Customer.riskScoredAt DateTime?,
+// Customer.bestSendHour Int?, Customer.bestChannel Channel? ; Quote.customerExplanation Json?
+// ({ groupKey: texte validé }) ; Reminder.timeOptimized Boolean @default(false),
+// Reminder.originalScheduledFor DateTime?.
 ```
 
 > Les relations (`@relation`) et les clés étrangères sont à compléter à l'implémentation selon les champs `…Id` ci-dessus. Chaque champ `…Id` pointant vers une autre table **doit** avoir sa relation et un index.
+
+> **M12 §14 (étape 6.1, migration `20261020003000_m12_rapports`)** — les rapports et le tableau de bord agrègent en SQL à la demande (`GROUP BY` via `db.forTenant(ctx).queryRaw`, sous RLS) : les modèles `KpiDaily` et `ReportExport` du PRD **ne sont pas créés** à cette étape (pas de rollup journalier ni d'export asynchrone ; exports synchrones limités à 100 000 lignes, journalisés dans `AuditLog` action `report.export`). Index ajoutés pour les filtres de période : `Invoice(organizationId, issuedAt)`, `Payment(organizationId, receivedAt)`, `Refund(organizationId, createdAt)`, `RepairOrder(organizationId, createdAt)` et `(organizationId, deliveredAt)`, `Quote(organizationId, decidedAt)`, `TimeEntry(organizationId, startedAt)`, `Reminder(organizationId, sentAt)`. Les champs `Notification.severity` / `dedupeKey` (alertes) existent depuis l'étape 2.4.
 
 ## 3. Règles d'intégrité
 

@@ -2,7 +2,10 @@
 // partagé par le job `digest.owner` (apps/worker) et `digest.preview` (apps/web). Les
 // formules restent dans `@atelieros/core` (dashboard) ; ce module ne fait que lire les faits.
 import {
+  ALERT_NOTIFICATION_TYPES,
   buildDigestText,
+  computeRevenue,
+  RO_IN_PROGRESS_STATUSES,
   computeReceivables,
   localDay,
   OPEN_INVOICE_STATUSES,
@@ -11,13 +14,14 @@ import {
   startOfLocalDay,
 } from "@atelieros/core";
 import type { db } from "../tenant";
+import { collected, revenueAggregates } from "../reports/facts";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
 
 /** Charge les chiffres du résumé pour un destinataire et compose le texte (RG-M12-30). */
 export async function buildDigestForMembership(
   tenantDb: TenantDb,
-  org: { name: string; timezone: string; operatingMode: string },
+  org: { id: string; name: string; timezone: string; operatingMode: string },
   membership: { id: string; siteIds: string[] },
   now: Date,
   link: string,
@@ -109,7 +113,10 @@ export async function buildDigestForMembership(
       tenantDb.notification.findMany({
         where: {
           membershipId: membership.id,
-          type: { startsWith: "alert." },
+          OR: [
+            { type: { startsWith: "alert." } },
+            { type: { in: Object.keys(ALERT_NOTIFICATION_TYPES) } },
+          ],
           readAt: null,
           severity: { in: ["critical", "warning"] },
           createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
@@ -120,11 +127,14 @@ export async function buildDigestForMembership(
       }),
     ]);
 
+  const full =
+    org.operatingMode === "FULL" ? await loadFullModeFacts(tenantDb, org, siteIds, now) : null;
   const receivables = computeReceivables(invoices, today);
   const attributions = attributionRows.map((r) => ({
     source: r.source,
     amount: r.amount,
-    receivedAt: r.paymentAllocation.payment.receivedAt,
+    // Filtré sur `payment` ci-dessus : une attribution vient toujours d'un paiement (jamais d'un crédit).
+    receivedAt: r.paymentAllocation.payment!.receivedAt,
   }));
 
   return buildDigestText({
@@ -143,7 +153,80 @@ export async function buildDigestForMembership(
       last30Days: recoveredByReminders(attributions, since30, todayStart),
     },
     remindersOnly: { inspectionsDue30: inspections, servicesDueThisMonth: services },
+    ...(full ?? {}),
     alerts: alerts.map((a) => a.title),
     link,
   });
+}
+
+/**
+ * RG-M12-30, mode FULL — CA HT et encaissements d'hier (mêmes définitions que le tableau de
+ * bord : `core/reports`), OR ouverts / livrés hier et en cours, RDV et véhicules promis du jour,
+ * OR bloqués en attente de pièces depuis plus de 48 h.
+ */
+async function loadFullModeFacts(
+  tenantDb: TenantDb,
+  org: { id: string; timezone: string },
+  siteIds: string[],
+  now: Date,
+) {
+  const tz = org.timezone;
+  const today = localDay(now, tz);
+  const todayStart = startOfLocalDay(today, tz);
+  const tomorrowStart = startOfLocalDay(shiftDay(today, 1), tz);
+  const yesterdayStart = startOfLocalDay(shiftDay(today, -1), tz);
+  const scope = { siteIds: siteIds.length > 0 ? siteIds : null };
+  const site = scope.siteIds ? { siteId: { in: scope.siteIds } } : {};
+  const [revenueRows, cash, opened, delivered, inProgress, appointments, promised, blocked] =
+    await Promise.all([
+      revenueAggregates(tenantDb, org.id, scope, yesterdayStart, todayStart),
+      collected(tenantDb, scope, yesterdayStart, todayStart),
+      tenantDb.repairOrder.count({
+        where: {
+          ...site,
+          createdAt: { gte: yesterdayStart, lt: todayStart },
+          status: { not: "CANCELLED" },
+          deletedAt: null,
+          origin: { not: "IMPORTED" },
+        },
+      }),
+      tenantDb.repairOrder.count({
+        where: { ...site, deliveredAt: { gte: yesterdayStart, lt: todayStart }, deletedAt: null },
+      }),
+      tenantDb.repairOrder.count({
+        where: { ...site, status: { in: [...RO_IN_PROGRESS_STATUSES] }, deletedAt: null },
+      }),
+      tenantDb.appointment.count({
+        where: {
+          ...site,
+          startsAt: { gte: todayStart, lt: tomorrowStart },
+          status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        },
+      }),
+      tenantDb.repairOrder.count({
+        where: {
+          ...site,
+          promisedAt: { gte: todayStart, lt: tomorrowStart },
+          status: { notIn: ["DELIVERED", "INVOICED", "CANCELLED"] },
+          deletedAt: null,
+        },
+      }),
+      tenantDb.repairOrder.count({
+        where: {
+          ...site,
+          status: "WAITING_PARTS",
+          waitingPartsSince: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) },
+          deletedAt: null,
+        },
+      }),
+    ]);
+  return {
+    yesterday: {
+      revenueHt: computeRevenue(revenueRows).ht,
+      collected: cash.total,
+      byMethod: cash.byMethod,
+    },
+    orders: { opened, delivered, inProgress },
+    today: { appointments, promised, blockedParts: blocked },
+  };
 }

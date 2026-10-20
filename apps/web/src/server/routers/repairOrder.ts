@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import {
   ACTIVE_REPAIR_ORDER_STATUSES,
+  assertQcCheckerAllowed,
   availableTransitions,
   BOARD_STATUSES,
   businessDate,
@@ -23,6 +24,7 @@ import {
   lineAmounts,
   OPEN_INVOICE_STATUSES,
   repairOrderTotals,
+  reworkableLineIds,
   storageFee,
   suggestPromisedAt,
   warrantyFor,
@@ -31,7 +33,14 @@ import {
   type SignatureMode,
   type TransitionContext,
 } from "@atelieros/core";
-import { adminDb, db, type Prisma, type RepairOrder, type ScopedTenantClient } from "@atelieros/db";
+import {
+  adminDb,
+  db,
+  repairOrderLineStock,
+  type Prisma,
+  type RepairOrder,
+  type ScopedTenantClient,
+} from "@atelieros/db";
 import {
   boardInputSchema,
   checkInInputSchema,
@@ -53,6 +62,7 @@ import {
   type LineInput,
 } from "@atelieros/validators";
 import { z } from "zod";
+import { claimsSettingsFrom } from "../claims/service";
 import { writeAuditLog } from "../audit";
 import { searchCustomers, searchVehicles } from "../customers/trigram";
 import { emitDomainEvent } from "../events/emit";
@@ -72,10 +82,15 @@ import {
   notify,
   recomputeTotals,
   recordRepairOrderMileage,
+  rethrowDomain,
   roNow,
   transitionFacts,
   type OrgRoContext,
 } from "../repairOrders/helpers";
+import {
+  completeAppointmentForRepairOrder,
+  linkRepairOrderToAppointment,
+} from "../appointments/service";
 import { buildLineData } from "../repairOrders/lines";
 import { getAttachmentStorage } from "../storage";
 import { orgProcedure, requirePermission, requireSite, router } from "../trpc";
@@ -293,9 +308,20 @@ function listWhere(
 
 /** Données de restitution (RG-M04-14) : solde client, encours, motif de blocage. */
 async function deliveryFacts(tx: Tx, org: OrgRoContext, order: RepairOrder, now: Date) {
+  // M16 RG-M16-10 : sur un OR sinistre, seule la part client (franchise…) bloque la restitution.
+  const claim = order.insuranceClaimId
+    ? await tx.insuranceClaim.findFirst({
+        where: { id: order.insuranceClaimId },
+        select: { deductible: true, gapAmount: true },
+      })
+    : null;
   const [invoices, customer, lines] = await Promise.all([
     tx.invoice.findMany({
-      where: { repairOrderId: order.id, status: { notIn: ["DRAFT", "VOID"] } },
+      where: {
+        repairOrderId: order.id,
+        status: { notIn: ["DRAFT", "VOID"] },
+        ...(claim ? { billTo: "CUSTOMER" as const } : {}),
+      },
       select: { id: true, number: true, status: true, balance: true, total: true },
     }),
     tx.customer.findFirstOrThrow({ where: { id: order.customerId } }),
@@ -303,9 +329,14 @@ async function deliveryFacts(tx: Tx, org: OrgRoContext, order: RepairOrder, now:
   ]);
   const totals = repairOrderTotals(lines, org.vatEnabled);
   const invoiceIssued = invoices.length > 0;
-  const customerBalance = invoiceIssued
-    ? invoices.reduce((s, i) => s + i.balance, 0)
-    : totals.totalEstimate;
+  const claimRelease = claim ? claimsSettingsFrom(org.rawSettings).releaseBeforeDeductible : false;
+  const customerBalance = claimRelease
+    ? 0
+    : invoiceIssued
+      ? invoices.reduce((s, i) => s + i.balance, 0)
+      : claim
+        ? claim.deductible + claim.gapAmount
+        : totals.totalEstimate;
   const open = await tx.invoice.findMany({
     where: {
       customerId: order.customerId,
@@ -436,7 +467,18 @@ export const repairOrderRouter = router({
               },
             },
             statusHistory: { orderBy: { createdAt: "asc" } },
-            quotes: { select: { id: true, number: true, status: true, total: true, sentAt: true } },
+            quotes: {
+              where: { deletedAt: null },
+              orderBy: [{ number: "desc" }, { version: "desc" }],
+              select: {
+                id: true,
+                number: true,
+                version: true,
+                status: true,
+                total: true,
+                sentAt: true,
+              },
+            },
             invoices: {
               select: { id: true, number: true, status: true, total: true, balance: true },
             },
@@ -480,6 +522,8 @@ export const repairOrderRouter = router({
             select: { id: true, productId: true, type: true, quantity: true, createdAt: true },
           }),
         ]);
+        // M07 : état stock de chaque ligne de pièce (réservée, manquante, sortie).
+        const lineStock = await repairOrderLineStock(tx, order.id);
         const names = new Map(members.map((m) => [m.id, m.user.name]));
         const totals = repairOrderTotals(order.lines, org.vatEnabled);
         const tctx = { ...transitionCtx(ctx, org), ...facts };
@@ -520,6 +564,7 @@ export const repairOrderRouter = router({
             ...l,
             costPrice: canSeeCost ? l.costPrice : null,
             amounts: lineAmounts(l, org.vatEnabled),
+            stockState: lineStock.find((st) => st.lineId === l.id)?.state ?? null,
           })),
           checkIn: parseCheckIn(order),
           totals,
@@ -1034,15 +1079,13 @@ export const repairOrderRouter = router({
         }
 
         if (input.appointmentId) {
-          const appointment = await tx.appointment.findFirst({
-            where: { id: input.appointmentId },
+          // M03 : lien RDV → OR, ARRIVED seulement si le RDV était encore attendu.
+          await linkRepairOrderToAppointment(tx as never, {
+            organizationId: ctx.organizationId,
+            appointmentId: input.appointmentId,
+            repairOrderId: order.id,
+            now,
           });
-          if (appointment) {
-            await tx.appointment.update({
-              where: { id: appointment.id },
-              data: { status: "ARRIVED", repairOrderId: order.id },
-            });
-          }
         }
 
         const link = await createTrackingToken(tx, {
@@ -1285,18 +1328,54 @@ export const repairOrderRouter = router({
           comment: input.comment ?? null,
         } as unknown as Prisma.InputJsonValue;
 
+        // M06 RG-M06-11 : le contrôleur n'est pas l'unique mécanicien ayant pointé sur l'OR.
+        const workers = await tx.timeEntry.findMany({
+          where: { repairOrderId: order.id },
+          select: { membershipId: true },
+        });
+        try {
+          assertQcCheckerAllowed(
+            ctx.membership.id,
+            workers.map((w) => w.membershipId),
+            ctx.permissions.has("workshop:qc_self"),
+          );
+        } catch (error) {
+          rethrowDomain(error);
+        }
+        const checklistRecord = Object.fromEntries(
+          input.checklist.map((c) => [c.key, c.result !== "NOK"]),
+        );
+
         if (input.reject) {
           const to = assertTransition(order, lines, "qc_reject", {
             ...transitionCtx(ctx, org),
             reason: input.comment,
           });
-          const reopened = lines.filter((l) => input.rejectLineIds?.includes(l.id));
+          // M06 US-M06-10 : les lignes à reprendre repassent PENDING avec le même mécanicien ;
+          // le temps de reprise sera pointé en REWORK (non facturable).
+          const reworkIds = reworkableLineIds(lines, input.rejectLineIds ?? []);
+          const reopened = lines.filter((l) => reworkIds.includes(l.id));
           for (const line of reopened) {
             await tx.repairOrderLine.update({
               where: { id: line.id },
-              data: { status: "IN_PROGRESS", completedAt: null, completedById: null },
+              data: { status: "PENDING", completedAt: null, completedById: null },
             });
           }
+          await tx.qualityCheck.create({
+            data: {
+              organizationId: ctx.organizationId,
+              repairOrderId: order.id,
+              checkedById: ctx.membership.id,
+              result: "FAILED",
+              checklist: checklistRecord,
+              comment: input.comment ?? null,
+              reworkLineIds: reworkIds,
+            },
+          });
+          await emitDomainEvent(tx as never, ctx.organizationId, "workshop.qc_failed", {
+            repairOrderId: order.id,
+            reworkLineIds: reworkIds,
+          });
           await notify(
             tx,
             ctx.organizationId,
@@ -1319,10 +1398,23 @@ export const repairOrderRouter = router({
           });
         }
 
-        // RG-M04-13 : avertissement (non bloquant) si le contrôleur est le seul mécanicien.
         const to = assertTransition(order, lines, "qc_pass", {
           ...transitionCtx(ctx, org),
           qcPassed: evaluation.ok,
+        });
+        await tx.qualityCheck.create({
+          data: {
+            organizationId: ctx.organizationId,
+            repairOrderId: order.id,
+            checkedById: ctx.membership.id,
+            result: "PASSED",
+            checklist: checklistRecord,
+            comment: input.comment ?? null,
+            reworkLineIds: [],
+          },
+        });
+        await emitDomainEvent(tx as never, ctx.organizationId, "workshop.qc_passed", {
+          repairOrderId: order.id,
         });
         return applyTransition(tx, {
           order,
@@ -1373,7 +1465,9 @@ export const repairOrderRouter = router({
           cashOnly: order.cashOnly,
           creditHold: facts.customer.creditHold,
           forceUnpaidReason: input.forceUnpaidReason,
-          canForceUnpaid: ctx.permissions.has("repair_order:deliver_unpaid"),
+          canForceUnpaid:
+            ctx.permissions.has("repair_order:deliver_unpaid") ||
+            (Boolean(order.insuranceClaimId) && ctx.permissions.has("claim:release_unpaid")),
         });
         if (!check.ok) {
           throw new TRPCError({
@@ -1485,9 +1579,12 @@ export const repairOrderRouter = router({
           });
         }
         if (order.appointmentId) {
-          await tx.appointment.updateMany({
-            where: { id: order.appointmentId },
-            data: { status: "COMPLETED" },
+          // M03 §5 : OR livré → RDV COMPLETED (completedAt + appointment.completed).
+          await completeAppointmentForRepairOrder(tx as never, {
+            organizationId: ctx.organizationId,
+            appointmentId: order.appointmentId,
+            repairOrderId: order.id,
+            now,
           });
         }
         // Facture déjà émise → INVOICED immédiatement (§5 invoice_issued).
