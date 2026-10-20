@@ -178,6 +178,16 @@ async function main() {
     },
   });
 
+  // M15 US-M15-07 — jauge « Messages automatiques ce mois » de /parametres/abonnement.
+  await adminDb.usageCounter.create({
+    data: {
+      organizationId: organization.id,
+      metric: "auto_messages",
+      period: "2026-10",
+      used: 812,
+    },
+  });
+
   // Horaires types d'un atelier ivoirien (M15 US-M15-03) : lun-ven 07:30-12:00 / 13:00-18:00,
   // sam 08:00-14:00, fermé dimanche.
   const standardOpeningHours = {

@@ -319,6 +319,7 @@ async function candidatesFor(
 
 export async function processRemindersPlanJob(): Promise<void> {
   const organizations = await adminDb.organization.findMany({
+    where: { lifecycleStatus: "ACTIVE" }, // M15 RG-M15-22 : relances suspendues hors ACTIVE
     select: { id: true, timezone: true, operatingMode: true },
   });
 

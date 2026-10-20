@@ -1,6 +1,13 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { isDomainError, type Permission } from "@atelieros/core";
+import {
+  isDomainError,
+  isMutationAllowedInLifecycle,
+  readOnlyMessage,
+  type OrgLifecycleStatus,
+  type Permission,
+} from "@atelieros/core";
+import { adminDb } from "@atelieros/db";
 import type { Ctx, CtxMembership, CtxSession, CtxUser } from "./context";
 
 const t = initTRPC.context<Ctx>().create({
@@ -62,7 +69,7 @@ export function assertOrgHeaderMatches(ctx: { session: CtxSession }, headerOrgId
 }
 
 export function requirePermission(...perms: Permission[]) {
-  return orgProcedure.use(({ ctx, next }) => {
+  return orgProcedure.use(async ({ ctx, next, type, path }) => {
     const missing = perms.filter((p) => !ctx.permissions.has(p));
     if (missing.length > 0) {
       throw new TRPCError({
@@ -70,8 +77,26 @@ export function requirePermission(...perms: Permission[]) {
         message: `Permission manquante : ${missing.join(", ")}`,
       });
     }
+    if (type === "mutation") {
+      await assertWritableLifecycle(ctx.organizationId, path);
+    }
     return next({ ctx });
   });
+}
+
+/**
+ * M15 RG-M15-22 / §5 — suppression programmée ou compte suspendu : lecture seule. Seules
+ * l'annulation de la suppression et l'export des données restent possibles en écriture.
+ */
+export async function assertWritableLifecycle(organizationId: string, path: string) {
+  const org = await adminDb.organization.findUnique({
+    where: { id: organizationId },
+    select: { lifecycleStatus: true },
+  });
+  const status = (org?.lifecycleStatus ?? "ACTIVE") as OrgLifecycleStatus;
+  if (!isMutationAllowedInLifecycle(status, path)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: readOnlyMessage(status) });
+  }
 }
 
 /** RG-M01-09 : portée par site. À appeler explicitement dans les résolveurs avec le siteId de l'entité visée. */

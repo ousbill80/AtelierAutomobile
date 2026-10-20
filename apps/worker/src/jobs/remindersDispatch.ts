@@ -30,6 +30,7 @@ import { reminderSendWindowSchema, reminderStepSchema } from "@atelieros/validat
 import { z } from "zod";
 import { enqueueMessageSendJob } from "../queues/messages";
 import { logger } from "../logger";
+import { autoMessageQuotaState, recordAutoMessage } from "./autoMessageQuota";
 import { resolveChannelCandidates, resolveRecipient } from "./reminderChannel";
 
 // Création du `Message` : réimplémentée ici plutôt que de réutiliser
@@ -522,6 +523,24 @@ async function dispatchGroup(
     }
   }
 
+  // M15 RG-M15-20 : quota mensuel de messages automatiques (une relance approuvée à la main
+  // n'est ni bloquée ni comptée).
+  const countsTowardQuota = !isTransactional && valid.every((r) => !r.approvedAt);
+  if (countsTowardQuota) {
+    const quota = await autoMessageQuotaState(organizationId, now);
+    if (quota.reached) {
+      await tenantDb.reminder.updateMany({
+        where: { id: { in: valid.map((r) => r.id) } },
+        data: {
+          status: "NEEDS_APPROVAL",
+          channel: null,
+          skippedReason: `Quota mensuel de relances automatiques atteint (offre ${quota.planTier} : ${quota.limit}).`,
+        },
+      });
+      return;
+    }
+  }
+
   const context = await buildContext(tenantDb, group, garage);
   const isCompany = valid[0]!.customer.type === "COMPANY";
   const keyCandidates = templateKeyCandidates(templateKey, isCompany);
@@ -585,6 +604,7 @@ async function dispatchGroup(
         },
       });
       messageId = created.id;
+      if (countsTowardQuota) await recordAutoMessage(organizationId, now);
     }
   } catch (error) {
     // Contrainte unique (organizationId, idempotencyKey, channel) : course avec un passage
@@ -695,7 +715,9 @@ async function dispatchForOrganization(organizationId: string, timeZone: string)
 }
 
 export async function processRemindersDispatchJob(): Promise<void> {
+  // M15 RG-M15-22 : relances suspendues en suppression programmée / suspension / purge.
   const organizations = await adminDb.organization.findMany({
+    where: { lifecycleStatus: "ACTIVE" },
     select: { id: true, timezone: true },
   });
   for (const org of organizations) {

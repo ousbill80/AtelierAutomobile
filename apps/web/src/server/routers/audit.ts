@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@atelieros/db";
-import { db } from "@atelieros/db";
+import { db, loadOrgPlan } from "@atelieros/db";
 import { auditExportInputSchema, auditListInputSchema } from "@atelieros/validators";
 import { requirePermission, router } from "../trpc";
 
@@ -8,23 +8,33 @@ import { requirePermission, router } from "../trpc";
 // L'adaptateur de stockage de fichiers signé/asynchrone arrive en Étape 0.5 ; à remplacer alors.
 const EXPORT_MAX_ROWS = 50_000;
 
-function buildWhere(input: {
-  userId?: string;
-  action?: string;
-  entity?: string;
-  entityId?: string;
-  siteId?: string;
-  from?: Date;
-  to?: Date;
-}): Prisma.AuditLogWhereInput {
+function buildWhere(
+  input: {
+    userId?: string;
+    action?: string;
+    entity?: string;
+    entityId?: string;
+    siteId?: string;
+    from?: Date;
+    to?: Date;
+  },
+  retentionStart: Date,
+): Prisma.AuditLogWhereInput {
+  // RG-M15-26 : profondeur consultable selon le plan (90 j / 1 an / 3 ans), conservation 10 ans.
+  const from = input.from && input.from > retentionStart ? input.from : retentionStart;
   return {
     userId: input.userId,
     action: input.action,
     entity: input.entity,
     entityId: input.entityId,
     siteId: input.siteId,
-    createdAt: input.from || input.to ? { gte: input.from, lte: input.to } : undefined,
+    createdAt: { gte: from, lte: input.to },
   };
+}
+
+async function retentionStartFor(organizationId: string): Promise<Date> {
+  const { plan } = await loadOrgPlan(organizationId);
+  return new Date(Date.now() - plan.quotas.auditRetentionDays * 86_400_000);
 }
 
 function csvEscape(value: unknown): string {
@@ -43,7 +53,7 @@ export const auditRouter = router({
       const { cursor, limit, ...filters } = input;
 
       const items = await tenantDb.auditLog.findMany({
-        where: buildWhere(filters),
+        where: buildWhere(filters, await retentionStartFor(ctx.organizationId)),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: limit + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -64,7 +74,7 @@ export const auditRouter = router({
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
 
       const rows = await tenantDb.auditLog.findMany({
-        where: buildWhere(input),
+        where: buildWhere(input, await retentionStartFor(ctx.organizationId)),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: EXPORT_MAX_ROWS,
       });
