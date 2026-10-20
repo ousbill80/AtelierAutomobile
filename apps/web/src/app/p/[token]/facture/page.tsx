@@ -1,3 +1,4 @@
+import { portalLabels } from "../../_components/labels";
 import type { Metadata } from "next";
 import { InvoicePortalView } from "./invoice-portal-view";
 
@@ -13,5 +14,5 @@ export default async function InvoicePortalPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  return <InvoicePortalView token={token} />;
+  return <InvoicePortalView token={token} labels={portalLabels} />;
 }

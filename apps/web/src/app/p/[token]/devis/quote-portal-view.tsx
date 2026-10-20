@@ -10,10 +10,12 @@ import { Button, SignaturePad } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { formatDateTime, formatDay } from "@/components/repair-orders/i18n";
 import { t } from "@/components/quotes/i18n";
+import type { PortalLabels } from "../../_components/labels";
+import { linkProblemOf, PortalLinkState } from "../../_components/link-state";
 
 type Choice = boolean | undefined;
 
-export function QuotePortalView({ token }: { token: string }) {
+export function QuotePortalView({ token, labels }: { token: string; labels: PortalLabels }) {
   const query = trpc.portal.quote.get.useQuery(
     { token },
     { retry: false, refetchOnWindowFocus: false },
@@ -64,12 +66,14 @@ export function QuotePortalView({ token }: { token: string }) {
     );
   }
   if (query.isError || !view) {
-    const expired = query.error?.message.includes("LINK_EXPIRED");
     return (
-      <main className="mx-auto flex max-w-lg flex-col gap-3 p-6 text-center text-base">
-        <p role="alert" className="text-status-bad">
-          {expired ? t("portal.linkExpired") : t("portal.invalid")}
-        </p>
+      <main className="mx-auto flex w-full max-w-lg flex-col gap-3 p-4 text-base">
+        <PortalLinkState
+          problem={linkProblemOf(query.error)}
+          token={token}
+          labels={labels}
+          onRetry={() => query.refetch()}
+        />
       </main>
     );
   }

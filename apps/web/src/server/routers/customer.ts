@@ -549,6 +549,11 @@ export const customerRouter = router({
       }
 
       await tenantDb.customer.update({ where: { id: input.id }, data: { deletedAt: new Date() } });
+      // RG-M14-04 : client supprimé → tous ses liens portail sont révoqués.
+      await tenantDb.portalToken.updateMany({
+        where: { customerId: input.id, status: "ACTIVE" },
+        data: { status: "REVOKED", revokedAt: new Date(), revokeReason: "customer_deleted" },
+      });
       await tenantDb.reminder.updateMany({
         where: { customerId: input.id, status: { in: ["PLANNED", "NEEDS_APPROVAL", "QUEUED"] } },
         data: { status: "CANCELLED", skippedReason: "Client supprimé" },

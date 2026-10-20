@@ -24,8 +24,25 @@ export {
   type SyncResult,
 } from "./receivables";
 export * from "./stock";
-export { hashPortalToken, issuePortalToken, resolvePortalToken } from "./portal";
-export type { IssuePortalTokenInput, ResolvedPortalToken } from "./portal";
+export {
+  derivePortalToken,
+  expirePortalTokens,
+  findPortalTokenByShortCode,
+  generatePortalToken,
+  generateShortCode,
+  hashPortalToken,
+  issuePortalToken,
+  logPortalAccess,
+  resolvePortalToken,
+  revokePortalTokensFor,
+  tokenForShortCode,
+} from "./portal";
+export type {
+  IssuePortalTokenInput,
+  PortalAccessContext,
+  ResolvedPortalToken,
+  ResolvePortalTokenOptions,
+} from "./portal";
 export {
   alertUncertifiedFne,
   certifyInvoiceFne,

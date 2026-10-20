@@ -58,6 +58,8 @@ export type DomainEventType =
   | "collection.promise_broken"
   | "quote.created"
   | "quote.sent"
+  | "portal.feedback_received"
+  | "portal.opened"
   | "quote.viewed"
   | "quote.converted"
   | "quote.discount_approval_requested"

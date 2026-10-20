@@ -3,7 +3,7 @@ import { adminDb, db } from "@atelieros/db";
 import { isSessionExpired, resolvePermissions, type Permission, type Role } from "@atelieros/core";
 
 export { SESSION_COOKIE_NAME } from "./session-cookie-name";
-import { SESSION_COOKIE_NAME } from "./session-cookie-name";
+import { PORTAL_SESSION_COOKIE_NAME, SESSION_COOKIE_NAME } from "./session-cookie-name";
 
 export interface CtxUser {
   id: string;
@@ -35,6 +35,8 @@ export interface Ctx {
   userAgent: string;
   /** En-tête x-org-id envoyé par le client, comparé à la session active (US-M01-10). */
   orgHeaderId?: string | null;
+  /** M14 RG-M14-22 : cookie de session « Mon espace » du portail client (jamais le personnel). */
+  portalSessionToken?: string | null;
 }
 
 function parseCookie(cookieHeader: string | null, name: string): string | null {
@@ -72,6 +74,7 @@ export async function createContext({
     ip: clientIp(req),
     userAgent: req.headers.get("user-agent") ?? "",
     orgHeaderId: req.headers.get("x-org-id"),
+    portalSessionToken: parseCookie(req.headers.get("cookie"), PORTAL_SESSION_COOKIE_NAME),
   };
 
   const token = parseCookie(req.headers.get("cookie"), SESSION_COOKIE_NAME);

@@ -35,6 +35,14 @@ import { inspectionRouter, inspectionTemplateRouter } from "./inspection";
 import { portalRepairOrderRouter } from "./portalRepairOrder";
 import { portalQuoteRouter } from "./portalQuote";
 import { portalInvoiceRouter } from "./portalInvoice";
+import { feedbackRouter, portalLinksRouter } from "./portalLinks";
+import {
+  portalAccountRouter,
+  portalAuthRouter,
+  portalFeedbackRouter,
+  portalRequestNewLink,
+  portalVehicleRouter,
+} from "./portalSpace";
 import { paymentLinkRouter } from "./paymentLink";
 import { paymentProvidersRouter } from "./paymentProviders";
 import { quoteRouter } from "./quote";
@@ -131,11 +139,19 @@ export const appRouter = router({
   workshop: workshopRouter,
   tech: techRouter,
   partRequest: partRequestRouter,
+  // M14 — back-office : liens client et avis.
+  portalLinks: portalLinksRouter,
+  feedback: feedbackRouter,
   portal: router({
     appointment: portalAppointmentRouter,
     repairOrder: portalRepairOrderRouter,
     quote: portalQuoteRouter,
     invoice: portalInvoiceRouter,
+    vehicle: portalVehicleRouter,
+    feedback: portalFeedbackRouter,
+    auth: portalAuthRouter,
+    account: portalAccountRouter,
+    requestNewLink: portalRequestNewLink,
   }),
 });
 

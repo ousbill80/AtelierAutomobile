@@ -21,6 +21,7 @@ import {
 } from "@atelieros/ui";
 import type { AppRouter } from "@/server/routers/_app";
 import { trpc } from "@/trpc/react";
+import { PortalLinksPanel } from "@/components/portal/portal-links-panel";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDateTime, formatDay } from "@/components/repair-orders/i18n";
 import { PriorityBadge, QuoteStatusBadge } from "@/components/quotes/badges";
@@ -99,6 +100,9 @@ export function QuoteView({ id }: { id: string }) {
           onChange={(key) => setTab(key as typeof tab)}
         />
       </div>
+      {tab === "timeline" && quote.status !== "DRAFT" && (
+        <PortalLinksPanel scope="QUOTE" targetId={quote.id} canWrite={perms.has("quote:send")} />
+      )}
       {tab === "timeline" && <Timeline quote={quote} />}
       {tab === "versions" && <Versions quote={quote} />}
       {tab === "reminders" && <Reminders quote={quote} />}

@@ -56,6 +56,9 @@ async function main(): Promise<void> {
   const { QUOTES_JOB_NAMES, QUOTES_QUEUE_NAME, scheduleQuoteJobs } =
     await import("./queues/quotes");
   const { processQuotesExpireJob } = await import("./jobs/quotes");
+  const { PORTAL_JOB_NAMES, PORTAL_QUEUE_NAME, schedulePortalJobs } =
+    await import("./queues/portal");
+  const { processPortalTokensExpireJob } = await import("./jobs/portal");
   const { CASH_JOB_NAMES, CASH_QUEUE_NAME, scheduleCashJobs } = await import("./queues/cash");
   const { processCashCheckUnclosedJob } = await import("./jobs/cashJobs");
   const { WORKSHOP_JOB_NAMES, WORKSHOP_QUEUE_NAME, scheduleWorkshopJobs } =
@@ -249,6 +252,22 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "quotes : un job a échoué");
   });
 
+  // M14 §9 : expiration des liens du portail et purge du journal des accès.
+  await schedulePortalJobs();
+
+  const portalWorker = new Worker(
+    PORTAL_QUEUE_NAME,
+    async (job: Job) => {
+      if (job.name === PORTAL_JOB_NAMES.TOKENS_EXPIRE) return processPortalTokensExpireJob();
+      logger.warn({ jobName: job.name }, "portal : job inconnu, ignoré");
+      return undefined;
+    },
+    { connection: createRedisConnection() },
+  );
+  portalWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "portal : un job a échoué");
+  });
+
   // M08 §9 : caisse non clôturée à 23:00 (RG-M08-29).
   await scheduleCashJobs();
 
@@ -355,6 +374,7 @@ async function main(): Promise<void> {
       repairOrdersWorker.close(),
       stockWorker.close(),
       quotesWorker.close(),
+      portalWorker.close(),
       cashWorker.close(),
       workshopWorker.close(),
       claimsWorker.close(),

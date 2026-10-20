@@ -17,57 +17,37 @@ import {
   latestVersionOf,
   loadOrgQuoteContext,
   quoteContentHash,
-  resolveQuoteToken,
   storeQuoteImage,
   truncateIp,
 } from "../quotes/service";
 import { emitDomainEvent } from "../events/emit";
 import { issueInvoicePortalLink } from "../billing/paymentLinks";
+import {
+  linkError,
+  requirePortalToken,
+  type PortalRequestCtx,
+  type RequirePortalTokenOptions,
+} from "../portal/access";
 import { publicProcedure, router } from "../trpc";
 
-// RG-M05-09 / RG-M14-06 — 30 requêtes/min par jeton (mémoire du processus).
-const hits = new Map<string, number[]>();
-function rateLimit(key: string, now: number): void {
-  if (hits.size > 10_000) {
-    for (const [k, times] of hits) if (times.every((t) => now - t >= 60_000)) hits.delete(k);
-  }
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < 60_000);
-  recent.push(now);
-  hits.set(key, recent);
-  if (recent.length > 30) {
-    throw new TRPCError({
-      code: "TOO_MANY_REQUESTS",
-      message: "Trop de requêtes. Réessayez dans une minute.",
-    });
-  }
-}
-
-function linkError(status: "EXPIRED" | "REVOKED" | "NOT_FOUND"): never {
-  throw new TRPCError({
-    code: "NOT_FOUND",
-    message:
-      status === "EXPIRED"
-        ? "LINK_EXPIRED : ce lien a expiré. Contactez le garage pour recevoir un nouveau lien."
-        : "Lien expiré ou invalide.",
-  });
-}
-
-async function resolve(token: string, now: Date) {
-  rateLimit(token, now.getTime());
-  const resolved = await resolveQuoteToken(token, now);
-  if (resolved.status !== "ACTIVE") linkError(resolved.status);
-  const tenantDb = db.forTenant({ organizationId: resolved.token.organizationId });
+async function resolve(
+  token: string,
+  ctx: PortalRequestCtx,
+  options: RequirePortalTokenOptions = {},
+) {
+  const row = await requirePortalToken(token, ["QUOTE"], ctx, { now: roNow(), ...options });
+  const tenantDb = db.forTenant({ organizationId: row.organizationId });
   const target = await tenantDb.quote.findFirst({
-    where: { id: resolved.token.targetId, deletedAt: null },
+    where: { id: row.targetId, deletedAt: null },
   });
   if (!target) linkError("NOT_FOUND");
-  return { token: resolved.token, tenantDb, target };
+  return { token: row, tenantDb, target };
 }
 
 export const portalQuoteRouter = router({
   get: publicProcedure.input(portalQuoteGetInputSchema).query(async ({ ctx, input }) => {
     const now = roNow();
-    const { tenantDb, target } = await resolve(input.token, now);
+    const { tenantDb, target } = await resolve(input.token, ctx, { now });
     const org = await loadOrgQuoteContext(target.organizationId);
     return tenantDb.transaction(async (tx) => {
       let quote: Quote = await latestVersionOf(tx, target);
@@ -88,7 +68,11 @@ export const portalQuoteRouter = router({
 
   decide: publicProcedure.input(portalQuoteDecideInputSchema).mutation(async ({ ctx, input }) => {
     const now = roNow();
-    const { tenantDb, target } = await resolve(input.token, now);
+    const { tenantDb, target } = await resolve(input.token, ctx, {
+      now,
+      count: false,
+      action: "quote_decide",
+    });
     const org = await loadOrgQuoteContext(target.organizationId);
     const latest = await tenantDb.transaction((tx) => latestVersionOf(tx, target));
     if (latest.id !== input.quoteId) {
@@ -172,9 +156,13 @@ export const portalQuoteRouter = router({
    * Étape 4.3 (US-M08-03) — « Payer l'acompte » : lien portail de la facture d'acompte émise
    * (jeton INVOICE distinct : le jeton du devis ne lit jamais la facture lui-même).
    */
-  depositLink: publicProcedure.input(portalQuoteGetInputSchema).mutation(async ({ input }) => {
+  depositLink: publicProcedure.input(portalQuoteGetInputSchema).mutation(async ({ ctx, input }) => {
     const now = roNow();
-    const { tenantDb, target } = await resolve(input.token, now);
+    const { tenantDb, target } = await resolve(input.token, ctx, {
+      now,
+      count: false,
+      action: "pay_click",
+    });
     return tenantDb.transaction(async (tx) => {
       const quote = await latestVersionOf(tx, target);
       const invoice = quote.depositInvoiceId
@@ -192,14 +180,12 @@ export const portalQuoteRouter = router({
   }),
 
   /** US-M05-06 : question (boîte de réception M11), rappel ou demande d'actualisation. */
-  ask: publicProcedure.input(portalQuoteAskInputSchema).mutation(async ({ input }) => {
+  ask: publicProcedure.input(portalQuoteAskInputSchema).mutation(async ({ ctx, input }) => {
     const now = roNow();
-    const resolved = await resolveQuoteToken(input.token, now);
     // Un devis expiré peut toujours demander son actualisation (jeton lisible jusqu'à J+30).
-    if (resolved.status !== "ACTIVE") linkError(resolved.status);
-    rateLimit(input.token, now.getTime());
-    const tenantDb = db.forTenant({ organizationId: resolved.token.organizationId });
-    const quote = await tenantDb.quote.findFirst({ where: { id: resolved.token.targetId } });
+    const row = await requirePortalToken(input.token, ["QUOTE"], ctx, { now, count: false });
+    const tenantDb = db.forTenant({ organizationId: row.organizationId });
+    const quote = await tenantDb.quote.findFirst({ where: { id: row.targetId } });
     if (!quote) linkError("NOT_FOUND");
     const customer = await tenantDb.customer.findFirstOrThrow({ where: { id: quote.customerId } });
     if (input.message) {

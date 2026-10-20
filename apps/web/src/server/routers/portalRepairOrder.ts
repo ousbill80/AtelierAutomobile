@@ -3,112 +3,55 @@
 // marges, noms des mécaniciens ni pointages.
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import {
-  isWorkableLine,
-  lineAmounts,
-  PUBLIC_STATUS_LABELS,
-  PUBLIC_TIMELINE,
-  publicStep,
-  repairOrderTotals,
-  timelineIndex,
-  type RepairOrderStatus,
-} from "@atelieros/core";
 import { adminDb, db, type Prisma } from "@atelieros/db";
-import { portalSignReceptionInputSchema, portalTokenInputSchema } from "@atelieros/validators";
-import { recomputeTotals, roNow, resolvePortalToken } from "../repairOrders/helpers";
+import {
+  portalOpenDocumentInputSchema,
+  portalSignReceptionInputSchema,
+  portalTokenInputSchema,
+  portalTrackingInputSchema,
+} from "@atelieros/validators";
+import { recomputeTotals, roNow } from "../repairOrders/helpers";
+import { requirePortalToken } from "../portal/access";
+import { buildTrackingView, openRepairOrderDocument } from "../portal/tracking";
 import { getAttachmentStorage } from "../storage";
 import { publicProcedure, router } from "../trpc";
 
-const SHARED_KINDS = ["photo_checkin", "photo_damage", "photo_inspection", "photo_work"];
-
 export const portalRepairOrderRouter = router({
-  tracking: publicProcedure.input(portalTokenInputSchema).query(async ({ input }) => {
-    const now = roNow();
-    const token = await resolvePortalToken(input.token, now);
-    const tenantDb = db.forTenant({ organizationId: token.organizationId });
-    const [org, order] = await Promise.all([
-      adminDb.organization.findUniqueOrThrow({
-        where: { id: token.organizationId },
-        select: { name: true, phone: true, address: true, vatEnabled: true },
-      }),
-      tenantDb.repairOrder.findFirst({
-        where: { id: token.targetId },
-        include: {
-          vehicle: { select: { plate: true, make: true, model: true } },
-          customer: { select: { displayName: true } },
-          lines: true,
-          statusHistory: { orderBy: { createdAt: "asc" } },
-          inspections: {
-            where: { completedAt: { not: null } },
-            include: { items: { orderBy: { sortOrder: "asc" } } },
-          },
-        },
-      }),
-    ]);
-    if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Lien expiré ou invalide." });
-    const steps = PUBLIC_TIMELINE.map((step) => {
-      const at = order.statusHistory.find(
-        (h) => publicStep(h.toStatus as RepairOrderStatus) === step,
-      )?.createdAt;
-      return { step, label: PUBLIC_STATUS_LABELS[step], at: at ?? null };
+  /**
+   * M14 US-M14-04 — espace client de l'OR. `refresh` (temps réel / polling) ne compte pas
+   * d'ouverture et ne consomme pas le quota par IP.
+   */
+  tracking: publicProcedure.input(portalTrackingInputSchema).query(async ({ ctx, input }) => {
+    const token = await requirePortalToken(input.token, ["REPAIR_ORDER"], ctx, {
+      now: roNow(),
+      count: !input.refresh,
+      skipRateLimit: input.refresh,
     });
-    const visibleLines = order.lines.filter(
-      (l) => isWorkableLine(l) && (l.payer === "CUSTOMER" || l.payer === "INSURANCE"),
-    );
-    const checkIn = (order.checkIn ?? {}) as { remoteSignaturePending?: boolean };
-    const step = publicStep(order.status);
-    const photos = await tenantDb.attachment.findMany({
-      where: { entity: "repair_order", entityId: order.id, kind: { in: SHARED_KINDS } },
-      select: { id: true, kind: true },
-    });
-    return {
-      garage: org,
-      number: order.number,
-      customerName: order.customer.displayName,
-      vehicle: order.vehicle,
-      status: step,
-      statusLabel: step ? PUBLIC_STATUS_LABELS[step] : null,
-      cancelled: order.status === "CANCELLED",
-      timelineIndex: timelineIndex(order.status),
-      steps,
-      promisedAt: order.promisedAt,
-      complaint: order.complaint,
-      signaturePending: Boolean(checkIn.remoteSignaturePending),
-      findings: order.inspections.flatMap((i) =>
-        i.items
-          .filter((item) => item.result === "URGENT" || item.result === "WATCH")
-          .map((item) => ({
-            id: item.id,
-            category: item.category,
-            label: item.label,
-            result: item.result,
-            measurement: item.measurement,
-            photos: item.shareWithCustomer ? item.photoUrls.map((u) => u.split("/").pop()!) : [],
-          })),
-      ),
-      lines: visibleLines.map((l) => ({
-        id: l.id,
-        type: l.type,
-        description: l.description,
-        quantity: l.quantity,
-        total: lineAmounts(l, org.vatEnabled).total,
-        isCustomerSupplied: l.isCustomerSupplied,
-      })),
-      pendingLines: order.lines
-        .filter((l) => l.approval === "PENDING" && l.status !== "CANCELLED")
-        .map((l) => ({
-          id: l.id,
-          description: l.description,
-          total: lineAmounts(l, org.vatEnabled).total,
-        })),
-      total: repairOrderTotals(order.lines, org.vatEnabled).totalEstimate,
-      photoIds: photos.map((p) => p.id),
-    };
+    return buildTrackingView(token);
   }),
 
+  /** Devis ou facture de l'OR suivi : URL d'un jeton enfant (RG-M14-02, enfants directs). */
+  openDocument: publicProcedure
+    .input(portalOpenDocumentInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const now = roNow();
+      const parent = await requirePortalToken(input.token, ["REPAIR_ORDER"], ctx, {
+        now,
+        count: false,
+        action: "document_open",
+      });
+      return openRepairOrderDocument({
+        parentToken: input.token,
+        parent,
+        kind: input.kind,
+        index: input.index,
+        now,
+      });
+    }),
+
   /** Récapitulatif de réception pour la signature à distance. */
-  reception: publicProcedure.input(portalTokenInputSchema).query(async ({ input }) => {
-    const token = await resolvePortalToken(input.token, roNow());
+  reception: publicProcedure.input(portalTokenInputSchema).query(async ({ ctx, input }) => {
+    const token = await requirePortalToken(input.token, ["REPAIR_ORDER"], ctx, { now: roNow() });
     const tenantDb = db.forTenant({ organizationId: token.organizationId });
     const order = await tenantDb.repairOrder.findFirst({
       where: { id: token.targetId },
@@ -135,9 +78,12 @@ export const portalRepairOrderRouter = router({
 
   signReception: publicProcedure
     .input(portalSignReceptionInputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const now = roNow();
-      const token = await resolvePortalToken(input.token, now);
+      const token = await requirePortalToken(input.token, ["REPAIR_ORDER"], ctx, {
+        now,
+        count: false,
+      });
       const tenantDb = db.forTenant({ organizationId: token.organizationId });
       const order = await tenantDb.repairOrder.findFirst({ where: { id: token.targetId } });
       if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Lien expiré ou invalide." });

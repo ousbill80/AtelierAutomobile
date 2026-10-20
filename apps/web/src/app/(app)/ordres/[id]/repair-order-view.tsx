@@ -24,6 +24,7 @@ import {
   type BodyView,
 } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { PortalLinksPanel } from "@/components/portal/portal-links-panel";
 import { RepairOrderInvoiceButton } from "@/components/billing/repair-order-invoice-button";
 import {
   InspectionResultBadge,
@@ -130,7 +131,7 @@ export function RepairOrderView({ id }: { id: string }) {
       {tab === "quotes" && <QuotesTab order={order} perms={perms} />}
       {tab === "parts" && <PartsTab order={order} />}
       {tab === "time" && <TimeTab order={order} />}
-      {tab === "documents" && <DocumentsTab order={order} />}
+      {tab === "documents" && <DocumentsTab order={order} perms={perms} />}
       {tab === "history" && <HistoryTab order={order} />}
       {tab === "notes" && (
         <NotesTab order={order} perms={perms} onDone={refresh} onError={onError} />
@@ -1368,10 +1369,17 @@ function TimeTab({ order }: { order: RepairOrderDetail }) {
   );
 }
 
-function DocumentsTab({ order }: { order: RepairOrderDetail }) {
+function DocumentsTab({ order, perms }: { order: RepairOrderDetail; perms: Set<string> }) {
   const kinds = ["reception", "workshop", "full", "delivery"] as const;
+  // M14 §10 : création / envoi / révocation = repair_order:read + message:send.
+  const canWriteLinks = perms.has("repair_order:read") && perms.has("message:send");
   return (
     <section className="flex flex-col gap-3 text-sm">
+      <PortalLinksPanel scope="REPAIR_ORDER" targetId={order.id} canWrite={canWriteLinks} />
+      <PortalLinksPanel scope="VEHICLE" targetId={order.vehicleId} canWrite={canWriteLinks} />
+      {order.deliveredAt && (
+        <PortalLinksPanel scope="SURVEY" targetId={order.id} canWrite={canWriteLinks} />
+      )}
       <div className="flex flex-wrap gap-2">
         {kinds
           .filter((k) => k !== "delivery" || order.deliveredAt)
