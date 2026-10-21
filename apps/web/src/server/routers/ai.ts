@@ -16,7 +16,11 @@ import { z } from "zod";
 import { writeAuditLog } from "../audit";
 import { acceptHandlerFor, assertAcceptPermissions } from "../ai/accept";
 import { getAiService } from "../ai/service";
-import { loadPendingSuggestion, recordSuggestionDecision } from "../ai/suggestions";
+import {
+  aiSuggestionsNow,
+  loadPendingSuggestion,
+  recordSuggestionDecision,
+} from "../ai/suggestions";
 import { aiFeatureProcedures } from "../ai/procedures";
 import { requirePermission, router } from "../trpc";
 
@@ -175,7 +179,7 @@ export const aiRouter = router({
             targetEntity: input.targetEntity,
             targetId: input.targetId,
             status: "PENDING",
-            expiresAt: { gt: new Date() },
+            expiresAt: { gt: aiSuggestionsNow() },
           },
           orderBy: { createdAt: "desc" },
         });
@@ -185,7 +189,7 @@ export const aiRouter = router({
       .input(z.object({ suggestionId: z.string(), editedPayload: z.unknown().optional() }))
       .mutation(async ({ ctx, input }) => {
         const tx = db.forTenant({ organizationId: ctx.organizationId });
-        const now = new Date();
+        const now = aiSuggestionsNow();
         const suggestion = await loadPendingSuggestion(tx, input.suggestionId, now);
         const handler = acceptHandlerFor(suggestion.feature);
         assertAcceptPermissions(ctx, handler);
@@ -209,7 +213,7 @@ export const aiRouter = router({
       .input(z.object({ suggestionId: z.string(), reason: z.string().max(500).optional() }))
       .mutation(async ({ ctx, input }) => {
         const tx = db.forTenant({ organizationId: ctx.organizationId });
-        const now = new Date();
+        const now = aiSuggestionsNow();
         const suggestion = await tx.aiSuggestion.findFirst({ where: { id: input.suggestionId } });
         if (!suggestion) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Suggestion introuvable." });
