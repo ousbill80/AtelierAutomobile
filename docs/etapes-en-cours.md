@@ -10,5 +10,6 @@
 > Origine : le 19/10/2026, M02 et M10 ont été codés deux fois en parallèle par deux sessions
 > qui ne se voyaient pas ; la fusion a dû jeter l'une des deux implémentations.
 
-| Étape | Branche | Session / responsable | Réservée le | Statut |
-| ----- | ------- | --------------------- | ----------- | ------ |
+| Étape                                                    | Branche              | Session / responsable    | Réservée le | Statut   |
+| -------------------------------------------------------- | -------------------- | ------------------------ | ----------- | -------- |
+| Polish UI — fluidité (transitions, chargements, modales) | `polish/ui-fluidite` | session ot@prodestic.net | 21/10/2026  | en cours |
