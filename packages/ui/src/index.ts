@@ -43,7 +43,9 @@ export {
   AppMain,
   Content,
   Sidebar,
+  SidebarSection,
   SidebarSectionLabel,
+  SidebarSearch,
   NavItem,
   Topbar,
   SearchBox,
@@ -53,6 +55,8 @@ export {
   DropdownMenu,
   DropdownItem,
   type SidebarProps,
+  type SidebarSectionProps,
+  type SidebarSearchProps,
   type NavItemProps,
   type TopbarProps,
   type DropdownMenuProps,
@@ -71,6 +75,8 @@ export {
 // M04 — composants tablette de la réception (schéma, jauge, signature, photos).
 export {
   BodyDiagram,
+  VIEWS,
+  VIEW_ZONE_KEYS,
   type BodyDiagramMarker,
   type BodyDiagramProps,
   type BodyType,

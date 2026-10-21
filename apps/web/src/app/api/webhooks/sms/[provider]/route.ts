@@ -14,6 +14,7 @@ import {
   recordInboundMessage,
   recordStatusEvent,
 } from "@/server/messaging/inbound";
+import { webhookRateLimitResponse } from "@/server/security/sensitiveRateLimit";
 
 function createProvider(
   provider: string,
@@ -38,6 +39,8 @@ function createProvider(
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ provider: string }> }) {
+  const limited = webhookRateLimitResponse(req);
+  if (limited) return limited;
   const { provider: providerName } = await params;
   const token = new URL(req.url).searchParams.get("token");
   if (!token) {

@@ -34,7 +34,7 @@ En implémentant un module, applique sa section **§14 Évolutions du modèle de
 - **Factures émises** : immuables. Correction par avoir. Numérotation sans trou via `DocumentSequence`.
 - **Relances** : `dedupeKey` unique ; revérifier la condition (facture toujours impayée, VT toujours à faire, pas d'OptOut) **juste avant l'envoi**.
 - **Webhooks** : signature vérifiée + idempotence.
-- **Secrets fournisseurs** : chiffrés en base, jamais renvoyés au front ni écrits dans les logs.
+- **Secrets** : jamais dans Git (dépôt public). Pas de `.env` réel, pas de clé, mot de passe, jeton ou PEM dans un commit, une PR ou un exemple. Seul `.env.example` (valeurs vides ou fictives) est versionné. Secrets locaux dans `.env` (gitignoré) ; secrets de prod en variables d'environnement serveur ; secrets fournisseurs chiffrés en base, jamais renvoyés au front ni écrits dans les logs. Secret commité = compromis : révoquer, puis retirer de l'historique. Voir `.cursor/rules/no-secrets.mdc`.
 - **Audit** : actions sensibles → `AuditLog` avec motif.
 - **Fournisseurs externes** : toujours derrière une interface de `packages/integrations`, avec une implémentation `console`/`manual` pour le local et les tests. Le code ne doit jamais exiger un compte réel pour tourner.
 - **IA** : l'IA propose, l'humain valide toute action à effet (envoi, prix, paiement). Journaliser dans `AiInteraction`.

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { TrpcProvider } from "@/trpc/Provider";
-import { fontVariables } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="fr" className="h-full antialiased" style={fontVariables as CSSProperties}>
+    <html lang="fr" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <TrpcProvider>{children}</TrpcProvider>
       </body>

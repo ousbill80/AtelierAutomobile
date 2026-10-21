@@ -117,6 +117,7 @@ export async function saveInspectionItemTx(
     result: Prisma.InspectionItemUpdateInput["result"];
     measurement?: string | null;
     comment?: string | null;
+    photoAttachmentIds?: string[];
   },
 ) {
   const item = await tx.inspectionItem.findFirst({ where: { id: input.itemId } });
@@ -125,7 +126,12 @@ export async function saveInspectionItemTx(
   if (inspection.completedAt) badRequest("L'inspection est terminée.");
   return tx.inspectionItem.update({
     where: { id: item.id },
-    data: { result: input.result, measurement: input.measurement, comment: input.comment },
+    data: {
+      result: input.result,
+      measurement: input.measurement,
+      comment: input.comment,
+      photoUrls: input.photoAttachmentIds?.map((id) => `/api/attachments/${id}`),
+    },
   });
 }
 

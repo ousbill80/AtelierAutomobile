@@ -27,6 +27,7 @@
     "./automations": "./src/automations/index.ts",
     "./api": "./src/api/index.ts",
     "./calendar": "./src/calendar.ts",
+    "./security/headers": "./src/security/headers.ts",
     "./observability": "./src/observability/sentryScrub.ts"
   },
   "scripts": {

@@ -224,7 +224,7 @@ export default function PlanningPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
           <button
             type="button"
             aria-label={ta("previous")}
@@ -253,7 +253,7 @@ export default function PlanningPage() {
             aria-label={ta("form.date")}
             value={dayKey}
             onChange={(e) => e.target.value && setDayKey(e.target.value)}
-            className="input min-h-11 w-auto"
+            className="input min-h-11 w-auto max-w-full"
           />
         </div>
         <span className="text-sm font-medium" data-testid="planning-date">

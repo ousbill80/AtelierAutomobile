@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import {
   computeSessionAbsoluteExpiry,
   computeTrustedDeviceExpiry,
+  DEFAULT_RATE_LIMITS,
   hashPassword,
   INITIAL_LOCKOUT_STATE,
   isLocked,
@@ -33,6 +34,7 @@ import { assertPasswordPolicy } from "../auth/password-policy";
 import { buildSessionCookie, clearSessionCookie } from "../cookies";
 import { authedProcedure, publicProcedure, router } from "../trpc";
 import { writeAuditLog } from "../audit";
+import { assertSensitiveRateLimit } from "../security/sensitiveRateLimit";
 
 const RESET_TOKEN_EXPIRY_MINUTES = 10;
 
@@ -173,8 +175,10 @@ export const authRouter = router({
     return { userId: user.id, otpChannel };
   }),
 
-  sendOtp: publicProcedure.input(sendOtpInputSchema).mutation(async ({ input }) => {
+  sendOtp: publicProcedure.input(sendOtpInputSchema).mutation(async ({ input, ctx }) => {
     const resolved = resolveIdentifier(input.identifier);
+    assertSensitiveRateLimit(`otp:${resolved.value}`, DEFAULT_RATE_LIMITS.otpByIdentifier);
+    assertSensitiveRateLimit(`otp-ip:${ctx.ip}`, DEFAULT_RATE_LIMITS.otpByIdentifier);
     const channel = input.channel ?? (resolved.kind === "PHONE" ? "WHATSAPP" : "EMAIL");
     try {
       return await sendOtpCode(resolved.value, input.purpose, channel, new Date());
@@ -237,6 +241,7 @@ export const authRouter = router({
   }),
 
   signIn: publicProcedure.input(signInInputSchema).mutation(async ({ input, ctx }) => {
+    assertSensitiveRateLimit(`login:${ctx.ip}`, DEFAULT_RATE_LIMITS.loginByIp);
     const resolved = resolveIdentifier(input.identifier);
     const user = await findUserByIdentifier(resolved);
     const now = new Date();
@@ -384,6 +389,7 @@ export const authRouter = router({
   }),
 
   pinSignIn: publicProcedure.input(pinSignInInputSchema).mutation(async ({ input, ctx }) => {
+    assertSensitiveRateLimit(`login:${ctx.ip}`, DEFAULT_RATE_LIMITS.loginByIp);
     const now = new Date();
     const device = await adminDb.trustedDevice.findUnique({ where: { deviceId: input.deviceId } });
     if (!device || !device.isSharedWorkshopDevice || (device.expiresAt && device.expiresAt < now)) {

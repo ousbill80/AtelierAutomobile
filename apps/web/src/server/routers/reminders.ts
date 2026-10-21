@@ -106,13 +106,15 @@ export const remindersRouter = router({
         "TO_CALL",
         "EXPIRED",
       ] as const;
-      const counts = Object.fromEntries(
-        await Promise.all(
-          tabs.map(
-            async (t) => [t, await tenantDb.reminder.count({ where: tabWhere(t, now) })] as const,
-          ),
-        ),
-      );
+      // Une seule transaction : `forTenant` ouvre sinon une tx par count, et
+      // Promise.all saturaient le pool (P2028) sous charge / en CI.
+      const counts = await tenantDb.transaction(async (tx) => {
+        const entries: Array<readonly [(typeof tabs)[number], number]> = [];
+        for (const t of tabs) {
+          entries.push([t, await tx.reminder.count({ where: tabWhere(t, now) })]);
+        }
+        return Object.fromEntries(entries);
+      });
 
       return { items: items.slice(0, input.limit), counts, nextCursor };
     }),

@@ -40,7 +40,7 @@ export const bodyTypeSchema = z.enum([
   "MINIBUS",
   "TRUCK",
 ]);
-export const damageViewSchema = z.enum(["TOP", "FRONT", "REAR", "LEFT", "RIGHT"]);
+export const damageViewSchema = z.enum(["TOP", "FRONT", "REAR", "LEFT", "RIGHT", "INTERIOR"]);
 export const damageTypeSchema = z.enum([
   "SCRATCH",
   "DENT",
@@ -100,6 +100,7 @@ export const checkOutSchema = z.object({
   }),
   signatureUrl: z.string().optional(),
   at: z.string().optional(),
+  photoAttachmentIds: z.array(id).max(20).optional(),
 });
 
 export const CheckInSchema = z

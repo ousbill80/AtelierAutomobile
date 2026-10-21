@@ -2,7 +2,7 @@
 
 import type { MouseEvent } from "react";
 
-export type BodyView = "TOP" | "FRONT" | "REAR" | "LEFT" | "RIGHT";
+export type BodyView = "TOP" | "FRONT" | "REAR" | "LEFT" | "RIGHT" | "INTERIOR";
 export type BodyType = "SEDAN" | "SUV" | "PICKUP" | "HATCHBACK" | "VAN" | "MINIBUS" | "TRUCK";
 
 export interface BodyDiagramMarker {
@@ -20,7 +20,47 @@ export interface BodyDiagramProps {
   onAdd?: (view: BodyView, x: number, y: number) => void;
 }
 
-const VIEWS: BodyView[] = ["LEFT", "RIGHT", "TOP", "FRONT", "REAR"];
+export const VIEWS: BodyView[] = ["FRONT", "REAR", "LEFT", "RIGHT", "TOP", "INTERIOR"];
+
+/** Clés de zones suggérées par vue (libellés dans `fr.json`). */
+export const VIEW_ZONE_KEYS: Record<BodyView, readonly string[]> = {
+  FRONT: ["bumper", "grille", "hood", "lightL", "lightR", "fog", "windshield"],
+  REAR: ["bumper", "trunk", "lightL", "lightR", "window", "exhaust", "hitch"],
+  LEFT: [
+    "fenderFront",
+    "doorFront",
+    "doorRear",
+    "fenderRear",
+    "mirror",
+    "sill",
+    "wheelFront",
+    "wheelRear",
+  ],
+  RIGHT: [
+    "fenderFront",
+    "doorFront",
+    "doorRear",
+    "fenderRear",
+    "mirror",
+    "sill",
+    "fuelFlap",
+    "wheelFront",
+    "wheelRear",
+  ],
+  TOP: ["roof", "sunroof", "roofBars", "hoodTop", "trunkTop"],
+  INTERIOR: [
+    "seatDriver",
+    "seatPassenger",
+    "rearBench",
+    "dashboard",
+    "steering",
+    "console",
+    "gear",
+    "headliner",
+    "doorTrim",
+    "carpet",
+  ],
+};
 
 /** Hauteur relative de la caisse selon la silhouette (vue de côté). */
 const SIDE_HEIGHT: Record<BodyType, number> = {
@@ -57,6 +97,18 @@ function Silhouette({ view, bodyType }: { view: BodyView; bodyType: BodyType }) 
       </g>
     );
   }
+  if (view === "INTERIOR") {
+    return (
+      <g fill="none" stroke="currentColor" strokeWidth={2}>
+        <rect x={25} y={16} width={150} height={78} rx={14} />
+        <rect x={32} y={20} width={28} height={70} rx={4} />
+        <circle cx={46} cy={38} r={8} />
+        <rect x={70} y={26} width={26} height={24} rx={5} />
+        <rect x={70} y={60} width={26} height={24} rx={5} />
+        <rect x={124} y={24} width={34} height={62} rx={6} />
+      </g>
+    );
+  }
   return (
     <g fill="none" stroke="currentColor" strokeWidth={2}>
       <rect x={45} y={100 - h * 100 + 10} width={110} height={h * 100 - 20} rx={14} />
@@ -67,7 +119,7 @@ function Silhouette({ view, bodyType }: { view: BodyView; bodyType: BodyType }) 
   );
 }
 
-/** M04 US-M04-02 — schéma de carrosserie tactile (5 vues), repères numérotés. */
+/** M04 US-M04-02 — schéma de carrosserie et habitacle tactile (6 vues), repères numérotés. */
 export function BodyDiagram({ bodyType, markers, viewLabels, onAdd }: BodyDiagramProps) {
   const handleClick = (view: BodyView) => (event: MouseEvent<SVGSVGElement>) => {
     if (!onAdd) return;

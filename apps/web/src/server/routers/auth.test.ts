@@ -2,7 +2,8 @@ import { randomInt } from "node:crypto";
 import { hashPassword, LOCKOUT_FAILURE_THRESHOLD, normalizePhoneCI } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { defaultOutbox } from "@atelieros/integrations";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resetSensitiveRateLimiter } from "../security/sensitiveRateLimit";
 import type { Ctx } from "../context";
 import { createCallerFactory } from "../trpc";
 import { appRouter } from "./_app";
@@ -40,6 +41,10 @@ function extractOtpCode(identifier: string): string {
   if (!match) throw new Error(`Aucun OTP trouvé pour ${identifier}`);
   return match[1]!;
 }
+
+beforeEach(() => {
+  resetSensitiveRateLimiter();
+});
 
 afterEach(async () => {
   if (createdOrgIds.length > 0) {
@@ -329,5 +334,25 @@ describe("authRouter — OTP nouvel appareil et audit (RG-M01-07 / RG-M01-15)", 
     const auditLog = await adminDb.auditLog.findFirst({ where: { organizationId: orgId } });
     expect(auditLog).not.toBeNull();
     expect(auditLog!.action).toBe("auth.login.failed");
+  });
+
+  it("refuse la connexion après trop de tentatives depuis la même IP (01 §8)", async () => {
+    const ctx = { ...makeCtx(), ip: "203.0.113.10" };
+    for (let i = 0; i < 10; i++) {
+      await expect(
+        callerFactory(ctx).auth.signIn({
+          identifier: "inconnu@example.ci",
+          password: "WrongPassword1",
+          deviceId: `device-rl-${i}`,
+        }),
+      ).rejects.toThrow();
+    }
+    await expect(
+      callerFactory(ctx).auth.signIn({
+        identifier: "inconnu@example.ci",
+        password: "WrongPassword1",
+        deviceId: "device-rl-blocked",
+      }),
+    ).rejects.toThrow(/Trop de tentatives/);
   });
 });

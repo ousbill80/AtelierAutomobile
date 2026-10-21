@@ -22,7 +22,7 @@ import {
   Wifi,
   XCircle,
 } from "lucide-react";
-import { PlateBadge, StatusBadge } from "@atelieros/ui";
+import { PhotoCapture, PlateBadge, StatusBadge, type PhotoStatus } from "@atelieros/ui";
 import { formatDateTime } from "@/components/repair-orders/i18n";
 import { formatDuration, formatTime, tt, tw } from "@/components/workshop/i18n";
 import type { TechSnapshot, TechTask } from "@/components/workshop/types";
@@ -809,6 +809,174 @@ const RESULT_CLASS: Record<(typeof RESULTS)[number], string> = {
   NOT_CHECKED: "border-border bg-surface-2",
 };
 
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+}
+
+function speechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as
+    (new () => SpeechRecognitionLike) | null;
+}
+
+type TabletInspectionItemData = TechSnapshot["inspections"][number]["items"][number];
+
+function TabletInspectionItem({
+  item,
+  repairOrderId,
+  tablet,
+}: {
+  item: TabletInspectionItemData;
+  repairOrderId: string;
+  tablet: Tablet;
+}) {
+  const upload = trpc.repairOrder.uploadAttachment.useMutation();
+  const [comment, setComment] = useState(item.comment ?? "");
+  const [listening, setListening] = useState(false);
+  const [photoStatus, setPhotoStatus] = useState<PhotoStatus>("empty");
+  const [preview, setPreview] = useState<string | null>(null);
+  const [photoIds, setPhotoIds] = useState<string[]>([]);
+  const flagged = item.result === "URGENT" || item.result === "WATCH";
+
+  const saveItem = (patch: {
+    result?: TabletInspectionItemData["result"];
+    measurement?: string | null;
+    comment?: string | null;
+    photoAttachmentIds?: string[];
+  }) =>
+    void tablet.enqueue({
+      type: "inspection.setItem",
+      itemId: item.id,
+      result: patch.result ?? item.result,
+      measurement: patch.measurement,
+      comment: patch.comment,
+      photoAttachmentIds: patch.photoAttachmentIds,
+    });
+
+  const dictate = () => {
+    const Ctor = speechRecognitionCtor();
+    if (!Ctor) return;
+    const recognition = new Ctor();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const text = event.results[0]?.[0]?.transcript ?? "";
+      if (!text) return;
+      setComment((prev) => {
+        const next = [prev, text].filter(Boolean).join(" ");
+        saveItem({ comment: next || null });
+        return next;
+      });
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    setListening(true);
+    recognition.start();
+  };
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+      <span className="font-medium">{item.label}</span>
+      <div
+        className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+        role="radiogroup"
+        aria-label={item.label}
+      >
+        {RESULTS.map((r) => (
+          <button
+            key={r}
+            type="button"
+            role="radio"
+            aria-checked={item.result === r}
+            onClick={() => saveItem({ result: r })}
+            className={`min-h-14 rounded-lg border-2 px-2 text-sm font-semibold ${
+              item.result === r ? RESULT_CLASS[r] : "border-border bg-surface"
+            }`}
+          >
+            {tt(`results.${r}`)}
+          </button>
+        ))}
+      </div>
+      {flagged ? (
+        <p className="flex items-center gap-1 text-xs text-status-warn">
+          <AlertTriangle className="size-3" aria-hidden />
+          {tt("photoRequired")}
+        </p>
+      ) : null}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm">
+          {tt("measurement")}
+          <input
+            className="input min-h-11"
+            defaultValue={item.measurement ?? ""}
+            maxLength={60}
+            onBlur={(e) =>
+              e.target.value !== (item.measurement ?? "") &&
+              saveItem({ measurement: e.target.value })
+            }
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          {tt("comment")}
+          <input
+            className="input min-h-11"
+            value={comment}
+            maxLength={1000}
+            onChange={(e) => setComment(e.target.value)}
+            onBlur={(e) =>
+              e.target.value !== (item.comment ?? "") && saveItem({ comment: e.target.value })
+            }
+          />
+        </label>
+      </div>
+      {speechRecognitionCtor() && (
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-surface px-3 text-sm font-semibold"
+          disabled={listening}
+          onClick={dictate}
+        >
+          {listening ? tt("dictating") : tt("dictate")}
+        </button>
+      )}
+      <PhotoCapture
+        label={tt("itemPhoto")}
+        previewUrl={preview}
+        status={photoStatus}
+        takeLabel={tt("photo")}
+        retakeLabel={tt("retake")}
+        errorLabel={tt("photoFailed")}
+        uploadingLabel={tt("photoUploading")}
+        onCapture={async (image) => {
+          setPreview(image.dataUrl);
+          setPhotoStatus("uploading");
+          try {
+            const res = await upload.mutateAsync({
+              repairOrderId,
+              kind: "photo_inspection",
+              mimeType: image.mimeType,
+              dataBase64: image.base64,
+            });
+            const nextIds = [...photoIds, res.attachmentId];
+            setPhotoIds(nextIds);
+            setPhotoStatus("done");
+            saveItem({ photoAttachmentIds: nextIds, comment: comment || null });
+          } catch {
+            setPhotoStatus("error");
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 function InspectionView({
   snap,
   tablet,
@@ -843,80 +1011,12 @@ function InspectionView({
           {inspection.items
             .filter((i) => i.category === category)
             .map((item) => (
-              <div
+              <TabletInspectionItem
                 key={item.id}
-                className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3"
-              >
-                <span className="font-medium">{item.label}</span>
-                <div
-                  className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-                  role="radiogroup"
-                  aria-label={item.label}
-                >
-                  {RESULTS.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      role="radio"
-                      aria-checked={item.result === r}
-                      onClick={() =>
-                        void tablet.enqueue({
-                          type: "inspection.setItem",
-                          itemId: item.id,
-                          result: r,
-                        })
-                      }
-                      className={`min-h-12 rounded-lg border-2 px-2 text-sm font-semibold ${
-                        item.result === r ? RESULT_CLASS[r] : "border-border bg-surface"
-                      }`}
-                    >
-                      {tt(`results.${r}`)}
-                    </button>
-                  ))}
-                </div>
-                {item.result === "URGENT" || item.result === "WATCH" ? (
-                  <p className="flex items-center gap-1 text-xs text-status-warn">
-                    <AlertTriangle className="size-3" aria-hidden />
-                    {tt("photoRequired")}
-                  </p>
-                ) : null}
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1 text-sm">
-                    {tt("measurement")}
-                    <input
-                      className="input"
-                      defaultValue={item.measurement ?? ""}
-                      maxLength={60}
-                      onBlur={(e) =>
-                        e.target.value !== (item.measurement ?? "") &&
-                        void tablet.enqueue({
-                          type: "inspection.setItem",
-                          itemId: item.id,
-                          result: item.result,
-                          measurement: e.target.value,
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm">
-                    {tt("comment")}
-                    <input
-                      className="input"
-                      defaultValue={item.comment ?? ""}
-                      maxLength={1000}
-                      onBlur={(e) =>
-                        e.target.value !== (item.comment ?? "") &&
-                        void tablet.enqueue({
-                          type: "inspection.setItem",
-                          itemId: item.id,
-                          result: item.result,
-                          comment: e.target.value,
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-              </div>
+                item={item}
+                repairOrderId={inspection.repairOrderId}
+                tablet={tablet}
+              />
             ))}
         </section>
       ))}

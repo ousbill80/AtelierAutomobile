@@ -53,6 +53,12 @@
   --sidebar-w-collapsed: 76px;
   --topbar-h: 64px;
   --bottomtab-h: 64px;
+
+  /* Polices système uniquement. Les woff2 Inter/Sora auto-hébergées
+     superposent les glyphes (texte illisible) dans Chromium. */
+  --font-display: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 .dark {
@@ -135,9 +141,9 @@
   --radius-lg: var(--radius-lg);
   --radius-full: var(--radius-full);
 
-  --font-display: var(--font-sora);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-display: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 body {

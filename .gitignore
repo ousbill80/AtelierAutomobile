@@ -1,7 +1,13 @@
 .DS_Store
 node_modules/
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.p12
+credentials.json
+id_rsa
+id_rsa.pub
 dist/
 build/
 .next/

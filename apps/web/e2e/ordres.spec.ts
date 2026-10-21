@@ -176,11 +176,11 @@ test("parcours OR : réception → inspection → accord → travaux → QC → 
   await page.mouse.up();
   await page.getByRole("button", { name: "Valider la réception" }).click();
 
-  await expect(page).toHaveURL(/\/ordres\/[^/]+$/, { timeout: 20_000 });
-  await expect(page.getByRole("heading", { name: "OR-YOP-2026-00001" })).toBeVisible();
+  await expect(page).toHaveURL(/\/ordres\/(?!reception)[^/]+$/, { timeout: 20_000 });
   const order = await adminDb.repairOrder.findFirstOrThrow({
     where: { organizationId: organization.id },
   });
+  await expect(page.getByRole("heading", { name: order.number })).toBeVisible();
   expect(order).toMatchObject({ status: "CHECKED_IN", mileageIn: 48_200, fuelLevel: 3 });
   expect(
     await adminDb.mileageReading.count({ where: { repairOrderId: order.id, source: "RECEPTION" } }),
@@ -205,7 +205,7 @@ test("parcours OR : réception → inspection → accord → travaux → QC → 
     page.getByRole("radiogroup", { name: "Huile moteur" }).getByRole("radio", { name: /OK/ }),
   ).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Terminer l'inspection" }).click();
-  await expect(page.getByRole("heading", { name: "OR-YOP-2026-00001" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: order.number })).toBeVisible();
 
   // ── Travaux : ligne au-delà du plafond (0) → accord tracé par téléphone → approbation ──
   await page.getByRole("button", { name: "Main-d'œuvre" }).first().click();
@@ -218,7 +218,7 @@ test("parcours OR : réception → inspection → accord → travaux → QC → 
   await page.getByRole("button", { name: /Accord par téléphone/ }).click();
   await expect(page.getByTestId("order-total")).toHaveText("17 700 FCFA");
   await page.getByRole("button", { name: "Approuver les travaux" }).click();
-  await expect(page.getByText(/OR-YOP-2026-00001 : Approuvé/)).toBeVisible();
+  await expect(page.getByText(new RegExp(`${order.number} : Approuvé`))).toBeVisible();
   await page.getByRole("button", { name: /Terminer$/ }).click();
   await expect(page.getByRole("link", { name: "Contrôle qualité" })).toBeVisible();
 

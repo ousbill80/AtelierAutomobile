@@ -3,6 +3,7 @@
 // montant relus chez le fournisseur ; paiement créé une seule fois ; réponse rapide.
 import { handlePaymentWebhook } from "@/server/billing/paymentLinks";
 import { billingNow } from "@/server/billing/service";
+import { webhookRateLimitResponse } from "@/server/security/sensitiveRateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ provider: string; organizationId: string }> },
 ) {
+  const limited = webhookRateLimitResponse(request);
+  if (limited) return limited;
   const { provider, organizationId } = await params;
   const rawBody = await request.text();
   const result = await handlePaymentWebhook({

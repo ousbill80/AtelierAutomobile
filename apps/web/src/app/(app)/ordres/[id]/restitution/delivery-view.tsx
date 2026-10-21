@@ -6,7 +6,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatFCFA } from "@atelieros/core/money";
-import { Button, FuelGauge, Input, SignaturePad, Textarea } from "@atelieros/ui";
+import {
+  Button,
+  FuelGauge,
+  Input,
+  PhotoCapture,
+  SignaturePad,
+  Textarea,
+  type PhotoStatus,
+} from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { t } from "@/components/repair-orders/i18n";
@@ -25,6 +33,14 @@ export function DeliveryView({ id }: { id: string }) {
   const [signature, setSignature] = useState<string | null>(null);
   const [forceReason, setForceReason] = useState("");
   const [skipQcReason, setSkipQcReason] = useState("");
+  const [photos, setPhotos] = useState<
+    { slot: string; preview: string; attachmentId?: string; status: PhotoStatus }[]
+  >([
+    { slot: "out_front", preview: "", status: "empty" },
+    { slot: "out_rear", preview: "", status: "empty" },
+    { slot: "out_interior", preview: "", status: "empty" },
+  ]);
+  const upload = trpc.repairOrder.uploadAttachment.useMutation();
   const deliver = trpc.repairOrder.deliver.useMutation({
     onSuccess: () => {
       void utils.repairOrder.get.invalidate({ id });
@@ -110,11 +126,28 @@ export function DeliveryView({ id }: { id: string }) {
       <Input
         label={t("delivery.mileageOut")}
         inputMode="numeric"
+        className="text-2xl font-mono"
         value={mileage}
         onChange={(e) => setMileage(e.target.value.replace(/\D/g, ""))}
       />
       <div className="flex flex-col gap-2 text-sm">
         <span className="font-medium">{t("delivery.fuelOut")}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {([0, 2, 4, 6, 8] as const).map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => setFuel(level)}
+              className={`min-h-11 min-w-[4.5rem] flex-1 rounded-md px-2 text-sm font-semibold ${
+                (fuel ?? o.fuelLevel) === level
+                  ? "bg-accent text-accent-foreground"
+                  : "border border-border bg-surface text-muted"
+              }`}
+            >
+              {t("reception.fuelValue", { level })}
+            </button>
+          ))}
+        </div>
         <FuelGauge
           label={t("delivery.fuelOut")}
           value={fuel ?? o.fuelLevel}
@@ -122,6 +155,57 @@ export function DeliveryView({ id }: { id: string }) {
           levelLabel={(level) => t("reception.fuelValue", { level })}
         />
       </div>
+      <section className="flex flex-col gap-2">
+        <span className="text-sm font-medium">{t("delivery.photosOut")}</span>
+        <span className="text-xs text-muted">{t("delivery.photosOutHint")}</span>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+          {photos.map((photo) => (
+            <PhotoCapture
+              key={photo.slot}
+              label={t(`delivery.photoSlots.${photo.slot}`)}
+              previewUrl={photo.preview || null}
+              status={photo.status}
+              takeLabel={t("reception.takePhoto")}
+              retakeLabel={t("reception.retake")}
+              errorLabel={t("reception.photoFailed")}
+              uploadingLabel={t("reception.photoUploading")}
+              onCapture={async (image) => {
+                setPhotos((list) =>
+                  list.map((p) =>
+                    p.slot === photo.slot
+                      ? { ...p, preview: image.dataUrl, status: "uploading" }
+                      : p,
+                  ),
+                );
+                try {
+                  const res = await upload.mutateAsync({
+                    repairOrderId: id,
+                    kind: "photo_checkout",
+                    mimeType: image.mimeType,
+                    dataBase64: image.base64,
+                  });
+                  setPhotos((list) =>
+                    list.map((p) =>
+                      p.slot === photo.slot
+                        ? {
+                            ...p,
+                            preview: image.dataUrl,
+                            attachmentId: res.attachmentId,
+                            status: "done",
+                          }
+                        : p,
+                    ),
+                  );
+                } catch {
+                  setPhotos((list) =>
+                    list.map((p) => (p.slot === photo.slot ? { ...p, status: "error" } : p)),
+                  );
+                }
+              }}
+            />
+          ))}
+        </div>
+      </section>
       <div className="grid gap-2 sm:grid-cols-2">
         <Input
           label={t("delivery.collectedBy")}
@@ -158,27 +242,34 @@ export function DeliveryView({ id }: { id: string }) {
         </label>
       )}
       {deliver.error && <ErrorBox message={deliver.error.message} />}
-      <Button
-        loading={deliver.isPending}
-        disabled={!itemsConfirmed}
-        onClick={() =>
-          deliver.mutate({
-            id,
-            checkOut: {
-              mileage: mileage ? Number(mileage) : null,
-              fuelLevel: fuel ?? o.fuelLevel ?? 0,
-              itemsConfirmed,
-              oldPartsReturned,
-              collectedBy: { name, phone: collectedPhone || undefined },
-            },
-            signature: signature ? { dataUrl: signature, signerName: name } : undefined,
-            forceUnpaidReason: forceReason || undefined,
-            skipQcReason: skipQcReason || undefined,
-          })
-        }
-      >
-        {t("delivery.submit")}
-      </Button>
+      <div className="sticky bottom-0 border-t border-border bg-bg/95 py-3 backdrop-blur-sm">
+        <Button
+          block
+          className="min-h-11"
+          loading={deliver.isPending}
+          disabled={!itemsConfirmed}
+          onClick={() =>
+            deliver.mutate({
+              id,
+              checkOut: {
+                mileage: mileage ? Number(mileage) : null,
+                fuelLevel: fuel ?? o.fuelLevel ?? 0,
+                itemsConfirmed,
+                oldPartsReturned,
+                photoAttachmentIds: photos
+                  .map((p) => p.attachmentId)
+                  .filter((value): value is string => Boolean(value)),
+                collectedBy: { name, phone: collectedPhone || undefined },
+              },
+              signature: signature ? { dataUrl: signature, signerName: name } : undefined,
+              forceUnpaidReason: forceReason || undefined,
+              skipQcReason: skipQcReason || undefined,
+            })
+          }
+        >
+          {t("delivery.submit")}
+        </Button>
+      </div>
     </div>
   );
 }

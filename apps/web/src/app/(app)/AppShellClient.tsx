@@ -1,9 +1,49 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
+import {
+  BarChart3,
+  Boxes,
+  Building2,
+  Calendar,
+  CalendarCheck,
+  CalendarClock,
+  CalendarRange,
+  Car,
+  CheckCheck,
+  CircleDollarSign,
+  ClipboardList,
+  Copy,
+  CreditCard,
+  FileCode,
+  FileSignature,
+  FileText,
+  FolderCog,
+  History,
+  KeyRound,
+  Layers,
+  LayoutDashboard,
+  ListChecks,
+  MessageSquare,
+  Radio,
+  Receipt,
+  Send,
+  Shield,
+  ShieldCheck,
+  ShoppingCart,
+  Sliders,
+  Sparkles,
+  Star,
+  Tablet,
+  UploadCloud,
+  Users,
+  Wallet,
+  Webhook,
+  Wrench,
+} from "lucide-react";
 import {
   AppMain,
   AppShell,
@@ -15,18 +55,39 @@ import {
   NavItem,
   SearchBox,
   Sidebar,
-  SidebarSectionLabel,
+  SidebarSearch,
+  SidebarSection,
   Topbar,
   TopbarActions,
 } from "@atelieros/ui";
+import { formatDate } from "@atelieros/core/calendar";
 import type { AppRouter } from "@/server/routers/_app";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
 import { GlobalSearch } from "@/components/global-search";
-import { formatDate } from "@atelieros/core/calendar";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
+
+interface MenuItemDef {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  permission?: string | string[];
+  hidden?: boolean;
+  subItem?: boolean;
+  badge?: ReactNode;
+  badgeVariant?: "default" | "accent" | "ai" | "warn";
+  exact?: boolean;
+}
+
+interface MenuSectionDef {
+  id: string;
+  label: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  items: MenuItemDef[];
+}
 
 export function AppShellClient({ me, children }: { me: Me; children: ReactNode }) {
   const pathname = usePathname();
@@ -34,9 +95,16 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
   const utils = trpc.useUtils();
   const [profileOpen, setProfileOpen] = useState(false);
   const [siteOpen, setSiteOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [menuFilter, setMenuFilter] = useState("");
 
   const permissions = new Set<string>(me.permissions);
-  const has = (permission: string) => permissions.has(permission);
+  const has = (permission?: string | string[]) => {
+    if (!permission) return true;
+    return Array.isArray(permission)
+      ? permission.some((p) => permissions.has(p))
+      : permissions.has(permission);
+  };
 
   const signOut = trpc.auth.signOut.useMutation({
     onSuccess() {
@@ -65,138 +133,380 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
   const garageSub =
     me.allowedSites.length > 1 ? (activeSite?.name ?? t("common.allSites")) : activeSite?.name;
 
-  const mainItems = [
-    {
-      href: "/tableau-de-bord",
-      label: t("nav.ownerDashboard"),
-      // M12 §10 : onglets selon les permissions de lecture ; MECHANIC sans accès.
-      permission: [
-        "dashboard:owner",
-        "repair_order:read",
-        "reminder:read",
-        "report:financial",
-        "cash:operate",
-      ],
-      hidden: me.membership?.role === "MECHANIC",
-    },
-    {
-      href: "/rapports",
-      label: t("nav.reports"),
-      permission: ["report:read", "report:financial"],
-    },
-    { href: "/rendez-vous", label: t("nav.appointments"), permission: "appointment:read" },
-    {
-      href: "/rendez-vous/aujourdhui",
-      label: t("nav.appointmentsToday"),
-      permission: "appointment:read",
-    },
-    {
-      href: "/ordres",
-      label: t("nav.repairOrders"),
-      permission: "repair_order:read",
-      // M15 RG-M15-23 : masqué en mode « Relances seules ».
-      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
-    },
-    {
-      href: "/atelier",
-      label: t("nav.workshop"),
-      permission: "workshop:view",
-      // M06 : l'atelier n'existe qu'en gestion complète.
-      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
-    },
-    {
-      href: "/tablette",
-      label: t("nav.tablet"),
-      permission: "time:clock",
-      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
-    },
-    {
-      href: "/devis",
-      label: t("nav.quotes"),
-      permission: "quote:read",
-      // RG-M05-17 : module devis masqué en mode « Relances seules ».
-      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
-    },
-    { href: "/factures", label: t("nav.invoices"), permission: "invoice:read" },
-    {
-      href: "/assurances",
-      label: t("nav.insurance"),
-      permission: "insurance:read",
-      // M16 : dossiers sinistre rattachés aux OR → gestion complète seulement.
-      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
-    },
-    {
-      href: "/caisse",
-      label: t("nav.cash"),
-      permission: "payment:read",
-      // M08 : la caisse n'existe qu'en gestion complète.
-      hidden: me.activeOrganization?.operatingMode === "REMINDERS_ONLY",
-    },
-    { href: "/clients", label: t("nav.customers"), permission: "customer:read" },
-    { href: "/vehicules", label: t("nav.vehicles"), permission: "vehicle:read" },
-    { href: "/clients/doublons", label: t("nav.duplicates"), permission: "customer:merge" },
-    { href: "/clients/avis", label: t("nav.reviews"), permission: "customer:read" },
-    { href: "/messages", label: t("nav.messages"), permission: "message:read" },
-    { href: "/assistant", label: t("nav.assistant"), permission: "ai:use" },
-    { href: "/relances", label: t("nav.reminders"), permission: "reminder:read" },
-    { href: "/relances/echeances", label: t("nav.dueDates"), permission: "reminder:read" },
-    {
-      href: "/relances/resultats",
-      label: t("nav.reminderResults"),
-      permission: "reminder:read",
-    },
-    { href: "/creances", label: t("nav.receivables"), permission: "receivable:read" },
-    { href: "/stock", label: t("nav.stock"), permission: "stock:read" },
-    { href: "/achats", label: t("nav.purchases"), permission: "purchase:read" },
-    { href: "/import", label: t("nav.import"), permission: "import:run" },
-  ].filter(
-    (item) =>
-      (Array.isArray(item.permission) ? item.permission.some(has) : has(item.permission)) &&
-      !("hidden" in item && item.hidden),
-  );
+  const isRemindersOnly = me.activeOrganization?.operatingMode === "REMINDERS_ONLY";
+  const isMechanic = me.membership?.role === "MECHANIC";
 
-  const settingsItems = [
-    { href: "/parametres/equipe", label: t("nav.settingsTeam"), permission: "member:read" },
-    { href: "/parametres/roles", label: t("nav.settingsRoles"), permission: "role:manage" },
-    { href: "/parametres/sites", label: t("nav.settingsSites"), permission: "site:manage" },
-    { href: "/parametres/journal", label: t("nav.settingsJournal"), permission: "audit:read" },
-    {
-      href: "/parametres/canaux",
-      label: t("nav.settingsChannels"),
-      permission: "settings:channels",
-    },
-    {
-      href: "/parametres/modeles",
-      label: t("nav.settingsTemplates"),
-      permission: "template:manage",
-    },
-    {
-      href: "/parametres/relances",
-      label: t("nav.settingsReminderRules"),
-      permission: "reminder:rules_manage",
-    },
-    {
-      href: "/parametres/planning",
-      label: t("nav.settingsPlanning"),
-      permission: "planning:manage",
-    },
-    {
-      href: "/parametres/ordres",
-      label: t("nav.settingsRepairOrders"),
-      permission: "settings:update",
-    },
-    {
-      href: "/parametres/inspection",
-      label: t("nav.settingsInspection"),
-      permission: "inspection:template_manage",
-    },
-    { href: "/parametres/devis", label: t("nav.settingsQuotes"), permission: "settings:update" },
-    {
-      href: "/parametres/catalogue-mo",
-      label: t("nav.settingsLaborCatalog"),
-      permission: "labor_catalog:manage",
-    },
-  ].filter((item) => has(item.permission));
+  const menuSections: MenuSectionDef[] = useMemo(() => {
+    return [
+      {
+        id: "overview",
+        label: t("nav.sectionOverview"),
+        items: [
+          {
+            href: "/tableau-de-bord",
+            label: t("nav.dashboard"),
+            icon: <LayoutDashboard size={17} strokeWidth={2} />,
+            permission: [
+              "dashboard:owner",
+              "repair_order:read",
+              "reminder:read",
+              "report:financial",
+              "cash:operate",
+            ],
+            hidden: isMechanic,
+          },
+          {
+            href: "/rapports",
+            label: t("nav.reports"),
+            icon: <BarChart3 size={17} strokeWidth={2} />,
+            permission: ["report:read", "report:financial"],
+          },
+        ],
+      },
+      {
+        id: "workshop",
+        label: t("nav.sectionWorkshop"),
+        items: [
+          {
+            href: "/rendez-vous",
+            label: t("nav.appointments"),
+            icon: <Calendar size={17} strokeWidth={2} />,
+            permission: "appointment:read",
+            exact: true,
+          },
+          {
+            href: "/rendez-vous/aujourdhui",
+            label: t("nav.appointmentsToday"),
+            icon: <CalendarCheck size={16} strokeWidth={2} />,
+            permission: "appointment:read",
+            subItem: true,
+          },
+          {
+            href: "/ordres",
+            label: t("nav.repairOrders"),
+            icon: <ClipboardList size={17} strokeWidth={2} />,
+            permission: "repair_order:read",
+            hidden: isRemindersOnly,
+          },
+          {
+            href: "/atelier",
+            label: t("nav.workshop"),
+            icon: <Wrench size={17} strokeWidth={2} />,
+            permission: "workshop:view",
+            hidden: isRemindersOnly,
+          },
+          {
+            href: "/tablette",
+            label: t("nav.tablet"),
+            icon: <Tablet size={17} strokeWidth={2} />,
+            permission: "time:clock",
+            hidden: isRemindersOnly,
+          },
+        ],
+      },
+      {
+        id: "billing",
+        label: t("nav.sectionBilling"),
+        items: [
+          {
+            href: "/devis",
+            label: t("nav.quotes"),
+            icon: <FileText size={17} strokeWidth={2} />,
+            permission: "quote:read",
+            hidden: isRemindersOnly,
+          },
+          {
+            href: "/factures",
+            label: t("nav.invoices"),
+            icon: <Receipt size={17} strokeWidth={2} />,
+            permission: "invoice:read",
+          },
+          {
+            href: "/caisse",
+            label: t("nav.cash"),
+            icon: <Wallet size={17} strokeWidth={2} />,
+            permission: "payment:read",
+            hidden: isRemindersOnly,
+          },
+          {
+            href: "/assurances",
+            label: t("nav.insurance"),
+            icon: <ShieldCheck size={17} strokeWidth={2} />,
+            permission: "insurance:read",
+            hidden: isRemindersOnly,
+          },
+          {
+            href: "/creances",
+            label: t("nav.receivables"),
+            icon: <CircleDollarSign size={17} strokeWidth={2} />,
+            permission: "receivable:read",
+          },
+        ],
+      },
+      {
+        id: "crm",
+        label: t("nav.sectionCrm"),
+        items: [
+          {
+            href: "/assistant",
+            label: t("nav.assistant"),
+            icon: <Sparkles size={17} strokeWidth={2} />,
+            permission: "ai:use",
+            badge: t("nav.aiBadge"),
+            badgeVariant: "ai",
+          },
+          {
+            href: "/relances",
+            label: t("nav.reminders"),
+            icon: <Send size={17} strokeWidth={2} />,
+            permission: "reminder:read",
+            exact: true,
+          },
+          {
+            href: "/relances/echeances",
+            label: t("nav.dueDates"),
+            icon: <CalendarClock size={16} strokeWidth={2} />,
+            permission: "reminder:read",
+            subItem: true,
+          },
+          {
+            href: "/relances/resultats",
+            label: t("nav.reminderResults"),
+            icon: <CheckCheck size={16} strokeWidth={2} />,
+            permission: "reminder:read",
+            subItem: true,
+          },
+          {
+            href: "/messages",
+            label: t("nav.messages"),
+            icon: <MessageSquare size={17} strokeWidth={2} />,
+            permission: "message:read",
+          },
+        ],
+      },
+      {
+        id: "fleet",
+        label: t("nav.sectionFleet"),
+        items: [
+          {
+            href: "/clients",
+            label: t("nav.customers"),
+            icon: <Users size={17} strokeWidth={2} />,
+            permission: "customer:read",
+            exact: true,
+          },
+          {
+            href: "/clients/doublons",
+            label: t("nav.duplicates"),
+            icon: <Copy size={16} strokeWidth={2} />,
+            permission: "customer:merge",
+            subItem: true,
+          },
+          {
+            href: "/clients/avis",
+            label: t("nav.reviews"),
+            icon: <Star size={16} strokeWidth={2} />,
+            permission: "customer:read",
+            subItem: true,
+          },
+          {
+            href: "/vehicules",
+            label: t("nav.vehicles"),
+            icon: <Car size={17} strokeWidth={2} />,
+            permission: "vehicle:read",
+          },
+        ],
+      },
+      {
+        id: "inventory",
+        label: t("nav.sectionInventory"),
+        items: [
+          {
+            href: "/stock",
+            label: t("nav.stock"),
+            icon: <Boxes size={17} strokeWidth={2} />,
+            permission: "stock:read",
+          },
+          {
+            href: "/achats",
+            label: t("nav.purchases"),
+            icon: <ShoppingCart size={17} strokeWidth={2} />,
+            permission: "purchase:read",
+          },
+          {
+            href: "/import",
+            label: t("nav.import"),
+            icon: <UploadCloud size={17} strokeWidth={2} />,
+            permission: "import:run",
+          },
+        ],
+      },
+      {
+        id: "settings",
+        label: t("nav.settings"),
+        collapsible: true,
+        defaultOpen: pathname.startsWith("/parametres"),
+        items: [
+          {
+            href: "/parametres/garage",
+            label: t("nav.settingsGarage"),
+            icon: <Building2 size={16} strokeWidth={2} />,
+            permission: "settings:update",
+          },
+          {
+            href: "/parametres/equipe",
+            label: t("nav.settingsTeam"),
+            icon: <Users size={16} strokeWidth={2} />,
+            permission: "member:read",
+          },
+          {
+            href: "/parametres/roles",
+            label: t("nav.settingsRoles"),
+            icon: <Shield size={16} strokeWidth={2} />,
+            permission: "role:manage",
+          },
+          {
+            href: "/parametres/sites",
+            label: t("nav.settingsSites"),
+            icon: <Building2 size={16} strokeWidth={2} />,
+            permission: "site:manage",
+          },
+          {
+            href: "/parametres/jours-feries",
+            label: t("nav.settingsHolidays"),
+            icon: <CalendarRange size={16} strokeWidth={2} />,
+            permission: "site:manage",
+          },
+          {
+            href: "/parametres/journal",
+            label: t("nav.settingsJournal"),
+            icon: <History size={16} strokeWidth={2} />,
+            permission: "audit:read",
+          },
+          {
+            href: "/parametres/canaux",
+            label: t("nav.settingsChannels"),
+            icon: <Radio size={16} strokeWidth={2} />,
+            permission: "settings:channels",
+          },
+          {
+            href: "/parametres/modeles",
+            label: t("nav.settingsTemplates"),
+            icon: <FileCode size={16} strokeWidth={2} />,
+            permission: "template:manage",
+          },
+          {
+            href: "/parametres/relances",
+            label: t("nav.settingsReminderRules"),
+            icon: <Sliders size={16} strokeWidth={2} />,
+            permission: "reminder:rules_manage",
+          },
+          {
+            href: "/parametres/automatisations",
+            label: t("nav.settingsAutomations"),
+            icon: <Sparkles size={16} strokeWidth={2} />,
+            permission: ["ai:configure", "reminder:rules_manage"],
+          },
+          {
+            href: "/parametres/planning",
+            label: t("nav.settingsPlanning"),
+            icon: <CalendarRange size={16} strokeWidth={2} />,
+            permission: "planning:manage",
+          },
+          {
+            href: "/parametres/ordres",
+            label: t("nav.settingsRepairOrders"),
+            icon: <FolderCog size={16} strokeWidth={2} />,
+            permission: "settings:update",
+          },
+          {
+            href: "/parametres/inspection",
+            label: t("nav.settingsInspection"),
+            icon: <ListChecks size={16} strokeWidth={2} />,
+            permission: "inspection:template_manage",
+          },
+          {
+            href: "/parametres/devis",
+            label: t("nav.settingsQuotes"),
+            icon: <FileSignature size={16} strokeWidth={2} />,
+            permission: "settings:update",
+          },
+          {
+            href: "/parametres/catalogue-mo",
+            label: t("nav.settingsLaborCatalog"),
+            icon: <Layers size={16} strokeWidth={2} />,
+            permission: "labor_catalog:manage",
+          },
+          {
+            href: "/parametres/documents",
+            label: t("nav.settingsDocuments"),
+            icon: <FileText size={16} strokeWidth={2} />,
+            permission: "settings:read",
+          },
+          {
+            href: "/parametres/fne",
+            label: t("nav.settingsFne"),
+            icon: <Receipt size={16} strokeWidth={2} />,
+            permission: "settings:fne",
+          },
+          {
+            href: "/parametres/paiements",
+            label: t("nav.settingsPayments"),
+            icon: <CreditCard size={16} strokeWidth={2} />,
+            permission: "settings:payments",
+          },
+          {
+            href: "/parametres/ia",
+            label: t("nav.settingsAi"),
+            icon: <Sparkles size={16} strokeWidth={2} />,
+            permission: "ai:configure",
+          },
+          {
+            href: "/parametres/abonnement",
+            label: t("nav.settingsSubscription"),
+            icon: <KeyRound size={16} strokeWidth={2} />,
+            permission: "settings:billing",
+          },
+          {
+            href: "/parametres/donnees",
+            label: t("nav.settingsData"),
+            icon: <Shield size={16} strokeWidth={2} />,
+            permission: "settings:billing",
+          },
+          {
+            href: "/parametres/api",
+            label: t("nav.settingsApi"),
+            icon: <Webhook size={16} strokeWidth={2} />,
+            permission: "settings:update",
+          },
+        ],
+      },
+    ];
+  }, [isMechanic, isRemindersOnly, pathname]);
+
+  const filteredSections = useMemo(() => {
+    const query = menuFilter.trim().toLowerCase();
+    return menuSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => {
+          if (!has(item.permission) || item.hidden) return false;
+          if (!query) return true;
+          return (
+            item.label.toLowerCase().includes(query) || item.href.toLowerCase().includes(query)
+          );
+        }),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [menuSections, menuFilter, permissions]);
+
+  function isItemActive(item: MenuItemDef) {
+    if (item.exact) return pathname === item.href;
+    if (item.href === "/" || item.href === "/tableau-de-bord") {
+      return pathname === "/" || pathname === "/tableau-de-bord";
+    }
+    return pathname === item.href || pathname.startsWith(`${item.href}/`);
+  }
 
   return (
     <AppShell>
@@ -204,32 +514,50 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         garageName={me.activeOrganization?.name ?? t("common.appName")}
         garageSub={garageSub}
         logoLabel={t("common.appName")}
+        logoIcon={<Wrench size={19} strokeWidth={2.4} />}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed(!collapsed)}
+        collapseLabel={t("nav.collapseSidebar")}
+        expandLabel={t("nav.expandSidebar")}
+        footer={!collapsed ? <span>{t("nav.sidebarFooter")}</span> : null}
       >
-        <NavItem as={Link} href="/" label={t("nav.dashboard")} active={pathname === "/"} />
-        {mainItems.map((item) => (
-          <NavItem
-            key={item.href}
-            as={Link}
-            href={item.href}
-            label={item.label}
-            active={pathname === item.href}
+        {!collapsed ? (
+          <SidebarSearch
+            value={menuFilter}
+            onChange={setMenuFilter}
+            placeholder={t("nav.filterPlaceholder")}
+            clearLabel={t("nav.clearMenuFilter")}
           />
-        ))}
-        {settingsItems.length > 0 ? (
-          <>
-            <SidebarSectionLabel>{t("nav.settings")}</SidebarSectionLabel>
-            {settingsItems.map((item) => (
+        ) : null}
+
+        {filteredSections.map((section) => (
+          <SidebarSection
+            key={section.id}
+            label={section.label}
+            collapsible={section.collapsible}
+            defaultOpen={section.defaultOpen ?? true}
+          >
+            {section.items.map((item) => (
               <NavItem
                 key={item.href}
                 as={Link}
                 href={item.href}
                 label={item.label}
-                active={pathname.startsWith(item.href)}
+                icon={item.icon}
+                active={isItemActive(item)}
+                subItem={item.subItem}
+                badge={item.badge}
+                badgeVariant={item.badgeVariant}
               />
             ))}
-          </>
+          </SidebarSection>
+        ))}
+
+        {filteredSections.length === 0 ? (
+          <div className="px-3 py-4 text-center text-xs text-white/70">{t("nav.noMenuFound")}</div>
         ) : null}
       </Sidebar>
+
       <AppMain>
         <Topbar>
           {me.allowedSites.length > 1 ? (
@@ -256,20 +584,29 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
               </DropdownMenu>
             </div>
           ) : null}
+
           {has("customer:read") ? <GlobalSearch /> : <SearchBox placeholder={t("common.search")} />}
+
           <TopbarActions>
-            <IconButton aria-label="Notifications" />
+            <IconButton aria-label={t("nav.notifications")} />
             <div className="dropdown-wrap">
               <Avatar label={me.user?.name ?? "?"} onClick={() => setProfileOpen((v) => !v)} />
               <DropdownMenu open={profileOpen} onClose={() => setProfileOpen(false)}>
                 {me.organizations.length > 1 ? (
                   <>
+                    <div className="item text-[11px] font-bold uppercase opacity-60">
+                      {t("nav.myGarages")}
+                    </div>
                     {me.organizations.map((org) => (
                       <DropdownItem
                         key={org.id}
-                        onClick={() => setActiveOrganization.mutate({ organizationId: org.id })}
+                        onClick={() => {
+                          setActiveOrganization.mutate({ organizationId: org.id });
+                          setProfileOpen(false);
+                        }}
                       >
                         {org.name}
+                        {org.id === me.activeOrganization?.id ? " ✓" : ""}
                       </DropdownItem>
                     ))}
                     <hr className="sep" />

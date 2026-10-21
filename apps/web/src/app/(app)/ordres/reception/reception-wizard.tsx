@@ -20,12 +20,15 @@ import {
   SignaturePad,
   Stepper,
   Textarea,
+  VIEWS,
+  VIEW_ZONE_KEYS,
   type BodyType,
   type BodyView,
   type CompressedImage,
   type PhotoStatus,
 } from "@atelieros/ui";
 import type { LineInput } from "@atelieros/validators";
+import { DocumentCapture, type ExtractionResult } from "@/components/ai/document-capture";
 import { CreditAlert } from "@/components/credit-alert";
 import { LineForm } from "@/components/repair-orders/line-form";
 import { fromLocalInput, t } from "@/components/repair-orders/i18n";
@@ -48,7 +51,41 @@ const DAMAGE_TYPES = [
 const SEVERITIES = ["LIGHT", "MEDIUM", "HEAVY"] as const;
 const BODY_TYPES: BodyType[] = ["SEDAN", "HATCHBACK", "SUV", "PICKUP", "VAN", "MINIBUS", "TRUCK"];
 const QUICK_OPS = ["oil", "brakes", "ac", "diagnostic", "preInspection"] as const;
-const VIEWS: BodyView[] = ["TOP", "FRONT", "REAR", "LEFT", "RIGHT"];
+const QUICK_FUEL_LEVELS = [0, 2, 4, 6, 8] as const;
+const ITEM_CATEGORIES = {
+  security: ["triangle", "vest", "extinguisher", "antenna", "hubcaps"],
+  tools: ["spare_wheel", "jack", "wheel_wrench"],
+  papers: ["registration_card", "insurance_certificate", "tax_sticker"],
+  comfort: ["radio_front", "mats"],
+} as const;
+const STANDARD_KIT_KEYS = [
+  "spare_wheel",
+  "jack",
+  "wheel_wrench",
+  "triangle",
+  "vest",
+  "extinguisher",
+  "registration_card",
+  "insurance_certificate",
+  "tax_sticker",
+] as const;
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+}
+
+function speechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as
+    (new () => SpeechRecognitionLike) | null;
+}
 
 interface Photo {
   slot: string;
@@ -67,6 +104,8 @@ interface Damage {
   zone: string;
   type: (typeof DAMAGE_TYPES)[number];
   severity: (typeof SEVERITIES)[number];
+  note?: string;
+  attachmentIds?: string[];
 }
 
 type SignatureMode = "SIGNED" | "REMOTE" | "REFUSED";
@@ -219,10 +258,12 @@ export function ReceptionWizard({
   const setPhoto = (photo: Photo) =>
     setDraft((d) => ({ ...d, photos: [...d.photos.filter((p) => p.slot !== photo.slot), photo] }));
 
-  const capture = async (slot: string, image: CompressedImage) => {
+  const capture = async (slot: string, image: CompressedImage): Promise<Photo> => {
     const photo: Photo = { slot, ...image, status: "uploading" };
     setPhoto(photo);
-    setPhoto(await uploadPhoto(photo));
+    const uploaded = await uploadPhoto(photo);
+    setPhoto(uploaded);
+    return uploaded;
   };
 
   const submit = useCallback(async () => {
@@ -257,7 +298,11 @@ export function ReceptionWizard({
         checkIn: {
           bodyType: draft.bodyType,
           noDamage: draft.noDamage,
-          damages: draft.damages.map((d) => ({ ...d, attachmentIds: [] })),
+          damages: draft.damages.map((d) => ({
+            ...d,
+            note: d.note || undefined,
+            attachmentIds: d.attachmentIds ?? [],
+          })),
           items: CHECK_IN_ITEM_KEYS.map((key) => ({ key, present: Boolean(draft.items[key]) })),
           keysCount: Number(draft.keysCount) || 0,
           belongings: draft.belongings,
@@ -373,81 +418,7 @@ export function ReceptionWizard({
         />
       )}
 
-      {step === "meter" && (
-        <section className="flex flex-col gap-4">
-          <Input
-            label={`${t("reception.mileage")} (${t("reception.mileageUnit")})`}
-            inputMode="numeric"
-            value={draft.mileage}
-            disabled={draft.odometerUnreadable}
-            onChange={(e) => update({ mileage: e.target.value.replace(/[^\d]/g, "") })}
-            className="text-2xl"
-          />
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-5 w-5"
-              checked={draft.odometerUnreadable}
-              onChange={(e) => update({ odometerUnreadable: e.target.checked })}
-            />
-            {t("reception.odometerUnreadable")}
-          </label>
-          {draft.odometerUnreadable && (
-            <Input
-              label={t("reception.odometerReason")}
-              value={draft.odometerReason}
-              onChange={(e) => update({ odometerReason: e.target.value })}
-            />
-          )}
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-5 w-5"
-              checked={draft.confirmMileage}
-              onChange={(e) => update({ confirmMileage: e.target.checked })}
-            />
-            {t("reception.confirmMileage")}
-          </label>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">
-              {t("reception.fuel")}
-              {draft.fuel !== null ? ` : ${t("reception.fuelValue", { level: draft.fuel })}` : ""}
-            </span>
-            <FuelGauge
-              label={t("reception.fuel")}
-              value={draft.fuel}
-              onChange={(fuel) => update({ fuel })}
-              levelLabel={(level) => t("reception.fuelValue", { level })}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">{t("reception.warningLights")}</span>
-            <div className="flex flex-wrap gap-2">
-              {WARNING_LIGHTS.map((light) => {
-                const on = draft.warningLights.includes(light);
-                return (
-                  <button
-                    key={light}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() =>
-                      update({
-                        warningLights: on
-                          ? draft.warningLights.filter((l) => l !== light)
-                          : [...draft.warningLights, light],
-                      })
-                    }
-                    className={`min-h-11 rounded-md border px-3 text-sm ${on ? "border-status-bad bg-status-bad-bg text-status-bad" : "border-border bg-surface"}`}
-                  >
-                    {on ? "⚠ " : ""}
-                    {t(`reception.lights.${light}`)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
+      {step === "meter" && <MeterStep draft={draft} update={update} />}
 
       {step === "condition" && (
         <ConditionStep
@@ -464,24 +435,48 @@ export function ReceptionWizard({
 
       {step === "items" && (
         <section className="flex flex-col gap-4">
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-sm font-medium">{t("reception.items")}</legend>
-            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-              {CHECK_IN_ITEM_KEYS.map((key) => (
-                <label
-                  key={key}
-                  className="flex min-h-11 items-center gap-2 rounded-md bg-surface px-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5"
-                    checked={Boolean(draft.items[key])}
-                    onChange={(e) => update({ items: { ...draft.items, [key]: e.target.checked } })}
-                  />
-                  {t(`checkInItems.${key}`)}
-                </label>
-              ))}
-            </div>
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-1 text-sm font-medium">{t("reception.items")}</legend>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 self-start"
+              onClick={() =>
+                update({
+                  items: {
+                    ...draft.items,
+                    ...Object.fromEntries(STANDARD_KIT_KEYS.map((key) => [key, true])),
+                  },
+                })
+              }
+            >
+              {t("reception.kitStandard")}
+            </Button>
+            {(Object.keys(ITEM_CATEGORIES) as Array<keyof typeof ITEM_CATEGORIES>).map((cat) => (
+              <div key={cat} className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  {t(`reception.itemsCategory.${cat}`)}
+                </span>
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                  {ITEM_CATEGORIES[cat].map((key) => (
+                    <label
+                      key={key}
+                      className="flex min-h-11 items-center gap-2 rounded-md bg-surface px-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5"
+                        checked={Boolean(draft.items[key])}
+                        onChange={(e) =>
+                          update({ items: { ...draft.items, [key]: e.target.checked } })
+                        }
+                      />
+                      {t(`checkInItems.${key}`)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </fieldset>
           <Input
             label={t("reception.keysCount")}
@@ -569,9 +564,10 @@ export function ReceptionWizard({
         </p>
       )}
 
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-bg py-3">
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-bg/95 py-3 backdrop-blur-sm">
         <Button
           variant="secondary"
+          className="min-h-11"
           disabled={draft.step === 0}
           onClick={() => update({ step: draft.step - 1 })}
         >
@@ -619,8 +615,11 @@ function VehicleStep({
   onComeback: (id: string | undefined) => void;
   estimate: number;
 }) {
+  const utils = trpc.useUtils();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [extractedPlate, setExtractedPlate] = useState<string | null>(null);
   const preset = trpc.vehicle.get.useQuery(
     { id: initialVehicleId ?? "" },
     { enabled: Boolean(initialVehicleId) && !draft.hit },
@@ -640,11 +639,31 @@ function VehicleStep({
     }
   }, [initialVehicleId, lookup.data, draft.hit, onSelect]);
 
+  const onDocumentExtracted = async (result: ExtractionResult) => {
+    const plate = result.fields.plate?.value ? String(result.fields.plate.value).trim() : "";
+    setExtractedPlate(plate || null);
+    if (!plate) return;
+    setQ(plate);
+    const hits = await utils.repairOrder.receptionLookup.fetch({ q: plate });
+    const norm = plate.replace(/\s+/g, "").toUpperCase();
+    const exact = hits.find((h) => h.vehicle.plate.replace(/\s+/g, "").toUpperCase() === norm);
+    const chosen = exact ?? hits[0];
+    if (chosen) {
+      onSelect(chosen);
+      setScanNotice(t("reception.scanDocVehicleMatched", { plate: chosen.vehicle.plate }));
+    }
+  };
+
   if (draft.hit) {
     const { hit } = draft;
     const comeback = hit.alerts.probableComeback ?? hit.alerts.previousUnderWarranty;
     return (
       <section className="flex flex-col gap-3">
+        {scanNotice && (
+          <p role="status" className="rounded-md bg-status-ok-bg p-3 text-sm text-status-ok">
+            ✓ {scanNotice}
+          </p>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent bg-surface p-3">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted">{t("reception.selected")}</span>
@@ -679,6 +698,21 @@ function VehicleStep({
 
   return (
     <section className="flex flex-col gap-3">
+      <DocumentCapture
+        kinds={["VEHICLE_REGISTRATION", "INSPECTION_STICKER"]}
+        onExtracted={(result) => void onDocumentExtracted(result)}
+      />
+      {extractedPlate && lookup.data?.length === 0 && !lookup.isFetching && (
+        <div className="flex flex-col gap-2 rounded-md bg-status-warn-bg p-3 text-sm text-status-warn">
+          <p>{t("reception.scanDocNotFound", { plate: extractedPlate })}</p>
+          <Link
+            href="/clients/nouveau"
+            className="btn btn-primary min-h-11 inline-flex items-center justify-center"
+          >
+            {t("reception.scanDocCreateAction")}
+          </Link>
+        </div>
+      )}
       <Input
         label={t("reception.searchLabel")}
         placeholder={t("reception.searchPlaceholder")}
@@ -772,6 +806,136 @@ function Alerts({ hit }: { hit: ReceptionHit }) {
   );
 }
 
+function MeterStep({ draft, update }: { draft: Draft; update: (patch: Partial<Draft>) => void }) {
+  const lastMileage = draft.hit?.vehicle.currentMileage ?? null;
+  const currentMileageNum = Number(draft.mileage.replace(/[^\d]/g, "")) || 0;
+  const delta = lastMileage != null ? currentMileageNum - lastMileage : null;
+
+  return (
+    <section className="flex flex-col gap-4">
+      <DocumentCapture
+        kinds={["ODOMETER"]}
+        onExtracted={(result) => {
+          const mileage = result.fields.mileage?.value
+            ? String(result.fields.mileage.value).replace(/[^\d]/g, "")
+            : "";
+          if (mileage) update({ mileage, odometerUnreadable: false });
+        }}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-medium">
+          {t("reception.mileage")} ({t("reception.mileageUnit")})
+        </span>
+        {lastMileage != null && (
+          <span className="text-xs text-muted">
+            {t("reception.lastKnownMileage")} : {lastMileage.toLocaleString("fr-FR")} km
+          </span>
+        )}
+      </div>
+      <Input
+        inputMode="numeric"
+        value={draft.mileage}
+        disabled={draft.odometerUnreadable}
+        onChange={(e) => update({ mileage: e.target.value.replace(/[^\d]/g, "") })}
+        className="text-2xl font-mono"
+        aria-label={`${t("reception.mileage")} (${t("reception.mileageUnit")})`}
+      />
+      {delta != null && !draft.odometerUnreadable && currentMileageNum > 0 && (
+        <p className={`text-xs ${delta < 0 ? "font-semibold text-status-bad" : "text-muted"}`}>
+          {t("reception.mileageDelta")} :{" "}
+          {delta >= 0
+            ? `+${delta.toLocaleString("fr-FR")} km`
+            : t("reception.odometerRegression", { delta: delta.toLocaleString("fr-FR") })}
+        </p>
+      )}
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="h-5 w-5"
+          checked={draft.odometerUnreadable}
+          onChange={(e) => update({ odometerUnreadable: e.target.checked })}
+        />
+        {t("reception.odometerUnreadable")}
+      </label>
+      {draft.odometerUnreadable && (
+        <Input
+          label={t("reception.odometerReason")}
+          value={draft.odometerReason}
+          onChange={(e) => update({ odometerReason: e.target.value })}
+        />
+      )}
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="h-5 w-5"
+          checked={draft.confirmMileage}
+          onChange={(e) => update({ confirmMileage: e.target.checked })}
+        />
+        {t("reception.confirmMileage")}
+      </label>
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium">
+          {t("reception.fuel")}
+          {draft.fuel !== null ? ` : ${t("reception.fuelValue", { level: draft.fuel })}` : ""}
+        </span>
+        <span className="text-xs text-muted">{t("reception.quickFuelTitle")}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {QUICK_FUEL_LEVELS.map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => update({ fuel: level })}
+              className={`min-h-11 min-w-[4.5rem] flex-1 rounded-md px-2 text-sm font-semibold ${
+                draft.fuel === level
+                  ? "bg-accent text-accent-foreground"
+                  : "border border-border bg-surface text-muted"
+              }`}
+            >
+              {t("reception.fuelValue", { level })}
+            </button>
+          ))}
+        </div>
+        <FuelGauge
+          label={t("reception.fuel")}
+          value={draft.fuel}
+          onChange={(fuel) => update({ fuel })}
+          levelLabel={(level) => t("reception.fuelValue", { level })}
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium">{t("reception.warningLights")}</span>
+        <div className="flex flex-wrap gap-2">
+          {WARNING_LIGHTS.map((light) => {
+            const on = draft.warningLights.includes(light);
+            return (
+              <button
+                key={light}
+                type="button"
+                aria-pressed={on}
+                onClick={() =>
+                  update({
+                    warningLights: on
+                      ? draft.warningLights.filter((l) => l !== light)
+                      : [...draft.warningLights, light],
+                  })
+                }
+                className={`min-h-11 rounded-md border px-3 text-sm ${
+                  on
+                    ? "border-status-bad bg-status-bad-bg text-status-bad"
+                    : "border-border bg-surface"
+                }`}
+              >
+                {on ? "⚠ " : ""}
+                {t(`reception.lights.${light}`)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ConditionStep({
   draft,
   minPhotos,
@@ -782,11 +946,15 @@ function ConditionStep({
   draft: Draft;
   minPhotos: number;
   update: (patch: Partial<Draft>) => void;
-  onCapture: (slot: string, image: CompressedImage) => Promise<void>;
+  onCapture: (slot: string, image: CompressedImage) => Promise<Photo>;
   onRetry: (slot: string) => Promise<void>;
 }) {
   const [pending, setPending] = useState<{ view: BodyView; x: number; y: number } | null>(null);
   const [zone, setZone] = useState("");
+  const [note, setNote] = useState("");
+  const [damagePhoto, setDamagePhoto] = useState<CompressedImage | null>(null);
+  const [damageAttachmentId, setDamageAttachmentId] = useState<string | null>(null);
+  const [listeningZone, setListeningZone] = useState(false);
   const [type, setType] = useState<Damage["type"]>("SCRATCH");
   const [severity, setSeverity] = useState<Damage["severity"]>("LIGHT");
   const extraSlots = draft.photos.filter((p) => p.slot.startsWith("extra")).length;
@@ -856,10 +1024,80 @@ function ConditionStep({
           <span className="text-sm font-medium">
             {t("reception.damage")} {draft.damages.length + 1} — {viewLabels[pending.view]}
           </span>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                label={t("reception.damageZone")}
+                value={zone}
+                onChange={(e) => setZone(e.target.value)}
+              />
+            </div>
+            {speechRecognitionCtor() && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11"
+                disabled={listeningZone}
+                onClick={() => {
+                  const Ctor = speechRecognitionCtor();
+                  if (!Ctor) return;
+                  const recognition = new Ctor();
+                  recognition.lang = "fr-FR";
+                  recognition.interimResults = false;
+                  recognition.onresult = (event) => {
+                    const text = event.results[0]?.[0]?.transcript ?? "";
+                    if (text) setZone((prev) => (prev ? `${prev} ${text}` : text));
+                  };
+                  recognition.onend = () => setListeningZone(false);
+                  recognition.onerror = () => setListeningZone(false);
+                  setListeningZone(true);
+                  recognition.start();
+                }}
+              >
+                {listeningZone ? t("reception.dictating") : t("reception.damageDictate")}
+              </Button>
+            )}
+          </div>
+          {VIEW_ZONE_KEYS[pending.view].length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted">{t("reception.quickZones")}</span>
+              <div className="flex flex-wrap gap-1">
+                {VIEW_ZONE_KEYS[pending.view].map((key) => {
+                  const label = t(`reception.zones.${pending.view}.${key}`);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className="min-h-11 rounded-md border border-border bg-surface px-2 text-xs"
+                      onClick={() => setZone(label)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <Input
-            label={t("reception.damageZone")}
-            value={zone}
-            onChange={(e) => setZone(e.target.value)}
+            label={t("reception.damageNote")}
+            placeholder={t("reception.damageNotePlaceholder")}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <PhotoCapture
+            label={t("reception.damagePhoto")}
+            previewUrl={damagePhoto?.dataUrl}
+            status={damagePhoto ? "done" : "empty"}
+            takeLabel={t("reception.damagePhoto")}
+            retakeLabel={t("reception.damagePhotoChange")}
+            errorLabel={t("reception.photoFailed")}
+            uploadingLabel={t("reception.photoUploading")}
+            onCapture={(image) => {
+              setDamagePhoto(image);
+              void onCapture(`damage_${draft.damages.length + 1}`, image).then((uploaded) => {
+                if (uploaded.attachmentId) setDamageAttachmentId(uploaded.attachmentId);
+              });
+            }}
           />
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
@@ -899,16 +1137,31 @@ function ConditionStep({
                       zone: zone || viewLabels[pending.view],
                       type,
                       severity,
+                      note: note || undefined,
+                      attachmentIds: damageAttachmentId ? [damageAttachmentId] : [],
                     },
                   ],
                 });
                 setPending(null);
+                setZone("");
+                setNote("");
+                setDamagePhoto(null);
+                setDamageAttachmentId(null);
               }}
             >
               {t("reception.damageAdd")}
             </Button>
-            <Button variant="ghost" onClick={() => setPending(null)}>
-              {t("cancel")}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPending(null);
+                setZone("");
+                setNote("");
+                setDamagePhoto(null);
+                setDamageAttachmentId(null);
+              }}
+            >
+              {t("reception.close")}
             </Button>
           </div>
         </div>
@@ -959,13 +1212,16 @@ function ConditionStep({
   );
 }
 
-interface SpeechRecognitionLike {
-  lang: string;
-  interimResults: boolean;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-}
+const SMART_PRESETS: Array<{ id: (typeof QUICK_OPS)[number]; keywords: string[] }> = [
+  { id: "oil", keywords: ["vidange", "huile", "filtre a huile", "filtre à huile"] },
+  { id: "brakes", keywords: ["frein", "freinage", "disque", "plaquette"] },
+  { id: "ac", keywords: ["clim", "climatisation", "froid"] },
+  { id: "diagnostic", keywords: ["diagnostic", "voyant", "obd", "panne"] },
+  {
+    id: "preInspection",
+    keywords: ["visite technique", "vt", "controle technique", "contrôle technique"],
+  },
+];
 
 function ComplaintStep({
   draft,
@@ -977,20 +1233,10 @@ function ComplaintStep({
   defaultCeiling: number;
 }) {
   const [listening, setListening] = useState(false);
-  const Recognition =
-    typeof window !== "undefined"
-      ? ((
-          window as unknown as {
-            SpeechRecognition?: new () => SpeechRecognitionLike;
-            webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-          }
-        ).SpeechRecognition ??
-        (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike })
-          .webkitSpeechRecognition)
-      : undefined;
   const dictate = () => {
-    if (!Recognition) return;
-    const recognition = new Recognition();
+    const Ctor = speechRecognitionCtor();
+    if (!Ctor) return;
+    const recognition = new Ctor();
     recognition.lang = "fr-FR";
     recognition.interimResults = false;
     recognition.onresult = (event) => {
@@ -998,11 +1244,28 @@ function ComplaintStep({
       update({ complaint: [draft.complaint, text].filter(Boolean).join(" ") });
     };
     recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
     setListening(true);
     recognition.start();
   };
   const append = (text: string) =>
     update({ complaint: draft.complaint ? `${draft.complaint} + ${text.toLowerCase()}` : text });
+  const fold = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const hay = fold(draft.complaint);
+  const suggestions = SMART_PRESETS.filter((preset) =>
+    preset.keywords.some((keyword) => hay.includes(fold(keyword))),
+  );
+  const addSuggestion = (id: (typeof QUICK_OPS)[number]) => {
+    const description = t(`reception.quickText.${id}`);
+    if (draft.lines.some((line) => line.description === description)) return;
+    update({
+      lines: [...draft.lines, { type: "LABOR", description, quantity: 1 }],
+    });
+  };
 
   return (
     <section className="flex flex-col gap-4">
@@ -1016,9 +1279,9 @@ function ComplaintStep({
         />
       </label>
       <div className="flex flex-wrap gap-2">
-        {Recognition && (
-          <Button variant="secondary" onClick={dictate} disabled={listening}>
-            🎤 {listening ? t("reception.dictating") : t("reception.dictate")}
+        {speechRecognitionCtor() && (
+          <Button variant="secondary" className="min-h-11" onClick={dictate} disabled={listening}>
+            {listening ? t("reception.dictating") : t("reception.dictate")}
           </Button>
         )}
         <span className="self-center text-sm text-muted">{t("reception.quickOps")} :</span>
@@ -1033,6 +1296,30 @@ function ComplaintStep({
           </button>
         ))}
       </div>
+      {suggestions.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-md border border-accent/40 bg-surface p-3">
+          <span className="text-sm font-medium">{t("reception.smartSuggestions")}</span>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((preset) => {
+              const description = t(`reception.quickText.${preset.id}`);
+              const added = draft.lines.some((line) => line.description === description);
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  disabled={added}
+                  className="min-h-11 rounded-md bg-accent/10 px-3 text-sm font-medium disabled:opacity-60"
+                  onClick={() => addSuggestion(preset.id)}
+                >
+                  {added
+                    ? t("reception.suggestionAdded")
+                    : `${t("reception.addSuggestion")} · ${t(`reception.quick.${preset.id}`)}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">{t("reception.initialLines")}</span>
         {draft.lines.map((line, i) => (

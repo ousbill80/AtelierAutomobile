@@ -341,6 +341,9 @@ export * from "./portal";
 export * from "./ai";
 export * from "./automations";
 export * from "./api";
+export * from "./security/headers";
+export * from "./security/sanitizer";
+export * from "./security/rateLimit";
 export {
   REDACTED,
   scrubBreadcrumb,

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { connectSourcesFromEnv, getSecurityHeaders } from "@atelieros/core/security/headers";
 import { SESSION_COOKIE_NAME } from "@/server/session-cookie-name";
 
 const AUTH_PATHS = [
@@ -43,6 +44,16 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+  // 01 §8 & Étape 7.1 : En-têtes HTTP de sécurité globaux (CSP, HSTS, X-Content-Type-Options, etc.)
+  const secHeaders = getSecurityHeaders({
+    enableHsts: process.env.NODE_ENV === "production",
+    connectSources: connectSourcesFromEnv(),
+  });
+  for (const [key, val] of Object.entries(secHeaders)) {
+    response.headers.set(key, val);
+  }
+
   if (isPortalPath) {
     // M14 RG-M14-06 : pages client jamais indexées, jamais mises en cache partagé, et le jeton
     // de l'URL n'est jamais transmis dans l'en-tête Referer d'un lien sortant.
