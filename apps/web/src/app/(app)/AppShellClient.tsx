@@ -66,6 +66,7 @@ import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
 import { GlobalSearch } from "@/components/global-search";
+import { NavigationProgress } from "@/components/navigation-progress";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
 
@@ -510,6 +511,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
 
   return (
     <AppShell>
+      <NavigationProgress />
       <Sidebar
         garageName={me.activeOrganization?.name ?? t("common.appName")}
         garageSub={garageSub}

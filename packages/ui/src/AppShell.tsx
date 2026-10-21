@@ -5,7 +5,7 @@ import {
   type ElementType,
   type ReactNode,
 } from "react";
-import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return <div className="app-shell">{children}</div>;
@@ -118,7 +118,7 @@ export function SidebarSection({
           <span className="sidebar-section-title">{label}</span>
           {badge ? <span className="sidebar-section-badge">{badge}</span> : null}
           <span className="sidebar-section-icon" aria-hidden="true">
-            {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <ChevronDown size={14} />
           </span>
         </button>
       ) : (
@@ -127,7 +127,13 @@ export function SidebarSection({
           {badge ? <span className="sidebar-section-badge">{badge}</span> : null}
         </div>
       )}
-      {isOpen ? <div className="sidebar-section-content">{children}</div> : null}
+      {collapsible ? (
+        <div className="sidebar-section-collapse" inert={!isOpen}>
+          <div className="sidebar-section-content">{children}</div>
+        </div>
+      ) : (
+        <div className="sidebar-section-content">{children}</div>
+      )}
     </div>
   );
 }
