@@ -114,6 +114,8 @@ test("créer un garage, inviter un mécanicien, vérifier l'accès paramètres r
     await page.getByRole("button", { name: "Terminer la configuration" }).click();
 
     await expect(page).toHaveURL("/");
+    // Le groupe « Paramètres » est replié par défaut hors de /parametres (sidebar repliable).
+    await page.getByRole("button", { name: "Paramètres" }).click();
     await expect(page.getByText("Équipe")).toBeVisible();
   });
 
