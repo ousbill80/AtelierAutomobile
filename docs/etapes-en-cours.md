@@ -10,6 +10,5 @@
 > Origine : le 19/10/2026, M02 et M10 ont été codés deux fois en parallèle par deux sessions
 > qui ne se voyaient pas ; la fusion a dû jeter l'une des deux implémentations.
 
-| Étape                                                                                              | Branche                 | Session / responsable   | Réservée le | Statut   |
-| -------------------------------------------------------------------------------------------------- | ----------------------- | ----------------------- | ----------- | -------- |
-| Correctif — horloge injectable `ai.suggestion.accept`/`dismiss` (CI rouge sur `main` après PR #34) | fix/ai-suggestion-clock | session de correctif CI | 21/10/2026  | en cours |
+| Étape | Branche | Session / responsable | Réservée le | Statut |
+| ----- | ------- | --------------------- | ----------- | ------ |
