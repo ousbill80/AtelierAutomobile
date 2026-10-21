@@ -10,6 +10,7 @@
 > Origine : le 19/10/2026, M02 et M10 ont été codés deux fois en parallèle par deux sessions
 > qui ne se voyaient pas ; la fusion a dû jeter l'une des deux implémentations.
 
-| Étape                                      | Branche                  | Session / responsable  | Réservée le | Statut                                                                                                                 |
-| ------------------------------------------ | ------------------------ | ---------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 7.1 — Durcissement (sécurité, performance) | `etape-7.1-durcissement` | session de l'étape 7.1 | 20/10/2026  | en cours — migration `20261020008000_durcissement` (index uniquement, si nécessaire) ; PR #34 E2E rouge, non fusionnée |
+| Étape | Branche | Session / responsable | Réservée le | Statut |
+| ----- | ------- | --------------------- | ----------- | ------ |
+
+Aucune étape réservée. L'étape 7.1 (`etape-7.1-durcissement`, PR #34) est fusionnée dans `main`.
