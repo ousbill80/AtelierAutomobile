@@ -12,6 +12,7 @@ import { setRepairOrdersClock } from "../repairOrders/helpers";
 import { createCallerFactory } from "../trpc";
 import { appRouter } from "../routers/_app";
 import { setAiProviderForTests } from "./service";
+import { setAiSuggestionsClock } from "./suggestions";
 
 // M17 US-M17-03/04 — pré-devis et explication client, fournisseur IA `console`.
 vi.mock("../messaging/queue", () => ({ enqueueMessageSendJob: vi.fn(async () => undefined) }));
@@ -82,6 +83,7 @@ describe("M17 — pré-devis et explication (ai.draftQuote / ai.explainQuote)", 
 
   beforeAll(async () => {
     setRepairOrdersClock(fixedClock(NOW));
+    setAiSuggestionsClock(fixedClock(NOW));
     orgA = await adminDb.organization.create({
       data: { name: "Garage IA Devis A", plan: "PRO", onboardingCompletedAt: NOW },
     });

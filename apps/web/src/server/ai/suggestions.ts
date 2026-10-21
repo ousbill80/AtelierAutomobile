@@ -2,11 +2,20 @@
 // change (nouveau message, devis modifié → `EXPIRED`), puis acceptées (avec ou sans
 // modification) ou ignorées par un humain. L'acceptation exécute la procédure métier normale
 // (permissions et audit de cette procédure) : voir `accept.ts`.
-import { AI_SUGGESTION_TTL_MS, editDistance } from "@atelieros/core";
+import { AI_SUGGESTION_TTL_MS, editDistance, systemClock, type Clock } from "@atelieros/core";
 import { db, type AiSuggestion, type Prisma } from "@atelieros/db";
 import { TRPCError } from "@trpc/server";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
+
+/** Horloge injectable pour les tests (CLAUDE.md : jamais `new Date()` directement). */
+let clock: Clock = systemClock;
+export function setAiSuggestionsClock(next: Clock): void {
+  clock = next;
+}
+export function aiSuggestionsNow(): Date {
+  return clock.now();
+}
 
 export interface CreateSuggestionInput {
   organizationId: string;
