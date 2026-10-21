@@ -344,3 +344,21 @@ export * from "./api";
 export * from "./security/headers";
 export * from "./security/sanitizer";
 export * from "./security/rateLimit";
+export {
+  REDACTED,
+  scrubBreadcrumb,
+  scrubErrorEvent,
+  scrubText,
+  scrubUrl,
+  scrubValue,
+  type ErrorReportBreadcrumb,
+  type ErrorReportEvent,
+} from "./observability/sentryScrub";
+export {
+  buildHealthReport,
+  HealthCheckTimeoutError,
+  runHealthCheck,
+  type HealthCheckName,
+  type HealthCheckResult,
+  type HealthReport,
+} from "./observability/health";

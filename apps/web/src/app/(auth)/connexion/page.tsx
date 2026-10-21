@@ -188,7 +188,6 @@ function ConnexionForm() {
                 placeholder={t("auth.signIn.phonePlaceholder")}
                 required
                 disabled={needsOtp}
-                maxLength={14}
                 leftIcon={<Phone size={17} />}
               />
             ) : (

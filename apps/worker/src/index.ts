@@ -16,6 +16,11 @@ if (existsSync(envPath)) {
 }
 
 async function main(): Promise<void> {
+  const { initWorkerSentry } = await import("./sentry");
+  await initWorkerSentry();
+  const { startWorkerHealthServer } = await import("./health");
+  const healthServer = startWorkerHealthServer();
+
   const { Worker } = await import("bullmq");
   type Job<T = unknown> = import("bullmq").Job<T>;
   const { applyJitter, retryBackoffMs } = await import("@atelieros/core");
@@ -529,6 +534,7 @@ async function main(): Promise<void> {
 
   async function shutdown(signal: string): Promise<void> {
     logger.info({ signal }, "worker: arrêt demandé");
+    healthServer.close();
     await Promise.all([
       importsWorker.close(),
       messagesWorker.close(),
