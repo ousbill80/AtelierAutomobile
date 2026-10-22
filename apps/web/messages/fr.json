@@ -210,7 +210,11 @@
     "treasuryReports": "Rapports de trésorerie",
     "sectionTreasury": "Trésorerie",
     "treasuryOverview": "Vue d'ensemble",
-    "cashToday": "Caisse du jour"
+    "cashToday": "Caisse du jour",
+    "planning": "Planning",
+    "groupWorkshop": "Atelier",
+    "workshopBoard": "Suivi atelier",
+    "remindersQueue": "Relances à traiter"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",

@@ -47,6 +47,7 @@ export {
   SidebarSectionLabel,
   SidebarSearch,
   NavItem,
+  NavGroup,
   Topbar,
   SearchBox,
   TopbarActions,
@@ -58,6 +59,7 @@ export {
   type SidebarSectionProps,
   type SidebarSearchProps,
   type NavItemProps,
+  type NavGroupProps,
   type TopbarProps,
   type DropdownMenuProps,
 } from "./AppShell";

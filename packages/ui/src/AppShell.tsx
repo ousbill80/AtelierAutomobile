@@ -209,6 +209,48 @@ export function NavItem({
   );
 }
 
+export interface NavGroupProps {
+  label: string;
+  icon?: ReactNode;
+  /** Nombre de sous-menus visibles, affiché en pastille. */
+  count?: number;
+  open: boolean;
+  /** Un sous-menu est la page courante : l'en-tête est mis en évidence quand le groupe est replié. */
+  active?: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}
+
+/**
+ * Menu principal repliable et ses sous-menus. Barre latérale réduite ou mobile : l'en-tête
+ * est masqué et les sous-menus restent accessibles (icônes / défilement horizontal).
+ */
+export function NavGroup({ label, icon, count, open, active, onToggle, children }: NavGroupProps) {
+  return (
+    <div
+      className={["nav-group", open ? "open" : "", active ? "has-active" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <button
+        type="button"
+        className="nav-item nav-group-header"
+        aria-expanded={open}
+        onClick={onToggle}
+        title={label}
+      >
+        {icon ? <span className="ic">{icon}</span> : null}
+        <span className="label">{label}</span>
+        {count !== undefined ? <span className="nav-group-count">{count}</span> : null}
+        <span className="nav-group-chevron" aria-hidden="true">
+          <ChevronDown size={14} />
+        </span>
+      </button>
+      <div className="nav-group-items">{children}</div>
+    </div>
+  );
+}
+
 export interface TopbarProps {
   garageName?: string;
   children: ReactNode;

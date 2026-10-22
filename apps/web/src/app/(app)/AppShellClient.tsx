@@ -58,7 +58,7 @@ import {
   SearchBox,
   Sidebar,
   SidebarSearch,
-  SidebarSection,
+  NavGroup,
   Topbar,
   TopbarActions,
 } from "@atelieros/ui";
@@ -77,19 +77,15 @@ interface MenuItemDef {
   icon: ReactNode;
   permission?: string | string[];
   hidden?: boolean;
-  subItem?: boolean;
   badge?: ReactNode;
   badgeVariant?: "default" | "accent" | "ai" | "warn";
   exact?: boolean;
 }
 
-interface MenuSectionDef {
-  id: string;
-  label: string;
-  collapsible?: boolean;
-  defaultOpen?: boolean;
-  items: MenuItemDef[];
-}
+/** Entrée du menu : lien direct, ou menu repliable avec ses sous-menus. */
+type MenuEntryDef =
+  | { kind: "link"; item: MenuItemDef }
+  | { kind: "group"; id: string; label: string; icon: ReactNode; items: MenuItemDef[] };
 
 export function AppShellClient({ me, children }: { me: Me; children: ReactNode }) {
   const pathname = usePathname();
@@ -138,420 +134,390 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
   const isRemindersOnly = me.activeOrganization?.operatingMode === "REMINDERS_ONLY";
   const isMechanic = me.membership?.role === "MECHANIC";
 
-  const menuSections: MenuSectionDef[] = useMemo(() => {
+  const menuEntries: MenuEntryDef[] = useMemo(() => {
+    const link = (item: MenuItemDef): MenuEntryDef => ({ kind: "link", item });
+    const group = (
+      id: string,
+      label: string,
+      icon: ReactNode,
+      items: MenuItemDef[],
+    ): MenuEntryDef => ({ kind: "group", id, label, icon, items });
     return [
-      {
-        id: "overview",
-        label: t("nav.sectionOverview"),
-        items: [
-          {
-            href: "/tableau-de-bord",
-            label: t("nav.dashboard"),
-            icon: <LayoutDashboard size={17} strokeWidth={2} />,
-            permission: [
-              "dashboard:owner",
-              "repair_order:read",
-              "reminder:read",
-              "report:financial",
-              "cash:operate",
-            ],
-            hidden: isMechanic,
-          },
-          {
-            href: "/rapports",
-            label: t("nav.reports"),
-            icon: <BarChart3 size={17} strokeWidth={2} />,
-            permission: ["report:read", "report:financial"],
-          },
+      link({
+        href: "/tableau-de-bord",
+        label: t("nav.dashboard"),
+        icon: <LayoutDashboard size={17} strokeWidth={2} />,
+        permission: [
+          "dashboard:owner",
+          "repair_order:read",
+          "reminder:read",
+          "report:financial",
+          "cash:operate",
         ],
-      },
-      {
-        id: "workshop",
-        label: t("nav.sectionWorkshop"),
-        items: [
-          {
-            href: "/rendez-vous",
-            label: t("nav.appointments"),
-            icon: <Calendar size={17} strokeWidth={2} />,
-            permission: "appointment:read",
-            exact: true,
-          },
-          {
-            href: "/rendez-vous/aujourdhui",
-            label: t("nav.appointmentsToday"),
-            icon: <CalendarCheck size={16} strokeWidth={2} />,
-            permission: "appointment:read",
-            subItem: true,
-          },
-          {
-            href: "/ordres",
-            label: t("nav.repairOrders"),
-            icon: <ClipboardList size={17} strokeWidth={2} />,
-            permission: "repair_order:read",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/atelier",
-            label: t("nav.workshop"),
-            icon: <Wrench size={17} strokeWidth={2} />,
-            permission: "workshop:view",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/tablette",
-            label: t("nav.tablet"),
-            icon: <Tablet size={17} strokeWidth={2} />,
-            permission: "time:clock",
-            hidden: isRemindersOnly,
-          },
-        ],
-      },
-      {
-        id: "billing",
-        label: t("nav.sectionBilling"),
-        items: [
-          {
-            href: "/devis",
-            label: t("nav.quotes"),
-            icon: <FileText size={17} strokeWidth={2} />,
-            permission: "quote:read",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/factures",
-            label: t("nav.invoices"),
-            icon: <Receipt size={17} strokeWidth={2} />,
-            permission: "invoice:read",
-          },
-          {
-            href: "/assurances",
-            label: t("nav.insurance"),
-            icon: <ShieldCheck size={17} strokeWidth={2} />,
-            permission: "insurance:read",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/creances",
-            label: t("nav.receivables"),
-            icon: <CircleDollarSign size={17} strokeWidth={2} />,
-            permission: "receivable:read",
-          },
-        ],
-      },
-      {
-        id: "treasury",
-        label: t("nav.sectionTreasury"),
-        items: [
-          {
-            href: "/tresorerie",
-            label: t("nav.treasuryOverview"),
-            icon: <Landmark size={17} strokeWidth={2} />,
-            permission: "treasury:read",
-            hidden: isRemindersOnly,
-            exact: true,
-          },
-          {
-            href: "/caisse",
-            label: t("nav.cashToday"),
-            icon: <Wallet size={17} strokeWidth={2} />,
-            permission: "payment:read",
-            hidden: isRemindersOnly,
-            exact: true,
-          },
-          {
-            href: "/caisse/depenses",
-            label: t("nav.cashExpenses"),
-            icon: <HandCoins size={17} strokeWidth={2} />,
-            permission: "payment:read",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/caisse/paiements",
-            label: t("nav.payments"),
-            icon: <CreditCard size={17} strokeWidth={2} />,
-            permission: "payment:read",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/caisse/sessions",
-            label: t("nav.cashSessions"),
-            icon: <History size={17} strokeWidth={2} />,
-            permission: "payment:read",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/tresorerie/journal",
-            label: t("nav.treasuryJournal"),
-            icon: <ListChecks size={17} strokeWidth={2} />,
-            permission: "treasury:read",
-            hidden: isRemindersOnly,
-          },
-          {
-            href: "/tresorerie/rapports",
-            label: t("nav.treasuryReports"),
-            icon: <BarChart3 size={17} strokeWidth={2} />,
-            permission: "treasury:read",
-            hidden: isRemindersOnly,
-          },
-        ],
-      },
-      {
-        id: "crm",
-        label: t("nav.sectionCrm"),
-        items: [
-          {
-            href: "/assistant",
-            label: t("nav.assistant"),
-            icon: <Sparkles size={17} strokeWidth={2} />,
-            permission: "ai:use",
-            badge: t("nav.aiBadge"),
-            badgeVariant: "ai",
-          },
-          {
-            href: "/relances",
-            label: t("nav.reminders"),
-            icon: <Send size={17} strokeWidth={2} />,
-            permission: "reminder:read",
-            exact: true,
-          },
-          {
-            href: "/relances/echeances",
-            label: t("nav.dueDates"),
-            icon: <CalendarClock size={16} strokeWidth={2} />,
-            permission: "reminder:read",
-            subItem: true,
-          },
-          {
-            href: "/relances/resultats",
-            label: t("nav.reminderResults"),
-            icon: <CheckCheck size={16} strokeWidth={2} />,
-            permission: "reminder:read",
-            subItem: true,
-          },
-          {
-            href: "/messages",
-            label: t("nav.messages"),
-            icon: <MessageSquare size={17} strokeWidth={2} />,
-            permission: "message:read",
-          },
-        ],
-      },
-      {
-        id: "fleet",
-        label: t("nav.sectionFleet"),
-        items: [
-          {
-            href: "/clients",
-            label: t("nav.customers"),
-            icon: <Users size={17} strokeWidth={2} />,
-            permission: "customer:read",
-            exact: true,
-          },
-          {
-            href: "/clients/doublons",
-            label: t("nav.duplicates"),
-            icon: <Copy size={16} strokeWidth={2} />,
-            permission: "customer:merge",
-            subItem: true,
-          },
-          {
-            href: "/clients/avis",
-            label: t("nav.reviews"),
-            icon: <Star size={16} strokeWidth={2} />,
-            permission: "customer:read",
-            subItem: true,
-          },
-          {
-            href: "/vehicules",
-            label: t("nav.vehicles"),
-            icon: <Car size={17} strokeWidth={2} />,
-            permission: "vehicle:read",
-          },
-        ],
-      },
-      {
-        id: "inventory",
-        label: t("nav.sectionInventory"),
-        items: [
-          {
-            href: "/stock",
-            label: t("nav.stock"),
-            icon: <Boxes size={17} strokeWidth={2} />,
-            permission: "stock:read",
-          },
-          {
-            href: "/achats",
-            label: t("nav.purchases"),
-            icon: <ShoppingCart size={17} strokeWidth={2} />,
-            permission: "purchase:read",
-          },
-          {
-            href: "/import",
-            label: t("nav.import"),
-            icon: <UploadCloud size={17} strokeWidth={2} />,
-            permission: "import:run",
-          },
-        ],
-      },
-      {
-        id: "settings",
-        label: t("nav.settings"),
-        collapsible: true,
-        defaultOpen: pathname.startsWith("/parametres"),
-        items: [
-          {
-            href: "/parametres/garage",
-            label: t("nav.settingsGarage"),
-            icon: <Building2 size={16} strokeWidth={2} />,
-            permission: "settings:update",
-          },
-          {
-            href: "/parametres/equipe",
-            label: t("nav.settingsTeam"),
-            icon: <Users size={16} strokeWidth={2} />,
-            permission: "member:read",
-          },
-          {
-            href: "/parametres/roles",
-            label: t("nav.settingsRoles"),
-            icon: <Shield size={16} strokeWidth={2} />,
-            permission: "role:manage",
-          },
-          {
-            href: "/parametres/sites",
-            label: t("nav.settingsSites"),
-            icon: <Building2 size={16} strokeWidth={2} />,
-            permission: "site:manage",
-          },
-          {
-            href: "/parametres/jours-feries",
-            label: t("nav.settingsHolidays"),
-            icon: <CalendarRange size={16} strokeWidth={2} />,
-            permission: "site:manage",
-          },
-          {
-            href: "/parametres/journal",
-            label: t("nav.settingsJournal"),
-            icon: <History size={16} strokeWidth={2} />,
-            permission: "audit:read",
-          },
-          {
-            href: "/parametres/canaux",
-            label: t("nav.settingsChannels"),
-            icon: <Radio size={16} strokeWidth={2} />,
-            permission: "settings:channels",
-          },
-          {
-            href: "/parametres/modeles",
-            label: t("nav.settingsTemplates"),
-            icon: <FileCode size={16} strokeWidth={2} />,
-            permission: "template:manage",
-          },
-          {
-            href: "/parametres/relances",
-            label: t("nav.settingsReminderRules"),
-            icon: <Sliders size={16} strokeWidth={2} />,
-            permission: "reminder:rules_manage",
-          },
-          {
-            href: "/parametres/automatisations",
-            label: t("nav.settingsAutomations"),
-            icon: <Sparkles size={16} strokeWidth={2} />,
-            permission: ["ai:configure", "reminder:rules_manage"],
-          },
-          {
-            href: "/parametres/planning",
-            label: t("nav.settingsPlanning"),
-            icon: <CalendarRange size={16} strokeWidth={2} />,
-            permission: "planning:manage",
-          },
-          {
-            href: "/parametres/ordres",
-            label: t("nav.settingsRepairOrders"),
-            icon: <FolderCog size={16} strokeWidth={2} />,
-            permission: "settings:update",
-          },
-          {
-            href: "/parametres/inspection",
-            label: t("nav.settingsInspection"),
-            icon: <ListChecks size={16} strokeWidth={2} />,
-            permission: "inspection:template_manage",
-          },
-          {
-            href: "/parametres/devis",
-            label: t("nav.settingsQuotes"),
-            icon: <FileSignature size={16} strokeWidth={2} />,
-            permission: "settings:update",
-          },
-          {
-            href: "/parametres/catalogue-mo",
-            label: t("nav.settingsLaborCatalog"),
-            icon: <Layers size={16} strokeWidth={2} />,
-            permission: "labor_catalog:manage",
-          },
-          {
-            href: "/parametres/documents",
-            label: t("nav.settingsDocuments"),
-            icon: <FileText size={16} strokeWidth={2} />,
-            permission: "settings:read",
-          },
-          {
-            href: "/parametres/fne",
-            label: t("nav.settingsFne"),
-            icon: <Receipt size={16} strokeWidth={2} />,
-            permission: "settings:fne",
-          },
-          {
-            href: "/parametres/paiements",
-            label: t("nav.settingsPayments"),
-            icon: <CreditCard size={16} strokeWidth={2} />,
-            permission: "settings:payments",
-          },
-          {
-            href: "/parametres/ia",
-            label: t("nav.settingsAi"),
-            icon: <Sparkles size={16} strokeWidth={2} />,
-            permission: "ai:configure",
-          },
-          {
-            href: "/parametres/abonnement",
-            label: t("nav.settingsSubscription"),
-            icon: <KeyRound size={16} strokeWidth={2} />,
-            permission: "settings:billing",
-          },
-          {
-            href: "/parametres/donnees",
-            label: t("nav.settingsData"),
-            icon: <Shield size={16} strokeWidth={2} />,
-            permission: "settings:billing",
-          },
-          {
-            href: "/parametres/api",
-            label: t("nav.settingsApi"),
-            icon: <Webhook size={16} strokeWidth={2} />,
-            permission: "settings:update",
-          },
-        ],
-      },
+        hidden: isMechanic,
+      }),
+      link({
+        href: "/rapports",
+        label: t("nav.reports"),
+        icon: <BarChart3 size={17} strokeWidth={2} />,
+        permission: ["report:read", "report:financial"],
+      }),
+      group("appointments", t("nav.appointments"), <Calendar size={17} strokeWidth={2} />, [
+        {
+          href: "/rendez-vous",
+          label: t("nav.planning"),
+          icon: <CalendarRange size={16} strokeWidth={2} />,
+          permission: "appointment:read",
+          exact: true,
+        },
+        {
+          href: "/rendez-vous/aujourdhui",
+          label: t("nav.appointmentsToday"),
+          icon: <CalendarCheck size={16} strokeWidth={2} />,
+          permission: "appointment:read",
+        },
+      ]),
+      group("workshop", t("nav.groupWorkshop"), <Wrench size={17} strokeWidth={2} />, [
+        {
+          href: "/ordres",
+          label: t("nav.repairOrders"),
+          icon: <ClipboardList size={16} strokeWidth={2} />,
+          permission: "repair_order:read",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/atelier",
+          label: t("nav.workshopBoard"),
+          icon: <Wrench size={16} strokeWidth={2} />,
+          permission: "workshop:view",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/tablette",
+          label: t("nav.tablet"),
+          icon: <Tablet size={16} strokeWidth={2} />,
+          permission: "time:clock",
+          hidden: isRemindersOnly,
+        },
+      ]),
+      group("billing", t("nav.sectionBilling"), <Receipt size={17} strokeWidth={2} />, [
+        {
+          href: "/devis",
+          label: t("nav.quotes"),
+          icon: <FileText size={16} strokeWidth={2} />,
+          permission: "quote:read",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/factures",
+          label: t("nav.invoices"),
+          icon: <Receipt size={16} strokeWidth={2} />,
+          permission: "invoice:read",
+        },
+        {
+          href: "/assurances",
+          label: t("nav.insurance"),
+          icon: <ShieldCheck size={16} strokeWidth={2} />,
+          permission: "insurance:read",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/creances",
+          label: t("nav.receivables"),
+          icon: <CircleDollarSign size={16} strokeWidth={2} />,
+          permission: "receivable:read",
+        },
+      ]),
+      group("treasury", t("nav.sectionTreasury"), <Landmark size={17} strokeWidth={2} />, [
+        {
+          href: "/tresorerie",
+          label: t("nav.treasuryOverview"),
+          icon: <Landmark size={16} strokeWidth={2} />,
+          permission: "treasury:read",
+          hidden: isRemindersOnly,
+          exact: true,
+        },
+        {
+          href: "/caisse",
+          label: t("nav.cashToday"),
+          icon: <Wallet size={16} strokeWidth={2} />,
+          permission: "payment:read",
+          hidden: isRemindersOnly,
+          exact: true,
+        },
+        {
+          href: "/caisse/depenses",
+          label: t("nav.cashExpenses"),
+          icon: <HandCoins size={16} strokeWidth={2} />,
+          permission: "payment:read",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/caisse/paiements",
+          label: t("nav.payments"),
+          icon: <CreditCard size={16} strokeWidth={2} />,
+          permission: "payment:read",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/caisse/sessions",
+          label: t("nav.cashSessions"),
+          icon: <History size={16} strokeWidth={2} />,
+          permission: "payment:read",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/tresorerie/journal",
+          label: t("nav.treasuryJournal"),
+          icon: <ListChecks size={16} strokeWidth={2} />,
+          permission: "treasury:read",
+          hidden: isRemindersOnly,
+        },
+        {
+          href: "/tresorerie/rapports",
+          label: t("nav.treasuryReports"),
+          icon: <BarChart3 size={16} strokeWidth={2} />,
+          permission: "treasury:read",
+          hidden: isRemindersOnly,
+        },
+      ]),
+      group("reminders", t("nav.reminders"), <Send size={17} strokeWidth={2} />, [
+        {
+          href: "/relances",
+          label: t("nav.remindersQueue"),
+          icon: <Send size={16} strokeWidth={2} />,
+          permission: "reminder:read",
+          exact: true,
+        },
+        {
+          href: "/relances/echeances",
+          label: t("nav.dueDates"),
+          icon: <CalendarClock size={16} strokeWidth={2} />,
+          permission: "reminder:read",
+        },
+        {
+          href: "/relances/resultats",
+          label: t("nav.reminderResults"),
+          icon: <CheckCheck size={16} strokeWidth={2} />,
+          permission: "reminder:read",
+        },
+        {
+          href: "/messages",
+          label: t("nav.messages"),
+          icon: <MessageSquare size={16} strokeWidth={2} />,
+          permission: "message:read",
+        },
+      ]),
+      link({
+        href: "/assistant",
+        label: t("nav.assistant"),
+        icon: <Sparkles size={17} strokeWidth={2} />,
+        permission: "ai:use",
+        badge: t("nav.aiBadge"),
+        badgeVariant: "ai",
+      }),
+      group("customers", t("nav.sectionFleet"), <Users size={17} strokeWidth={2} />, [
+        {
+          href: "/clients",
+          label: t("nav.customers"),
+          icon: <Users size={16} strokeWidth={2} />,
+          permission: "customer:read",
+          exact: true,
+        },
+        {
+          href: "/vehicules",
+          label: t("nav.vehicles"),
+          icon: <Car size={16} strokeWidth={2} />,
+          permission: "vehicle:read",
+        },
+        {
+          href: "/clients/doublons",
+          label: t("nav.duplicates"),
+          icon: <Copy size={16} strokeWidth={2} />,
+          permission: "customer:merge",
+        },
+        {
+          href: "/clients/avis",
+          label: t("nav.reviews"),
+          icon: <Star size={16} strokeWidth={2} />,
+          permission: "customer:read",
+        },
+      ]),
+      group("inventory", t("nav.sectionInventory"), <Boxes size={17} strokeWidth={2} />, [
+        {
+          href: "/stock",
+          label: t("nav.stock"),
+          icon: <Boxes size={16} strokeWidth={2} />,
+          permission: "stock:read",
+        },
+        {
+          href: "/achats",
+          label: t("nav.purchases"),
+          icon: <ShoppingCart size={16} strokeWidth={2} />,
+          permission: "purchase:read",
+        },
+        {
+          href: "/import",
+          label: t("nav.import"),
+          icon: <UploadCloud size={16} strokeWidth={2} />,
+          permission: "import:run",
+        },
+      ]),
+      group("settings", t("nav.settings"), <Sliders size={17} strokeWidth={2} />, [
+        {
+          href: "/parametres/garage",
+          label: t("nav.settingsGarage"),
+          icon: <Building2 size={16} strokeWidth={2} />,
+          permission: "settings:update",
+        },
+        {
+          href: "/parametres/equipe",
+          label: t("nav.settingsTeam"),
+          icon: <Users size={16} strokeWidth={2} />,
+          permission: "member:read",
+        },
+        {
+          href: "/parametres/roles",
+          label: t("nav.settingsRoles"),
+          icon: <Shield size={16} strokeWidth={2} />,
+          permission: "role:manage",
+        },
+        {
+          href: "/parametres/sites",
+          label: t("nav.settingsSites"),
+          icon: <Building2 size={16} strokeWidth={2} />,
+          permission: "site:manage",
+        },
+        {
+          href: "/parametres/jours-feries",
+          label: t("nav.settingsHolidays"),
+          icon: <CalendarRange size={16} strokeWidth={2} />,
+          permission: "site:manage",
+        },
+        {
+          href: "/parametres/journal",
+          label: t("nav.settingsJournal"),
+          icon: <History size={16} strokeWidth={2} />,
+          permission: "audit:read",
+        },
+        {
+          href: "/parametres/canaux",
+          label: t("nav.settingsChannels"),
+          icon: <Radio size={16} strokeWidth={2} />,
+          permission: "settings:channels",
+        },
+        {
+          href: "/parametres/modeles",
+          label: t("nav.settingsTemplates"),
+          icon: <FileCode size={16} strokeWidth={2} />,
+          permission: "template:manage",
+        },
+        {
+          href: "/parametres/relances",
+          label: t("nav.settingsReminderRules"),
+          icon: <Sliders size={16} strokeWidth={2} />,
+          permission: "reminder:rules_manage",
+        },
+        {
+          href: "/parametres/automatisations",
+          label: t("nav.settingsAutomations"),
+          icon: <Sparkles size={16} strokeWidth={2} />,
+          permission: ["ai:configure", "reminder:rules_manage"],
+        },
+        {
+          href: "/parametres/planning",
+          label: t("nav.settingsPlanning"),
+          icon: <CalendarRange size={16} strokeWidth={2} />,
+          permission: "planning:manage",
+        },
+        {
+          href: "/parametres/ordres",
+          label: t("nav.settingsRepairOrders"),
+          icon: <FolderCog size={16} strokeWidth={2} />,
+          permission: "settings:update",
+        },
+        {
+          href: "/parametres/inspection",
+          label: t("nav.settingsInspection"),
+          icon: <ListChecks size={16} strokeWidth={2} />,
+          permission: "inspection:template_manage",
+        },
+        {
+          href: "/parametres/devis",
+          label: t("nav.settingsQuotes"),
+          icon: <FileSignature size={16} strokeWidth={2} />,
+          permission: "settings:update",
+        },
+        {
+          href: "/parametres/catalogue-mo",
+          label: t("nav.settingsLaborCatalog"),
+          icon: <Layers size={16} strokeWidth={2} />,
+          permission: "labor_catalog:manage",
+        },
+        {
+          href: "/parametres/documents",
+          label: t("nav.settingsDocuments"),
+          icon: <FileText size={16} strokeWidth={2} />,
+          permission: "settings:read",
+        },
+        {
+          href: "/parametres/fne",
+          label: t("nav.settingsFne"),
+          icon: <Receipt size={16} strokeWidth={2} />,
+          permission: "settings:fne",
+        },
+        {
+          href: "/parametres/paiements",
+          label: t("nav.settingsPayments"),
+          icon: <CreditCard size={16} strokeWidth={2} />,
+          permission: "settings:payments",
+        },
+        {
+          href: "/parametres/ia",
+          label: t("nav.settingsAi"),
+          icon: <Sparkles size={16} strokeWidth={2} />,
+          permission: "ai:configure",
+        },
+        {
+          href: "/parametres/abonnement",
+          label: t("nav.settingsSubscription"),
+          icon: <KeyRound size={16} strokeWidth={2} />,
+          permission: "settings:billing",
+        },
+        {
+          href: "/parametres/donnees",
+          label: t("nav.settingsData"),
+          icon: <Shield size={16} strokeWidth={2} />,
+          permission: "settings:billing",
+        },
+        {
+          href: "/parametres/api",
+          label: t("nav.settingsApi"),
+          icon: <Webhook size={16} strokeWidth={2} />,
+          permission: "settings:update",
+        },
+      ]),
     ];
-  }, [isMechanic, isRemindersOnly, pathname]);
+  }, [isMechanic, isRemindersOnly]);
 
-  const filteredSections = useMemo(() => {
+  const filteredEntries = useMemo(() => {
     const query = menuFilter.trim().toLowerCase();
-    return menuSections
-      .map((section) => ({
-        ...section,
-        items: section.items.filter((item) => {
-          if (!has(item.permission) || item.hidden) return false;
-          if (!query) return true;
-          return (
-            item.label.toLowerCase().includes(query) || item.href.toLowerCase().includes(query)
-          );
-        }),
-      }))
-      .filter((section) => section.items.length > 0);
-  }, [menuSections, menuFilter, permissions]);
+    const visible = (item: MenuItemDef) => has(item.permission) && !item.hidden;
+    const matches = (label: string, href?: string) =>
+      !query || label.toLowerCase().includes(query) || (href ?? "").toLowerCase().includes(query);
+    return menuEntries.flatMap((entry): MenuEntryDef[] => {
+      if (entry.kind === "link") {
+        return visible(entry.item) && matches(entry.item.label, entry.item.href) ? [entry] : [];
+      }
+      const items = entry.items.filter(
+        (item) => visible(item) && (matches(entry.label) || matches(item.label, item.href)),
+      );
+      return items.length > 0 ? [{ ...entry, items }] : [];
+    });
+  }, [menuEntries, menuFilter, permissions]);
 
+  // Menus ouverts : ceux choisis par l'utilisateur, plus celui de la page courante.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   function isItemActive(item: MenuItemDef) {
     if (item.exact) return pathname === item.href;
     if (item.href === "/" || item.href === "/tableau-de-bord") {
@@ -582,14 +548,10 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
           />
         ) : null}
 
-        {filteredSections.map((section) => (
-          <SidebarSection
-            key={section.id}
-            label={section.label}
-            collapsible={section.collapsible}
-            defaultOpen={section.defaultOpen ?? true}
-          >
-            {section.items.map((item) => (
+        {filteredEntries.map((entry) => {
+          if (entry.kind === "link") {
+            const item = entry.item;
+            return (
               <NavItem
                 key={item.href}
                 as={Link}
@@ -597,15 +559,40 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
                 label={item.label}
                 icon={item.icon}
                 active={isItemActive(item)}
-                subItem={item.subItem}
                 badge={item.badge}
                 badgeVariant={item.badgeVariant}
               />
-            ))}
-          </SidebarSection>
-        ))}
+            );
+          }
+          const active = entry.items.some(isItemActive);
+          const open = menuFilter.trim() !== "" || (openGroups[entry.id] ?? active);
+          return (
+            <NavGroup
+              key={entry.id}
+              label={entry.label}
+              icon={entry.icon}
+              count={entry.items.length}
+              open={open}
+              active={active}
+              onToggle={() => setOpenGroups((g) => ({ ...g, [entry.id]: !open }))}
+            >
+              {entry.items.map((item) => (
+                <NavItem
+                  key={item.href}
+                  as={Link}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  active={isItemActive(item)}
+                  badge={item.badge}
+                  badgeVariant={item.badgeVariant}
+                />
+              ))}
+            </NavGroup>
+          );
+        })}
 
-        {filteredSections.length === 0 ? (
+        {filteredEntries.length === 0 ? (
           <div className="px-3 py-4 text-center text-xs text-white/70">{t("nav.noMenuFound")}</div>
         ) : null}
       </Sidebar>
