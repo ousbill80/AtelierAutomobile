@@ -192,7 +192,7 @@
     "settingsAutomations": "Automatisations",
     "sectionOverview": "Pilotage",
     "sectionWorkshop": "Atelier & Opérations",
-    "sectionBilling": "Facturation & Finances",
+    "sectionBilling": "Facturation",
     "sectionCrm": "Relances & Relation Client",
     "sectionFleet": "Clients & Parc",
     "sectionInventory": "Stock & Fournisseurs",
@@ -207,7 +207,10 @@
     "aiBadge": "IA",
     "treasury": "Trésorerie",
     "treasuryJournal": "Journal",
-    "treasuryReports": "Rapports de trésorerie"
+    "treasuryReports": "Rapports de trésorerie",
+    "sectionTreasury": "Trésorerie",
+    "treasuryOverview": "Vue d'ensemble",
+    "cashToday": "Caisse du jour"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
