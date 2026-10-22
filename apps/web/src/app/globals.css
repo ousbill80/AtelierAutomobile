@@ -171,3 +171,22 @@ h4 {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Bannière de développement pour afficher le code OTP */
+.dev-code-banner {
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+.dev-code-banner code {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  margin-left: 0.5rem;
+}

@@ -96,7 +96,7 @@ test("gérant mobile : tableau de bord, période, rapport Ventes filtré, export
   const to = isoDay(new Date(Date.now() + DAY));
 
   // 1. Tableau de bord, période personnalisée (URL partageable, US-M12-02).
-  await page.goto("/tableau-de-bord");
+  await page.goto("/tableau-de-bord?onglet=synthese");
   await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible();
   await page.getByLabel("Période").selectOption({ label: "Personnalisée" });
   await page.getByLabel("Du", { exact: true }).fill(from);

@@ -264,6 +264,17 @@ export function TrackingView({ token, labels }: { token: string; labels: PortalL
         </a>
       )}
 
+      {!d.cancelled && (
+        <a
+          href={`/api/portail/${token}/reception/pdf`}
+          className="btn btn-secondary min-h-12"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          📄 {L.receptionPdf}
+        </a>
+      )}
+
       {d.documents.length > 0 && (
         <section aria-labelledby="docs-title" className="flex flex-col gap-2">
           <h2 id="docs-title" className="font-semibold">

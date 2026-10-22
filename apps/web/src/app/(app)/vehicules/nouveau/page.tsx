@@ -110,7 +110,7 @@ function NewVehicleForm() {
   const busy = createVehicle.isPending || recordInspection.isPending;
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4">
       <h1 className="text-2xl font-semibold">{t("aiExtraction.vehicle.title")}</h1>
       <DocumentCapture
         kinds={["VEHICLE_REGISTRATION", "INSPECTION_STICKER"]}

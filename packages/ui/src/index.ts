@@ -91,3 +91,10 @@ export {
   type PhotoCaptureProps,
   type PhotoStatus,
 } from "./PhotoCapture";
+// Formulaire client réutilisable (création rapide dans RDV, page /clients/nouveau)
+export {
+  CustomerForm,
+  type CustomerFormData,
+  type CustomerFormInitialValues,
+  type CustomerFormProps,
+} from "./CustomerForm";

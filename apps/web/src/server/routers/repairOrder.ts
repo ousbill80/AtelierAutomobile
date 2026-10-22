@@ -1105,7 +1105,7 @@ export const repairOrderRouter = router({
             body:
               signatureMode === "REMOTE"
                 ? `Bonjour ${customer.displayName}, nous avons bien reçu votre ${vehicleLabel} — ${order.number}. Merci de signer le bon de réception : ${link.receptionUrl} . Suivi de la réparation : ${link.trackingUrl}`
-                : `Bonjour ${customer.displayName}, nous avons bien reçu votre ${vehicleLabel} — ${order.number}. Suivez l'avancement de la réparation ici : ${link.trackingUrl}`,
+                : `Bonjour ${customer.displayName}, nous avons bien reçu votre ${vehicleLabel} — ${order.number}. Votre bon de réception (état du véhicule) : ${link.receptionPdfUrl} . Suivez l'avancement de la réparation ici : ${link.trackingUrl}`,
           }),
         );
         return { order, messageIds, trackingUrl: link.trackingUrl };

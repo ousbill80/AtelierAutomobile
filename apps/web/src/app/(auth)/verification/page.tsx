@@ -25,6 +25,8 @@ function VerificationForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SEC);
+  // Code OTP visible uniquement en développement
+  const [devCode, setDevCode] = useState(searchParams.get("devCode"));
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -33,9 +35,13 @@ function VerificationForm() {
   }, [cooldown]);
 
   const sendOtp = trpc.auth.sendOtp.useMutation({
-    onSuccess() {
+    onSuccess(result) {
       setCooldown(RESEND_COOLDOWN_SEC);
       setError(null);
+      // Mettre à jour le code de dev si disponible (renvoi OTP)
+      if (result.devCode) {
+        setDevCode(result.devCode);
+      }
     },
     onError(err) {
       setError(err.message);
@@ -61,6 +67,11 @@ function VerificationForm() {
     <>
       <h1>{t("auth.verifyOtp.title")}</h1>
       <p>{t("auth.verifyOtp.description", { channel, identifier })}</p>
+      {devCode ? (
+        <div className="dev-code-banner">
+          <strong>Mode dev — Code OTP :</strong> <code>{devCode}</code>
+        </div>
+      ) : null}
       <form onSubmit={handleSubmit} className="stack">
         <OtpInput value={code} onChange={setCode} />
         {error ? <p className="error">{error}</p> : null}

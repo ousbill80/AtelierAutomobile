@@ -17,6 +17,7 @@ import {
   recordMileageInputSchema,
   recordServiceInputSchema,
   replacePlateInputSchema,
+  setVehicleInsuranceInputSchema,
   transferOwnerInputSchema,
   updateVehicleInputSchema,
   vehicleGetInputSchema,
@@ -166,6 +167,7 @@ export const vehicleRouter = router({
         include: {
           mileageReadings: { orderBy: { readAt: "desc" }, take: 10 },
           customer: { select: { id: true, displayName: true } },
+          insuranceCompany: { select: { id: true, name: true } },
         },
       });
       return { ...vehicle, status: await computeVehicleStatus(vehicle) };
@@ -293,6 +295,66 @@ export const vehicleRouter = router({
         userAgent: ctx.userAgent,
       });
 
+      return vehicle;
+    }),
+
+  /**
+   * M16 — rattache le véhicule à une compagnie (de l'organisation, active) et à une police ;
+   * repris à l'ouverture d'un dossier sinistre (US-M16-01). Audité.
+   */
+  setInsurance: requirePermission("vehicle:update")
+    .input(setVehicleInsuranceInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const before = await tenantDb.vehicle.findFirst({
+        where: { id: input.vehicleId, deletedAt: null },
+      });
+      if (!before) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Véhicule introuvable." });
+      }
+      if (input.insuranceCompanyId) {
+        const insurer = await tenantDb.insuranceCompany.findFirst({
+          where: { id: input.insuranceCompanyId, isActive: true },
+          select: { id: true },
+        });
+        if (!insurer) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Compagnie d'assurance introuvable ou désactivée.",
+          });
+        }
+      }
+      const vehicle = await tenantDb.vehicle.update({
+        where: { id: input.vehicleId },
+        data: {
+          insuranceCompanyId: input.insuranceCompanyId,
+          insurancePolicyNumber: input.policyNumber || null,
+          insuranceExpiryDate: input.expiryDate
+            ? new Date(`${input.expiryDate}T00:00:00.000Z`)
+            : null,
+        },
+        include: { insuranceCompany: { select: { id: true, name: true } } },
+      });
+      await writeAuditLog({
+        organizationId: ctx.organizationId,
+        userId: ctx.user.id,
+        membershipId: ctx.membership.id,
+        action: "vehicle.insurance_updated",
+        entity: "Vehicle",
+        entityId: vehicle.id,
+        before: {
+          insuranceCompanyId: before.insuranceCompanyId,
+          insurancePolicyNumber: before.insurancePolicyNumber,
+          insuranceExpiryDate: before.insuranceExpiryDate,
+        },
+        after: {
+          insuranceCompanyId: vehicle.insuranceCompanyId,
+          insurancePolicyNumber: vehicle.insurancePolicyNumber,
+          insuranceExpiryDate: vehicle.insuranceExpiryDate,
+        },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
       return vehicle;
     }),
 

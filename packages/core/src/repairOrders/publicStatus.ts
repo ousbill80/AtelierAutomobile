@@ -47,7 +47,7 @@ export function publicStep(status: RepairOrderStatus): PublicStep | null {
   }
 }
 
-/** Frise publique : Reçu → Diagnostic → Accord → Réparation → Contrôle → Prêt. */
+/** Frise publique : Reçu → Diagnostic → Accord → Réparation → Contrôle → Prêt → Restitué. */
 export const PUBLIC_TIMELINE: readonly PublicStep[] = [
   "RECEIVED",
   "DIAGNOSING",
@@ -55,9 +55,13 @@ export const PUBLIC_TIMELINE: readonly PublicStep[] = [
   "IN_REPAIR",
   "QUALITY_CHECK",
   "READY",
+  "DELIVERED",
 ];
 
-/** Index de l'étape courante dans la frise (attente pièces = réparation ; restitué = fin). */
+/**
+ * Index de l'étape courante dans la frise (attente pièces = réparation). Restitué = fin :
+ * toutes les étapes, y compris « Restitué », sont faites.
+ */
 export function timelineIndex(status: RepairOrderStatus): number {
   const step = publicStep(status);
   if (!step) return -1;

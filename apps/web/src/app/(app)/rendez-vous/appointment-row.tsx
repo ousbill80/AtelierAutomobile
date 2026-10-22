@@ -28,12 +28,24 @@ export function AppointmentRow({
       data-testid="appt-row"
       data-appointment-id={a.id}
       onClick={() => onSelect(a.id)}
-      className={`flex min-h-11 w-full flex-col gap-1 rounded-lg border bg-surface p-3 text-left hover:bg-surface-2 ${a.flags.late ? "border-status-bad" : "border-border"}`}
+      className={`planning-list-item w-full text-left ${a.flags.late ? "late" : ""}`}
     >
-      <div className="flex w-full flex-wrap items-center gap-2">
-        <span className="font-semibold">
-          {fmtTime(a.startsAt, tz)}–{fmtTime(a.endsAt, tz)}
-        </span>
+      <span className="planning-list-time">
+        {fmtTime(a.startsAt, tz)}
+      </span>
+      <div className="planning-list-info">
+        <div className="planning-list-client">{a.customer.displayName}</div>
+        <div className="planning-list-vehicle mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <TypeDot type={a.type as AppointmentType} />
+          {a.vehicle && (
+            <span>
+              {a.vehicle.make} {a.vehicle.model} · {a.vehicle.plate}
+            </span>
+          )}
+          {!a.vehicle && <span>{a.bay?.name ?? ta("unassigned")}</span>}
+        </div>
+      </div>
+      <div className="planning-list-badges">
         <StatusLabel status={a.status as AppointmentStatus} />
         <SourceIcon source={a.source as AppointmentSource} />
         {a.flags.late && <span className="pill pill-bad">{ta("badges.late")}</span>}
@@ -42,16 +54,6 @@ export function AppointmentRow({
             {ta("badges.noShows", { count: a.flags.noShowCount })}
           </span>
         )}
-      </div>
-      <span className="truncate font-medium">{a.customer.displayName}</span>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
-        <TypeDot type={a.type as AppointmentType} />
-        {a.vehicle && (
-          <span className="truncate">
-            {a.vehicle.make} {a.vehicle.model} · {a.vehicle.plate}
-          </span>
-        )}
-        <span>{a.bay?.name ?? ta("unassigned")}</span>
       </div>
     </button>
   );

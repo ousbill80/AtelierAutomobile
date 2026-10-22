@@ -8,6 +8,18 @@ import {
   ALERT_NOTIFICATION_TYPES,
   asOfDate,
   computeReceivables,
+  countInspectionBands,
+  countWorkshopStages,
+  daysUntil,
+  groupUpcomingReminders,
+  inspectionBand,
+  inspectionFollowUp,
+  INSPECTION_HORIZON_DAYS,
+  lastDays,
+  summarizeClaimStages,
+  summarizeUnpaid,
+  weekStartDay,
+  workshopStage,
   computeReminderResults,
   computeReturnRate,
   customerCounts,
@@ -137,6 +149,224 @@ async function loadReminderFacts(
     vehicleId: r.vehicleId,
     dueDate: r.dueDate,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Onglet « Aujourd'hui » — chargeurs par bloc (formules dans `core/dashboard/today`)
+// ---------------------------------------------------------------------------
+
+const TODAY_LIST_LIMIT = 8;
+
+async function loadTodayWorkshop(tenantDb: TenantDb, scope: SiteScope) {
+  const where: Prisma.RepairOrderWhereInput = {
+    ...siteFilter(scope),
+    status: { in: [...RO_IN_PROGRESS_STATUSES] },
+    deletedAt: null,
+  };
+  const [statuses, rows] = await Promise.all([
+    tenantDb.repairOrder.groupBy({ by: ["status"], where, _count: { _all: true } }),
+    tenantDb.repairOrder.findMany({
+      where,
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        promisedAt: true,
+        customer: { select: { displayName: true } },
+        vehicle: { select: { plate: true, make: true, model: true } },
+        insuranceClaim: { select: { insuranceCompany: { select: { name: true } } } },
+      },
+      orderBy: [{ promisedAt: { sort: "asc", nulls: "last" } }, { number: "asc" }],
+      take: TODAY_LIST_LIMIT,
+    }),
+  ]);
+  const stages = countWorkshopStages(
+    statuses.flatMap((s) => Array<string>(s._count._all).fill(s.status)),
+  );
+  return {
+    total: statuses.reduce((sum, s) => sum + s._count._all, 0),
+    stages,
+    items: rows.map((r) => ({
+      id: r.id,
+      number: r.number,
+      status: r.status,
+      stage: workshopStage(r.status),
+      promisedAt: r.promisedAt,
+      plate: r.vehicle.plate,
+      vehicle: `${r.vehicle.make} ${r.vehicle.model}`.trim(),
+      customerName: r.customer.displayName,
+      insurerName: r.insuranceClaim?.insuranceCompany.name ?? null,
+    })),
+  };
+}
+
+async function loadTodayCash(tenantDb: TenantDb, scope: SiteScope, today: string, tz: string) {
+  const days = lastDays(today, 7);
+  const bounds = days.map((day) => ({
+    day,
+    from: startOfLocalDay(day, tz),
+    to: startOfLocalDay(shiftDay(day, 1), tz),
+  }));
+  const todayBounds = bounds[bounds.length - 1]!;
+  const [series, paymentsCount, session] = await Promise.all([
+    Promise.all(bounds.map((b) => collected(tenantDb, scope, b.from, b.to))),
+    tenantDb.payment.count({
+      where: {
+        ...siteFilter(scope),
+        status: "CONFIRMED",
+        voidedAt: null,
+        receivedAt: { gte: todayBounds.from, lt: todayBounds.to },
+        NOT: { origin: "IMPORTED" },
+      },
+    }),
+    tenantDb.cashSession.findFirst({
+      where: { ...siteFilter(scope), closedAt: null },
+      select: { openedAt: true },
+      orderBy: { openedAt: "asc" },
+    }),
+  ]);
+  const todaySummary = series[series.length - 1]!;
+  return {
+    total: todaySummary.total,
+    byMethod: todaySummary.byMethod,
+    paymentsCount,
+    sessionOpenedAt: session?.openedAt ?? null,
+    daily: bounds.map((b, i) => ({ day: b.day, total: series[i]!.total })),
+  };
+}
+
+async function loadTodayInspections(tenantDb: TenantDb, today: string) {
+  const from = asOfDate(today);
+  const to = asOfDate(shiftDay(today, INSPECTION_HORIZON_DAYS + 1));
+  const vehicles = await tenantDb.vehicle.findMany({
+    where: { deletedAt: null, inspectionExpiryDate: { gte: from, lt: to } },
+    select: {
+      id: true,
+      plate: true,
+      make: true,
+      model: true,
+      inspectionExpiryDate: true,
+      customer: { select: { displayName: true } },
+    },
+    orderBy: { inspectionExpiryDate: "asc" },
+  });
+  const bands = countInspectionBands(
+    vehicles.map((v) => daysUntil(v.inspectionExpiryDate!, today)),
+  );
+  const shown = vehicles.slice(0, TODAY_LIST_LIMIT);
+  const reminders = shown.length
+    ? await tenantDb.reminder.findMany({
+        where: {
+          type: "INSPECTION",
+          vehicleId: { in: shown.map((v) => v.id) },
+          status: { notIn: ["CANCELLED", "SKIPPED"] },
+        },
+        select: {
+          vehicleId: true,
+          dueDate: true,
+          status: true,
+          channel: true,
+          outcome: true,
+          message: { select: { status: true } },
+        },
+      })
+    : [];
+  return {
+    total: vehicles.length,
+    bands,
+    items: shown.map((v) => {
+      const due = v.inspectionExpiryDate!;
+      const daysLeft = daysUntil(due, today);
+      return {
+        vehicleId: v.id,
+        plate: v.plate,
+        vehicle: `${v.make} ${v.model}`.trim(),
+        customerName: v.customer.displayName,
+        dueDate: due,
+        daysLeft,
+        band: inspectionBand(daysLeft),
+        followUp: inspectionFollowUp(
+          reminders
+            .filter((r) => r.vehicleId === v.id && r.dueDate.getTime() === due.getTime())
+            .map((r) => ({
+              status: r.status,
+              channel: r.channel,
+              outcome: r.outcome,
+              messageStatus: r.message?.status ?? null,
+            })),
+        ),
+      };
+    }),
+  };
+}
+
+async function loadTodayReminders(
+  tenantDb: TenantDb,
+  scope: SiteScope,
+  now: Date,
+  today: string,
+  tz: string,
+) {
+  const weekStart = startOfLocalDay(weekStartDay(today), tz);
+  const horizon = startOfLocalDay(shiftDay(today, 7), tz);
+  const [sentThisWeek, toApprove, upcoming] = await Promise.all([
+    tenantDb.reminder.count({
+      where: { ...reminderSiteWhere(scope), status: "SENT", sentAt: { gte: weekStart } },
+    }),
+    tenantDb.reminder.count({ where: { ...reminderSiteWhere(scope), status: "NEEDS_APPROVAL" } }),
+    tenantDb.reminder.findMany({
+      where: {
+        ...reminderSiteWhere(scope),
+        status: { in: ["PLANNED", "QUEUED"] },
+        scheduledFor: { gte: now, lt: horizon },
+      },
+      select: { type: true, scheduledFor: true },
+    }),
+  ]);
+  return {
+    sentThisWeek,
+    toApprove,
+    upcoming: groupUpcomingReminders(
+      upcoming.map((r) => ({ type: r.type, day: localDay(r.scheduledFor, tz) })),
+    ),
+  };
+}
+
+async function loadTodayClaims(tenantDb: TenantDb, scope: SiteScope, today: string) {
+  const claims = await tenantDb.insuranceClaim.findMany({
+    where: {
+      ...siteFilter(scope),
+      deletedAt: null,
+      status: { notIn: ["PAID", "REJECTED", "CANCELLED"] },
+    },
+    select: {
+      status: true,
+      quoteId: true,
+      approvedAmount: true,
+      invoices: {
+        where: { type: "INVOICE", billTo: "INSURANCE", status: { notIn: ["DRAFT", "VOID"] } },
+        select: { balance: true, dueDate: true },
+      },
+    },
+  });
+  const quoteIds = claims.flatMap((c) => (c.quoteId ? [c.quoteId] : []));
+  const quotes = quoteIds.length
+    ? await tenantDb.quote.findMany({
+        where: { id: { in: quoteIds } },
+        select: { id: true, total: true },
+      })
+    : [];
+  const quoteTotal = new Map(quotes.map((q) => [q.id, q.total]));
+  return summarizeClaimStages(
+    claims.map((c) => ({
+      status: c.status,
+      estimateAmount: c.quoteId ? (quoteTotal.get(c.quoteId) ?? null) : null,
+      approvedAmount: c.approvedAmount,
+      insurerBalance: c.invoices[0]?.balance ?? null,
+      insurerDueDate: c.invoices[0]?.dueDate ?? null,
+    })),
+    today,
+  );
 }
 
 export const dashboardRouter = router({
@@ -675,6 +905,44 @@ export const dashboardRouter = router({
         customerName: r.customer.displayName,
       })),
       unreadConversations: unread,
+      timeZone: org.timezone,
+      computedAt: now,
+    };
+  }),
+
+  /**
+   * Onglet « Aujourd'hui » : vue du jour de l'atelier. Comme `frontDesk`, chaque bloc n'est
+   * calculé que si le membre a la permission de lecture du module (sinon `null`).
+   */
+  today: orgProcedure.input(dashboardInputSchema).query(async ({ ctx, input }) => {
+    assertNotMechanic(ctx);
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    const scope = resolveSiteScope(ctx, input.siteId);
+    const org = await loadOrgReportContext(ctx.organizationId);
+    const now = reportsNow();
+    const today = localDay(now, org.timezone);
+    const can = (p: string) => ctx.permissions.has(p as never);
+    const [workshop, cash, unpaid, inspections, reminders, claims] = await Promise.all([
+      can("repair_order:read") ? loadTodayWorkshop(tenantDb, scope) : null,
+      can("payment:read") ? loadTodayCash(tenantDb, scope, today, org.timezone) : null,
+      can("receivable:read") || can("report:financial")
+        ? loadReceivableInvoices(tenantDb, scope).then((invoices) =>
+            summarizeUnpaid(invoices, today),
+          )
+        : null,
+      // Véhicules non rattachés à un site → « Tous les sites » seulement (comme `overview`).
+      can("reminder:read") && !scope.siteIds ? loadTodayInspections(tenantDb, today) : null,
+      can("reminder:read") ? loadTodayReminders(tenantDb, scope, now, today, org.timezone) : null,
+      can("insurance:read") ? loadTodayClaims(tenantDb, scope, today) : null,
+    ]);
+    return {
+      workshop,
+      cash,
+      unpaid,
+      inspections,
+      reminders,
+      claims,
+      today,
       timeZone: org.timezone,
       computedAt: now,
     };

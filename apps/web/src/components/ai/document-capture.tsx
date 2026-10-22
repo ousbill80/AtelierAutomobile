@@ -71,12 +71,12 @@ export function DocumentCapture({ kinds, onExtracted }: DocumentCaptureProps) {
   const disabled = extract.isPending || Boolean(unavailableReason) || status.isLoading;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-3">
         {kinds.length > 1 && (
           <select
             aria-label={t("aiExtraction.kindLabel")}
-            className="h-11 rounded-md border border-border bg-surface px-2 text-sm"
+            className="h-12 rounded-md border border-border bg-surface pr-9 pl-4 text-sm"
             value={kind}
             onChange={(e) => setKind(e.target.value as DocumentKind)}
           >

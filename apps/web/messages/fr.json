@@ -211,11 +211,12 @@
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
+    "subtitle": "Configurons votre garage en quelques étapes",
     "later": "Plus tard",
-    "finish": "Terminer la configuration",
+    "finish": "Accéder à mon tableau de bord",
     "steps": {
-      "garage": "Votre garage",
-      "workshop": "Atelier",
+      "garage": "Garage",
+      "workshop": "Site",
       "mode": "Mode",
       "team": "Équipe",
       "channels": "Canaux",
@@ -223,7 +224,8 @@
       "done": "Terminé"
     },
     "garage": {
-      "title": "Parlez-nous de votre garage",
+      "title": "Votre garage",
+      "description": "Ces informations apparaîtront sur vos devis et factures.",
       "nameLabel": "Nom du garage",
       "legalNameLabel": "Raison sociale",
       "communeLabel": "Commune",
@@ -232,16 +234,18 @@
     },
     "workshop": {
       "title": "Votre premier site",
+      "description": "Un site représente un atelier physique. Vous pourrez en ajouter d'autres plus tard.",
       "nameLabel": "Nom du site",
       "codeLabel": "Code du site",
-      "codeHint": "Lettres majuscules et chiffres uniquement."
+      "codeHint": "Lettres majuscules et chiffres uniquement (ex: ATL01)."
     },
     "mode": {
-      "title": "Comment utilisez-vous AtelierOS ?",
+      "title": "Mode d'utilisation",
+      "description": "Choisissez comment vous souhaitez utiliser AtelierOS.",
       "full": "Gestion complète",
-      "fullDescription": "RDV, ordres de réparation, devis, facturation, stock.",
+      "fullDescription": "RDV, ordres de réparation, devis, facturation et gestion de stock. La solution tout-en-un pour votre atelier.",
       "remindersOnly": "Relances uniquement",
-      "remindersOnlyDescription": "Je garde mon logiciel actuel, AtelierOS gère mes relances."
+      "remindersOnlyDescription": "Gardez votre logiciel actuel, AtelierOS s'occupe des relances automatiques (VT, révisions, créances)."
     },
     "team": {
       "title": "Invitez votre équipe",
@@ -261,9 +265,10 @@
       "submit": "Enregistrer"
     },
     "data": {
-      "title": "Données de démonstration",
-      "description": "Ajoutez des clients et véhicules fictifs pour découvrir AtelierOS.",
+      "title": "Données de démarrage",
+      "description": "Voulez-vous charger des données de démonstration pour découvrir AtelierOS ?",
       "demo": "Charger les données de démonstration",
+      "demoDescription": "Clients, véhicules et rendez-vous fictifs pour vous familiariser avec l'application.",
       "skip": "Commencer avec un garage vide"
     },
     "done": {
@@ -1048,7 +1053,8 @@
       "workshop": "Atelier",
       "frontDesk": "Accueil",
       "customers": "Clients",
-      "cashier": "Ma caisse"
+      "cashier": "Ma caisse",
+      "today": "Aujourd'hui"
     },
     "states": {
       "empty": "Pas encore de données sur cette période",
@@ -1205,7 +1211,11 @@
       "quotes": "Devis sans réponse depuis plus de 48 h",
       "ready": "Véhicules prêts non livrés",
       "unread": "Conversations non lues",
-      "none": "Rien à traiter"
+      "none": "Rien à traiter",
+      "kpiAppointments": "RDV aujourd'hui",
+      "kpiReminders": "Relances à valider",
+      "kpiQuotes": "Devis en attente",
+      "kpiReady": "Véhicules prêts"
     },
     "customersTab": {
       "active": "Clients actifs",
@@ -1220,9 +1230,118 @@
       "title": "Ma caisse du jour",
       "noSession": "Aucune caisse ouverte à votre nom.",
       "openedAt": "Ouverte le {date} — {site}",
-      "total": "Total encaissé"
+      "total": "Total encaissé",
+      "goToCash": "Aller à la caisse"
     },
-    "mechanicLink": "Ouvrir la tablette atelier"
+    "mechanicLink": "Ouvrir la tablette atelier",
+    "today": {
+      "newReception": "Nouvelle réception",
+      "cards": {
+        "vehicles": "Véhicules en atelier",
+        "vehiclesSub": "{repair} en réparation · {ready} prêts à livrer",
+        "collected": "Encaissé aujourd'hui",
+        "collectedSub": "{count} paiements · {state}",
+        "cashOpen": "caisse ouverte",
+        "cashClosed": "caisse fermée",
+        "unpaid": "Factures impayées",
+        "unpaidSub": "{count} factures · {long} échues depuis plus de 15 jours",
+        "inspections": "Visites techniques à relancer",
+        "inspectionsSub": "{j60} à J-60 · {j30} à J-30 · {j15} à J-15"
+      },
+      "workshop": {
+        "title": "Véhicules en atelier",
+        "all": "Voir tous les dossiers",
+        "stages": {
+          "checkedIn": "Réceptionné",
+          "diagnosis": "Diagnostic",
+          "repair": "En réparation",
+          "ready": "Prêt à livrer"
+        },
+        "plate": "Immatriculation",
+        "customer": "Client / véhicule",
+        "status": "Statut",
+        "payer": "Prise en charge",
+        "promised": "Livraison prévue",
+        "customerPays": "Paiement client",
+        "noDate": "Non fixée",
+        "empty": "Aucun véhicule en atelier.",
+        "more": "+ {count} autres véhicules"
+      },
+      "cash": {
+        "title": "Caisse du jour",
+        "openedAt": "Ouverte · {time}",
+        "closed": "Fermée",
+        "total": "Total encaissé",
+        "payments": "{count} paiements enregistrés",
+        "close": "Clôturer la caisse",
+        "open": "Ouvrir la caisse",
+        "closeHint": "La clôture se fait dans la caisse, avec le comptage des espèces."
+      },
+      "inspections": {
+        "title": "Visites techniques à préparer",
+        "subtitle": "Échéances des 60 prochains jours.",
+        "schedule": "Voir toutes les échéances",
+        "bands": {
+          "j60": "J-60",
+          "j30": "J-30",
+          "j15": "J-15"
+        },
+        "due": "Échéance",
+        "left": "Reste",
+        "followUp": "Relance",
+        "daysLeft": "J-{days}",
+        "dueToday": "Aujourd'hui",
+        "followUps": {
+          "booked": "RDV pris",
+          "toCall": "À appeler",
+          "read": "Message lu",
+          "sent": "Envoyée",
+          "toApprove": "À valider",
+          "planned": "Planifiée",
+          "none": "Aucune"
+        },
+        "empty": "Aucune visite technique dans les 60 prochains jours.",
+        "siteFiltered": "Les visites techniques ne sont pas rattachées à un site : choisissez « Tous les sites » pour les voir."
+      },
+      "reminders": {
+        "title": "Relances automatiques",
+        "sentThisWeek": "Envoyées cette semaine",
+        "toApprove": "À valider",
+        "upcoming": "Prochains envois",
+        "noUpcoming": "Aucun envoi programmé dans les 7 prochains jours.",
+        "manage": "Gérer les relances"
+      },
+      "claims": {
+        "title": "Dossiers assurance",
+        "receivable": "À recevoir des assureurs",
+        "stages": {
+          "awaitingApproval": "En attente d'accord",
+          "approved": "Accord reçu",
+          "invoiced": "Facturé à l'assureur",
+          "late": "Remboursement en retard"
+        },
+        "count": "{count} dossiers",
+        "empty": "Aucun dossier assurance en cours.",
+        "all": "Voir les sinistres"
+      },
+      "unpaid": {
+        "title": "Factures impayées",
+        "total": "Total dû par les clients",
+        "invoices": "{count} factures",
+        "overdueFor": "Échue depuis {days} jours",
+        "noNumber": "Facture",
+        "more": "+ {count} autres factures en retard · {amount}",
+        "remind": "Relancer les factures échues",
+        "empty": "Aucune facture en retard."
+      },
+      "collected": {
+        "title": "Encaissements · 7 jours",
+        "total": "Total de la période",
+        "todayShort": "Auj.",
+        "unit": "Montants encaissés par jour, remboursements déduits.",
+        "aria": "{day} : {amount}"
+      }
+    }
   },
   "appointments": {
     "title": "Planning",
@@ -1293,6 +1412,12 @@
       "PORTAL": "Portail",
       "REMINDER": "Relance"
     },
+    "channels": {
+      "AUTO": "Automatique (WhatsApp > SMS > Email)",
+      "WHATSAPP": "WhatsApp uniquement",
+      "SMS": "SMS uniquement",
+      "EMAIL": "Email uniquement"
+    },
     "via": {
       "phone": "Téléphone",
       "whatsapp": "WhatsApp",
@@ -1337,6 +1462,7 @@
       "source": "Source",
       "notes": "Notes internes",
       "notify": "Envoyer la confirmation au client",
+      "notifyChannel": "Canal de notification",
       "save": "Enregistrer",
       "saveAndNotify": "Enregistrer et envoyer la confirmation",
       "saving": "Enregistrement…",
@@ -1429,7 +1555,12 @@
       "phoneConfirmations": "Confirmations à obtenir par téléphone",
       "phoneConfirmationsHint": "RDV de demain non confirmés : clients sans canal écrit, avec absences antérieures, ou sans réponse après 18:00.",
       "nothing": "Rien ici.",
-      "empty": "Aucun RDV aujourd'hui."
+      "empty": "Aucun RDV aujourd'hui.",
+      "kpiTotal": "RDV du jour",
+      "kpiConfirmed": "Confirmés",
+      "kpiUnanswered": "Sans réponse",
+      "kpiLate": "En retard",
+      "openPlanning": "Planning"
     },
     "settings": {
       "title": "Planning",
@@ -1523,6 +1654,15 @@
     "save": "Enregistrer",
     "loading": "Chargement…",
     "none": "—",
+    "subtitle": "Suivez chaque véhicule de la réception à la livraison.",
+    "emptyHint": "Les véhicules réceptionnés apparaîtront ici, classés par étape.",
+    "kpi": {
+      "active": "À l'atelier",
+      "awaitingApproval": "En attente d'accord",
+      "waitingParts": "En attente de pièces",
+      "ready": "Prêts",
+      "late": "En retard"
+    },
     "counters": {
       "active": "{count} à l'atelier",
       "awaitingApproval": "{count} en attente d'accord",
@@ -1752,6 +1892,12 @@
       "searchLabel": "Plaque, téléphone ou nom du client",
       "searchPlaceholder": "Ex. 2547 GH 01",
       "searchHint": "Saisissez au moins 2 caractères.",
+      "stepOf": "Étape {current} sur {total}",
+      "searchTitle": "Quel véhicule arrive ?",
+      "searchDescription": "Retrouvez le véhicule pour ouvrir le dossier du client et ses alertes.",
+      "or": "ou",
+      "scanTitle": "Scanner la carte grise ou la vignette",
+      "scanDescription": "L'assistant lit la plaque et retrouve le véhicule.",
       "noResult": "Aucun véhicule trouvé.",
       "createCustomer": "Créer le client et le véhicule",
       "scanRegistrationAi": "Scanner la carte grise (IA)",
@@ -4352,7 +4498,85 @@
     "overdueExpert": "Planifié le {date}",
     "draft": "Brouillon",
     "csv": "Exporter CSV",
-    "dueAmount": "{amount} dû"
+    "dueAmount": "{amount} dû",
+    "vehicleInsurance": {
+      "title": "Assurance",
+      "none": "Aucune assurance renseignée.",
+      "insurer": "Compagnie",
+      "noInsurer": "— Aucune —",
+      "policyNumber": "N° de police",
+      "expiryDate": "Valable jusqu'au",
+      "validUntil": "Valable jusqu'au {date}",
+      "expiredOn": "Expirée depuis le {date}",
+      "expiresSoon": "Expire le {date}",
+      "unknownExpiry": "Date d'expiration inconnue",
+      "edit": "Modifier l'assurance",
+      "saved": "Assurance enregistrée.",
+      "noInsurers": "Aucune compagnie configurée.",
+      "manageInsurers": "Gérer les compagnies",
+      "claims": "{count} dossier(s) sinistre",
+      "prefilled": "Compagnie et police reprises de la fiche du véhicule."
+    },
+    "progress": {
+      "title": "Avancement du dossier",
+      "OPENED": "Ouverture",
+      "EXPERT": "Expertise",
+      "ESTIMATE_SENT": "Devis envoyé",
+      "APPROVED": "Accord",
+      "REPAIRING": "Réparation",
+      "INVOICED": "Facturation",
+      "PAID": "Réglé",
+      "done": "terminé",
+      "current": "en cours",
+      "todo": "à venir",
+      "stoppedRejected": "Dossier refusé par l'assureur",
+      "stoppedCancelled": "Dossier annulé"
+    },
+    "reimbursement": {
+      "title": "Suivi du remboursement",
+      "insurerTitle": "Part assureur",
+      "customerTitle": "Part client (franchise, vétusté…)",
+      "paidOf": "{paid} payés sur {total}",
+      "state": {
+        "estimate": "Montant estimé",
+        "sent": "Devis envoyé — accord attendu",
+        "accepted": "Accordé — à facturer",
+        "invoiced": "Facturé — en attente de règlement",
+        "late": "En retard de {days} j",
+        "partial": "Partiellement réglé",
+        "paid": "Réglé",
+        "rejected": "Refusé",
+        "cancelled": "Annulé"
+      },
+      "dueOn": "Échéance le {date}",
+      "noAmount": "Pas encore chiffré"
+    },
+    "nextStep": {
+      "title": "Prochaine étape",
+      "OPENED": "Planifiez la visite de l'expert ou créez le devis assurance.",
+      "EXPERT_SCHEDULED": "Après la visite de l'expert, saisissez-la puis envoyez le devis.",
+      "ESTIMATE_SENT": "Relancez l'assureur si besoin, puis saisissez l'accord dès réception.",
+      "APPROVED": "Lancez les travaux ; facturez le sinistre une fois l'OR terminé.",
+      "REPAIRING": "Facturez le sinistre dès la fin des travaux.",
+      "INVOICED": "Suivez les règlements : franchise du client et virement de l'assureur.",
+      "PARTIALLY_PAID": "Une partie reste due : relancez l'assureur ou le client.",
+      "PAID": "Dossier soldé. Rien à faire.",
+      "REJECTED": "Convertissez le devis en devis client si le client veut faire réparer.",
+      "CANCELLED": "Dossier clos."
+    },
+    "kpi": {
+      "outstanding": "Encours assureurs",
+      "openClaims": "Dossiers en cours",
+      "overdue": "Échu depuis plus de 60 j",
+      "blocked": "Dossiers bloqués",
+      "followUps": "Relances à valider",
+      "avgDaysToPay": "Délai moyen de paiement"
+    },
+    "agingTitle": "Ancienneté de l'encours",
+    "insurerCount": "{count} compagnie(s)",
+    "claimCount": "{count} dossier(s)",
+    "seeClaims": "Voir les dossiers",
+    "contact": "Contact sinistres"
   },
   "invoicePortal": {
     "loading": "Chargement de la facture…",
@@ -4915,6 +5139,33 @@
       "summary": "Synthèse"
     },
     "noAccess": "Vous n'avez accès à aucun rapport.",
+    "hub": {
+      "period": "Période des rapports",
+      "kpiTitle": "En un coup d'œil",
+      "search": "Rechercher un rapport…",
+      "searchLabel": "Rechercher un rapport",
+      "clearSearch": "Effacer la recherche",
+      "noMatch": "Aucun rapport ne correspond à « {query} ».",
+      "count": "{count} rapport(s)",
+      "periodRange": "Du {from} au {to}",
+      "asOfDate": "Situation au {date}",
+      "open": "Ouvrir",
+      "exportAria": "Exporter « {report} » en {format}",
+      "previous": "Période précédente : {amount}",
+      "snapshot": "À l'instant présent",
+      "groups": {
+        "finance": "Finances",
+        "workshop": "Atelier et stock",
+        "customers": "Clients et relances",
+        "network": "Réseau"
+      },
+      "kpis": {
+        "revenue_ht": "CA HT",
+        "collected": "Encaissé",
+        "receivables": "Créances en cours",
+        "recovered_by_reminders": "Récupéré grâce aux relances"
+      }
+    },
     "list": {
       "ventes": {
         "title": "Ventes",
@@ -5138,7 +5389,8 @@
         "WRITTEN_OFF": "Close"
       },
       "signReception": "Signer le bon de réception",
-      "opening": "Ouverture…"
+      "opening": "Ouverture…",
+      "receptionPdf": "Bon de réception (PDF)"
     },
     "vehicle": {
       "title": "Votre véhicule",

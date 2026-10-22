@@ -178,6 +178,7 @@ export type {
   TransferOwnerInput,
   VehicleInput,
   VehicleListInput,
+  SetVehicleInsuranceInput,
 } from "./vehicle";
 export {
   bulkCreateVehiclesInputSchema,
@@ -190,6 +191,7 @@ export {
   recordMileageInputSchema,
   recordServiceInputSchema,
   replacePlateInputSchema,
+  setVehicleInsuranceInputSchema,
   transferOwnerInputSchema,
   transmissionSchema,
   updateVehicleInputSchema,
@@ -369,6 +371,7 @@ export {
   dashboardPeriodSchema,
   compareSitesInputSchema,
   customPeriodSchema,
+  reportCatalogInputSchema,
   reportFiltersSchema,
   reportPreviewInputSchema,
   reportSlugSchema,

@@ -498,7 +498,13 @@ export async function createTrackingToken(
     createdById: string | null;
     now: Date;
   },
-): Promise<{ token: string; trackingUrl: string; receptionUrl: string; shortUrl: string | null }> {
+): Promise<{
+  token: string;
+  trackingUrl: string;
+  receptionUrl: string;
+  receptionPdfUrl: string;
+  shortUrl: string | null;
+}> {
   const { token, tokenHash, shortCode } = await issuePortalToken(tx, {
     organizationId: input.organizationId,
     scope: "REPAIR_ORDER",
@@ -516,6 +522,7 @@ export async function createTrackingToken(
     token,
     trackingUrl: `${appUrl()}/p/${token}/suivi`,
     receptionUrl: `${appUrl()}/p/${token}/reception`,
+    receptionPdfUrl: `${appUrl()}/api/portail/${token}/reception/pdf`,
     shortUrl: shortCode ? `${appUrl()}/l/${shortCode}` : null,
   };
 }

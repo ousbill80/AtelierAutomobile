@@ -52,6 +52,23 @@ function NewClaimForm() {
   const [error, setError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ExtractedFields>({});
   const [suggestionId, setSuggestionId] = useState<string | null>(null);
+  // Compagnie et police reprises de la fiche du véhicule (US-M16-01), une fois par véhicule.
+  const linkedVehicleId = repairOrderId ? order.data?.vehicleId : vehicleId;
+  const linked = trpc.vehicle.get.useQuery(
+    { id: linkedVehicleId ?? "" },
+    { enabled: Boolean(linkedVehicleId) },
+  );
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+  const [prefilled, setPrefilled] = useState(false);
+  if (linked.data && prefilledFor !== linked.data.id) {
+    setPrefilledFor(linked.data.id);
+    const fromVehicle = Boolean(
+      linked.data.insuranceCompanyId || linked.data.insurancePolicyNumber,
+    );
+    if (linked.data.insuranceCompanyId) setInsurerId(linked.data.insuranceCompanyId);
+    if (linked.data.insurancePolicyNumber) setPolicyNumber(linked.data.insurancePolicyNumber);
+    setPrefilled(fromVehicle);
+  }
   const acceptSuggestion = trpc.ai.suggestion.accept.useMutation();
   const create = trpc.claim.create.useMutation({
     onSuccess: async (res) => {
@@ -178,6 +195,19 @@ function NewClaimForm() {
             </li>
           ))}
         </ul>
+      )}
+      {!repairOrderId && linked.data && !vehicles.data && (
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <PlateBadge plate={linked.data.plate} />
+          <span>
+            {linked.data.make} {linked.data.model}
+          </span>
+        </p>
+      )}
+      {prefilled && (
+        <p role="status" className="text-sm text-status-ok">
+          ✓ {t("vehicleInsurance.prefilled")}
+        </p>
       )}
       <Field label={t("fields.insurer")}>
         <Select value={insurerId} onChange={(e) => setInsurerId(e.target.value)} required>

@@ -22,6 +22,7 @@ import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDateTime, formatDay } from "@/components/repair-orders/i18n";
 import { InvoiceStatusBadge } from "@/components/billing/badges";
 import { BlockerBadge, ClaimStatusBadge, type Blocker } from "@/components/claims/badges";
+import { ClaimProgress, NextStep, ReimbursementPanel } from "@/components/claims/claim-progress";
 import { ATTACHMENT_KINDS, t } from "@/components/claims/i18n";
 import { compressPhoto } from "@/components/tablet/photo";
 import { ClaimsNav } from "../../nav";
@@ -86,20 +87,44 @@ export function ClaimView({ id }: { id: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <ClaimsNav />
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-mono text-xl font-semibold">{c.number}</h1>
           <ClaimStatusBadge status={c.status} />
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <PlateBadge plate={d.vehicle.plate} />
-          <span>
-            {d.vehicle.make} {d.vehicle.model}
-          </span>
-          <span>· {d.customer.displayName}</span>
-          <span>· {d.insurer.name}</span>
-          {c.claimNumber && <span className="text-muted">· {c.claimNumber}</span>}
-        </div>
+        <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex min-w-0 flex-col">
+            <dt className="text-xs text-muted">{t("fields.vehicle")}</dt>
+            <dd className="flex flex-wrap items-center gap-2">
+              <Link href={`/vehicules/${d.vehicle.id}`} aria-label={d.vehicle.plate}>
+                <PlateBadge plate={d.vehicle.plate} />
+              </Link>
+              <span className="truncate">
+                {d.vehicle.make} {d.vehicle.model}
+              </span>
+            </dd>
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <dt className="text-xs text-muted">{t("fields.customer")}</dt>
+            <dd className="truncate font-medium">
+              <Link href={`/clients/${d.customer.id}`} className="hover:underline">
+                {d.customer.displayName}
+              </Link>
+            </dd>
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <dt className="text-xs text-muted">{t("fields.insurer")}</dt>
+            <dd className="truncate font-medium">
+              <Link href={`/assurances/compagnies/${d.insurer.id}`} className="hover:underline">
+                {d.insurer.name}
+              </Link>
+            </dd>
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <dt className="text-xs text-muted">{t("fields.claimNumber")}</dt>
+            <dd className="truncate font-mono">{c.claimNumber ?? "—"}</dd>
+          </div>
+        </dl>
         {d.blockers.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {(d.blockers as Blocker[]).map((b) => (
@@ -123,6 +148,9 @@ export function ClaimView({ id }: { id: string }) {
           </p>
         )}
       </div>
+
+      <ClaimProgress claim={c} />
+      <NextStep status={c.status} />
 
       <div className="flex flex-wrap gap-2">
         {manage && ["OPENED", "EXPERT_SCHEDULED"].includes(c.status) && (
@@ -206,6 +234,7 @@ export function ClaimView({ id }: { id: string }) {
 
       {tab === "summary" && (
         <section className="flex flex-col gap-3">
+          <ReimbursementPanel status={c.status} invoices={d.invoices} split={d.split} />
           <div className="rounded-lg border border-border bg-surface p-3">
             <h2 className="mb-2 font-semibold">{t("split")}</h2>
             {d.split ? (
@@ -216,18 +245,11 @@ export function ClaimView({ id }: { id: string }) {
                   <Row label={t("fields.depreciation")} value={formatFCFA(d.split.V)} />
                 )}
                 {d.split.X > 0 && <Row label={t("fields.gap")} value={formatFCFA(d.split.X)} />}
-                <Row
-                  label={t("fields.insurerShare")}
-                  value={
-                    <span data-testid="insurer-share">{formatFCFA(d.split.insurerShare)}</span>
-                  }
-                />
-                <Row
-                  label={t("fields.customerShare")}
-                  value={
-                    <span data-testid="customer-share">{formatFCFA(d.split.customerShare)}</span>
-                  }
-                />
+                {c.approvedAmount !== null && (
+                  <Row label={t("fields.approvedAmount")} value={formatFCFA(c.approvedAmount)} />
+                )}
+                <Row label={t("fields.insurerShare")} value={formatFCFA(d.split.insurerShare)} />
+                <Row label={t("fields.customerShare")} value={formatFCFA(d.split.customerShare)} />
               </>
             ) : (
               <p className="text-sm text-muted">{t("noLines")}</p>
@@ -243,9 +265,6 @@ export function ClaimView({ id }: { id: string }) {
             />
             <Row label={t("fields.estimateSentAt")} value={formatDateTime(c.estimateSentAt, tz)} />
             <Row label={t("fields.approvedAt")} value={formatDateTime(c.approvedAt, tz)} />
-            {c.approvedAmount !== null && (
-              <Row label={t("fields.approvedAmount")} value={formatFCFA(c.approvedAmount)} />
-            )}
             <Row
               label={t("fields.repairOrder")}
               value={
@@ -804,13 +823,34 @@ function DocumentsTab({
       : missing.concat([...present].filter((k) => !missing.includes(k)));
   return (
     <section className="flex flex-col gap-3">
-      <ul className="flex flex-col gap-1 text-sm" aria-label={t("fields.requiredDocuments")}>
-        {checklist.map((k) => (
-          <li key={k} className="flex items-center gap-2">
-            <span aria-hidden>{present.has(k) ? "✓" : "○"}</span>
-            <span className={present.has(k) ? "" : "text-status-warn"}>{t(`kinds.${k}`)}</span>
-          </li>
-        ))}
+      <ul className="grid gap-2 text-sm sm:grid-cols-2" aria-label={t("fields.requiredDocuments")}>
+        {checklist.map((k) => {
+          const ok = present.has(k);
+          const count = attachments.filter((a) => a.kind === k).length;
+          return (
+            <li
+              key={k}
+              className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 ${
+                ok
+                  ? "border-status-ok/30 bg-status-ok-bg"
+                  : "border-status-warn/40 bg-status-warn-bg"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`flex size-6 items-center justify-center rounded-full text-xs font-bold ${
+                  ok ? "bg-status-ok text-white" : "border-2 border-status-warn text-status-warn"
+                }`}
+              >
+                {ok ? "✓" : "!"}
+              </span>
+              <span className={`flex-1 ${ok ? "" : "font-medium text-status-warn"}`}>
+                {t(`kinds.${k}`)}
+              </span>
+              {count > 0 && <span className="text-xs text-muted">× {count}</span>}
+            </li>
+          );
+        })}
       </ul>
       <p className="text-sm text-muted">
         {missing.length === 0

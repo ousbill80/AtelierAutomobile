@@ -76,6 +76,18 @@ export const updateVehicleInputSchema = z.object({
   patch: vehicleInputSchema.omit({ customerId: true, plate: true }).partial(),
 });
 
+/** M16 — rattachement du véhicule à une compagnie d'assurance et à une police (null = retirer). */
+export const setVehicleInsuranceInputSchema = z.object({
+  vehicleId: z.string().trim().min(1),
+  insuranceCompanyId: z.string().trim().min(1).nullable(),
+  policyNumber: z.string().trim().max(60).nullable(),
+  expiryDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide : utilisez le format AAAA-MM-JJ.")
+    .nullable(),
+});
+export type SetVehicleInsuranceInput = z.infer<typeof setVehicleInsuranceInputSchema>;
+
 export const recordMileageInputSchema = z.object({
   vehicleId: z.string().trim().min(1),
   mileage: z.number().int().min(0),

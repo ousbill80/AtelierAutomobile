@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button, DueBadge, Input, PlateBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { VehicleInsuranceCard } from "@/components/claims/vehicle-insurance-card";
 import { ReminderMiniBlock } from "../../relances/reminder-mini-block";
 
 export function VehicleView({ id }: { id: string }) {
@@ -118,6 +119,10 @@ export function VehicleView({ id }: { id: string }) {
             </Button>
           </form>
         </section>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <VehicleInsuranceCard vehicle={vehicle} />
       </div>
 
       <ReminderMiniBlock vehicleId={id} />

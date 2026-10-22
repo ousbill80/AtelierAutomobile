@@ -23,8 +23,17 @@ export function SidePanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   if (!open) return null;
+
+  function handleBackdropClick(e: React.MouseEvent) {
+    // Ne fermer que si le clic est directement sur le backdrop,
+    // pas si un modal est ouvert (il y aurait un autre backdrop par-dessus)
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={handleBackdropClick}>
       <aside
         role="dialog"
         aria-modal="true"
