@@ -170,6 +170,7 @@
     "cash": "Caisse",
     "payments": "Paiements",
     "cashSessions": "Sessions de caisse",
+    "cashExpenses": "Dépenses",
     "accountingExports": "Exports comptables",
     "workshop": "Atelier",
     "tablet": "Tablette atelier",
@@ -3528,7 +3529,13 @@
       "amount": "Montant",
       "description": "Description",
       "submit": "Enregistrer",
-      "approvalHint": "Au-delà de {amount}, la dépense doit être validée par le gérant."
+      "approvalHint": "Au-delà de {amount}, la dépense doit être validée par le gérant.",
+      "pendingHint": "Au-delà de {amount}, la dépense part en validation chez le gérant et ne sort de la caisse qu'une fois validée.",
+      "receipt": "Justificatif (photo ou PDF, facultatif)",
+      "receiptTake": "Photographier le reçu",
+      "receiptChange": "Changer",
+      "pendingDone": "Dépense envoyée en validation au gérant.",
+      "done": "Dépense enregistrée."
     },
     "dropForm": {
       "title": "Versement",
@@ -3536,7 +3543,9 @@
       "safe": "Coffre",
       "bank": "Banque",
       "reference": "Référence (bordereau)",
-      "submit": "Enregistrer le versement"
+      "submit": "Enregistrer le versement",
+      "max": "Maximum : {amount} (espèces attendues).",
+      "done": "Versement enregistré."
     },
     "closeForm": {
       "title": "Clôturer la caisse",
@@ -3544,7 +3553,21 @@
       "denominations": "Comptage par coupures (facultatif)",
       "notes": "Commentaire (obligatoire en cas d'écart)",
       "difference": "Écart : {amount}",
-      "submit": "Clôturer"
+      "submit": "Clôturer",
+      "step1": "1. Vérifiez les encaissements du jour",
+      "step2": "2. Comptez les espèces",
+      "step3": "3. Commentez l'écart s'il y en a un",
+      "countMode": "Mode de comptage",
+      "countTotal": "Montant total",
+      "countDetail": "Par coupures",
+      "subtotal": "Total compté",
+      "exact": "Caisse juste : aucun écart.",
+      "over": "Excédent de {amount}",
+      "short": "Manquant de {amount}",
+      "blocked": "Clôture impossible : faites d'abord valider ou refuser les dépenses en attente.",
+      "alertHint": "Au-delà de {amount}, le propriétaire est alerté automatiquement.",
+      "done": "Caisse clôturée. Le Z de caisse est disponible dans l'historique.",
+      "seeZ": "Voir le Z de caisse"
     },
     "sessions": {
       "title": "Sessions de caisse",
@@ -3555,7 +3578,44 @@
       "late": "Clôture tardive",
       "difference": "Écart",
       "review": "Valider l'écart",
-      "reviewComment": "Commentaire de validation"
+      "reviewComment": "Commentaire de validation",
+      "subtitle": "Clôtures, écarts et validations — par période et par caissier.",
+      "filters": {
+        "status": "Statut",
+        "all": "Toutes",
+        "open": "Ouvertes",
+        "to_review": "Écart à valider",
+        "reviewed": "Écart validé",
+        "variance": "Avec écart",
+        "late": "Clôture tardive",
+        "cashier": "Caissier",
+        "allCashiers": "Tous les caissiers"
+      },
+      "kpi": {
+        "sessions": "Sessions",
+        "withVariance": "Avec écart",
+        "net": "Écart cumulé",
+        "toReview": "À valider"
+      },
+      "byCashier": "Écarts par caissier",
+      "byCashierHint": "Sessions clôturées de la sélection, triées par écart absolu.",
+      "cashierCols": {
+        "name": "Caissier",
+        "sessions": "Sessions",
+        "withVariance": "Avec écart",
+        "net": "Écart net",
+        "absolute": "Écart absolu",
+        "worst": "Plus gros manquant"
+      },
+      "received": "Encaissé",
+      "counted": "Compté",
+      "openedOn": "Ouverte le {date}",
+      "detail": "Détail",
+      "z": "Z de caisse",
+      "loadMore": "Afficher plus",
+      "reviewed2": "Validé par {name}",
+      "reviewDone": "Écart validé.",
+      "noVariance": "Juste"
     },
     "paymentsList": {
       "title": "Paiements",
@@ -3569,7 +3629,117 @@
       "refundReason": "Motif du remboursement",
       "refundAmount": "Montant à rembourser",
       "allMethods": "Tous les modes"
-    }
+    },
+    "subtitle": "Encaissements, sorties et comptage de la caisse du jour.",
+    "expensesLink": "Dépenses",
+    "noSessionHint": "Ouvrez la caisse avec le fond de départ pour encaisser en espèces.",
+    "suggestedFloat": "Proposé : espèces comptées à la dernière clôture.",
+    "sessionOpen": "Caisse ouverte",
+    "kpi": {
+      "expected": "Espèces attendues",
+      "received": "Total encaissé",
+      "expenses": "Dépenses",
+      "drops": "Versements"
+    },
+    "pendingBanner": "{count} dépense(s) en attente de validation ({amount}). Elles ne sortiront de la caisse qu'une fois validées ; la clôture est bloquée d'ici là.",
+    "pendingReview": "Examiner",
+    "pendingCheques": "Chèques en attente (non comptés)",
+    "journal": {
+      "title": "Journal de la session",
+      "empty": "Aucune opération pour le moment.",
+      "payment": "Encaissement",
+      "expense": "Dépense",
+      "drop": "Versement",
+      "refund": "Remboursement",
+      "receipt": "Reçu",
+      "proof": "Justificatif",
+      "by": "par {name}",
+      "all": "Tout",
+      "filters": {
+        "payment": "Encaissements",
+        "expense": "Dépenses",
+        "drop": "Versements",
+        "refund": "Remboursements"
+      }
+    },
+    "status": {
+      "PENDING": "En attente",
+      "APPROVED": "Validée",
+      "REJECTED": "Refusée"
+    },
+    "receiptAdd": "Ajouter un justificatif",
+    "receiptAdded": "Justificatif ajouté.",
+    "receiptError": "Le justificatif n'a pas pu être envoyé. Réessayez.",
+    "expensesPage": {
+      "title": "Dépenses de caisse",
+      "subtitle": "Sorties d'espèces, validation au-delà du seuil et justificatifs.",
+      "tabs": {
+        "PENDING": "En attente",
+        "APPROVED": "Validées",
+        "REJECTED": "Refusées",
+        "ALL": "Toutes"
+      },
+      "category": "Catégorie",
+      "allCategories": "Toutes catégories",
+      "from": "Du",
+      "to": "Au",
+      "reset": "Effacer les filtres",
+      "total": "Total des dépenses validées",
+      "totalPending": "Total en attente",
+      "totalRejected": "Total refusé",
+      "byCategory": "Par catégorie",
+      "empty": "Aucune dépense sur cette sélection.",
+      "emptyPending": "Aucune dépense en attente de validation.",
+      "approve": "Valider",
+      "reject": "Refuser",
+      "rejectTitle": "Refuser la dépense",
+      "rejectReason": "Motif du refus",
+      "approveTitle": "Valider la dépense",
+      "approveComment": "Commentaire (facultatif)",
+      "decidedBy": "{status} par {name}",
+      "createdBy": "Saisie par {name}",
+      "loadMore": "Afficher plus",
+      "approved": "Dépense validée.",
+      "rejected": "Dépense refusée.",
+      "closedSession": "Caisse clôturée"
+    },
+    "detail": {
+      "back": "Historique des sessions",
+      "title": "Session du {date}",
+      "openedBy": "Ouverte par {name} à {time}",
+      "closedBy": "Clôturée par {name} le {date}",
+      "notClosed": "Session en cours",
+      "byMethod": "Encaissements par mode",
+      "cash": "Calcul des espèces",
+      "counted": "Espèces comptées",
+      "difference": "Écart",
+      "denominations": "Comptage par coupures",
+      "notes": "Commentaire de clôture",
+      "review": "Validation",
+      "reviewBy": "Validé par {name} le {date}",
+      "reviewPending": "Écart non encore validé par le propriétaire.",
+      "frozen": "Montants figés à la clôture.",
+      "notFound": "Session de caisse introuvable."
+    },
+    "settings": {
+      "title": "Caisse",
+      "description": "Seuils d'alerte, validation des dépenses et catégories.",
+      "varianceAlert": "Alerte d'écart de caisse au-delà de",
+      "varianceAlertHint": "Le propriétaire est notifié quand l'écart de clôture dépasse ce montant.",
+      "expenseApproval": "Validation des dépenses au-delà de",
+      "expenseApprovalHint": "Au-delà, la dépense attend la validation d'un gérant avant de sortir de la caisse.",
+      "oneSessionPerSite": "Une seule caisse ouverte par site",
+      "oneSessionPerSiteHint": "Désactivez pour permettre une caisse par caissier sur un même site.",
+      "categories": "Catégories de dépenses",
+      "categoryPlaceholder": "Nouvelle catégorie",
+      "addCategory": "Ajouter",
+      "removeCategory": "Retirer {name}",
+      "save": "Enregistrer",
+      "saved": "Réglages de caisse enregistrés.",
+      "readOnly": "Seul le propriétaire peut modifier ces réglages."
+    },
+    "cancel": "Annuler",
+    "newExpense": "Nouvelle dépense"
   },
   "workshop": {
     "title": "Atelier",

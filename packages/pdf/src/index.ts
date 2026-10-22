@@ -36,6 +36,7 @@ export {
   type InvoicePdfLine,
   type ReceiptPdfData,
 } from "./invoice";
+export { CashClosingDocument, renderCashClosingPdf, type CashClosingPdfData } from "./cashClosing";
 export {
   renderReportPdf,
   ReportDocument,

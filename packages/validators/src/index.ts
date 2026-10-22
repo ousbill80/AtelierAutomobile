@@ -398,9 +398,13 @@ export {
   allocatePaymentInputSchema,
   cashDropInputSchema,
   cashExpenseInputSchema,
+  cashExpensesInputSchema,
+  cashSessionInputSchema,
   cashSessionsInputSchema,
+  cashSettingsInputSchema,
   cashSiteInputSchema,
   closeCashInputSchema,
+  decideExpenseInputSchema,
   createDepositInputSchema,
   createDirectInvoiceInputSchema,
   createFromQuoteInputSchema,
@@ -422,6 +426,7 @@ export {
   suggestAllocationInputSchema,
   updateDueDateInputSchema,
   updateInvoiceInputSchema,
+  uploadExpenseReceiptInputSchema,
 } from "./billing";
 export * from "./workshop";
 

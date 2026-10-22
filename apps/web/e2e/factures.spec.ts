@@ -18,7 +18,7 @@ async function typeAmount(
 ) {
   const input = (scope ?? page).getByLabel(label);
   await input.click();
-  await input.press("Control+A");
+  await input.press("ControlOrMeta+A");
   await input.pressSequentially(value);
   await input.blur();
 }

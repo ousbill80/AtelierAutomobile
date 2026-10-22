@@ -1201,6 +1201,9 @@ model CashSession {                              // ouverture / clôture de cais
   reviewedById   String?                       // CLOSED → REVIEWED (cash:review)
   reviewedAt     DateTime?
   reviewComment  String?                       // M08 (hors §14) : commentaire de validation de l'écart
+  // M08 §14 (caisse et clôture) : instantané figé à la clôture — totaux par mode de paiement,
+  // dépenses, versements, remboursements, espèces attendues/comptées, nombres d'opérations (Z de caisse)
+  closingSummary Json?
   @@index([organizationId, siteId, closedAt])
 }
 
@@ -1215,9 +1218,16 @@ model Expense {                                  // décaissements de caisse (pe
   paidAt         DateTime
   createdById    String?
   // M08 (hors §14) : justificatif (US-M08-12) et validation au-delà de settings.cash.expenseApproval (RG-M08-30)
-  attachmentId   String?
+  attachmentId   String?                       // Attachment(entity = "expense")
   approvedById   String?
   approvedAt     DateTime?
+  // M08 §14 (caisse et clôture) : circuit de validation (RG-M08-30) — PENDING ne réduit pas
+  // les espèces attendues et bloque la clôture ; REJECTED garde la trace et le motif
+  status          ExpenseStatus @default(APPROVED)   // PENDING | APPROVED | REJECTED
+  rejectedById    String?
+  rejectedAt      DateTime?
+  decisionComment String?                      // motif du refus (obligatoire) ou commentaire de validation
+  @@index([organizationId, status, paidAt])
 }
 
 model CashDrop {                                 // M08 §14 — versement coffre / banque depuis la caisse (RG-M08-28)

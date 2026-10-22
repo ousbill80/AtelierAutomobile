@@ -10,6 +10,7 @@ import type { AppRouter } from "@/server/routers/_app";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDateTime } from "@/components/repair-orders/i18n";
 import { t } from "@/i18n/t";
+import { CashSettingsCard } from "@/components/cash/cash-settings";
 import { trpc } from "@/trpc/react";
 
 type Data = inferRouterOutputs<AppRouter>["paymentProviders"]["list"];
@@ -32,6 +33,7 @@ export default function PaymentSettingsPage() {
         <ProviderCard key={p.provider} row={p} onSaved={() => query.refetch()} />
       ))}
       <MerchantNumbers initial={data.merchantNumbers} />
+      <CashSettingsCard />
     </div>
   );
 }

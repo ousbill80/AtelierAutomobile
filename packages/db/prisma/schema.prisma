@@ -333,6 +333,7 @@ model Membership {
   cashSessionsClosed          CashSession[]         @relation("CashSessionClosedBy")
   expensesCreated             Expense[]             @relation("ExpenseCreatedBy")
   expensesApproved            Expense[]             @relation("ExpenseApprovedBy")
+  expensesRejected            Expense[]             @relation("ExpenseRejectedBy")
   cashSessionsReviewed        CashSession[]         @relation("CashSessionReviewedBy")
   cashDropsCreated            CashDrop[]            @relation("CashDropCreatedBy")
   refundsCreated              Refund[]              @relation("RefundCreatedBy")
@@ -2137,6 +2138,9 @@ model CashSession {
   reviewedById   String?
   reviewedAt     DateTime?
   reviewComment  String? // M08 (hors §14) : commentaire de validation de l'écart (cash.review)
+  // M08 §14 (caisse et clôture) : instantané figé à la clôture (totaux par mode, dépenses,
+  // versements, remboursements, nombres d'opérations) — source du Z de caisse.
+  closingSummary Json?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
@@ -2154,27 +2158,41 @@ model CashSession {
 
 model Expense {
   // décaissements de caisse (petites dépenses)
-  id             String    @id @default(cuid(2))
-  organizationId String
-  siteId         String
-  cashSessionId  String?
-  category       String
-  amount         Int
-  description    String
-  paidAt         DateTime
-  createdById    String?
+  id              String        @id @default(cuid(2))
+  organizationId  String
+  siteId          String
+  cashSessionId   String?
+  category        String
+  amount          Int
+  description     String
+  paidAt          DateTime
+  createdById     String?
   // M08 (hors §14) : justificatif (US-M08-12) et validation au-delà du seuil (RG-M08-30)
-  attachmentId   String?
-  approvedById   String?
-  approvedAt     DateTime?
+  attachmentId    String?
+  approvedById    String?
+  approvedAt      DateTime?
+  // M08 §14 (caisse et clôture) : circuit de validation au-delà du seuil (RG-M08-30) —
+  // PENDING ne réduit pas les espèces attendues ; REJECTED garde la trace et le motif.
+  status          ExpenseStatus @default(APPROVED)
+  rejectedById    String?
+  rejectedAt      DateTime?
+  decisionComment String?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
   cashSession  CashSession? @relation(fields: [cashSessionId], references: [id])
   createdBy    Membership?  @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
   approvedBy   Membership?  @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy   Membership?  @relation("ExpenseRejectedBy", fields: [rejectedById], references: [id])
 
   @@index([organizationId, siteId])
+  @@index([organizationId, status, paidAt])
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model CashDrop {

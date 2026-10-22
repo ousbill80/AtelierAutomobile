@@ -1,5 +1,6 @@
-// M04/M16 — GET /api/attachments/{id} : photo ou signature d'un OR, pièce d'un sinistre. Session + permission
-// `repair_order:read` + portée par site vérifiées ; l'objet est relu depuis le stockage.
+// M04/M08/M16 — GET /api/attachments/{id} : photo ou signature d'un OR, pièce d'un sinistre,
+// justificatif de dépense. Session + permission + portée par site vérifiées ; l'objet est relu
+// depuis le stockage.
 import { db } from "@atelieros/db";
 import { createContext } from "@/server/context";
 import { getAttachmentStorage } from "@/server/storage";
@@ -22,9 +23,27 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const attachment = await tenantDb.attachment.findFirst({ where: { id } });
   if (!attachment) return error(404, "Fichier introuvable.");
   // M16 : pièces d'un dossier sinistre → `insurance:read` + portée du site du dossier.
-  const permission = attachment.entity === "claim" ? "insurance:read" : "repair_order:read";
+  // M08 : justificatif de dépense de caisse → `payment:read` + portée du site de la dépense.
+  const permission =
+    attachment.entity === "claim"
+      ? "insurance:read"
+      : attachment.entity === "expense"
+        ? "payment:read"
+        : "repair_order:read";
   if (!ctx.permissions.has(permission)) {
     return error(403, `Permission manquante : ${permission}`);
+  }
+  if (attachment.entity === "expense") {
+    const expense = await tenantDb.expense.findFirst({
+      where: { id: attachment.entityId },
+      select: { siteId: true },
+    });
+    if (
+      !expense ||
+      (ctx.allowedSiteIds !== "ALL" && !ctx.allowedSiteIds.includes(expense.siteId))
+    ) {
+      return error(404, "Fichier introuvable.");
+    }
   }
   if (attachment.entity === "claim") {
     const claim = await tenantDb.insuranceClaim.findFirst({
