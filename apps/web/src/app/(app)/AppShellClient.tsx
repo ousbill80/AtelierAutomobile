@@ -7,7 +7,6 @@ import type { inferRouterOutputs } from "@trpc/server";
 import {
   BarChart3,
   Boxes,
-  Building2,
   Calendar,
   CalendarCheck,
   CalendarClock,
@@ -18,22 +17,15 @@ import {
   ClipboardList,
   Copy,
   CreditCard,
-  FileCode,
-  FileSignature,
   FileText,
-  FolderCog,
   HandCoins,
   History,
-  KeyRound,
   Landmark,
-  Layers,
   LayoutDashboard,
   ListChecks,
   MessageSquare,
-  Radio,
   Receipt,
   Send,
-  Shield,
   ShieldCheck,
   ShoppingCart,
   Sliders,
@@ -43,7 +35,6 @@ import {
   UploadCloud,
   Users,
   Wallet,
-  Webhook,
   Wrench,
 } from "lucide-react";
 import {
@@ -68,6 +59,7 @@ import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
 import { GlobalSearch } from "@/components/global-search";
+import { SETTINGS_PERMISSIONS } from "./parametres/settings-nav";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
 
@@ -363,140 +355,13 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
           permission: "import:run",
         },
       ]),
-      group("settings", t("nav.settings"), <Sliders size={17} strokeWidth={2} />, [
-        {
-          href: "/parametres/garage",
-          label: t("nav.settingsGarage"),
-          icon: <Building2 size={16} strokeWidth={2} />,
-          permission: "settings:update",
-        },
-        {
-          href: "/parametres/equipe",
-          label: t("nav.settingsTeam"),
-          icon: <Users size={16} strokeWidth={2} />,
-          permission: "member:read",
-        },
-        {
-          href: "/parametres/roles",
-          label: t("nav.settingsRoles"),
-          icon: <Shield size={16} strokeWidth={2} />,
-          permission: "role:manage",
-        },
-        {
-          href: "/parametres/sites",
-          label: t("nav.settingsSites"),
-          icon: <Building2 size={16} strokeWidth={2} />,
-          permission: "site:manage",
-        },
-        {
-          href: "/parametres/jours-feries",
-          label: t("nav.settingsHolidays"),
-          icon: <CalendarRange size={16} strokeWidth={2} />,
-          permission: "site:manage",
-        },
-        {
-          href: "/parametres/journal",
-          label: t("nav.settingsJournal"),
-          icon: <History size={16} strokeWidth={2} />,
-          permission: "audit:read",
-        },
-        {
-          href: "/parametres/canaux",
-          label: t("nav.settingsChannels"),
-          icon: <Radio size={16} strokeWidth={2} />,
-          permission: "settings:channels",
-        },
-        {
-          href: "/parametres/modeles",
-          label: t("nav.settingsTemplates"),
-          icon: <FileCode size={16} strokeWidth={2} />,
-          permission: "template:manage",
-        },
-        {
-          href: "/parametres/relances",
-          label: t("nav.settingsReminderRules"),
-          icon: <Sliders size={16} strokeWidth={2} />,
-          permission: "reminder:rules_manage",
-        },
-        {
-          href: "/parametres/automatisations",
-          label: t("nav.settingsAutomations"),
-          icon: <Sparkles size={16} strokeWidth={2} />,
-          permission: ["ai:configure", "reminder:rules_manage"],
-        },
-        {
-          href: "/parametres/planning",
-          label: t("nav.settingsPlanning"),
-          icon: <CalendarRange size={16} strokeWidth={2} />,
-          permission: "planning:manage",
-        },
-        {
-          href: "/parametres/ordres",
-          label: t("nav.settingsRepairOrders"),
-          icon: <FolderCog size={16} strokeWidth={2} />,
-          permission: "settings:update",
-        },
-        {
-          href: "/parametres/inspection",
-          label: t("nav.settingsInspection"),
-          icon: <ListChecks size={16} strokeWidth={2} />,
-          permission: "inspection:template_manage",
-        },
-        {
-          href: "/parametres/devis",
-          label: t("nav.settingsQuotes"),
-          icon: <FileSignature size={16} strokeWidth={2} />,
-          permission: "settings:update",
-        },
-        {
-          href: "/parametres/catalogue-mo",
-          label: t("nav.settingsLaborCatalog"),
-          icon: <Layers size={16} strokeWidth={2} />,
-          permission: "labor_catalog:manage",
-        },
-        {
-          href: "/parametres/documents",
-          label: t("nav.settingsDocuments"),
-          icon: <FileText size={16} strokeWidth={2} />,
-          permission: "settings:read",
-        },
-        {
-          href: "/parametres/fne",
-          label: t("nav.settingsFne"),
-          icon: <Receipt size={16} strokeWidth={2} />,
-          permission: "settings:fne",
-        },
-        {
-          href: "/parametres/paiements",
-          label: t("nav.settingsPayments"),
-          icon: <CreditCard size={16} strokeWidth={2} />,
-          permission: "settings:payments",
-        },
-        {
-          href: "/parametres/ia",
-          label: t("nav.settingsAi"),
-          icon: <Sparkles size={16} strokeWidth={2} />,
-          permission: "ai:configure",
-        },
-        {
-          href: "/parametres/abonnement",
-          label: t("nav.settingsSubscription"),
-          icon: <KeyRound size={16} strokeWidth={2} />,
-          permission: "settings:billing",
-        },
-        {
-          href: "/parametres/donnees",
-          label: t("nav.settingsData"),
-          icon: <Shield size={16} strokeWidth={2} />,
-          permission: "settings:billing",
-        },
-        {
-          href: "/parametres/api",
-          label: t("nav.settingsApi"),
-          icon: <Webhook size={16} strokeWidth={2} />,
-          permission: "settings:update",
-        },
-      ]),
+      // Les pages de paramètres ont leur propre menu à gauche : lien simple ici.
+      link({
+        href: "/parametres",
+        label: t("nav.settings"),
+        icon: <Sliders size={17} strokeWidth={2} />,
+        permission: SETTINGS_PERMISSIONS,
+      }),
     ];
   }, [isMechanic, isRemindersOnly]);
 
