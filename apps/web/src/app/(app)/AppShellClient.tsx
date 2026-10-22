@@ -396,20 +396,6 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         collapseLabel={t("nav.collapseSidebar")}
         expandLabel={t("nav.expandSidebar")}
         footer={!collapsed ? <span>{t("nav.sidebarFooter")}</span> : null}
-        bottom={
-          has(SETTINGS_PERMISSIONS) &&
-          (!menuFilter.trim() ||
-            t("nav.settings").toLowerCase().includes(menuFilter.trim().toLowerCase())) ? (
-            // Les pages de paramètres ont leur propre menu à gauche : lien simple, ancré en bas.
-            <NavItem
-              as={Link}
-              href="/parametres"
-              label={t("nav.settings")}
-              icon={<Sliders size={17} strokeWidth={2} />}
-              active={pathname.startsWith("/parametres")}
-            />
-          ) : null
-        }
         search={
           !collapsed ? (
             <SidebarSearch
@@ -464,6 +450,20 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
             </NavGroup>
           );
         })}
+
+        {has(SETTINGS_PERMISSIONS) &&
+        (!menuFilter.trim() ||
+          t("nav.settings").toLowerCase().includes(menuFilter.trim().toLowerCase())) ? (
+          // Les pages de paramètres ont leur propre menu à gauche : lien simple, en fin de liste.
+          <NavItem
+            as={Link}
+            href="/parametres"
+            label={t("nav.settings")}
+            icon={<Sliders size={17} strokeWidth={2} />}
+            active={pathname.startsWith("/parametres")}
+            className="nav-item-separated"
+          />
+        ) : null}
 
         {filteredEntries.length === 0 ? (
           <div className="px-3 py-4 text-center text-xs text-white/70">{t("nav.noMenuFound")}</div>

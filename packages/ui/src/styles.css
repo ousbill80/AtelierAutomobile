@@ -76,6 +76,8 @@ button{font-family:inherit;}
 .sidebar-search-clear:hover{color:oklch(98% 0 0);}
 .sidebar.collapsed .sidebar-search-box{display:none;}
 .sidebar-nav{flex:1;padding:8px 8px 12px;display:flex;flex-direction:column;gap:2px;}
+.nav-item.nav-item-separated{margin-top:8px;}
+.nav-item.nav-item-separated::after{content:"";position:absolute;left:10px;right:10px;top:-5px;height:1px;background:oklch(100% 0 0 / 0.1);}
 .sidebar-bottom{flex-shrink:0;display:flex;flex-direction:column;gap:2px;padding:8px;border-top:1px solid oklch(100% 0 0 / 0.08);}
 .sidebar-section{display:flex;flex-direction:column;gap:2px;}
 .sidebar-section-header{
