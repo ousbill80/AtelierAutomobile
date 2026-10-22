@@ -2,6 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Building2,
+  CheckCircle2,
+  Database,
+  LayoutGrid,
+  MessageSquare,
+  Settings2,
+  Users,
+  Wrench,
+  MapPin,
+  Phone,
+  FileText,
+  Sparkles,
+  Bell,
+} from "lucide-react";
 import { Button, Card, Field, Input, PhoneInput, Select, Stepper, Switch } from "@atelieros/ui";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
@@ -75,7 +90,11 @@ function Wizard({ initialStep }: { initialStep: number }) {
 
   return (
     <Card>
-      <h1>{t("onboarding.title")}</h1>
+      <div className="onboarding-header">
+        <div className="onboarding-logo">A</div>
+        <h1>{t("onboarding.title")}</h1>
+        <p className="sub">{t("onboarding.subtitle")}</p>
+      </div>
       <Stepper steps={steps} currentKey={currentKey} doneKeys={doneKeys} />
       {error ? <p className="error">{error}</p> : null}
       {currentKey === "garage" ? (
@@ -159,21 +178,53 @@ function GarageStep({
 
   return (
     <form onSubmit={handleSubmit} className="stack">
-      <h2>{t("onboarding.garage.title")}</h2>
+      <div>
+        <h2 className="onboarding-step-title">
+          <span className="icon">
+            <Building2 size={18} />
+          </span>
+          {t("onboarding.garage.title")}
+        </h2>
+        <p className="onboarding-step-desc">{t("onboarding.garage.description")}</p>
+      </div>
       <Field label={t("onboarding.garage.nameLabel")}>
-        <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={1} />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          minLength={1}
+          placeholder="Ex: Garage Central Abidjan"
+          leftIcon={<Building2 size={16} />}
+        />
       </Field>
       <Field label={`${t("onboarding.garage.legalNameLabel")} ${t("common.optional")}`}>
-        <Input value={legalName} onChange={(e) => setLegalName(e.target.value)} />
+        <Input
+          value={legalName}
+          onChange={(e) => setLegalName(e.target.value)}
+          placeholder="Ex: SARL Garage Central"
+          leftIcon={<FileText size={16} />}
+        />
       </Field>
-      <Field label={`${t("onboarding.garage.communeLabel")} ${t("common.optional")}`}>
-        <Input value={commune} onChange={(e) => setCommune(e.target.value)} />
-      </Field>
+      <div className="grid-2">
+        <Field label={`${t("onboarding.garage.communeLabel")} ${t("common.optional")}`}>
+          <Input
+            value={commune}
+            onChange={(e) => setCommune(e.target.value)}
+            placeholder="Ex: Cocody"
+            leftIcon={<MapPin size={16} />}
+          />
+        </Field>
+        <Field label={`${t("onboarding.garage.phoneLabel")} ${t("common.optional")}`}>
+          <PhoneInput value={phone} onChange={setPhone} />
+        </Field>
+      </div>
       <Field label={`${t("onboarding.garage.addressLabel")} ${t("common.optional")}`}>
-        <Input value={address} onChange={(e) => setAddress(e.target.value)} />
-      </Field>
-      <Field label={`${t("onboarding.garage.phoneLabel")} ${t("common.optional")}`}>
-        <PhoneInput value={phone} onChange={setPhone} />
+        <Input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Ex: Boulevard Lagunaire, Lot 45"
+          leftIcon={<MapPin size={16} />}
+        />
       </Field>
       <Button type="submit" block loading={loading}>
         {t("common.next")}
@@ -199,9 +250,24 @@ function WorkshopStep({
 
   return (
     <form onSubmit={handleSubmit} className="stack">
-      <h2>{t("onboarding.workshop.title")}</h2>
+      <div>
+        <h2 className="onboarding-step-title">
+          <span className="icon">
+            <Wrench size={18} />
+          </span>
+          {t("onboarding.workshop.title")}
+        </h2>
+        <p className="onboarding-step-desc">{t("onboarding.workshop.description")}</p>
+      </div>
       <Field label={t("onboarding.workshop.nameLabel")}>
-        <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={1} />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          minLength={1}
+          placeholder="Ex: Atelier Principal"
+          leftIcon={<Wrench size={16} />}
+        />
       </Field>
       <Field label={t("onboarding.workshop.codeLabel")} hint={t("onboarding.workshop.codeHint")}>
         <Input
@@ -211,6 +277,8 @@ function WorkshopStep({
           minLength={2}
           maxLength={10}
           pattern="[A-Z0-9]+"
+          placeholder="Ex: ATL01"
+          leftIcon={<Settings2 size={16} />}
         />
       </Field>
       <Button type="submit" block loading={loading}>
@@ -229,24 +297,42 @@ function ModeStep({
 }) {
   return (
     <div className="stack">
-      <h2>{t("onboarding.mode.title")}</h2>
+      <div>
+        <h2 className="onboarding-step-title">
+          <span className="icon">
+            <LayoutGrid size={18} />
+          </span>
+          {t("onboarding.mode.title")}
+        </h2>
+        <p className="onboarding-step-desc">{t("onboarding.mode.description")}</p>
+      </div>
       <button
         type="button"
-        className="card"
+        className="onboarding-mode-card"
         disabled={loading}
         onClick={() => onSubmit({ operatingMode: "FULL" })}
       >
-        <strong>{t("onboarding.mode.full")}</strong>
-        <p>{t("onboarding.mode.fullDescription")}</p>
+        <div className="onboarding-mode-icon">
+          <Sparkles size={20} />
+        </div>
+        <div className="onboarding-mode-body">
+          <div className="onboarding-mode-title">{t("onboarding.mode.full")}</div>
+          <div className="onboarding-mode-desc">{t("onboarding.mode.fullDescription")}</div>
+        </div>
       </button>
       <button
         type="button"
-        className="card"
+        className="onboarding-mode-card"
         disabled={loading}
         onClick={() => onSubmit({ operatingMode: "REMINDERS_ONLY" })}
       >
-        <strong>{t("onboarding.mode.remindersOnly")}</strong>
-        <p>{t("onboarding.mode.remindersOnlyDescription")}</p>
+        <div className="onboarding-mode-icon">
+          <Bell size={20} />
+        </div>
+        <div className="onboarding-mode-body">
+          <div className="onboarding-mode-title">{t("onboarding.mode.remindersOnly")}</div>
+          <div className="onboarding-mode-desc">{t("onboarding.mode.remindersOnlyDescription")}</div>
+        </div>
       </button>
     </div>
   );
@@ -293,8 +379,15 @@ function TeamStep({
 
   return (
     <form onSubmit={handleSubmit} className="stack">
-      <h2>{t("onboarding.team.title")}</h2>
-      <p>{t("onboarding.team.description")}</p>
+      <div>
+        <h2 className="onboarding-step-title">
+          <span className="icon">
+            <Users size={18} />
+          </span>
+          {t("onboarding.team.title")}
+        </h2>
+        <p className="onboarding-step-desc">{t("onboarding.team.description")}</p>
+      </div>
       {invitations.map((inv, i) => (
         <Card key={i}>
           <Field label={t("onboarding.team.nameLabel")}>
@@ -379,15 +472,24 @@ function ChannelsStep({
 
   return (
     <form onSubmit={handleSubmit} className="stack">
-      <h2>{t("onboarding.channels.title")}</h2>
-      <p>{t("onboarding.channels.description")}</p>
+      <div>
+        <h2 className="onboarding-step-title">
+          <span className="icon">
+            <MessageSquare size={18} />
+          </span>
+          {t("onboarding.channels.title")}
+        </h2>
+        <p className="onboarding-step-desc">{t("onboarding.channels.description")}</p>
+      </div>
       <Switch
         label={t("onboarding.channels.smsEnabled")}
+        showLabel
         checked={smsEnabled}
         onChange={(e) => setSmsEnabled(e.target.checked)}
       />
       <Switch
         label={t("onboarding.channels.emailEnabled")}
+        showLabel
         checked={emailEnabled}
         onChange={(e) => setEmailEnabled(e.target.checked)}
       />
@@ -415,11 +517,29 @@ function DataStep({
 }) {
   return (
     <div className="stack">
-      <h2>{t("onboarding.data.title")}</h2>
-      <p>{t("onboarding.data.description")}</p>
-      <Button block loading={loading} onClick={onDemo}>
-        {t("onboarding.data.demo")}
-      </Button>
+      <div>
+        <h2 className="onboarding-step-title">
+          <span className="icon">
+            <Database size={18} />
+          </span>
+          {t("onboarding.data.title")}
+        </h2>
+        <p className="onboarding-step-desc">{t("onboarding.data.description")}</p>
+      </div>
+      <button
+        type="button"
+        className="onboarding-mode-card"
+        disabled={loading}
+        onClick={onDemo}
+      >
+        <div className="onboarding-mode-icon">
+          <Sparkles size={20} />
+        </div>
+        <div className="onboarding-mode-body">
+          <div className="onboarding-mode-title">{t("onboarding.data.demo")}</div>
+          <div className="onboarding-mode-desc">{t("onboarding.data.demoDescription")}</div>
+        </div>
+      </button>
       <Button variant="ghost" block onClick={onSkip} disabled={loading}>
         {t("onboarding.data.skip")}
       </Button>
@@ -429,9 +549,18 @@ function DataStep({
 
 function DoneStep({ loading, onFinish }: { loading: boolean; onFinish: () => void }) {
   return (
-    <div className="stack">
-      <h2>{t("onboarding.done.title")}</h2>
-      <p>{t("onboarding.done.description")}</p>
+    <div className="stack" style={{ textAlign: "center" }}>
+      <div className="onboarding-done-icon">
+        <CheckCircle2 size={48} />
+      </div>
+      <div>
+        <h2 className="onboarding-step-title" style={{ justifyContent: "center" }}>
+          {t("onboarding.done.title")}
+        </h2>
+        <p className="onboarding-step-desc" style={{ marginBottom: 0 }}>
+          {t("onboarding.done.description")}
+        </p>
+      </div>
       <Button block loading={loading} onClick={onFinish}>
         {t("onboarding.finish")}
       </Button>

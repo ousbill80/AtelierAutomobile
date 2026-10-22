@@ -192,12 +192,60 @@ export const cashDropInputSchema = z.object({
   amount: positive,
   destination: z.enum(["safe", "bank"]),
   reference: z.string().trim().max(100).optional(),
+  /** M18 : compte de trésorerie destinataire (coffre, banque…) ; prioritaire sur `destination`. */
+  toAccountId: z.string().min(1).optional(),
 });
 
 export const cashSessionsInputSchema = z.object({
   siteId: id.optional(),
+  /** Période d'ouverture (dates métier, fuseau de l'organisation), bornes incluses. */
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  status: z.enum(["open", "to_review", "reviewed", "variance", "late"]).optional(),
+  openedById: id.optional(),
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(30),
+});
+
+export const cashSessionInputSchema = z.object({ id });
+
+export const decideExpenseInputSchema = z.object({
+  id,
+  decision: z.enum(["approve", "reject"]),
+  comment: z.string().trim().max(500).optional(),
+});
+
+export const cashExpensesInputSchema = z.object({
+  siteId: id.optional(),
+  status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
+  category: z.string().trim().min(1).max(60).optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  cursor: z.string().optional(),
+  limit: z.number().int().min(1).max(100).default(30),
+});
+
+/** Justificatif de dépense (US-M08-12) : photo compressée côté navigateur ou PDF. */
+export const uploadExpenseReceiptInputSchema = z.object({
+  expenseId: id,
+  mimeType: z.enum(["image/webp", "image/jpeg", "image/png", "application/pdf"]),
+  /** Contenu en base64 (sans préfixe data:). */
+  dataBase64: z.string().min(4).max(14_000_000),
+});
+
+/** RG-M08-29/30 — réglages de caisse (`settings.cash`). */
+export const cashSettingsInputSchema = z.object({
+  varianceAlert: z.number().int().min(0).max(10_000_000),
+  expenseApproval: z.number().int().min(0).max(100_000_000),
+  oneSessionPerSite: z.boolean(),
+  expenseCategories: z
+    .array(z.string().trim().min(1, "Nom de catégorie vide.").max(60))
+    .min(1, "Gardez au moins une catégorie.")
+    .max(30)
+    .refine(
+      (list) => new Set(list.map((c) => c.toLowerCase())).size === list.length,
+      "Deux catégories portent le même nom.",
+    ),
 });
 
 export const accountingExportInputSchema = z

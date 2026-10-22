@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Car, ChevronRight, Save, Search, User, UserPlus, X } from "lucide-react";
 import { formatFCFA } from "@atelieros/core/money";
 import { CHECK_IN_ITEM_KEYS, WARNING_LIGHTS, lineAmounts } from "@atelieros/core/repairOrders";
 import {
@@ -381,8 +382,22 @@ export function ReceptionWizard({
   );
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <h1 className="text-2xl font-semibold">{t("reception.title")}</h1>
+    <div className="flex w-full min-w-0 flex-col gap-5">
+      <header className="flex flex-col gap-2">
+        <Link
+          href="/ordres"
+          className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-muted hover:text-foreground"
+        >
+          <ArrowLeft size={16} aria-hidden /> {t("back")}
+        </Link>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <h1 className="text-2xl font-semibold">{t("reception.title")}</h1>
+          <span className="text-sm font-medium text-muted">
+            {t("reception.stepOf", { current: draft.step + 1, total: STEPS.length })} ·{" "}
+            {t(`reception.steps.${step}`)}
+          </span>
+        </div>
+      </header>
       {pendingSync && (
         <div
           role="status"
@@ -394,7 +409,7 @@ export function ReceptionWizard({
           </Button>
         </div>
       )}
-      <div className="max-w-full overflow-x-auto">
+      <div className="max-w-full overflow-x-auto rounded-xl border border-border bg-surface px-5 pt-5 sm:px-8">
         <Stepper
           steps={STEPS.map((key) => ({ key, label: t(`reception.steps.${key}`) }))}
           currentKey={step}
@@ -402,153 +417,155 @@ export function ReceptionWizard({
         />
       </div>
 
-      {step === "vehicle" && (
-        <VehicleStep
-          draft={draft}
-          initialVehicleId={initialVehicleId}
-          onSelect={(hit) =>
-            update({
-              hit,
-              comebackOfId: undefined,
-              mileage: hit?.vehicle.currentMileage ? String(hit.vehicle.currentMileage) : "",
-            })
-          }
-          onComeback={(id) => update({ comebackOfId: id })}
-          estimate={estimate}
-        />
-      )}
-
-      {step === "meter" && <MeterStep draft={draft} update={update} />}
-
-      {step === "condition" && (
-        <ConditionStep
-          draft={draft}
-          minPhotos={settings.data?.minCheckInPhotos ?? 4}
-          update={update}
-          onCapture={capture}
-          onRetry={async (slot) => {
-            const photo = draft.photos.find((p) => p.slot === slot);
-            if (photo) setPhoto(await uploadPhoto({ ...photo, status: "uploading" }));
-          }}
-        />
-      )}
-
-      {step === "items" && (
-        <section className="flex flex-col gap-4">
-          <fieldset className="flex flex-col gap-3">
-            <legend className="mb-1 text-sm font-medium">{t("reception.items")}</legend>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 self-start"
-              onClick={() =>
-                update({
-                  items: {
-                    ...draft.items,
-                    ...Object.fromEntries(STANDARD_KIT_KEYS.map((key) => [key, true])),
-                  },
-                })
-              }
-            >
-              {t("reception.kitStandard")}
-            </Button>
-            {(Object.keys(ITEM_CATEGORIES) as Array<keyof typeof ITEM_CATEGORIES>).map((cat) => (
-              <div key={cat} className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  {t(`reception.itemsCategory.${cat}`)}
-                </span>
-                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                  {ITEM_CATEGORIES[cat].map((key) => (
-                    <label
-                      key={key}
-                      className="flex min-h-11 items-center gap-2 rounded-md bg-surface px-2 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-5 w-5"
-                        checked={Boolean(draft.items[key])}
-                        onChange={(e) =>
-                          update({ items: { ...draft.items, [key]: e.target.checked } })
-                        }
-                      />
-                      {t(`checkInItems.${key}`)}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </fieldset>
-          <Input
-            label={t("reception.keysCount")}
-            inputMode="numeric"
-            value={draft.keysCount}
-            onChange={(e) => update({ keysCount: e.target.value.replace(/[^\d]/g, "") })}
+      <div className="flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-surface p-5 sm:p-8">
+        {step === "vehicle" && (
+          <VehicleStep
+            draft={draft}
+            initialVehicleId={initialVehicleId}
+            onSelect={(hit) =>
+              update({
+                hit,
+                comebackOfId: undefined,
+                mileage: hit?.vehicle.currentMileage ? String(hit.vehicle.currentMileage) : "",
+              })
+            }
+            onComeback={(id) => update({ comebackOfId: id })}
+            estimate={estimate}
           />
-          <label className="flex flex-col gap-1 text-sm">
-            <span>{t("reception.belongings")}</span>
-            <Textarea
-              value={draft.belongings}
-              placeholder={t("reception.belongingsPlaceholder")}
-              onChange={(e) => update({ belongings: e.target.value })}
-            />
-          </label>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-5 w-5"
-              checked={draft.returnOldParts}
-              onChange={(e) => update({ returnOldParts: e.target.checked })}
-            />
-            {t("reception.returnOldParts")}
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span>{t("reception.dropOff")}</span>
-            <Select
-              value={draft.dropOffBy}
-              onChange={(e) => update({ dropOffBy: e.target.value as Draft["dropOffBy"] })}
-            >
-              {(["OWNER", "DRIVER", "TOW", "OTHER"] as const).map((by) => (
-                <option key={by} value={by}>
-                  {t(`reception.dropOffBy.${by}`)}
-                </option>
+        )}
+
+        {step === "meter" && <MeterStep draft={draft} update={update} />}
+
+        {step === "condition" && (
+          <ConditionStep
+            draft={draft}
+            minPhotos={settings.data?.minCheckInPhotos ?? 4}
+            update={update}
+            onCapture={capture}
+            onRetry={async (slot) => {
+              const photo = draft.photos.find((p) => p.slot === slot);
+              if (photo) setPhoto(await uploadPhoto({ ...photo, status: "uploading" }));
+            }}
+          />
+        )}
+
+        {step === "items" && (
+          <section className="flex flex-col gap-4">
+            <fieldset className="flex flex-col gap-3">
+              <legend className="mb-1 text-sm font-medium">{t("reception.items")}</legend>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 self-start"
+                onClick={() =>
+                  update({
+                    items: {
+                      ...draft.items,
+                      ...Object.fromEntries(STANDARD_KIT_KEYS.map((key) => [key, true])),
+                    },
+                  })
+                }
+              >
+                {t("reception.kitStandard")}
+              </Button>
+              {(Object.keys(ITEM_CATEGORIES) as Array<keyof typeof ITEM_CATEGORIES>).map((cat) => (
+                <div key={cat} className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    {t(`reception.itemsCategory.${cat}`)}
+                  </span>
+                  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                    {ITEM_CATEGORIES[cat].map((key) => (
+                      <label
+                        key={key}
+                        className="flex min-h-11 items-center gap-2 rounded-md bg-surface px-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-5 w-5"
+                          checked={Boolean(draft.items[key])}
+                          onChange={(e) =>
+                            update({ items: { ...draft.items, [key]: e.target.checked } })
+                          }
+                        />
+                        {t(`checkInItems.${key}`)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ))}
-            </Select>
-          </label>
-          {draft.dropOffBy !== "OWNER" && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Input
-                label={t("reception.dropOffName")}
-                value={draft.dropOffName}
-                onChange={(e) => update({ dropOffName: e.target.value })}
+            </fieldset>
+            <Input
+              label={t("reception.keysCount")}
+              inputMode="numeric"
+              value={draft.keysCount}
+              onChange={(e) => update({ keysCount: e.target.value.replace(/[^\d]/g, "") })}
+            />
+            <label className="flex flex-col gap-1 text-sm">
+              <span>{t("reception.belongings")}</span>
+              <Textarea
+                value={draft.belongings}
+                placeholder={t("reception.belongingsPlaceholder")}
+                onChange={(e) => update({ belongings: e.target.value })}
               />
-              <Input
-                label={t("reception.dropOffPhone")}
-                inputMode="tel"
-                value={draft.dropOffPhone}
-                onChange={(e) => update({ dropOffPhone: e.target.value })}
+            </label>
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-5 w-5"
+                checked={draft.returnOldParts}
+                onChange={(e) => update({ returnOldParts: e.target.checked })}
               />
-            </div>
-          )}
-        </section>
-      )}
+              {t("reception.returnOldParts")}
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span>{t("reception.dropOff")}</span>
+              <Select
+                value={draft.dropOffBy}
+                onChange={(e) => update({ dropOffBy: e.target.value as Draft["dropOffBy"] })}
+              >
+                {(["OWNER", "DRIVER", "TOW", "OTHER"] as const).map((by) => (
+                  <option key={by} value={by}>
+                    {t(`reception.dropOffBy.${by}`)}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            {draft.dropOffBy !== "OWNER" && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  label={t("reception.dropOffName")}
+                  value={draft.dropOffName}
+                  onChange={(e) => update({ dropOffName: e.target.value })}
+                />
+                <Input
+                  label={t("reception.dropOffPhone")}
+                  inputMode="tel"
+                  value={draft.dropOffPhone}
+                  onChange={(e) => update({ dropOffPhone: e.target.value })}
+                />
+              </div>
+            )}
+          </section>
+        )}
 
-      {step === "complaint" && (
-        <ComplaintStep
-          draft={draft}
-          update={update}
-          defaultCeiling={settings.data?.defaultAuthorizationCeiling ?? 0}
-        />
-      )}
+        {step === "complaint" && (
+          <ComplaintStep
+            draft={draft}
+            update={update}
+            defaultCeiling={settings.data?.defaultAuthorizationCeiling ?? 0}
+          />
+        )}
 
-      {step === "signature" && (
-        <SignatureStep
-          draft={draft}
-          update={update}
-          estimate={estimate}
-          minPhotos={settings.data?.minCheckInPhotos ?? 4}
-          defaultCeiling={settings.data?.defaultAuthorizationCeiling ?? 0}
-        />
-      )}
+        {step === "signature" && (
+          <SignatureStep
+            draft={draft}
+            update={update}
+            estimate={estimate}
+            minPhotos={settings.data?.minCheckInPhotos ?? 4}
+            defaultCeiling={settings.data?.defaultAuthorizationCeiling ?? 0}
+          />
+        )}
+      </div>
 
       {error && (
         <p
@@ -575,6 +592,7 @@ export function ReceptionWizard({
         </Button>
         <Button
           variant="ghost"
+          className="min-h-11"
           disabled={!draft.hit}
           onClick={() => {
             void saveDraft({
@@ -586,14 +604,18 @@ export function ReceptionWizard({
             setNotice(t("reception.draftSaved"));
           }}
         >
-          {t("reception.saveDraft")}
+          <Save size={16} aria-hidden /> {t("reception.saveDraft")}
         </Button>
         {draft.step < STEPS.length - 1 ? (
-          <Button disabled={!canNext} onClick={() => update({ step: draft.step + 1 })}>
+          <Button
+            className="min-h-11"
+            disabled={!canNext}
+            onClick={() => update({ step: draft.step + 1 })}
+          >
             {t("reception.next")} →
           </Button>
         ) : (
-          <Button onClick={() => void submit()} loading={submitting}>
+          <Button className="min-h-11" onClick={() => void submit()} loading={submitting}>
             {submitting ? t("reception.submitting") : t("reception.submit")}
           </Button>
         )}
@@ -696,12 +718,114 @@ function VehicleStep({
     );
   }
 
+  const searching = debounced.length >= 2 && lookup.isFetching;
   return (
-    <section className="flex flex-col gap-3">
-      <DocumentCapture
-        kinds={["VEHICLE_REGISTRATION", "INSPECTION_STICKER"]}
-        onExtracted={(result) => void onDocumentExtracted(result)}
-      />
+    <section className="flex flex-col gap-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2">
+          <Car size={18} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold">{t("reception.searchTitle")}</h2>
+          <p className="text-sm text-muted">{t("reception.searchDescription")}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="reception-search" className="text-sm font-medium">
+          {t("reception.searchLabel")}
+        </label>
+        <div className="flex h-14 items-center gap-3 rounded-lg border border-border bg-bg px-4 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+          <Search size={20} aria-hidden className="shrink-0 text-muted" />
+          <input
+            id="reception-search"
+            className="min-w-0 flex-1 bg-transparent text-lg outline-none placeholder:text-muted"
+            placeholder={t("reception.searchPlaceholder")}
+            value={q}
+            autoFocus
+            autoComplete="off"
+            aria-describedby="reception-search-hint"
+            onChange={(e) => setQ(e.target.value)}
+          />
+          {q && (
+            <button
+              type="button"
+              aria-label={t("close")}
+              onClick={() => setQ("")}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-foreground"
+            >
+              <X size={16} aria-hidden />
+            </button>
+          )}
+        </div>
+        <p id="reception-search-hint" className="text-xs text-muted">
+          {t("reception.searchHint")}
+        </p>
+      </div>
+
+      {searching && (
+        <div className="flex flex-col gap-2" aria-busy="true">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-lg bg-surface-2" />
+          ))}
+        </div>
+      )}
+      {lookup.data && lookup.data.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {lookup.data.map((hit) => (
+            <li key={hit.vehicle.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(hit)}
+                className="group flex min-h-11 w-full items-center gap-3 rounded-lg border border-border bg-surface p-3 text-left transition-colors hover:border-accent hover:bg-bg"
+              >
+                <span className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <PlateBadge plate={hit.vehicle.plate} />
+                    <span className="font-medium">
+                      {hit.vehicle.make} {hit.vehicle.model}
+                    </span>
+                    <span className="flex items-center gap-1 text-sm text-muted">
+                      <User size={13} aria-hidden /> {hit.customer.displayName}
+                    </span>
+                  </span>
+                  <Alerts hit={hit} />
+                </span>
+                <ChevronRight
+                  size={18}
+                  aria-hidden
+                  className="shrink-0 text-muted group-hover:text-accent"
+                />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {lookup.data && lookup.data.length === 0 && !searching && !extractedPlate && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border p-4 text-sm">
+          <span className="text-muted">{t("reception.noResult")}</span>
+          <Link href="/clients/nouveau" className="btn btn-secondary btn-sm min-h-11">
+            <UserPlus size={14} aria-hidden /> {t("reception.createCustomer")}
+          </Link>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-muted">
+        <span className="h-px flex-1 bg-border" />
+        {t("reception.or")}
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">{t("reception.scanTitle")}</h3>
+          <p className="text-xs text-muted">{t("reception.scanDescription")}</p>
+        </div>
+        <DocumentCapture
+          kinds={["VEHICLE_REGISTRATION", "INSPECTION_STICKER"]}
+          onExtracted={(result) => void onDocumentExtracted(result)}
+        />
+      </div>
       {extractedPlate && lookup.data?.length === 0 && !lookup.isFetching && (
         <div className="flex flex-col gap-2 rounded-md bg-status-warn-bg p-3 text-sm text-status-warn">
           <p>{t("reception.scanDocNotFound", { plate: extractedPlate })}</p>
@@ -713,44 +837,6 @@ function VehicleStep({
           </Link>
         </div>
       )}
-      <Input
-        label={t("reception.searchLabel")}
-        placeholder={t("reception.searchPlaceholder")}
-        value={q}
-        autoFocus
-        onChange={(e) => setQ(e.target.value)}
-        hint={t("reception.searchHint")}
-        className="text-xl"
-      />
-      {lookup.isFetching && <div className="h-16 animate-pulse rounded-lg bg-surface-2" />}
-      {lookup.data && lookup.data.length === 0 && (
-        <div className="flex flex-col items-start gap-2 rounded-md bg-surface p-3 text-sm">
-          <span className="text-muted">{t("reception.noResult")}</span>
-          <Link href="/clients/nouveau" className="btn btn-secondary btn-sm min-h-11">
-            {t("reception.createCustomer")}
-          </Link>
-        </div>
-      )}
-      <ul className="flex flex-col gap-2">
-        {lookup.data?.map((hit) => (
-          <li key={hit.vehicle.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(hit)}
-              className="flex w-full flex-col gap-2 rounded-lg border border-border bg-surface p-3 text-left hover:bg-surface-2"
-            >
-              <span className="flex flex-wrap items-center gap-2">
-                <PlateBadge plate={hit.vehicle.plate} />
-                <span className="font-medium">
-                  {hit.vehicle.make} {hit.vehicle.model}
-                </span>
-                <span className="text-sm text-muted">· {hit.customer.displayName}</span>
-              </span>
-              <Alerts hit={hit} />
-            </button>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

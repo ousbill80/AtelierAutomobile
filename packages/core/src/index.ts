@@ -36,6 +36,7 @@ export {
 } from "./money";
 
 export * from "./billing";
+export * from "./treasury";
 export * from "./claims";
 
 export type { NormalizedPhone, PhoneLineType, PhoneStatus } from "./phone";

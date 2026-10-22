@@ -170,9 +170,9 @@ export const authRouter = router({
 
     const otpChannel = phone ? "WHATSAPP" : "EMAIL";
     const identifier = phone ?? email!;
-    await sendOtpCode(identifier, "VERIFY", otpChannel, now);
+    const { devCode } = await sendOtpCode(identifier, "VERIFY", otpChannel, now);
 
-    return { userId: user.id, otpChannel };
+    return { userId: user.id, otpChannel, devCode };
   }),
 
   sendOtp: publicProcedure.input(sendOtpInputSchema).mutation(async ({ input, ctx }) => {

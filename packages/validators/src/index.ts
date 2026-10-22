@@ -178,6 +178,7 @@ export type {
   TransferOwnerInput,
   VehicleInput,
   VehicleListInput,
+  SetVehicleInsuranceInput,
 } from "./vehicle";
 export {
   bulkCreateVehiclesInputSchema,
@@ -190,6 +191,7 @@ export {
   recordMileageInputSchema,
   recordServiceInputSchema,
   replacePlateInputSchema,
+  setVehicleInsuranceInputSchema,
   transferOwnerInputSchema,
   transmissionSchema,
   updateVehicleInputSchema,
@@ -369,6 +371,7 @@ export {
   dashboardPeriodSchema,
   compareSitesInputSchema,
   customPeriodSchema,
+  reportCatalogInputSchema,
   reportFiltersSchema,
   reportPreviewInputSchema,
   reportSlugSchema,
@@ -398,9 +401,13 @@ export {
   allocatePaymentInputSchema,
   cashDropInputSchema,
   cashExpenseInputSchema,
+  cashExpensesInputSchema,
+  cashSessionInputSchema,
   cashSessionsInputSchema,
+  cashSettingsInputSchema,
   cashSiteInputSchema,
   closeCashInputSchema,
+  decideExpenseInputSchema,
   createDepositInputSchema,
   createDirectInvoiceInputSchema,
   createFromQuoteInputSchema,
@@ -422,6 +429,7 @@ export {
   suggestAllocationInputSchema,
   updateDueDateInputSchema,
   updateInvoiceInputSchema,
+  uploadExpenseReceiptInputSchema,
 } from "./billing";
 export * from "./workshop";
 
@@ -461,3 +469,4 @@ export * from "./portal";
 export * from "./automations";
 export * from "./publicApi";
 export * from "./subscription";
+export * from "./treasury";

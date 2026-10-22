@@ -6,7 +6,7 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Phone, Plus } from "lucide-react";
-import { Button, EmptyState, Select } from "@atelieros/ui";
+import { Button, Select } from "@atelieros/ui";
 import {
   addDaysToKey,
   formatMinutesFr,
@@ -36,7 +36,7 @@ import {
   type AppointmentType,
 } from "./labels";
 import type { CapacityRow, PlanningAppointment, PlanningList } from "./types";
-import { ErrorBox, Gauge, SidePanel, Toast, type ToastState } from "./ui-bits";
+import { ErrorBox, SidePanel, Toast, type ToastState } from "./ui-bits";
 
 type View = "bay" | "mechanic" | "week" | "list";
 const VIEWS: View[] = ["bay", "mechanic", "week", "list"];
@@ -199,23 +199,23 @@ export default function PlanningPage() {
   const dayCapacity = (capacity.data ?? []).filter((r) => r.date === dayKey);
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 pb-16">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{ta("title")}</h1>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/rendez-vous/aujourdhui" className="btn btn-ghost min-h-11">
+    <div className="planning-page">
+      {/* Header */}
+      <div className="planning-header">
+        <h1>{ta("title")}</h1>
+        <div className="planning-header-actions">
+          <Link href="/rendez-vous/aujourdhui" className="btn btn-secondary">
             {ta("todayPage.title")}
           </Link>
           {canCreate && (
             <>
               <Button
                 variant="secondary"
-                className="min-h-11"
                 onClick={() => setCreating({ source: "PHONE" })}
               >
                 <Phone size={16} aria-hidden /> {ta("phoneAppointment")}
               </Button>
-              <Button className="min-h-11" onClick={() => setCreating({})}>
+              <Button onClick={() => setCreating({})}>
                 <Plus size={16} aria-hidden /> {ta("newAppointment")}
               </Button>
             </>
@@ -223,68 +223,67 @@ export default function PlanningPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-1">
-          <button
-            type="button"
-            aria-label={ta("previous")}
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-border hover:bg-surface-2"
-            onClick={() => setDayKey(addDaysToKey(dayKey, view === "week" ? -7 : -1))}
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary min-h-11"
-            onClick={() => setDayKey(localDateKey(new Date(), tz))}
-          >
-            {ta("today")}
-          </button>
-          <button
-            type="button"
-            aria-label={ta("next")}
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-border hover:bg-surface-2"
-            onClick={() => setDayKey(addDaysToKey(dayKey, view === "week" ? 7 : 1))}
-          >
-            <ChevronRight size={18} />
-          </button>
-          <input
-            type="date"
-            aria-label={ta("form.date")}
-            value={dayKey}
-            onChange={(e) => e.target.value && setDayKey(e.target.value)}
-            className="input min-h-11 w-auto max-w-full"
-          />
-        </div>
-        <span className="text-sm font-medium" data-testid="planning-date">
+      {/* Date navigation */}
+      <div className="planning-date-nav">
+        <button
+          type="button"
+          aria-label={ta("previous")}
+          className="planning-nav-btn"
+          onClick={() => setDayKey(addDaysToKey(dayKey, view === "week" ? -7 : -1))}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <button
+          type="button"
+          className="planning-today-btn"
+          onClick={() => setDayKey(localDateKey(new Date(), tz))}
+        >
+          {ta("today")}
+        </button>
+        <button
+          type="button"
+          aria-label={ta("next")}
+          className="planning-nav-btn"
+          onClick={() => setDayKey(addDaysToKey(dayKey, view === "week" ? 7 : 1))}
+        >
+          <ChevronRight size={18} />
+        </button>
+        <input
+          type="date"
+          aria-label={ta("form.date")}
+          value={dayKey}
+          onChange={(e) => e.target.value && setDayKey(e.target.value)}
+          className="planning-date-input"
+        />
+        <span className="planning-date-label" data-testid="planning-date">
           {view === "week"
             ? `${fmtDay(instantOf(weekStart, "12:00", tz), tz)} → ${fmtDay(instantOf(rangeTo, "12:00", tz), tz)}`
             : fmtDay(instantOf(dayKey, "12:00", tz), tz)}
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1" role="tablist">
-          {VIEWS.map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="tab"
-              aria-selected={view === v}
-              onClick={() => setView(v)}
-              className={`min-h-11 rounded-md px-3 text-sm ${view === v ? "bg-accent text-accent-foreground" : "bg-surface-2"}`}
-            >
-              {ta(`views.${v}`)}
-            </button>
-          ))}
-        </div>
+      {/* View tabs */}
+      <div className="planning-tabs" role="tablist">
+        {VIEWS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => setView(v)}
+            className={`planning-tab ${view === v ? "active" : ""}`}
+          >
+            {ta(`views.${v}`)}
+          </button>
+        ))}
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+
+      {/* Filters */}
+      <div className="planning-filters">
         <Select
           aria-label={ta("filters.allTypes")}
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as AppointmentType | "")}
-          className="min-h-11"
         >
           <option value="">{ta("filters.allTypes")}</option>
           {TYPES.map((v) => (
@@ -297,7 +296,6 @@ export default function PlanningPage() {
           aria-label={ta("filters.allStatuses")}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as AppointmentStatus | "")}
-          className="min-h-11"
         >
           <option value="">{ta("filters.allStatuses")}</option>
           {STATUSES.map((v) => (
@@ -310,7 +308,6 @@ export default function PlanningPage() {
           aria-label={ta("filters.allSources")}
           value={sourceFilter}
           onChange={(e) => setSourceFilter(e.target.value as AppointmentSource | "")}
-          className="min-h-11"
         >
           <option value="">{ta("filters.allSources")}</option>
           {SOURCES.map((v) => (
@@ -321,8 +318,9 @@ export default function PlanningPage() {
         </Select>
       </div>
 
+      {/* Capacity */}
       {(view === "bay" || view === "mechanic") && dayCapacity.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="capacity-banner">
+        <div className="planning-capacity" data-testid="capacity-banner">
           {dayCapacity.map((row) => (
             <CapacityGauge key={row.halfDay} row={row} />
           ))}
@@ -330,13 +328,9 @@ export default function PlanningPage() {
       )}
 
       {list.isLoading && (
-        <div className="flex flex-col gap-2" aria-busy>
-          <div className="skeleton h-14" />
-          <div className="grid grid-cols-3 gap-2">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="skeleton h-96" />
-            ))}
-          </div>
+        <div className="planning-loading" aria-busy>
+          <div className="planning-loading-spinner" />
+          <p>Chargement du planning...</p>
         </div>
       )}
       {list.isError && <ErrorBox message={ta("loadError")} onRetry={() => list.refetch()} />}
@@ -344,8 +338,8 @@ export default function PlanningPage() {
       {data && (view === "bay" || view === "mechanic") && (
         <>
           {canUpdate && (
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-              <label className="flex min-h-11 items-center gap-2">
+            <div className="planning-hint">
+              <label>
                 <input
                   type="checkbox"
                   checked={notifyOnMove}
@@ -357,7 +351,11 @@ export default function PlanningPage() {
               {canForce && <span className="hidden md:inline">{ta("altHint")}</span>}
             </div>
           )}
-          {data.appointments.length === 0 && <EmptyState title={ta("empty")} />}
+          {data.appointments.length === 0 && (
+            <div className="planning-empty">
+              <p>{ta("empty")}</p>
+            </div>
+          )}
           {view === "bay" ? (
             data.bays.length === 0 ? (
               <p className="text-sm text-muted">{ta("noBays")}</p>
@@ -487,12 +485,16 @@ function CapacityGauge({ row }: { row: CapacityRow }) {
         })
       : ta("capacityUnknown", { half, load: formatMinutesFr(row.loadMinutes) });
   return (
-    <div className="rounded-md border border-border p-3">
-      <Gauge
-        ratio={ratio}
-        tone={tone}
-        label={`${label} · ${ta("appointmentsCount", { count: row.appointmentsCount })}`}
-      />
+    <div className="planning-capacity-card">
+      <div className="planning-capacity-label">
+        {label} · {ta("appointmentsCount", { count: row.appointmentsCount })}
+      </div>
+      <div className="planning-capacity-bar">
+        <div
+          className={`planning-capacity-fill ${tone}`}
+          style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -549,23 +551,27 @@ function MechanicGrid({
       .filter((a) => a.mechanicId === m.id && a.status !== "CANCELLED" && a.status !== "NO_SHOW")
       .reduce((s, a) => s + a.durationMinutes, 0);
     const ratio = available ? planned / available : 1;
+    const tone = ratio > 0.9 ? "bad" : ratio >= 0.7 ? "warn" : "ok";
+    const label = available === 0
+      ? ta("mechanicAbsent")
+      : ta("mechanicLoad", {
+          planned: formatMinutesFr(planned),
+          available: formatMinutesFr(available),
+        });
     return {
       key: m.id,
       label: m.name,
       disabled: available === 0,
       header: (
-        <Gauge
-          ratio={ratio}
-          tone={ratio > 0.9 ? "bad" : ratio >= 0.7 ? "warn" : "ok"}
-          label={
-            available === 0
-              ? ta("mechanicAbsent")
-              : ta("mechanicLoad", {
-                  planned: formatMinutesFr(planned),
-                  available: formatMinutesFr(available),
-                })
-          }
-        />
+        <div className="planning-mechanic-gauge">
+          <div className="planning-capacity-label">{label}</div>
+          <div className="planning-capacity-bar">
+            <div
+              className={`planning-capacity-fill ${tone}`}
+              style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+            />
+          </div>
+        </div>
       ),
     };
   });
@@ -608,46 +614,60 @@ function WeekView({
   onSelect: (id: string) => void;
 }) {
   const bays = Math.max(1, data.bays.length);
-  if (data.appointments.length === 0) return <EmptyState title={ta("emptyWeek")} />;
+  if (data.appointments.length === 0) {
+    return (
+      <div className="planning-empty">
+        <p>{ta("emptyWeek")}</p>
+      </div>
+    );
+  }
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="week-view">
+    <div className="planning-week" data-testid="week-view">
       {Array.from({ length: 7 }, (_, i) => addDaysToKey(weekStart, i)).map((key) => {
         const rows = capacity.filter((r) => r.date === key);
         const load = rows.reduce((s, r) => s + r.loadMinutes, 0);
         const openMinutes = rows.reduce((s, r) => s + r.openMinutes, 0) * bays;
         const ratio = openMinutes ? load / openMinutes : 0;
+        const tone = ratio > 0.9 ? "bad" : ratio >= 0.7 ? "warn" : "ok";
         const items = data.appointments.filter(
           (a) => localDateKey(new Date(a.startsAt), tz) === key && a.status !== "CANCELLED",
         );
         return (
-          <div key={key} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+          <div key={key} className="planning-week-day">
             <button
               type="button"
               onClick={() => onOpenDay(key)}
-              className="min-h-11 text-left font-semibold hover:underline"
+              className="planning-week-day-header"
             >
               {fmtDay(instantOf(key, "12:00", tz), tz)}
             </button>
-            <span className="text-sm">{ta("appointmentsCount", { count: items.length })}</span>
-            <Gauge
-              ratio={ratio}
-              tone={ratio > 0.9 ? "bad" : ratio >= 0.7 ? "warn" : "ok"}
-              label={ta("occupancy", { percent: Math.round(ratio * 100) })}
-            />
-            <ul className="flex flex-col gap-1 text-xs">
-              {items.map((a) => (
-                <li key={a.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(a.id)}
-                    className="flex min-h-8 w-full items-center gap-1 text-left hover:underline"
-                  >
-                    <span className="font-medium">{fmtTime(a.startsAt, tz)}</span>
-                    <span className="truncate">{a.customer.displayName}</span>
-                  </button>
-                </li>
+            <div className="planning-week-day-count">
+              {ta("appointmentsCount", { count: items.length })}
+            </div>
+            <div className="planning-capacity-bar" style={{ marginBottom: 12 }}>
+              <div
+                className={`planning-capacity-fill ${tone}`}
+                style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+              />
+            </div>
+            <div>
+              {items.slice(0, 5).map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => onSelect(a.id)}
+                  className="planning-week-item"
+                >
+                  <span className="planning-week-item-time">{fmtTime(a.startsAt, tz)}</span>{" "}
+                  <span className="planning-week-item-name">{a.customer.displayName}</span>
+                </button>
               ))}
-            </ul>
+              {items.length > 5 && (
+                <div className="planning-week-item" style={{ color: "var(--muted)", cursor: "default" }}>
+                  +{items.length - 5} autres
+                </div>
+              )}
+            </div>
           </div>
         );
       })}
@@ -664,7 +684,13 @@ function ListView({
   tz: string;
   onSelect: (id: string) => void;
 }) {
-  if (data.appointments.length === 0) return <EmptyState title={ta("empty")} />;
+  if (data.appointments.length === 0) {
+    return (
+      <div className="planning-empty">
+        <p>{ta("empty")}</p>
+      </div>
+    );
+  }
   const groups = new Map<string, PlanningAppointment[]>();
   for (const a of data.appointments) {
     const d = new Date(a.startsAt);
@@ -672,18 +698,18 @@ function ListView({
     groups.set(key, [...(groups.get(key) ?? []), a]);
   }
   return (
-    <div className="flex flex-col gap-4" data-testid="list-view">
+    <div className="planning-list" data-testid="list-view">
       {[...groups.entries()].map(([key, items]) => {
         const [day, half] = key.split("|");
         return (
-          <section key={key} className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-muted">
+          <div key={key} className="planning-list-group">
+            <div className="planning-list-group-header">
               {fmtDay(instantOf(day!, "12:00", tz), tz)} · {ta(`halfDay.${half}`)}
-            </h2>
+            </div>
             {items.map((a) => (
               <AppointmentRow key={a.id} a={a} tz={tz} onSelect={onSelect} />
             ))}
-          </section>
+          </div>
         );
       })}
     </div>

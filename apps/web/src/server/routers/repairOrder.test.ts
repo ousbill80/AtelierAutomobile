@@ -14,6 +14,13 @@ import { appRouter } from "./_app";
 vi.mock("../messaging/queue", () => ({ enqueueMessageSendJob: vi.fn(async () => undefined) }));
 
 const callerFactory = createCallerFactory(appRouter);
+
+async function receptionPdf(token: string) {
+  const { GET } = await import("@/app/api/portail/[token]/reception/pdf/route");
+  return GET(new Request(`http://localhost/api/portail/${token}/reception/pdf`), {
+    params: Promise.resolve({ token }),
+  });
+}
 type Caller = ReturnType<typeof callerFactory>;
 type Role = "OWNER" | "MANAGER" | "ADVISOR" | "MECHANIC";
 
@@ -237,7 +244,20 @@ describe("repairOrder routers (M04)", () => {
 
   it("US-M04-01 : réception complète → OR CHECKED_IN numéroté, relevé km, totaux, idempotence", async () => {
     const clientRequestId = `req-${randomBytes(6).toString("hex")}`;
-    const created = await checkIn(advisor, { clientRequestId });
+    // Canal SMS « console » le temps de la réception, pour vérifier le message de dépose.
+    const sms = await adminDb.channelConfig.create({
+      data: {
+        organizationId: orgA.id,
+        channel: "SMS",
+        provider: "console",
+        isActive: true,
+        priority: 1,
+        credentials: "",
+      },
+    });
+    const created = await checkIn(advisor, { clientRequestId }).finally(() =>
+      adminDb.channelConfig.delete({ where: { id: sms.id } }),
+    );
     orderId = created.id;
     expect(created).toMatchObject({
       number: "OR-YOP-2026-00001",
@@ -245,6 +265,15 @@ describe("repairOrder routers (M04)", () => {
       replayed: false,
     });
     expect(created.trackingUrl).toMatch(/\/p\/.+\/suivi$/);
+    // US-M04-01 : le message de dépose porte le lien du bon de réception (PDF) et du suivi.
+    const sent = await adminDb.message.findFirstOrThrow({
+      where: {
+        organizationId: orgA.id,
+        idempotencyKey: { startsWith: `ro:${orderId}:checked_in` },
+      },
+    });
+    expect(sent.body).toMatch(/\/api\/portail\/[^/\s]+\/reception\/pdf/);
+    expect(sent.body).toContain(created.trackingUrl!);
 
     const replay = await checkIn(advisor, { clientRequestId });
     expect(replay).toMatchObject({ id: orderId, replayed: true });
@@ -500,6 +529,13 @@ describe("repairOrder routers (M04)", () => {
     });
     const after = await anonymous.portal.repairOrder.tracking({ token });
     expect(after.signaturePending).toBe(false);
+
+    // Bon de réception PDF accessible au client par son seul jeton ; jeton invalide → 404.
+    const pdf = await receptionPdf(token);
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers.get("content-type")).toBe("application/pdf");
+    expect(pdf.headers.get("content-disposition")).toContain(`bon-de-reception-${created.number}`);
+    expect((await receptionPdf("x".repeat(32))).status).toBe(404);
     expect(after.lines.map((l) => l.description)).toEqual(["Diagnostic"]);
     expect(after.total).toBe(23_600);
     await expect(anonymous.portal.repairOrder.tracking({ token: "x".repeat(32) })).rejects.toThrow(

@@ -170,6 +170,7 @@
     "cash": "Caisse",
     "payments": "Paiements",
     "cashSessions": "Sessions de caisse",
+    "cashExpenses": "Dépenses",
     "accountingExports": "Exports comptables",
     "workshop": "Atelier",
     "tablet": "Tablette atelier",
@@ -203,15 +204,19 @@
     "sidebarFooter": "AtelierOS · Pro",
     "myGarages": "Mes garages",
     "notifications": "Notifications",
-    "aiBadge": "IA"
+    "aiBadge": "IA",
+    "treasury": "Trésorerie",
+    "treasuryJournal": "Journal",
+    "treasuryReports": "Rapports de trésorerie"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
+    "subtitle": "Configurons votre garage en quelques étapes",
     "later": "Plus tard",
-    "finish": "Terminer la configuration",
+    "finish": "Accéder à mon tableau de bord",
     "steps": {
-      "garage": "Votre garage",
-      "workshop": "Atelier",
+      "garage": "Garage",
+      "workshop": "Site",
       "mode": "Mode",
       "team": "Équipe",
       "channels": "Canaux",
@@ -219,7 +224,8 @@
       "done": "Terminé"
     },
     "garage": {
-      "title": "Parlez-nous de votre garage",
+      "title": "Votre garage",
+      "description": "Ces informations apparaîtront sur vos devis et factures.",
       "nameLabel": "Nom du garage",
       "legalNameLabel": "Raison sociale",
       "communeLabel": "Commune",
@@ -228,16 +234,18 @@
     },
     "workshop": {
       "title": "Votre premier site",
+      "description": "Un site représente un atelier physique. Vous pourrez en ajouter d'autres plus tard.",
       "nameLabel": "Nom du site",
       "codeLabel": "Code du site",
-      "codeHint": "Lettres majuscules et chiffres uniquement."
+      "codeHint": "Lettres majuscules et chiffres uniquement (ex: ATL01)."
     },
     "mode": {
-      "title": "Comment utilisez-vous AtelierOS ?",
+      "title": "Mode d'utilisation",
+      "description": "Choisissez comment vous souhaitez utiliser AtelierOS.",
       "full": "Gestion complète",
-      "fullDescription": "RDV, ordres de réparation, devis, facturation, stock.",
+      "fullDescription": "RDV, ordres de réparation, devis, facturation et gestion de stock. La solution tout-en-un pour votre atelier.",
       "remindersOnly": "Relances uniquement",
-      "remindersOnlyDescription": "Je garde mon logiciel actuel, AtelierOS gère mes relances."
+      "remindersOnlyDescription": "Gardez votre logiciel actuel, AtelierOS s'occupe des relances automatiques (VT, révisions, créances)."
     },
     "team": {
       "title": "Invitez votre équipe",
@@ -257,9 +265,10 @@
       "submit": "Enregistrer"
     },
     "data": {
-      "title": "Données de démonstration",
-      "description": "Ajoutez des clients et véhicules fictifs pour découvrir AtelierOS.",
+      "title": "Données de démarrage",
+      "description": "Voulez-vous charger des données de démonstration pour découvrir AtelierOS ?",
       "demo": "Charger les données de démonstration",
+      "demoDescription": "Clients, véhicules et rendez-vous fictifs pour vous familiariser avec l'application.",
       "skip": "Commencer avec un garage vide"
     },
     "done": {
@@ -462,7 +471,9 @@
     "payment:void": "Annuler un paiement, confirmer ou rejeter un chèque",
     "cash:review": "Valider un écart de caisse",
     "cash:expense_approve": "Valider une dépense de caisse au-delà du seuil",
-    "accounting:export": "Exporter les écritures comptables"
+    "accounting:export": "Exporter les écritures comptables",
+    "treasury:read": "Consulter la trésorerie (soldes, journal, rapports)",
+    "treasury:manage": "Gérer la trésorerie (comptes, virements, mouvements, rapprochements)"
   },
   "auditActions": {
     "auth.login.failed": "Connexion échouée",
@@ -1042,7 +1053,8 @@
       "workshop": "Atelier",
       "frontDesk": "Accueil",
       "customers": "Clients",
-      "cashier": "Ma caisse"
+      "cashier": "Ma caisse",
+      "today": "Aujourd'hui"
     },
     "states": {
       "empty": "Pas encore de données sur cette période",
@@ -1199,7 +1211,11 @@
       "quotes": "Devis sans réponse depuis plus de 48 h",
       "ready": "Véhicules prêts non livrés",
       "unread": "Conversations non lues",
-      "none": "Rien à traiter"
+      "none": "Rien à traiter",
+      "kpiAppointments": "RDV aujourd'hui",
+      "kpiReminders": "Relances à valider",
+      "kpiQuotes": "Devis en attente",
+      "kpiReady": "Véhicules prêts"
     },
     "customersTab": {
       "active": "Clients actifs",
@@ -1214,9 +1230,118 @@
       "title": "Ma caisse du jour",
       "noSession": "Aucune caisse ouverte à votre nom.",
       "openedAt": "Ouverte le {date} — {site}",
-      "total": "Total encaissé"
+      "total": "Total encaissé",
+      "goToCash": "Aller à la caisse"
     },
-    "mechanicLink": "Ouvrir la tablette atelier"
+    "mechanicLink": "Ouvrir la tablette atelier",
+    "today": {
+      "newReception": "Nouvelle réception",
+      "cards": {
+        "vehicles": "Véhicules en atelier",
+        "vehiclesSub": "{repair} en réparation · {ready} prêts à livrer",
+        "collected": "Encaissé aujourd'hui",
+        "collectedSub": "{count} paiements · {state}",
+        "cashOpen": "caisse ouverte",
+        "cashClosed": "caisse fermée",
+        "unpaid": "Factures impayées",
+        "unpaidSub": "{count} factures · {long} échues depuis plus de 15 jours",
+        "inspections": "Visites techniques à relancer",
+        "inspectionsSub": "{j60} à J-60 · {j30} à J-30 · {j15} à J-15"
+      },
+      "workshop": {
+        "title": "Véhicules en atelier",
+        "all": "Voir tous les dossiers",
+        "stages": {
+          "checkedIn": "Réceptionné",
+          "diagnosis": "Diagnostic",
+          "repair": "En réparation",
+          "ready": "Prêt à livrer"
+        },
+        "plate": "Immatriculation",
+        "customer": "Client / véhicule",
+        "status": "Statut",
+        "payer": "Prise en charge",
+        "promised": "Livraison prévue",
+        "customerPays": "Paiement client",
+        "noDate": "Non fixée",
+        "empty": "Aucun véhicule en atelier.",
+        "more": "+ {count} autres véhicules"
+      },
+      "cash": {
+        "title": "Caisse du jour",
+        "openedAt": "Ouverte · {time}",
+        "closed": "Fermée",
+        "total": "Total encaissé",
+        "payments": "{count} paiements enregistrés",
+        "close": "Clôturer la caisse",
+        "open": "Ouvrir la caisse",
+        "closeHint": "La clôture se fait dans la caisse, avec le comptage des espèces."
+      },
+      "inspections": {
+        "title": "Visites techniques à préparer",
+        "subtitle": "Échéances des 60 prochains jours.",
+        "schedule": "Voir toutes les échéances",
+        "bands": {
+          "j60": "J-60",
+          "j30": "J-30",
+          "j15": "J-15"
+        },
+        "due": "Échéance",
+        "left": "Reste",
+        "followUp": "Relance",
+        "daysLeft": "J-{days}",
+        "dueToday": "Aujourd'hui",
+        "followUps": {
+          "booked": "RDV pris",
+          "toCall": "À appeler",
+          "read": "Message lu",
+          "sent": "Envoyée",
+          "toApprove": "À valider",
+          "planned": "Planifiée",
+          "none": "Aucune"
+        },
+        "empty": "Aucune visite technique dans les 60 prochains jours.",
+        "siteFiltered": "Les visites techniques ne sont pas rattachées à un site : choisissez « Tous les sites » pour les voir."
+      },
+      "reminders": {
+        "title": "Relances automatiques",
+        "sentThisWeek": "Envoyées cette semaine",
+        "toApprove": "À valider",
+        "upcoming": "Prochains envois",
+        "noUpcoming": "Aucun envoi programmé dans les 7 prochains jours.",
+        "manage": "Gérer les relances"
+      },
+      "claims": {
+        "title": "Dossiers assurance",
+        "receivable": "À recevoir des assureurs",
+        "stages": {
+          "awaitingApproval": "En attente d'accord",
+          "approved": "Accord reçu",
+          "invoiced": "Facturé à l'assureur",
+          "late": "Remboursement en retard"
+        },
+        "count": "{count} dossiers",
+        "empty": "Aucun dossier assurance en cours.",
+        "all": "Voir les sinistres"
+      },
+      "unpaid": {
+        "title": "Factures impayées",
+        "total": "Total dû par les clients",
+        "invoices": "{count} factures",
+        "overdueFor": "Échue depuis {days} jours",
+        "noNumber": "Facture",
+        "more": "+ {count} autres factures en retard · {amount}",
+        "remind": "Relancer les factures échues",
+        "empty": "Aucune facture en retard."
+      },
+      "collected": {
+        "title": "Encaissements · 7 jours",
+        "total": "Total de la période",
+        "todayShort": "Auj.",
+        "unit": "Montants encaissés par jour, remboursements déduits.",
+        "aria": "{day} : {amount}"
+      }
+    }
   },
   "appointments": {
     "title": "Planning",
@@ -1287,6 +1412,12 @@
       "PORTAL": "Portail",
       "REMINDER": "Relance"
     },
+    "channels": {
+      "AUTO": "Automatique (WhatsApp > SMS > Email)",
+      "WHATSAPP": "WhatsApp uniquement",
+      "SMS": "SMS uniquement",
+      "EMAIL": "Email uniquement"
+    },
     "via": {
       "phone": "Téléphone",
       "whatsapp": "WhatsApp",
@@ -1331,6 +1462,7 @@
       "source": "Source",
       "notes": "Notes internes",
       "notify": "Envoyer la confirmation au client",
+      "notifyChannel": "Canal de notification",
       "save": "Enregistrer",
       "saveAndNotify": "Enregistrer et envoyer la confirmation",
       "saving": "Enregistrement…",
@@ -1423,7 +1555,12 @@
       "phoneConfirmations": "Confirmations à obtenir par téléphone",
       "phoneConfirmationsHint": "RDV de demain non confirmés : clients sans canal écrit, avec absences antérieures, ou sans réponse après 18:00.",
       "nothing": "Rien ici.",
-      "empty": "Aucun RDV aujourd'hui."
+      "empty": "Aucun RDV aujourd'hui.",
+      "kpiTotal": "RDV du jour",
+      "kpiConfirmed": "Confirmés",
+      "kpiUnanswered": "Sans réponse",
+      "kpiLate": "En retard",
+      "openPlanning": "Planning"
     },
     "settings": {
       "title": "Planning",
@@ -1517,6 +1654,15 @@
     "save": "Enregistrer",
     "loading": "Chargement…",
     "none": "—",
+    "subtitle": "Suivez chaque véhicule de la réception à la livraison.",
+    "emptyHint": "Les véhicules réceptionnés apparaîtront ici, classés par étape.",
+    "kpi": {
+      "active": "À l'atelier",
+      "awaitingApproval": "En attente d'accord",
+      "waitingParts": "En attente de pièces",
+      "ready": "Prêts",
+      "late": "En retard"
+    },
     "counters": {
       "active": "{count} à l'atelier",
       "awaitingApproval": "{count} en attente d'accord",
@@ -1746,6 +1892,12 @@
       "searchLabel": "Plaque, téléphone ou nom du client",
       "searchPlaceholder": "Ex. 2547 GH 01",
       "searchHint": "Saisissez au moins 2 caractères.",
+      "stepOf": "Étape {current} sur {total}",
+      "searchTitle": "Quel véhicule arrive ?",
+      "searchDescription": "Retrouvez le véhicule pour ouvrir le dossier du client et ses alertes.",
+      "or": "ou",
+      "scanTitle": "Scanner la carte grise ou la vignette",
+      "scanDescription": "L'assistant lit la plaque et retrouve le véhicule.",
       "noResult": "Aucun véhicule trouvé.",
       "createCustomer": "Créer le client et le véhicule",
       "scanRegistrationAi": "Scanner la carte grise (IA)",
@@ -3528,7 +3680,13 @@
       "amount": "Montant",
       "description": "Description",
       "submit": "Enregistrer",
-      "approvalHint": "Au-delà de {amount}, la dépense doit être validée par le gérant."
+      "approvalHint": "Au-delà de {amount}, la dépense doit être validée par le gérant.",
+      "pendingHint": "Au-delà de {amount}, la dépense part en validation chez le gérant et ne sort de la caisse qu'une fois validée.",
+      "receipt": "Justificatif (photo ou PDF, facultatif)",
+      "receiptTake": "Photographier le reçu",
+      "receiptChange": "Changer",
+      "pendingDone": "Dépense envoyée en validation au gérant.",
+      "done": "Dépense enregistrée."
     },
     "dropForm": {
       "title": "Versement",
@@ -3536,7 +3694,9 @@
       "safe": "Coffre",
       "bank": "Banque",
       "reference": "Référence (bordereau)",
-      "submit": "Enregistrer le versement"
+      "submit": "Enregistrer le versement",
+      "max": "Maximum : {amount} (espèces attendues).",
+      "done": "Versement enregistré."
     },
     "closeForm": {
       "title": "Clôturer la caisse",
@@ -3544,7 +3704,21 @@
       "denominations": "Comptage par coupures (facultatif)",
       "notes": "Commentaire (obligatoire en cas d'écart)",
       "difference": "Écart : {amount}",
-      "submit": "Clôturer"
+      "submit": "Clôturer",
+      "step1": "1. Vérifiez les encaissements du jour",
+      "step2": "2. Comptez les espèces",
+      "step3": "3. Commentez l'écart s'il y en a un",
+      "countMode": "Mode de comptage",
+      "countTotal": "Montant total",
+      "countDetail": "Par coupures",
+      "subtotal": "Total compté",
+      "exact": "Caisse juste : aucun écart.",
+      "over": "Excédent de {amount}",
+      "short": "Manquant de {amount}",
+      "blocked": "Clôture impossible : faites d'abord valider ou refuser les dépenses en attente.",
+      "alertHint": "Au-delà de {amount}, le propriétaire est alerté automatiquement.",
+      "done": "Caisse clôturée. Le Z de caisse est disponible dans l'historique.",
+      "seeZ": "Voir le Z de caisse"
     },
     "sessions": {
       "title": "Sessions de caisse",
@@ -3555,7 +3729,44 @@
       "late": "Clôture tardive",
       "difference": "Écart",
       "review": "Valider l'écart",
-      "reviewComment": "Commentaire de validation"
+      "reviewComment": "Commentaire de validation",
+      "subtitle": "Clôtures, écarts et validations — par période et par caissier.",
+      "filters": {
+        "status": "Statut",
+        "all": "Toutes",
+        "open": "Ouvertes",
+        "to_review": "Écart à valider",
+        "reviewed": "Écart validé",
+        "variance": "Avec écart",
+        "late": "Clôture tardive",
+        "cashier": "Caissier",
+        "allCashiers": "Tous les caissiers"
+      },
+      "kpi": {
+        "sessions": "Sessions",
+        "withVariance": "Avec écart",
+        "net": "Écart cumulé",
+        "toReview": "À valider"
+      },
+      "byCashier": "Écarts par caissier",
+      "byCashierHint": "Sessions clôturées de la sélection, triées par écart absolu.",
+      "cashierCols": {
+        "name": "Caissier",
+        "sessions": "Sessions",
+        "withVariance": "Avec écart",
+        "net": "Écart net",
+        "absolute": "Écart absolu",
+        "worst": "Plus gros manquant"
+      },
+      "received": "Encaissé",
+      "counted": "Compté",
+      "openedOn": "Ouverte le {date}",
+      "detail": "Détail",
+      "z": "Z de caisse",
+      "loadMore": "Afficher plus",
+      "reviewed2": "Validé par {name}",
+      "reviewDone": "Écart validé.",
+      "noVariance": "Juste"
     },
     "paymentsList": {
       "title": "Paiements",
@@ -3569,7 +3780,117 @@
       "refundReason": "Motif du remboursement",
       "refundAmount": "Montant à rembourser",
       "allMethods": "Tous les modes"
-    }
+    },
+    "subtitle": "Encaissements, sorties et comptage de la caisse du jour.",
+    "expensesLink": "Dépenses",
+    "noSessionHint": "Ouvrez la caisse avec le fond de départ pour encaisser en espèces.",
+    "suggestedFloat": "Proposé : espèces comptées à la dernière clôture.",
+    "sessionOpen": "Caisse ouverte",
+    "kpi": {
+      "expected": "Espèces attendues",
+      "received": "Total encaissé",
+      "expenses": "Dépenses",
+      "drops": "Versements"
+    },
+    "pendingBanner": "{count} dépense(s) en attente de validation ({amount}). Elles ne sortiront de la caisse qu'une fois validées ; la clôture est bloquée d'ici là.",
+    "pendingReview": "Examiner",
+    "pendingCheques": "Chèques en attente (non comptés)",
+    "journal": {
+      "title": "Journal de la session",
+      "empty": "Aucune opération pour le moment.",
+      "payment": "Encaissement",
+      "expense": "Dépense",
+      "drop": "Versement",
+      "refund": "Remboursement",
+      "receipt": "Reçu",
+      "proof": "Justificatif",
+      "by": "par {name}",
+      "all": "Tout",
+      "filters": {
+        "payment": "Encaissements",
+        "expense": "Dépenses",
+        "drop": "Versements",
+        "refund": "Remboursements"
+      }
+    },
+    "status": {
+      "PENDING": "En attente",
+      "APPROVED": "Validée",
+      "REJECTED": "Refusée"
+    },
+    "receiptAdd": "Ajouter un justificatif",
+    "receiptAdded": "Justificatif ajouté.",
+    "receiptError": "Le justificatif n'a pas pu être envoyé. Réessayez.",
+    "expensesPage": {
+      "title": "Dépenses de caisse",
+      "subtitle": "Sorties d'espèces, validation au-delà du seuil et justificatifs.",
+      "tabs": {
+        "PENDING": "En attente",
+        "APPROVED": "Validées",
+        "REJECTED": "Refusées",
+        "ALL": "Toutes"
+      },
+      "category": "Catégorie",
+      "allCategories": "Toutes catégories",
+      "from": "Du",
+      "to": "Au",
+      "reset": "Effacer les filtres",
+      "total": "Total des dépenses validées",
+      "totalPending": "Total en attente",
+      "totalRejected": "Total refusé",
+      "byCategory": "Par catégorie",
+      "empty": "Aucune dépense sur cette sélection.",
+      "emptyPending": "Aucune dépense en attente de validation.",
+      "approve": "Valider",
+      "reject": "Refuser",
+      "rejectTitle": "Refuser la dépense",
+      "rejectReason": "Motif du refus",
+      "approveTitle": "Valider la dépense",
+      "approveComment": "Commentaire (facultatif)",
+      "decidedBy": "{status} par {name}",
+      "createdBy": "Saisie par {name}",
+      "loadMore": "Afficher plus",
+      "approved": "Dépense validée.",
+      "rejected": "Dépense refusée.",
+      "closedSession": "Caisse clôturée"
+    },
+    "detail": {
+      "back": "Historique des sessions",
+      "title": "Session du {date}",
+      "openedBy": "Ouverte par {name} à {time}",
+      "closedBy": "Clôturée par {name} le {date}",
+      "notClosed": "Session en cours",
+      "byMethod": "Encaissements par mode",
+      "cash": "Calcul des espèces",
+      "counted": "Espèces comptées",
+      "difference": "Écart",
+      "denominations": "Comptage par coupures",
+      "notes": "Commentaire de clôture",
+      "review": "Validation",
+      "reviewBy": "Validé par {name} le {date}",
+      "reviewPending": "Écart non encore validé par le propriétaire.",
+      "frozen": "Montants figés à la clôture.",
+      "notFound": "Session de caisse introuvable."
+    },
+    "settings": {
+      "title": "Caisse",
+      "description": "Seuils d'alerte, validation des dépenses et catégories.",
+      "varianceAlert": "Alerte d'écart de caisse au-delà de",
+      "varianceAlertHint": "Le propriétaire est notifié quand l'écart de clôture dépasse ce montant.",
+      "expenseApproval": "Validation des dépenses au-delà de",
+      "expenseApprovalHint": "Au-delà, la dépense attend la validation d'un gérant avant de sortir de la caisse.",
+      "oneSessionPerSite": "Une seule caisse ouverte par site",
+      "oneSessionPerSiteHint": "Désactivez pour permettre une caisse par caissier sur un même site.",
+      "categories": "Catégories de dépenses",
+      "categoryPlaceholder": "Nouvelle catégorie",
+      "addCategory": "Ajouter",
+      "removeCategory": "Retirer {name}",
+      "save": "Enregistrer",
+      "saved": "Réglages de caisse enregistrés.",
+      "readOnly": "Seul le propriétaire peut modifier ces réglages."
+    },
+    "cancel": "Annuler",
+    "newExpense": "Nouvelle dépense"
   },
   "workshop": {
     "title": "Atelier",
@@ -4177,7 +4498,85 @@
     "overdueExpert": "Planifié le {date}",
     "draft": "Brouillon",
     "csv": "Exporter CSV",
-    "dueAmount": "{amount} dû"
+    "dueAmount": "{amount} dû",
+    "vehicleInsurance": {
+      "title": "Assurance",
+      "none": "Aucune assurance renseignée.",
+      "insurer": "Compagnie",
+      "noInsurer": "— Aucune —",
+      "policyNumber": "N° de police",
+      "expiryDate": "Valable jusqu'au",
+      "validUntil": "Valable jusqu'au {date}",
+      "expiredOn": "Expirée depuis le {date}",
+      "expiresSoon": "Expire le {date}",
+      "unknownExpiry": "Date d'expiration inconnue",
+      "edit": "Modifier l'assurance",
+      "saved": "Assurance enregistrée.",
+      "noInsurers": "Aucune compagnie configurée.",
+      "manageInsurers": "Gérer les compagnies",
+      "claims": "{count} dossier(s) sinistre",
+      "prefilled": "Compagnie et police reprises de la fiche du véhicule."
+    },
+    "progress": {
+      "title": "Avancement du dossier",
+      "OPENED": "Ouverture",
+      "EXPERT": "Expertise",
+      "ESTIMATE_SENT": "Devis envoyé",
+      "APPROVED": "Accord",
+      "REPAIRING": "Réparation",
+      "INVOICED": "Facturation",
+      "PAID": "Réglé",
+      "done": "terminé",
+      "current": "en cours",
+      "todo": "à venir",
+      "stoppedRejected": "Dossier refusé par l'assureur",
+      "stoppedCancelled": "Dossier annulé"
+    },
+    "reimbursement": {
+      "title": "Suivi du remboursement",
+      "insurerTitle": "Part assureur",
+      "customerTitle": "Part client (franchise, vétusté…)",
+      "paidOf": "{paid} payés sur {total}",
+      "state": {
+        "estimate": "Montant estimé",
+        "sent": "Devis envoyé — accord attendu",
+        "accepted": "Accordé — à facturer",
+        "invoiced": "Facturé — en attente de règlement",
+        "late": "En retard de {days} j",
+        "partial": "Partiellement réglé",
+        "paid": "Réglé",
+        "rejected": "Refusé",
+        "cancelled": "Annulé"
+      },
+      "dueOn": "Échéance le {date}",
+      "noAmount": "Pas encore chiffré"
+    },
+    "nextStep": {
+      "title": "Prochaine étape",
+      "OPENED": "Planifiez la visite de l'expert ou créez le devis assurance.",
+      "EXPERT_SCHEDULED": "Après la visite de l'expert, saisissez-la puis envoyez le devis.",
+      "ESTIMATE_SENT": "Relancez l'assureur si besoin, puis saisissez l'accord dès réception.",
+      "APPROVED": "Lancez les travaux ; facturez le sinistre une fois l'OR terminé.",
+      "REPAIRING": "Facturez le sinistre dès la fin des travaux.",
+      "INVOICED": "Suivez les règlements : franchise du client et virement de l'assureur.",
+      "PARTIALLY_PAID": "Une partie reste due : relancez l'assureur ou le client.",
+      "PAID": "Dossier soldé. Rien à faire.",
+      "REJECTED": "Convertissez le devis en devis client si le client veut faire réparer.",
+      "CANCELLED": "Dossier clos."
+    },
+    "kpi": {
+      "outstanding": "Encours assureurs",
+      "openClaims": "Dossiers en cours",
+      "overdue": "Échu depuis plus de 60 j",
+      "blocked": "Dossiers bloqués",
+      "followUps": "Relances à valider",
+      "avgDaysToPay": "Délai moyen de paiement"
+    },
+    "agingTitle": "Ancienneté de l'encours",
+    "insurerCount": "{count} compagnie(s)",
+    "claimCount": "{count} dossier(s)",
+    "seeClaims": "Voir les dossiers",
+    "contact": "Contact sinistres"
   },
   "invoicePortal": {
     "loading": "Chargement de la facture…",
@@ -4740,6 +5139,33 @@
       "summary": "Synthèse"
     },
     "noAccess": "Vous n'avez accès à aucun rapport.",
+    "hub": {
+      "period": "Période des rapports",
+      "kpiTitle": "En un coup d'œil",
+      "search": "Rechercher un rapport…",
+      "searchLabel": "Rechercher un rapport",
+      "clearSearch": "Effacer la recherche",
+      "noMatch": "Aucun rapport ne correspond à « {query} ».",
+      "count": "{count} rapport(s)",
+      "periodRange": "Du {from} au {to}",
+      "asOfDate": "Situation au {date}",
+      "open": "Ouvrir",
+      "exportAria": "Exporter « {report} » en {format}",
+      "previous": "Période précédente : {amount}",
+      "snapshot": "À l'instant présent",
+      "groups": {
+        "finance": "Finances",
+        "workshop": "Atelier et stock",
+        "customers": "Clients et relances",
+        "network": "Réseau"
+      },
+      "kpis": {
+        "revenue_ht": "CA HT",
+        "collected": "Encaissé",
+        "receivables": "Créances en cours",
+        "recovered_by_reminders": "Récupéré grâce aux relances"
+      }
+    },
     "list": {
       "ventes": {
         "title": "Ventes",
@@ -4963,7 +5389,8 @@
         "WRITTEN_OFF": "Close"
       },
       "signReception": "Signer le bon de réception",
-      "opening": "Ouverture…"
+      "opening": "Ouverture…",
+      "receptionPdf": "Bon de réception (PDF)"
     },
     "vehicle": {
       "title": "Votre véhicule",
@@ -5424,5 +5851,231 @@
       },
       "testResult": "Test : {status}"
     }
+  },
+  "treasury": {
+    "title": "Trésorerie",
+    "subtitle": "Tout l'argent du garage : caisses, coffre, banques et mobile money.",
+    "loadError": "Impossible de charger la trésorerie.",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "total": "Trésorerie totale",
+    "monthIn": "Entrées du mois",
+    "monthOut": "Sorties du mois",
+    "monthNet": "Solde du mois",
+    "journalLink": "Journal",
+    "reportsLink": "Rapports",
+    "actions": {
+      "transfer": "Virement",
+      "expense": "Dépense",
+      "movement": "Autre mouvement",
+      "newAccount": "Nouveau compte",
+      "reconcile": "Rapprocher",
+      "edit": "Modifier",
+      "archive": "Archiver",
+      "reverse": "Contre-passer",
+      "exportCsv": "Export CSV",
+      "exportPdf": "PDF"
+    },
+    "types": {
+      "CASH_REGISTER": "Caisse",
+      "SAFE": "Coffre",
+      "BANK": "Banque",
+      "MOBILE_MONEY": "Mobile money",
+      "OTHER": "Autre"
+    },
+    "kinds": {
+      "PAYMENT": "Encaissement",
+      "PAYMENT_REVERSAL": "Annulation d'encaissement",
+      "REFUND": "Remboursement",
+      "EXPENSE": "Dépense",
+      "CASH_DROP": "Versement de caisse",
+      "CASH_VARIANCE": "Écart de caisse",
+      "TRANSFER": "Virement",
+      "INCOME": "Entrée diverse",
+      "ADJUSTMENT": "Ajustement"
+    },
+    "direction": {
+      "IN": "Entrée",
+      "OUT": "Sortie"
+    },
+    "alerts": {
+      "unassigned": "{count} encaissement(s) {method} ({amount}) ne sont rattachés à aucun compte.",
+      "unassignedDrop": "{count} versement(s) de caisse ({amount}) sans compte de destination (créez un coffre ou une banque).",
+      "unassignedCash": "{count} encaissement(s) en espèces ({amount}) sur un site sans caisse.",
+      "unassignedAction": "Créer le compte",
+      "negative": "Le compte « {name} » est à découvert ({amount}).",
+      "pendingExpenses": "{count} dépense(s) hors caisse en attente de validation.",
+      "pendingAction": "Examiner"
+    },
+    "account": {
+      "balance": "Solde",
+      "monthIn": "Entrées ce mois",
+      "monthOut": "Sorties ce mois",
+      "methods": "Reçoit",
+      "noMethods": "Aucun mode rattaché",
+      "cashMethod": "Espèces du site",
+      "lastReconciliation": "Rapproché au {date}",
+      "reconciliationGap": "écart {amount}",
+      "neverReconciled": "Jamais rapproché",
+      "archived": "Archivé",
+      "site": "Site : {site}",
+      "openedOn": "Ouvert le {date} avec {amount}",
+      "ledger": "Compte comptable {code}"
+    },
+    "recent": {
+      "title": "Derniers mouvements",
+      "empty": "Aucun mouvement pour le moment.",
+      "all": "Tout le journal"
+    },
+    "journal": {
+      "title": "Journal de trésorerie",
+      "subtitle": "Toutes les entrées et sorties, tous comptes confondus.",
+      "allAccounts": "Tous les comptes",
+      "allKinds": "Toutes natures",
+      "allDirections": "Entrées et sorties",
+      "search": "Rechercher (libellé, référence, catégorie)",
+      "from": "Du",
+      "to": "Au",
+      "reset": "Effacer les filtres",
+      "empty": "Aucun mouvement sur cette sélection.",
+      "totalIn": "Entrées",
+      "totalOut": "Sorties",
+      "net": "Net",
+      "count": "{count} mouvement(s)",
+      "loadMore": "Afficher plus",
+      "source": "Voir la source",
+      "reversal": "Contre-passation",
+      "reversed": "Contre-passé",
+      "direction": "Sens"
+    },
+    "accountForm": {
+      "createTitle": "Nouveau compte de trésorerie",
+      "editTitle": "Modifier le compte",
+      "name": "Nom du compte",
+      "namePlaceholder": "Ex. SGBCI courant, Wave marchand",
+      "type": "Type",
+      "site": "Site",
+      "bankName": "Banque ou opérateur",
+      "accountRef": "N° de compte ou numéro marchand",
+      "accountRefHint": "Affiché masqué (4 derniers chiffres).",
+      "accountRefKeep": "Laissez vide pour conserver le numéro actuel.",
+      "ledgerAccount": "Compte comptable (SYSCOHADA)",
+      "methods": "Modes de paiement encaissés sur ce compte",
+      "methodsHint": "Chaque mode ne va que sur un compte. Les espèces vont toujours dans la caisse du site.",
+      "openingBalance": "Solde d'ouverture",
+      "openingDate": "Date d'ouverture",
+      "openingHint": "Seuls les mouvements à partir de cette date sont comptés. Indiquez le solde réel du compte ce jour-là.",
+      "created": "Compte créé.",
+      "updated": "Compte modifié.",
+      "archiveConfirm": "Archiver ce compte ? Il ne recevra plus de mouvement.",
+      "archived": "Compte archivé."
+    },
+    "transferForm": {
+      "title": "Virement entre comptes",
+      "from": "Depuis",
+      "to": "Vers",
+      "amount": "Montant",
+      "date": "Date",
+      "reference": "Référence (bordereau, chèque…)",
+      "notes": "Note",
+      "available": "Disponible : {amount}",
+      "overdraft": "Ce virement met la banque à découvert.",
+      "done": "Virement enregistré."
+    },
+    "expenseForm": {
+      "title": "Dépense hors caisse",
+      "hint": "Loyer, fournisseur, frais bancaires… payés depuis un compte. Les petites dépenses en espèces se saisissent dans la caisse.",
+      "account": "Payée depuis",
+      "category": "Catégorie",
+      "amount": "Montant",
+      "description": "Description",
+      "date": "Date",
+      "receipt": "Justificatif (photo ou PDF, facultatif)",
+      "receiptTake": "Ajouter le justificatif",
+      "receiptChange": "Changer",
+      "pendingHint": "Au-delà de {amount}, la dépense attend la validation d'un gérant avant de sortir du compte.",
+      "done": "Dépense enregistrée.",
+      "pendingDone": "Dépense envoyée en validation au gérant."
+    },
+    "movementForm": {
+      "title": "Autre mouvement",
+      "kind": "Nature",
+      "income": "Entrée diverse",
+      "adjustmentIn": "Ajustement (+)",
+      "adjustmentOut": "Ajustement (−)",
+      "account": "Compte",
+      "category": "Catégorie",
+      "amount": "Montant",
+      "label": "Motif",
+      "labelPlaceholder": "Ex. apport du gérant pour la paie",
+      "date": "Date",
+      "reference": "Référence",
+      "done": "Mouvement enregistré."
+    },
+    "reverseForm": {
+      "title": "Contre-passer le mouvement",
+      "hint": "Une écriture n'est jamais modifiée : on passe l'écriture inverse. Pour un virement, les deux comptes sont rétablis.",
+      "reason": "Motif",
+      "done": "Mouvement contre-passé."
+    },
+    "reconcileForm": {
+      "title": "Rapprocher avec un relevé",
+      "hint": "Saisissez le solde de votre relevé bancaire ou mobile money à une date : l'écart avec le solde calculé s'affiche.",
+      "date": "Date du relevé",
+      "balance": "Solde du relevé",
+      "computed": "Solde calculé à cette date",
+      "difference": "Écart",
+      "balanced": "Le compte est juste.",
+      "adjust": "Passer l'écart en ajustement",
+      "notes": "Commentaire (obligatoire pour ajuster)",
+      "done": "Rapprochement enregistré."
+    },
+    "detail": {
+      "back": "Trésorerie",
+      "last30": "30 derniers jours",
+      "reconciliations": "Rapprochements",
+      "noReconciliations": "Aucun rapprochement.",
+      "statement": "Relevé",
+      "computed": "Calculé",
+      "difference": "Écart",
+      "movements": "Mouvements du compte",
+      "notFound": "Compte introuvable."
+    },
+    "reports": {
+      "title": "Rapports de trésorerie",
+      "subtitle": "Entrées, sorties et soldes par période.",
+      "from": "Du",
+      "to": "Au",
+      "account": "Compte",
+      "allAccounts": "Tous les comptes",
+      "groupBy": "Regrouper par",
+      "groups": {
+        "day": "Jour",
+        "week": "Semaine",
+        "month": "Mois"
+      },
+      "presets": {
+        "month": "Ce mois",
+        "lastMonth": "Mois dernier",
+        "quarter": "3 derniers mois",
+        "year": "Cette année"
+      },
+      "opening": "Solde d'ouverture",
+      "inflow": "Entrées",
+      "outflow": "Sorties",
+      "closing": "Solde de clôture",
+      "chart": "Entrées et sorties",
+      "chartEmpty": "Aucun mouvement sur la période.",
+      "table": "Détail par période",
+      "period": "Période",
+      "net": "Net",
+      "byMethod": "Encaissements par mode",
+      "byCategory": "Sorties par catégorie",
+      "byAccount": "Par compte",
+      "internalNote": "Virements internes et versements de caisse exclus des totaux (ils ne changent pas l'argent total).",
+      "weekOf": "Sem. du {date}",
+      "total": "Total"
+    },
+    "close": "Fermer"
   }
 }

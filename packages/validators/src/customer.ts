@@ -88,6 +88,7 @@ export const customerListInputSchema = z.object({
   segmentId: z.string().trim().min(1).optional(),
   commune: z.string().trim().min(1).optional(),
   cursor: z.string().trim().min(1).optional(),
+  offset: z.number().int().min(0).optional(),
   limit: z.number().int().min(1).max(100).default(50),
 });
 export type CustomerListInput = z.infer<typeof customerListInputSchema>;

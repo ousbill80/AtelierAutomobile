@@ -8,12 +8,13 @@ import { Sparkles } from "lucide-react";
 import {
   Button,
   CheckboxRow,
+  CustomerForm,
   Field,
   Input,
   Modal,
-  PhoneInput,
   Select,
   Textarea,
+  type CustomerFormData,
 } from "@atelieros/ui";
 import { addDaysToKey, DEFAULT_DURATIONS } from "@atelieros/core/planning";
 import { trpc } from "@/trpc/react";
@@ -72,12 +73,14 @@ export function AppointmentForm({
   const [notes, setNotes] = useState("");
   const [source, setSource] = useState<AppointmentSource>(initial.source ?? "STAFF");
   const [notify, setNotify] = useState(true);
+  const [notifyChannel, setNotifyChannel] = useState<"AUTO" | "WHATSAPP" | "SMS" | "EMAIL">("AUTO");
   const [showSlots, setShowSlots] = useState(false);
   const [intent, setIntent] = useState("");
   const [force, setForce] = useState<{ message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quickCreate, setQuickCreate] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ lastName: "", firstName: "", phone: "" });
+  const [createCustomerError, setCreateCustomerError] = useState<string | null>(null);
+  const [duplicateOverrideReason, setDuplicateOverrideReason] = useState("");
 
   const settings = trpc.planningSettings.get.useQuery();
   const duration =
@@ -109,13 +112,49 @@ export function AppointmentForm({
 
   const createCustomer = trpc.customer.create.useMutation({
     onSuccess(result) {
+      // On sélectionne le client créé et on ferme le modal de création
       setCustomerId(result.customer.id);
       setQuickCreate(false);
+      setCreateCustomerError(null);
+      setDuplicateOverrideReason("");
     },
     onError(e) {
-      setError(e.message);
+      setCreateCustomerError(e.message);
     },
   });
+
+  function handleCreateCustomer(data: CustomerFormData) {
+    setCreateCustomerError(null);
+    if (data.type === "INDIVIDUAL") {
+      createCustomer.mutate({
+        type: "INDIVIDUAL",
+        civility: data.civility,
+        lastName: data.lastName,
+        firstName: data.firstName,
+        phone: data.phone,
+        email: data.email,
+        commune: data.commune,
+        address: data.address,
+        vehicle: data.vehicle,
+        source: "comptoir",
+        duplicateOverrideReason: duplicateOverrideReason || undefined,
+      });
+    } else {
+      createCustomer.mutate({
+        type: "COMPANY",
+        companyName: data.companyName!,
+        ncc: data.ncc,
+        rccm: data.rccm,
+        phone: data.phone,
+        email: data.email,
+        commune: data.commune,
+        address: data.address,
+        vehicle: data.vehicle,
+        source: "comptoir",
+        duplicateOverrideReason: duplicateOverrideReason || undefined,
+      });
+    }
+  }
 
   const create = trpc.appointment.create.useMutation({
     onSuccess(result) {
@@ -166,6 +205,7 @@ export function AppointmentForm({
       source,
       reminderId: initial.reminderId ?? null,
       notifyCustomer: notify,
+      preferredChannel: notifyChannel,
       force: withForce,
     });
   }
@@ -180,69 +220,192 @@ export function AppointmentForm({
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="panel-form"
       onSubmit={(e) => {
         e.preventDefault();
         submit(false);
       }}
     >
-      <Field label={ta("form.customer")}>
-        {customerId && customer.data ? (
-          <div className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-border px-3">
-            <span className="truncate font-medium" data-testid="selected-customer">
-              {customer.data.displayName}
-            </span>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setCustomerId(null);
-                setVehicleId(null);
-              }}
-            >
-              {ta("form.change")}
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={ta("form.customerSearch")}
-              aria-label={ta("form.customerSearch")}
-              className="min-h-11"
-            />
-            {search.data && search.data.items.length === 0 && (
-              <p className="text-sm text-muted">{ta("form.customerNone")}</p>
-            )}
-            {search.data?.items.map((c) => (
+      {/* Section Client */}
+      <div className="panel-form-section">
+        <Field label={ta("form.customer")}>
+          {customerId && customer.data ? (
+            <div className="panel-customer-selected">
+              <span className="panel-customer-selected-name" data-testid="selected-customer">
+                {customer.data.displayName}
+              </span>
               <button
-                key={c.id}
                 type="button"
-                onClick={() => setCustomerId(c.id)}
-                className="flex min-h-11 items-center justify-between rounded-md border border-border px-3 text-left hover:bg-surface-2"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setCustomerId(null);
+                  setVehicleId(null);
+                }}
               >
-                <span className="truncate">{c.displayName}</span>
-                <span className="text-xs text-muted">{c.phone ?? ""}</span>
+                {ta("form.change")}
               </button>
-            ))}
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm self-start"
-              onClick={() => setQuickCreate(true)}
+            </div>
+          ) : (
+            <div>
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={ta("form.customerSearch")}
+                aria-label={ta("form.customerSearch")}
+              />
+              {search.data && search.data.items.length === 0 && (
+                <p className="text-sm text-muted" style={{ marginTop: 8 }}>{ta("form.customerNone")}</p>
+              )}
+              <div className="panel-customer-results">
+                {search.data?.items.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCustomerId(c.id)}
+                    className="panel-customer-item"
+                  >
+                    <span className="panel-customer-item-name">{c.displayName}</span>
+                    <span className="panel-customer-item-phone">{c.phone ?? ""}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ marginTop: 8 }}
+                onClick={() => setQuickCreate(true)}
+              >
+                {ta("form.quickCreate")}
+              </button>
+            </div>
+          )}
+        </Field>
+      </div>
+
+      {/* Section Type & Horaire */}
+      <div className="panel-form-section">
+        <div className="panel-form-row">
+          <Field label={ta("form.type")}>
+            <Select
+              value={type}
+              onChange={(e) => setType(e.target.value as AppointmentType)}
             >
-              {ta("form.quickCreate")}
-            </button>
+              {TYPES.map((value) => (
+                <option key={value} value={value}>
+                  {ta(`types.${value}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Input
+            label={ta("form.duration")}
+            type="number"
+            min={15}
+            step={15}
+            value={duration}
+            onChange={(e) => {
+              setDuration(Number(e.target.value));
+            }}
+          />
+        </div>
+        <div className="panel-form-row">
+          <Input
+            label={ta("form.date")}
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <Input
+            label={ta("form.time")}
+            type="time"
+            step={900}
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setShowSlots((v) => !v)}
+        >
+          {ta("findSlot")}
+        </Button>
+      </div>
+
+      {showSlots && (
+        <div className="panel-slots" data-testid="slot-finder">
+          <div className="panel-slots-title">{ta("form.slotsTitle")}</div>
+          {slots.isLoading && <p className="text-sm text-muted">{ta("form.slotsLoading")}</p>}
+          {slots.data && slots.data.groups.length === 0 && (
+            <p className="text-sm text-muted">{ta("form.slotsEmpty")}</p>
+          )}
+          <div className="panel-slots-list">
+            {slots.data?.groups.flatMap((g) =>
+              g.slots.map((s) => (
+                <button
+                  key={`${String(s.startsAt)}-${s.bayId}`}
+                  type="button"
+                  onClick={() => pickSlot(s.startsAt, s.bayId)}
+                  className="panel-slot-item"
+                >
+                  <span className="panel-slot-time">
+                    {fmtDay(s.startsAt, timeZone)} · {fmtTime(s.startsAt, timeZone)}
+                  </span>
+                  <span className="panel-slot-bay">{s.bayName ?? ta("unassigned")}</span>
+                </button>
+              )),
+            )}
           </div>
-        )}
-      </Field>
+        </div>
+      )}
+
+      {/* Section Affectation */}
+      <div className="panel-form-section">
+        <div className="panel-form-row">
+          <Field label={ta("form.bay")}>
+            <Select value={bayId} onChange={(e) => setBayId(e.target.value)}>
+              <option value="">{ta("form.noBay")}</option>
+              {columns.data?.bays.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={ta("form.mechanic")}>
+            <Select
+              value={mechanicId}
+              onChange={(e) => setMechanicId(e.target.value)}
+            >
+              <option value="">{ta("form.noMechanic")}</option>
+              {columns.data?.mechanics.map((m) => (
+                <option key={m.id} value={m.id} disabled={m.absent}>
+                  {m.name}
+                  {m.absent ? ` (${ta("mechanicAbsent")})` : ""}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <Field label={ta("form.source")}>
+          <Select
+            value={source}
+            onChange={(e) => setSource(e.target.value as AppointmentSource)}
+          >
+            {SOURCES.map((value) => (
+              <option key={value} value={value}>
+                {ta(`sources.${value}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
 
       {customerId && (
         <Field label={ta("form.vehicle")}>
           <Select
             value={vehicleId}
             onChange={(e) => setVehicleId(e.target.value)}
-            className="min-h-11"
           >
             <option value="">{ta("form.noVehicle")}</option>
             {customer.data?.vehicles.map((v) => (
@@ -270,103 +433,21 @@ export function AppointmentForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={ta("form.type")}>
-          <Select
-            value={type}
-            onChange={(e) => setType(e.target.value as AppointmentType)}
-            className="min-h-11"
-          >
-            {TYPES.map((value) => (
-              <option key={value} value={value}>
-                {ta(`types.${value}`)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Input
-          label={ta("form.duration")}
-          type="number"
-          min={15}
-          step={15}
-          value={duration}
-          onChange={(e) => {
-            setDuration(Number(e.target.value));
-          }}
-          className="min-h-11"
-        />
-        <Input
-          label={ta("form.date")}
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="min-h-11"
-        />
-        <Input
-          label={ta("form.time")}
-          type="time"
-          step={900}
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          className="min-h-11"
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => setShowSlots((v) => !v)}
-          className="min-h-11"
-        >
-          {ta("findSlot")}
-        </Button>
-      </div>
-      {showSlots && (
-        <div
-          className="flex flex-col gap-2 rounded-md border border-border p-3"
-          data-testid="slot-finder"
-        >
-          <p className="text-sm font-semibold">{ta("form.slotsTitle")}</p>
-          {slots.isLoading && <p className="text-sm text-muted">{ta("form.slotsLoading")}</p>}
-          {slots.data && slots.data.groups.length === 0 && (
-            <p className="text-sm text-muted">{ta("form.slotsEmpty")}</p>
-          )}
-          {slots.data?.groups.flatMap((g) =>
-            g.slots.map((s) => (
-              <button
-                key={`${String(s.startsAt)}-${s.bayId}`}
-                type="button"
-                onClick={() => pickSlot(s.startsAt, s.bayId)}
-                className="flex min-h-11 items-center justify-between rounded-md border border-border px-3 text-left text-sm hover:bg-surface-2"
-              >
-                <span>
-                  {fmtDay(s.startsAt, timeZone)} · {fmtTime(s.startsAt, timeZone)}
-                </span>
-                <span className="text-muted">{s.bayName ?? ta("unassigned")}</span>
-              </button>
-            )),
-          )}
-        </div>
-      )}
-
       {customerId && (
-        <div className="flex flex-col gap-2 rounded-md border border-dashed border-border p-3">
-          <p className="flex items-center gap-1.5 text-sm font-semibold">
+        <div className="panel-suggest">
+          <div className="panel-suggest-title">
             <Sparkles size={14} aria-hidden /> {ta("form.suggestTitle")}
-          </p>
-          <div className="flex gap-2">
+          </div>
+          <div className="panel-suggest-input">
             <Input
               value={intent}
               onChange={(e) => setIntent(e.target.value)}
               placeholder={ta("form.suggestPlaceholder")}
               aria-label={ta("form.suggestPlaceholder")}
-              className="min-h-11"
             />
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11"
               onClick={() =>
                 customerId &&
                 suggestion.mutate({
@@ -380,72 +461,55 @@ export function AppointmentForm({
               {ta("form.suggest")}
             </Button>
           </div>
-          {suggestion.data?.suggestions.map((s) => (
-            <button
-              key={String(s.startsAt)}
-              type="button"
-              onClick={() => pickSlot(s.startsAt, s.bayId)}
-              className="flex min-h-11 flex-col items-start justify-center rounded-md border border-border px-3 text-left text-sm hover:bg-surface-2"
-            >
-              <span className="font-medium">{s.label}</span>
-              <span className="text-xs text-muted">{s.reason}</span>
-            </button>
-          ))}
+          {suggestion.data?.suggestions && suggestion.data.suggestions.length > 0 && (
+            <div className="panel-suggest-results">
+              {suggestion.data.suggestions.map((s) => (
+                <button
+                  key={String(s.startsAt)}
+                  type="button"
+                  onClick={() => pickSlot(s.startsAt, s.bayId)}
+                  className="panel-suggest-item"
+                >
+                  <span className="panel-suggest-item-label">{s.label}</span>
+                  <span className="panel-suggest-item-reason">{s.reason}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={ta("form.bay")}>
-          <Select value={bayId} onChange={(e) => setBayId(e.target.value)} className="min-h-11">
-            <option value="">{ta("form.noBay")}</option>
-            {columns.data?.bays.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </Select>
+      {/* Section Notes */}
+      <div className="panel-form-section">
+        <Field label={ta("form.complaint")} hint={ta("form.complaintHint")}>
+          <Textarea value={complaint} onChange={(e) => setComplaint(e.target.value)} rows={2} />
         </Field>
-        <Field label={ta("form.mechanic")}>
-          <Select
-            value={mechanicId}
-            onChange={(e) => setMechanicId(e.target.value)}
-            className="min-h-11"
-          >
-            <option value="">{ta("form.noMechanic")}</option>
-            {columns.data?.mechanics.map((m) => (
-              <option key={m.id} value={m.id} disabled={m.absent}>
-                {m.name}
-                {m.absent ? ` (${ta("mechanicAbsent")})` : ""}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={ta("form.source")}>
-          <Select
-            value={source}
-            onChange={(e) => setSource(e.target.value as AppointmentSource)}
-            className="min-h-11"
-          >
-            {SOURCES.map((value) => (
-              <option key={value} value={value}>
-                {ta(`sources.${value}`)}
-              </option>
-            ))}
-          </Select>
+        <Field label={ta("form.notes")}>
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
         </Field>
       </div>
 
-      <Field label={ta("form.complaint")} hint={ta("form.complaintHint")}>
-        <Textarea value={complaint} onChange={(e) => setComplaint(e.target.value)} rows={2} />
-      </Field>
-      <Field label={ta("form.notes")}>
-        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-      </Field>
       <CheckboxRow
         label={ta("form.notify")}
         checked={notify}
         onChange={(e) => setNotify(e.target.checked)}
       />
+
+      {notify && (
+        <Field label={ta("form.notifyChannel")}>
+          <Select
+            value={notifyChannel}
+            onChange={(e) =>
+              setNotifyChannel(e.target.value as "AUTO" | "WHATSAPP" | "SMS" | "EMAIL")
+            }
+          >
+            <option value="AUTO">{ta("channels.AUTO")}</option>
+            <option value="WHATSAPP">{ta("channels.WHATSAPP")}</option>
+            <option value="SMS">{ta("channels.SMS")}</option>
+            <option value="EMAIL">{ta("channels.EMAIL")}</option>
+          </Select>
+        </Field>
+      )}
 
       {error && (
         <p
@@ -456,19 +520,19 @@ export function AppointmentForm({
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" loading={create.isPending} className="min-h-11">
+      <div className="panel-form-actions">
+        {onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            {ta("form.cancel")}
+          </Button>
+        )}
+        <Button type="submit" loading={create.isPending}>
           {create.isPending
             ? ta("form.saving")
             : notify
               ? ta("form.saveAndNotify")
               : ta("form.save")}
         </Button>
-        {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel} className="min-h-11">
-            {ta("form.cancel")}
-          </Button>
-        )}
       </div>
 
       <Modal
@@ -497,42 +561,27 @@ export function AppointmentForm({
       <Modal
         open={quickCreate}
         title={ta("form.quickCreateTitle")}
-        onClose={() => setQuickCreate(false)}
-        footer={
-          <Button
-            loading={createCustomer.isPending}
-            onClick={() =>
-              createCustomer.mutate({
-                type: "INDIVIDUAL",
-                lastName: newCustomer.lastName,
-                firstName: newCustomer.firstName || undefined,
-                phone: newCustomer.phone || undefined,
-                source: "comptoir",
-              })
-            }
-          >
-            {ta("form.quickCreate")}
-          </Button>
-        }
+        onClose={() => {
+          setQuickCreate(false);
+          setCreateCustomerError(null);
+          setDuplicateOverrideReason("");
+        }}
+        size="lg"
       >
-        <div className="flex flex-col gap-3">
-          <Input
-            label={ta("form.lastName")}
-            value={newCustomer.lastName}
-            onChange={(e) => setNewCustomer({ ...newCustomer, lastName: e.target.value })}
-          />
-          <Input
-            label={ta("form.firstName")}
-            value={newCustomer.firstName}
-            onChange={(e) => setNewCustomer({ ...newCustomer, firstName: e.target.value })}
-          />
-          <Field label={ta("form.phone")}>
-            <PhoneInput
-              value={newCustomer.phone}
-              onChange={(phone) => setNewCustomer({ ...newCustomer, phone })}
-            />
-          </Field>
-        </div>
+        <CustomerForm
+          onSubmit={handleCreateCustomer}
+          isPending={createCustomer.isPending}
+          error={createCustomerError}
+          showDuplicateOverride={!!createCustomerError?.includes("doublon")}
+          duplicateOverrideReason={duplicateOverrideReason}
+          onDuplicateOverrideChange={setDuplicateOverrideReason}
+          compact
+          onCancel={() => {
+            setQuickCreate(false);
+            setCreateCustomerError(null);
+            setDuplicateOverrideReason("");
+          }}
+        />
       </Modal>
     </form>
   );

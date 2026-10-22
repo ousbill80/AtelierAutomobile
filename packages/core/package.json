@@ -18,6 +18,7 @@
     "./repairOrders": "./src/repairOrders/index.ts",
     "./quotes": "./src/quotes/index.ts",
     "./billing": "./src/billing/index.ts",
+    "./treasury": "./src/treasury/index.ts",
     "./workshop": "./src/workshop/index.ts",
     "./reports": "./src/reports/index.ts",
     "./claims": "./src/claims/index.ts",

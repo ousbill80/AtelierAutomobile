@@ -166,6 +166,7 @@ Mobile : fiche sinistre consultable, prise de photos directement dans l'onglet D
 | `claim.addActivity` | `{ id, type: 'call'\|'note'\|'email'\|'visit', body, nextActionAt? }` | `ClaimActivity` |
 | `claim.followUps` / `claim.sendFollowUp` / `claim.snoozeFollowUp` | `{ dueBefore? }` / `{ followUpId, channel }` / `{ followUpId, until }` | |
 | `claim.exportFile` | `{ id }` | URL ZIP/PDF du dossier |
+| `vehicle.setInsurance` | `{ vehicleId, insuranceCompanyId \| null, policyNumber \| null, expiryDate \| null }` | `Vehicle` — rattachement du véhicule à une compagnie et une police (bloc « Assurance » de la fiche véhicule, repris à l'ouverture du dossier), permission `vehicle:update`, audité |
 
 Pas d'API REST publique spécifique en v1 (les factures assurance sont exposées par les endpoints M08).
 

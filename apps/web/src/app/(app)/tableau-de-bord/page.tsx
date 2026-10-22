@@ -1,6 +1,6 @@
 "use client";
 
-// M12 §7 — `/tableau-de-bord` : onglets selon le rôle et les permissions (Synthèse, Atelier,
+// M12 §7 — `/tableau-de-bord` : onglets selon le rôle et les permissions (Aujourd'hui, Synthèse, Atelier,
 // Accueil, Finances, Relances, Clients ; CASHIER : « Ma caisse du jour »), version AutoRappel
 // en mode REMINDERS_ONLY (US-M12-10), bloc Alertes (RG-M12-28). Période (dont personnalisée)
 // et site dans l'URL (`?periode=mois&site=…`, US-M12-02).
@@ -16,9 +16,11 @@ import { fmt, formatAmount, formatDay, L, methodLabel, reminderTypeLabel } from 
 import {
   BarList,
   CardsSkeleton,
+  EmptyLine,
   ErrorState,
   formatDateTime,
   KpiCard,
+  ListRow,
   Section,
   Stat,
 } from "./parts";
@@ -33,10 +35,18 @@ import {
   type Period,
   type TabInput,
 } from "./tabs";
+import { TodayTab } from "./today";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type Tab =
-  "summary" | "workshop" | "frontDesk" | "finances" | "reminders" | "customers" | "cashier";
+  | "today"
+  | "summary"
+  | "workshop"
+  | "frontDesk"
+  | "finances"
+  | "reminders"
+  | "customers"
+  | "cashier";
 
 // Valeurs d'URL en français (US-M12-02 : `?periode=mois`).
 const PERIOD_URL: Record<Period | "custom", string> = {
@@ -50,6 +60,7 @@ const PERIOD_URL: Record<Period | "custom", string> = {
   custom: "perso",
 };
 const TAB_URL: Record<Tab, string> = {
+  today: "aujourdhui",
   summary: "synthese",
   workshop: "atelier",
   frontDesk: "accueil",
@@ -60,8 +71,8 @@ const TAB_URL: Record<Tab, string> = {
 };
 /** M12 §7 : onglet par défaut selon le rôle. */
 const DEFAULT_TAB: Record<string, Tab> = {
-  OWNER: "summary",
-  MANAGER: "workshop",
+  OWNER: "today",
+  MANAGER: "today",
   ADVISOR: "frontDesk",
   ACCOUNTANT: "finances",
   CASHIER: "cashier",
@@ -94,6 +105,10 @@ function Dashboard() {
   const tabs: Tab[] = [];
   // M12 §10 : MECHANIC sans accès (redirigé vers la tablette).
   if (role !== "MECHANIC") {
+    // Vue du jour de l'atelier : gestion complète, propriétaire ou chef d'atelier.
+    if (full && (permissions.has("dashboard:owner") || permissions.has("repair_order:read"))) {
+      tabs.push("today");
+    }
     if (permissions.has("dashboard:owner")) tabs.push("summary");
     if (full && permissions.has("repair_order:read")) tabs.push("workshop");
     if (
@@ -129,7 +144,9 @@ function Dashboard() {
   const siteParam = params.get("site") ?? undefined;
   const siteId = siteParam ?? (restricted ? sites[0]?.id : undefined);
   const [draft, setDraft] = useState({ from: du, to: au });
-  const showCustom = urlPeriod === "custom";
+  // L'onglet « Aujourd'hui » porte sur le jour même : pas de sélecteur de période.
+  const showPeriod = tab !== "today";
+  const showCustom = showPeriod && urlPeriod === "custom";
 
   function update(next: Record<string, string | undefined>) {
     const search = new URLSearchParams(params.toString());
@@ -161,37 +178,46 @@ function Dashboard() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4 pb-20">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{L.title}</h1>
-        {(permissions.has("report:read") || permissions.has("report:financial")) && (
-          <Link href="/rapports" className="flex min-h-11 items-center text-sm underline">
-            {L.reportsLink}
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+          {(permissions.has("report:read") || permissions.has("report:financial")) && (
+            <Link href="/rapports" className="flex min-h-11 items-center text-sm underline">
+              {L.reportsLink}
+            </Link>
+          )}
+          {full && permissions.has("repair_order:create") && (
+            <Link href="/ordres/reception" className="btn btn-primary min-h-11">
+              + {L.today.newReception}
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-end gap-2 bg-background px-1 py-2">
-        <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
-          {L.periodLabel}
-          <select
-            aria-label={L.periodLabel}
-            value={showCustom ? "custom" : period}
-            onChange={(e) => {
-              const value = e.target.value as Period | "custom";
-              update({
-                periode: PERIOD_URL[value],
-                ...(value === "custom" ? {} : { du: undefined, au: undefined }),
-              });
-            }}
-            className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
-          >
-            {periodOptions.map((p) => (
-              <option key={p} value={p}>
-                {L.periods[p]}
-              </option>
-            ))}
-          </select>
-        </label>
+        {showPeriod && (
+          <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
+            {L.periodLabel}
+            <select
+              aria-label={L.periodLabel}
+              value={showCustom ? "custom" : period}
+              onChange={(e) => {
+                const value = e.target.value as Period | "custom";
+                update({
+                  periode: PERIOD_URL[value],
+                  ...(value === "custom" ? {} : { du: undefined, au: undefined }),
+                });
+              }}
+              className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+            >
+              {periodOptions.map((p) => (
+                <option key={p} value={p}>
+                  {L.periods[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {sites.length > 1 || !restricted ? (
           <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
             {L.siteLabel}
@@ -246,14 +272,17 @@ function Dashboard() {
       </div>
 
       {tabs.length > 1 && (
-        <div role="tablist" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 text-sm">
+        <div
+          role="tablist"
+          className="-mx-1 flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1 text-sm shadow-sm sm:mx-0 sm:w-fit"
+        >
           {tabs.map((t) => (
             <button
               key={t}
               role="tab"
               aria-selected={t === tab}
               onClick={() => update({ onglet: TAB_URL[t] })}
-              className={`min-h-11 shrink-0 rounded-md px-3 ${t === tab ? "bg-accent text-accent-foreground" : "bg-surface-2"}`}
+              className={`min-h-11 shrink-0 rounded-lg px-4 font-medium transition-colors ${t === tab ? "bg-accent text-accent-foreground shadow-sm" : "text-muted hover:bg-surface-2 hover:text-foreground"}`}
             >
               {L.tabs[t]}
             </button>
@@ -261,6 +290,7 @@ function Dashboard() {
         </div>
       )}
 
+      {tab === "today" && <TodayTab input={input} timeZone={timeZone} />}
       {tab === "summary" && <SummaryTab input={input} />}
       {tab === "workshop" && <WorkshopTab input={input} timeZone={timeZone} />}
       {tab === "frontDesk" && <FrontDeskTab input={input} />}
@@ -374,10 +404,13 @@ function RemindersTab({ input }: { input: TabInput }) {
                 tone={d.failed > 0 ? "bad" : undefined}
               />
             </dl>
-            <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+            <ul className="mt-4 flex flex-wrap gap-2 text-xs">
               {Object.entries(d.sentByType).map(([type, count]) => (
-                <li key={type} className="rounded-full bg-surface-2 px-2.5 py-1">
-                  {reminderTypeLabel(type)} : {count}
+                <li
+                  key={type}
+                  className="rounded-full border border-border bg-surface-2 px-3 py-1 font-medium"
+                >
+                  {reminderTypeLabel(type)} · {count}
                 </li>
               ))}
             </ul>
@@ -412,9 +445,9 @@ function ReturnRateRow({
   rate: { cohort: number; returned: number; pending: number; rate: number | null };
 }) {
   return (
-    <div className="rounded-md bg-surface-2 p-3">
+    <div className="rounded-lg bg-surface-2 p-4">
       <p className="text-sm font-medium">{label}</p>
-      <p className="text-2xl font-semibold">
+      <p className="mt-1 text-3xl font-bold tracking-tight">
         {rate.rate === null ? L.dash : `${(rate.rate * 100).toFixed(1).replace(".", ",")} %`}
       </p>
       <p className="text-xs text-muted">
@@ -429,23 +462,15 @@ function ReturnRateRow({
 }
 
 function WeeklyBars({ weeks }: { weeks: RouterOutputs["dashboard"]["reminders"]["weekly"] }) {
-  const max = Math.max(...weeks.map((w) => w.total), 1);
   return (
-    <ul className="flex flex-col gap-2">
-      {weeks.map((w) => (
-        <li key={w.weekStart} className="flex items-center gap-2 text-xs">
-          <span className="w-28 shrink-0 text-muted">
-            {fmt(L.reminders.weekOf, { date: formatDay(w.weekStart) })}
-          </span>
-          <span
-            className="h-3 rounded bg-accent"
-            style={{ width: `${(w.total / max) * 100}%` }}
-            aria-hidden="true"
-          />
-          <span className="font-medium">{w.total}</span>
-        </li>
-      ))}
-    </ul>
+    <BarList
+      format={String}
+      items={weeks.map((w) => ({
+        key: w.weekStart,
+        label: fmt(L.reminders.weekOf, { date: formatDay(w.weekStart) }),
+        value: w.total,
+      }))}
+    />
   );
 }
 
@@ -461,7 +486,6 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
   }
   const r = d.receivables;
   const bucketKeys = Object.keys(L.finances.buckets) as (keyof typeof r.buckets)[];
-  const max = Math.max(...bucketKeys.map((k) => r.buckets[k]), 1);
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -480,56 +504,45 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
           help={L.help.dso}
         />
       </div>
-      <Section title={L.finances.aged}>
-        <ul className="flex flex-col gap-2">
-          {bucketKeys.map((k) => (
-            <li key={k} className="flex items-center gap-2 text-xs">
-              <span className="w-24 shrink-0 text-muted">{L.finances.buckets[k]}</span>
-              <span
-                className="h-3 rounded bg-accent"
-                style={{ width: `${(r.buckets[k] / max) * 60}%` }}
-                aria-hidden="true"
-              />
-              <span className="font-medium">{formatAmount(r.buckets[k])}</span>
-            </li>
-          ))}
-        </ul>
-      </Section>
-      <Section title={L.finances.byMethod}>
-        {Object.keys(d.collected.byMethod).length === 0 ? (
-          <p className="text-sm text-muted">{L.states.empty}</p>
-        ) : (
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <Section title={L.finances.aged}>
           <BarList
-            items={Object.entries(d.collected.byMethod)
-              .sort((a, b) => b[1] - a[1])
-              .map(([method, amount]) => ({
-                key: method,
-                label: methodLabel(method),
-                value: amount,
-              }))}
+            items={bucketKeys.map((k) => ({
+              key: k,
+              label: L.finances.buckets[k],
+              value: r.buckets[k],
+            }))}
           />
-        )}
-      </Section>
+        </Section>
+        <Section title={L.finances.byMethod}>
+          {Object.keys(d.collected.byMethod).length === 0 ? (
+            <EmptyLine>{L.states.empty}</EmptyLine>
+          ) : (
+            <BarList
+              items={Object.entries(d.collected.byMethod)
+                .sort((a, b) => b[1] - a[1])
+                .map(([method, amount]) => ({
+                  key: method,
+                  label: methodLabel(method),
+                  value: amount,
+                }))}
+            />
+          )}
+        </Section>
+      </div>
       <Section title={L.finances.fneFailed}>
         {d.fneFailed.count === 0 ? (
-          <p className="text-sm text-muted">{L.finances.noFneFailed}</p>
+          <EmptyLine>{L.finances.noFneFailed}</EmptyLine>
         ) : (
           <ul className="divide-y divide-border">
             {d.fneFailed.invoices.map((i) => (
-              <li key={i.id}>
-                <Link
-                  href={`/factures/${i.id}`}
-                  className="flex min-h-11 items-center justify-between gap-2 py-2 text-sm hover:underline"
-                >
-                  <span className="min-w-0">
-                    <StatusBadge tone="bad">{i.number ?? L.dash}</StatusBadge>
-                    <span className="block truncate text-xs text-muted">
-                      {formatDateTime(i.issuedAt, timeZone)} · {i.fneError ?? ""}
-                    </span>
-                  </span>
-                  <span className="shrink-0 font-medium">{formatAmount(i.total)}</span>
-                </Link>
-              </li>
+              <ListRow
+                key={i.id}
+                href={`/factures/${i.id}`}
+                title={<StatusBadge tone="bad">{i.number ?? L.dash}</StatusBadge>}
+                sub={`${formatDateTime(i.issuedAt, timeZone)} · ${i.fneError ?? ""}`}
+                right={<span className="font-medium">{formatAmount(i.total)}</span>}
+              />
             ))}
           </ul>
         )}
@@ -537,19 +550,16 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
       {d.promisesToday && (
         <Section title={L.finances.promisesToday}>
           {d.promisesToday.length === 0 ? (
-            <p className="text-sm text-muted">{L.finances.noPromises}</p>
+            <EmptyLine>{L.finances.noPromises}</EmptyLine>
           ) : (
             <ul className="divide-y divide-border">
               {d.promisesToday.map((p) => (
-                <li key={p.id}>
-                  <Link
-                    href={`/creances/${p.caseId}`}
-                    className="flex min-h-11 items-center justify-between gap-2 py-2 text-sm hover:underline"
-                  >
-                    <span className="truncate">{p.customerName}</span>
-                    <span className="shrink-0 font-medium">{formatAmount(p.amount)}</span>
-                  </Link>
-                </li>
+                <ListRow
+                  key={p.id}
+                  href={`/creances/${p.caseId}`}
+                  title={p.customerName}
+                  right={<span className="font-medium">{formatAmount(p.amount)}</span>}
+                />
               ))}
             </ul>
           )}
@@ -566,24 +576,24 @@ function TopUnpaid({ entries }: { entries: RouterOutputs["dashboard"]["finances"
     <Section title={L.finances.topUnpaid}>
       <ul className="divide-y divide-border">
         {entries.map((e) => (
-          <li
+          <ListRow
             key={e.customerId}
-            className="flex min-h-11 items-center justify-between gap-2 py-2 text-sm"
-          >
-            <Link
-              href={`/clients/${e.customerId}`}
-              className="min-w-0 truncate font-medium hover:underline"
-            >
-              {e.customerName}
-              <span className="block text-xs font-normal text-muted">
-                {fmt(L.finances.invoices, { count: e.invoiceCount })} ·{" "}
-                {e.maxDaysLate > 0
-                  ? fmt(L.finances.daysLate, { days: e.maxDaysLate })
-                  : L.finances.notDue}
+            href={`/clients/${e.customerId}`}
+            title={e.customerName}
+            sub={
+              <span className="flex flex-wrap items-center gap-2">
+                {fmt(L.finances.invoices, { count: e.invoiceCount })}
+                {e.maxDaysLate > 0 ? (
+                  <StatusBadge tone={e.maxDaysLate > 30 ? "bad" : "warn"}>
+                    {fmt(L.finances.daysLate, { days: e.maxDaysLate })}
+                  </StatusBadge>
+                ) : (
+                  <StatusBadge tone="off">{L.finances.notDue}</StatusBadge>
+                )}
               </span>
-            </Link>
-            <span className="shrink-0 font-semibold">{formatAmount(e.balance)}</span>
-          </li>
+            }
+            right={<span className="font-semibold">{formatAmount(e.balance)}</span>}
+          />
         ))}
       </ul>
     </Section>
@@ -607,7 +617,7 @@ function AlertsBlock() {
       ) : q.isError ? (
         <ErrorState onRetry={() => q.refetch()} />
       ) : !q.data || q.data.length === 0 ? (
-        <p className="text-sm text-muted">{L.alerts.empty}</p>
+        <EmptyLine>{L.alerts.empty}</EmptyLine>
       ) : (
         <ul className="divide-y divide-border">
           {q.data.map((a) => {
