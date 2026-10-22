@@ -22,6 +22,7 @@ import {
   History,
   Landmark,
   LayoutDashboard,
+  LogOut,
   ListChecks,
   MessageSquare,
   Receipt,
@@ -62,6 +63,15 @@ import { GlobalSearch } from "@/components/global-search";
 import { SETTINGS_PERMISSIONS } from "./parametres/settings-nav";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
+
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (
+    (
+      (parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "")
+    ).toUpperCase() || "?"
+  );
+}
 
 interface MenuItemDef {
   href: string;
@@ -375,7 +385,15 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
   }, [menuEntries, menuFilter, permissions]);
 
   // Menus ouverts : ceux choisis par l'utilisateur, plus celui de la page courante.
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Accordéon : un seul menu ouvert à la fois ; par défaut, celui de la page courante.
+  const [openGroup, setOpenGroup] = useState<string | null | undefined>(undefined);
+  // Nouvelle page : on rouvre le menu qui la contient.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    setOpenGroup(undefined);
+  }
+
   function isItemActive(item: MenuItemDef) {
     if (item.exact) return pathname === item.href;
     if (item.href === "/" || item.href === "/tableau-de-bord") {
@@ -395,7 +413,35 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         onToggleCollapse={() => setCollapsed(!collapsed)}
         collapseLabel={t("nav.collapseSidebar")}
         expandLabel={t("nav.expandSidebar")}
-        footer={!collapsed ? <span>{t("nav.sidebarFooter")}</span> : null}
+        footer={
+          me.user ? (
+            <div className="sidebar-user">
+              <Link href="/profil" className="sidebar-user-link" title={t("nav.profile")}>
+                <span className="sidebar-user-avatar" aria-hidden="true">
+                  {initialsOf(me.user.name)}
+                </span>
+                <span className="sidebar-user-text">
+                  <span className="sidebar-user-name">{me.user.name}</span>
+                  <span className="sidebar-user-meta">
+                    {me.membership ? t(`common.roles.${me.membership.role}`) : ""}
+                    {me.activeOrganization?.plan
+                      ? ` · ${t(`subscription.plans.${me.activeOrganization.plan}`)}`
+                      : ""}
+                  </span>
+                </span>
+              </Link>
+              <button
+                type="button"
+                className="sidebar-user-logout"
+                onClick={() => signOut.mutate()}
+                title={t("nav.logout")}
+                aria-label={t("nav.logout")}
+              >
+                <LogOut size={16} aria-hidden />
+              </button>
+            </div>
+          ) : null
+        }
         search={
           !collapsed ? (
             <SidebarSearch
@@ -424,7 +470,8 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
             );
           }
           const active = entry.items.some(isItemActive);
-          const open = menuFilter.trim() !== "" || (openGroups[entry.id] ?? active);
+          const open =
+            menuFilter.trim() !== "" || (openGroup === undefined ? active : openGroup === entry.id);
           return (
             <NavGroup
               key={entry.id}
@@ -433,7 +480,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
               count={entry.items.length}
               open={open}
               active={active}
-              onToggle={() => setOpenGroups((g) => ({ ...g, [entry.id]: !open }))}
+              onToggle={() => setOpenGroup(open ? null : entry.id)}
             >
               {entry.items.map((item) => (
                 <NavItem
