@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -63,6 +63,50 @@ import { GlobalSearch } from "@/components/global-search";
 import { SETTINGS_PERMISSIONS } from "./parametres/settings-nav";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
+
+// Menus ouverts mémorisés dans le navigateur (préférence d'affichage, par appareil).
+const OPEN_GROUPS_KEY = "atelieros.sidebar.openGroups";
+const NO_GROUPS: string[] = [];
+let openGroupsCache: { raw: string | null; value: string[] } = { raw: null, value: NO_GROUPS };
+
+function readOpenGroups(): string[] {
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(OPEN_GROUPS_KEY);
+  } catch {
+    return NO_GROUPS;
+  }
+  if (raw === openGroupsCache.raw) return openGroupsCache.value;
+  let value = NO_GROUPS;
+  try {
+    const parsed: unknown = JSON.parse(raw ?? "[]");
+    if (Array.isArray(parsed))
+      value = parsed.filter((x): x is string => typeof x === "string").slice(0, 2);
+  } catch {
+    // Valeur illisible : menus par défaut.
+  }
+  openGroupsCache = { raw, value };
+  return value;
+}
+
+function writeOpenGroups(next: string[]) {
+  try {
+    window.localStorage.setItem(OPEN_GROUPS_KEY, JSON.stringify(next));
+  } catch {
+    // Stockage indisponible (navigation privée) : on garde au moins l'état en mémoire.
+    openGroupsCache = { raw: JSON.stringify(next), value: next };
+  }
+  window.dispatchEvent(new Event(OPEN_GROUPS_KEY));
+}
+
+function subscribeOpenGroups(onChange: () => void) {
+  window.addEventListener(OPEN_GROUPS_KEY, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(OPEN_GROUPS_KEY, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
 
 function initialsOf(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -384,14 +428,16 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     });
   }, [menuEntries, menuFilter, permissions]);
 
-  // Menus ouverts : ceux choisis par l'utilisateur, plus celui de la page courante.
-  // Accordéon : un seul menu ouvert à la fois ; par défaut, celui de la page courante.
-  const [openGroup, setOpenGroup] = useState<string | null | undefined>(undefined);
-  // Nouvelle page : on rouvre le menu qui la contient.
+  // Deux menus ouverts au plus : celui de la page courante + le dernier ouvert par
+  // l'utilisateur (mémorisé dans le navigateur). Ouvrir un troisième referme le plus ancien.
+  const recentGroups = useSyncExternalStore(subscribeOpenGroups, readOpenGroups, () => NO_GROUPS);
+  const [dismissedActive, setDismissedActive] = useState(false);
+  const rememberGroups = (next: string[]) => writeOpenGroups(next);
+  // Nouvelle page : le menu qui la contient se rouvre.
   const [lastPath, setLastPath] = useState(pathname);
   if (lastPath !== pathname) {
     setLastPath(pathname);
-    setOpenGroup(undefined);
+    setDismissedActive(false);
   }
 
   function isItemActive(item: MenuItemDef) {
@@ -401,6 +447,26 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     }
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   }
+
+  const activeGroupId = filteredEntries.flatMap((e) =>
+    e.kind === "group" && e.items.some(isItemActive) ? [e.id] : [],
+  )[0];
+  const groupIds = filteredEntries.flatMap((e) => (e.kind === "group" ? [e.id] : []));
+  const fallbackGroup = activeGroupId === "treasury" ? "billing" : "treasury";
+  const preferred = recentGroups.length > 0 ? recentGroups : [fallbackGroup];
+  const openGroupIds = [
+    ...(activeGroupId && !dismissedActive ? [activeGroupId] : []),
+    ...preferred.filter((id) => id !== activeGroupId && groupIds.includes(id)),
+  ].slice(0, 2);
+  const toggleGroup = (id: string, open: boolean) => {
+    if (open) {
+      if (id === activeGroupId) setDismissedActive(true);
+      rememberGroups(preferred.filter((g) => g !== id));
+    } else {
+      if (id === activeGroupId) setDismissedActive(false);
+      rememberGroups([id, ...preferred.filter((g) => g !== id)].slice(0, 2));
+    }
+  };
 
   return (
     <AppShell>
@@ -470,8 +536,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
             );
           }
           const active = entry.items.some(isItemActive);
-          const open =
-            menuFilter.trim() !== "" || (openGroup === undefined ? active : openGroup === entry.id);
+          const open = menuFilter.trim() !== "" || openGroupIds.includes(entry.id);
           return (
             <NavGroup
               key={entry.id}
@@ -480,7 +545,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
               count={entry.items.length}
               open={open}
               active={active}
-              onToggle={() => setOpenGroup(open ? null : entry.id)}
+              onToggle={() => toggleGroup(entry.id, open)}
             >
               {entry.items.map((item) => (
                 <NavItem
