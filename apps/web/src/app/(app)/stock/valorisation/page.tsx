@@ -45,7 +45,7 @@ export default function ValuationPage() {
 
   // Requêtes pour le bandeau de synthèse et les compteurs d'onglets
   const valuationSummary = trpc.stock.valuation.useQuery({ groupBy: "category" });
-  const dormantQuery = trpc.stock.dormant.useQuery(undefined);
+  const dormantQuery = trpc.stock.dormant.useQuery({});
   const negativesQuery = trpc.stock.negatives.useQuery(undefined);
   const belowCostQuery = trpc.stock.belowCostSales.useQuery(undefined);
 
@@ -399,8 +399,8 @@ function DormantTab() {
 
   const stats = useMemo(() => {
     const over365 = rows.filter((r) => r.bucket === "over_365").length;
-    const over180 = rows.filter((r) => r.bucket === "180_365").length;
-    const over90 = rows.filter((r) => r.bucket === "90_180").length;
+    const over180 = rows.filter((r) => r.days >= 180 && r.days <= 365).length;
+    const over90 = rows.filter((r) => r.days >= 90 && r.days < 180).length;
     return { over365, over180, over90 };
   }, [rows]);
 
@@ -663,7 +663,6 @@ function NegativesTab() {
           {
             key: "action",
             header: "",
-            align: "right",
             render: (l) => (
               <Link
                 href={`/stock/${l.product.id}`}

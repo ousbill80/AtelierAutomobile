@@ -57,7 +57,11 @@ export function Field({
             {icon ? <span className="field-icon">{icon}</span> : null}
             <span>{label}</span>
             {required ? (
-              <span className="field-required ml-1 text-red-500 font-bold" aria-hidden="true" title="Champ obligatoire">
+              <span
+                className="field-required ml-1 text-red-500 font-bold"
+                aria-hidden="true"
+                title="Champ obligatoire"
+              >
                 *
               </span>
             ) : null}
@@ -185,7 +189,15 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   optional?: boolean;
 }
 
-export function Select({ invalid, className, label, hint, required, optional, ...rest }: SelectProps) {
+export function Select({
+  invalid,
+  className,
+  label,
+  hint,
+  required,
+  optional,
+  ...rest
+}: SelectProps) {
   const generatedId = useId();
   const selectId = rest.id ?? (label ? generatedId : undefined);
 
@@ -215,7 +227,15 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   optional?: boolean;
 }
 
-export function Textarea({ invalid, className, label, hint, required, optional, ...rest }: TextareaProps) {
+export function Textarea({
+  invalid,
+  className,
+  label,
+  hint,
+  required,
+  optional,
+  ...rest
+}: TextareaProps) {
   const generatedId = useId();
   const textareaId = rest.id ?? (label ? generatedId : undefined);
 
@@ -239,12 +259,16 @@ export function Textarea({ invalid, className, label, hint, required, optional, 
 
 export function CheckboxRow({
   label,
+  description,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode }) {
+}: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; description?: ReactNode }) {
   return (
     <label className="checkbox-row">
       <input type="checkbox" {...rest} />
-      <span>{label}</span>
+      <span>
+        {label}
+        {description ? <span className="block text-xs text-muted">{description}</span> : null}
+      </span>
     </label>
   );
 }

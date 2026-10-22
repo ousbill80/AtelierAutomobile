@@ -610,12 +610,12 @@ function DirectModal({
                         type="button"
                         className="flex w-full items-center justify-between p-2 text-left hover:bg-surface-2"
                         onClick={() => {
-                          setRo(o);
+                          setRo({ id: o.id, number: o.number, plate: o.vehicle.plate });
                           setRoQuery("");
                         }}
                       >
                         <span className="font-medium">{o.number}</span>
-                        <PlateBadge plate={o.plate} />
+                        <PlateBadge plate={o.vehicle.plate} />
                       </button>
                     </li>
                   ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo } from "react";
 import {
   getCiPopularMakes,
   getCiVehicleMakes,
@@ -96,8 +96,6 @@ export function VehicleMakeModelSelect({
             placeholder="Ex: Toyota, Peugeot, Hyundai…"
             value={make}
             required={required}
-            onFocus={() => setMakeFocused(true)}
-            onBlur={() => setMakeFocused(false)}
             onChange={(e) => {
               onMakeChange(e.target.value);
             }}
@@ -153,8 +151,6 @@ export function VehicleMakeModelSelect({
             }
             value={model}
             required={required}
-            onFocus={() => setModelFocused(true)}
-            onBlur={() => setModelFocused(false)}
             onChange={(e) => onModelChange(e.target.value)}
             className="input pr-20 font-medium"
           />
