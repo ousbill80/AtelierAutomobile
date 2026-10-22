@@ -29,6 +29,8 @@ export interface SidebarProps {
   collapseLabel?: string;
   expandLabel?: string;
   footer?: ReactNode;
+  /** Zone fixe sous l'en-tête (recherche du menu) : ne défile pas avec la liste des menus. */
+  search?: ReactNode;
   children: ReactNode;
 }
 
@@ -42,6 +44,7 @@ export function Sidebar({
   collapseLabel,
   expandLabel,
   footer,
+  search,
   children,
 }: SidebarProps) {
   const toggleLabel = collapsed ? expandLabel : collapseLabel;
@@ -73,6 +76,7 @@ export function Sidebar({
           </button>
         ) : null}
       </div>
+      {search ? <div className="sidebar-search">{search}</div> : null}
       <nav className="sidebar-nav">{children}</nav>
       {footer ? <div className="sidebar-foot">{footer}</div> : null}
     </aside>

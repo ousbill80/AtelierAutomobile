@@ -403,15 +403,17 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         collapseLabel={t("nav.collapseSidebar")}
         expandLabel={t("nav.expandSidebar")}
         footer={!collapsed ? <span>{t("nav.sidebarFooter")}</span> : null}
+        search={
+          !collapsed ? (
+            <SidebarSearch
+              value={menuFilter}
+              onChange={setMenuFilter}
+              placeholder={t("nav.filterPlaceholder")}
+              clearLabel={t("nav.clearMenuFilter")}
+            />
+          ) : null
+        }
       >
-        {!collapsed ? (
-          <SidebarSearch
-            value={menuFilter}
-            onChange={setMenuFilter}
-            placeholder={t("nav.filterPlaceholder")}
-            clearLabel={t("nav.clearMenuFilter")}
-          />
-        ) : null}
 
         {filteredEntries.map((entry) => {
           if (entry.kind === "link") {

@@ -29,14 +29,20 @@ button{font-family:inherit;}
   position:sticky;
   top:0;
   height:100vh;
-  overflow-y:auto;
-  scrollbar-width:thin;
-  scrollbar-color:oklch(100% 0 0 / 0.15) transparent;
+  overflow:hidden;
   user-select:none;
 }
-.sidebar::-webkit-scrollbar{width:5px;}
-.sidebar::-webkit-scrollbar-track{background:transparent;}
-.sidebar::-webkit-scrollbar-thumb{background:oklch(100% 0 0 / 0.15);border-radius:99px;}
+/* En-tête, recherche et pied fixes : seule la liste des menus défile (sans entraîner la page). */
+.sidebar-head,.sidebar-search,.sidebar-foot{flex-shrink:0;}
+.sidebar-search{padding:8px 8px 0;}
+.sidebar-search .sidebar-search-box{margin:0;}
+.sidebar-nav{
+  min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:oklch(100% 0 0 / 0.15) transparent;
+}
+.sidebar-nav::-webkit-scrollbar{width:5px;}
+.sidebar-nav::-webkit-scrollbar-track{background:transparent;}
+.sidebar-nav::-webkit-scrollbar-thumb{background:oklch(100% 0 0 / 0.15);border-radius:99px;}
 .sidebar.collapsed{width:var(--sidebar-w-collapsed);}
 .sidebar-head{
   display:flex;align-items:center;gap:10px;padding:14px 14px 12px;
@@ -123,7 +129,9 @@ button{font-family:inherit;}
 .sidebar.collapsed .sidebar-foot{display:none;}
 @media (max-width:760px){
   .app-shell{flex-direction:column;}
-  .sidebar{width:100%;height:auto;position:static;overflow-y:visible;}
+  .sidebar{width:100%;height:auto;position:static;overflow:visible;}
+  .sidebar-search{display:none;}
+  .sidebar-nav{overflow-y:visible;}
   .sidebar-head{padding:10px 12px;}
   .sidebar-search-box{display:none;}
   .sidebar-nav{flex-direction:row;overflow-x:auto;padding:6px 8px;gap:4px;}
@@ -608,6 +616,7 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
 .settings-grid{display:grid;grid-template-columns:200px minmax(0,1fr);gap:0;}
 @media (max-width:900px){.settings-grid{grid-template-columns:1fr;}}
 .settings-nav{display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--border);padding-right:16px;}
+@media (min-width:901px){.settings-nav{position:sticky;top:calc(var(--topbar-h) + 16px);align-self:start;max-height:calc(100vh - var(--topbar-h) - 32px);overflow-y:auto;overscroll-behavior:contain;}}
 @media (max-width:900px){.settings-nav{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border);padding:0 0 12px;margin-bottom:16px;}}
 .settings-nav button{text-align:left;border:none;background:transparent;padding:11px 12px;border-radius:var(--radius-md);cursor:pointer;font-size:13.5px;font-weight:600;color:var(--muted);white-space:nowrap;min-height:44px;}
 .settings-nav button.active{background:var(--surface-2);color:var(--fg);}
