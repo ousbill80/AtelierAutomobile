@@ -1227,6 +1227,7 @@ model Expense {                                  // décaissements de caisse (pe
   rejectedById    String?
   rejectedAt      DateTime?
   decisionComment String?                      // motif du refus (obligatoire) ou commentaire de validation
+  treasuryAccountId String?                    // M18 §14 — dépense payée hors caisse (banque, mobile money…)
   @@index([organizationId, status, paidAt])
 }
 
@@ -1240,6 +1241,76 @@ model CashDrop {                                 // M08 §14 — versement coffr
   reference      String?
   createdById    String?
   createdAt      DateTime @default(now())
+  toAccountId    String?                       // M18 §14 — compte de trésorerie destinataire
+}
+
+// M18 — Trésorerie : comptes, grand livre immuable (projeté depuis M08), virements, rapprochements.
+model TreasuryAccount {
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String?                       // CASH_REGISTER : caisse de ce site (une par site)
+  type           TreasuryAccountType           // CASH_REGISTER | SAFE | BANK | MOBILE_MONEY | OTHER
+  name           String                        // unique par organisation
+  paymentMethods PaymentMethod[]               // RG-M18-02 : un mode → un seul compte actif ; CASH → caisse du site
+  bankName       String?
+  accountRef     String?                       // masqué à l'affichage (4 derniers chiffres)
+  ledgerAccount  String?                       // SYSCOHADA (571, 521, 585…)
+  openingBalance Int @default(0)
+  openingDate    DateTime @db.Date             // seules les sources datées à partir de ce jour sont projetées
+  archivedAt     DateTime?                     // seulement si solde nul
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([organizationId, name])
+}
+
+model TreasuryMovement {                         // RG-M18-03 — immuable ; correction par contre-passation
+  id                   String @id @default(cuid())
+  organizationId       String
+  accountId            String
+  siteId               String?
+  direction            TreasuryDirection         // IN | OUT
+  kind                 TreasuryMovementKind      // PAYMENT | PAYMENT_REVERSAL | REFUND | EXPENSE | CASH_DROP | CASH_VARIANCE | TRANSFER | INCOME | ADJUSTMENT
+  amount               Int                       // > 0
+  occurredAt           DateTime
+  label                String
+  category             String?                   // mode de paiement (encaissements) ou catégorie (dépenses)
+  reference            String?
+  sourceType           String?                   // payment | refund | expense | cash_drop | cash_session | transfer | reconciliation | manual
+  sourceId             String?
+  transferId           String?
+  counterpartAccountId String?
+  reversalOfId         String? @unique
+  reconciliationId     String?
+  createdById          String?
+  createdAt            DateTime @default(now())
+  @@unique([organizationId, accountId, sourceType, sourceId, kind])   // projection idempotente
+}
+
+model TreasuryTransfer {                         // RG-M18-05 — deux mouvements TRANSFER liés
+  id             String @id @default(cuid())
+  organizationId String
+  fromAccountId  String
+  toAccountId    String
+  amount         Int
+  occurredAt     DateTime
+  reference      String?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+}
+
+model TreasuryReconciliation {                   // RG-M18-07 — relevé vs solde calculé
+  id               String @id @default(cuid())
+  organizationId   String
+  accountId        String
+  statementDate    DateTime @db.Date
+  statementBalance Int
+  computedBalance  Int
+  difference       Int                         // relevé − calculé
+  notes            String?
+  createdById      String?
+  createdAt        DateTime @default(now())
 }
 
 model Refund {                                   // M08 §14 — remboursement (RG-M08-22)

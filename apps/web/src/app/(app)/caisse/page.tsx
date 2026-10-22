@@ -518,6 +518,9 @@ function DropModal({
   const [amount, setAmount] = useState<number | null>(null);
   const [destination, setDestination] = useState<"safe" | "bank">("safe");
   const [reference, setReference] = useState("");
+  const targets = trpc.cash.dropTargets.useQuery();
+  const [toAccountId, setToAccountId] = useState("");
+  const chosen = toAccountId || targets.data?.[0]?.id || "";
   const m = trpc.cash.drop.useMutation({ onSuccess: onDone });
   return (
     <Modal
@@ -535,7 +538,13 @@ function DropModal({
             disabled={!amount || amount > max}
             onClick={() =>
               amount &&
-              m.mutate({ sessionId, amount, destination, reference: reference || undefined })
+              m.mutate({
+                sessionId,
+                amount,
+                destination,
+                toAccountId: chosen || undefined,
+                reference: reference || undefined,
+              })
             }
           >
             {tc("dropForm.submit")}
@@ -550,28 +559,61 @@ function DropModal({
           onChange={setAmount}
           hint={tc("dropForm.max", { amount: formatFCFA(max) })}
         />
-        <div className="field">
-          <span className="text-[13px] font-semibold">{tc("dropForm.destination")}</span>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup">
-            {(["safe", "bank"] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                role="radio"
-                aria-checked={destination === d}
-                onClick={() => setDestination(d)}
-                className={`flex min-h-12 items-center justify-center gap-2 rounded-md border text-sm font-medium transition-colors ${
-                  destination === d
-                    ? "border-accent bg-accent/10 text-foreground"
-                    : "border-border bg-surface text-muted hover:border-accent"
-                }`}
-              >
-                {d === "safe" ? <Lock size={16} aria-hidden /> : <Landmark size={16} aria-hidden />}
-                {d === "safe" ? tc("dropForm.safe") : tc("dropForm.bank")}
-              </button>
-            ))}
+        {targets.data && targets.data.length > 0 ? (
+          <div className="field">
+            <span className="text-[13px] font-semibold">{tc("dropForm.destination")}</span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup">
+              {targets.data.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={chosen === a.id}
+                  onClick={() => setToAccountId(a.id)}
+                  className={`flex min-h-12 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
+                    chosen === a.id
+                      ? "border-accent bg-accent/10 text-foreground"
+                      : "border-border bg-surface text-muted hover:border-accent"
+                  }`}
+                >
+                  {a.type === "BANK" ? (
+                    <Landmark size={16} aria-hidden />
+                  ) : (
+                    <Lock size={16} aria-hidden />
+                  )}
+                  {a.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="field">
+            <span className="text-[13px] font-semibold">{tc("dropForm.destination")}</span>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup">
+              {(["safe", "bank"] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  role="radio"
+                  aria-checked={destination === d}
+                  onClick={() => setDestination(d)}
+                  className={`flex min-h-12 items-center justify-center gap-2 rounded-md border text-sm font-medium transition-colors ${
+                    destination === d
+                      ? "border-accent bg-accent/10 text-foreground"
+                      : "border-border bg-surface text-muted hover:border-accent"
+                  }`}
+                >
+                  {d === "safe" ? (
+                    <Lock size={16} aria-hidden />
+                  ) : (
+                    <Landmark size={16} aria-hidden />
+                  )}
+                  {d === "safe" ? tc("dropForm.safe") : tc("dropForm.bank")}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <Input
           label={tc("dropForm.reference")}
           value={reference}

@@ -466,3 +466,4 @@ export * from "./portal";
 export * from "./automations";
 export * from "./publicApi";
 export * from "./subscription";
+export * from "./treasury";

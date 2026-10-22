@@ -22,7 +22,7 @@ import {
   type ClosingSummary,
   type PaymentMethodLike,
 } from "@atelieros/core";
-import { adminDb, db, type CashSession, type Prisma } from "@atelieros/db";
+import { adminDb, db, ensureTreasuryDefaults, type CashSession, type Prisma } from "@atelieros/db";
 import {
   cashDropInputSchema,
   cashExpenseInputSchema,
@@ -38,9 +38,9 @@ import {
   reviewCashInputSchema,
   uploadExpenseReceiptInputSchema,
 } from "@atelieros/validators";
-import { actorOf, resolveSiteId } from "../billing/context";
+import { actorOf, resolveSiteId, type OrgCtx } from "../billing/context";
 import { createRefund } from "../billing/payments";
-import { audit, bad, guard, loadOrgBillingContext, type Tx } from "../billing/service";
+import { audit, bad, billingNow, guard, loadOrgBillingContext, type Tx } from "../billing/service";
 import { emitDomainEvent } from "../events/emit";
 import { membersWithRoles, notify } from "../repairOrders/helpers";
 import { getAttachmentStorage } from "../storage";
@@ -188,6 +188,63 @@ async function loadSession(tx: Tx, ctx: { allowedSiteIds: string[] | "ALL" }, id
     throw new TRPCError({ code: "NOT_FOUND", message: "Session de caisse introuvable." });
   requireSite(ctx, session.siteId);
   return session;
+}
+
+/** Justificatif d'une dépense (caisse ou trésorerie) : stockage, `Attachment`, audit. */
+export async function storeExpenseReceipt(
+  ctx: OrgCtx,
+  input: { expenseId: string; mimeType: string; dataBase64: string },
+) {
+  const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+  const expense = await tenantDb.transaction((tx) => loadExpense(tx, ctx, input.expenseId));
+  if (expense.cashSession?.closedAt)
+    bad("Cette caisse est clôturée : la dépense n'est plus modifiable.");
+  const body = Buffer.from(input.dataBase64, "base64");
+  const ext = input.mimeType === "application/pdf" ? "pdf" : input.mimeType.split("/")[1];
+  const key = `${ctx.organizationId}/expenses/${expense.id}/receipt-${randomUUID()}.${ext}`;
+  try {
+    await getAttachmentStorage().upload({
+      key,
+      body,
+      contentType: input.mimeType,
+      maxBytes: 10_000_000,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      String((error as { code: unknown }).code).startsWith("storage.")
+    ) {
+      bad(error.message);
+    }
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Envoi du justificatif impossible. Réessayez.",
+    });
+  }
+  return tenantDb.transaction(async (tx) => {
+    const attachment = await tx.attachment.create({
+      data: {
+        organizationId: ctx.organizationId,
+        entity: "expense",
+        entityId: expense.id,
+        kind: "document",
+        url: key,
+        mimeType: input.mimeType,
+        size: body.byteLength,
+        createdById: ctx.membership.id,
+      },
+    });
+    await tx.expense.update({
+      where: { id: expense.id },
+      data: { attachmentId: attachment.id },
+    });
+    await audit(actorOf(ctx), "cash.expense_receipt", "Expense", expense.id, {
+      siteId: expense.siteId,
+      after: { attachmentId: attachment.id },
+    });
+    return { attachmentId: attachment.id, url: `/api/attachments/${attachment.id}` };
+  });
 }
 
 export const cashRouter = router({
@@ -409,58 +466,7 @@ export const cashRouter = router({
   /** US-M08-12 — justificatif (photo ou PDF) d'une dépense de sa caisse encore ouverte. */
   uploadExpenseReceipt: requirePermission("cash:expense")
     .input(uploadExpenseReceiptInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      const expense = await tenantDb.transaction((tx) => loadExpense(tx, ctx, input.expenseId));
-      if (expense.cashSession?.closedAt)
-        bad("Cette caisse est clôturée : la dépense n'est plus modifiable.");
-      const body = Buffer.from(input.dataBase64, "base64");
-      const ext = input.mimeType === "application/pdf" ? "pdf" : input.mimeType.split("/")[1];
-      const key = `${ctx.organizationId}/expenses/${expense.id}/receipt-${randomUUID()}.${ext}`;
-      try {
-        await getAttachmentStorage().upload({
-          key,
-          body,
-          contentType: input.mimeType,
-          maxBytes: 10_000_000,
-        });
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          "code" in error &&
-          String((error as { code: unknown }).code).startsWith("storage.")
-        ) {
-          bad(error.message);
-        }
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Envoi du justificatif impossible. Réessayez.",
-        });
-      }
-      return tenantDb.transaction(async (tx) => {
-        const attachment = await tx.attachment.create({
-          data: {
-            organizationId: ctx.organizationId,
-            entity: "expense",
-            entityId: expense.id,
-            kind: "document",
-            url: key,
-            mimeType: input.mimeType,
-            size: body.byteLength,
-            createdById: ctx.membership.id,
-          },
-        });
-        await tx.expense.update({
-          where: { id: expense.id },
-          data: { attachmentId: attachment.id },
-        });
-        await audit(actorOf(ctx), "cash.expense_receipt", "Expense", expense.id, {
-          siteId: expense.siteId,
-          after: { attachmentId: attachment.id },
-        });
-        return { attachmentId: attachment.id, url: `/api/attachments/${attachment.id}` };
-      });
-    }),
+    .mutation(({ ctx, input }) => storeExpenseReceipt(ctx, input)),
 
   /** /caisse/depenses — dépenses filtrées (statut, catégorie, période) + totaux par catégorie. */
   expenses: requirePermission("payment:read")
@@ -540,15 +546,24 @@ export const cashRouter = router({
             `Le versement dépasse les espèces attendues en caisse (${formatFCFA(summary.expectedCash)}).`,
           );
         }
+        // M18 : le versement arrive sur un compte de trésorerie (coffre, banque…).
+        const target = input.toAccountId
+          ? await tx.treasuryAccount.findFirst({
+              where: { id: input.toAccountId, archivedAt: null, type: { not: "CASH_REGISTER" } },
+            })
+          : null;
+        if (input.toAccountId && !target) bad("Compte de destination introuvable ou archivé.");
         const drop = await tx.cashDrop.create({
           data: {
             organizationId: ctx.organizationId,
             siteId: session.siteId,
             cashSessionId: session.id,
             amount: input.amount,
-            destination: input.destination,
+            destination: target ? (target.type === "BANK" ? "bank" : "safe") : input.destination,
+            toAccountId: target?.id ?? null,
             reference: input.reference ?? null,
             createdById: ctx.membership.id,
+            createdAt: billingNow(),
           },
         });
         await audit(actorOf(ctx), "cash.drop", "CashDrop", drop.id, {
@@ -558,6 +573,28 @@ export const cashRouter = router({
         return drop;
       });
     }),
+
+  /** M18 — comptes pouvant recevoir un versement de caisse (coffre, banques, autres). */
+  dropTargets: requirePermission("cash:operate").query(async ({ ctx }) => {
+    const org = await loadOrgBillingContext(ctx.organizationId);
+    const { createdAt } = await adminDb.organization.findUniqueOrThrow({
+      where: { id: ctx.organizationId },
+      select: { createdAt: true },
+    });
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    return tenantDb.transaction(async (tx) => {
+      await ensureTreasuryDefaults(tx, {
+        organizationId: ctx.organizationId,
+        timeZone: org.timeZone,
+        since: createdAt,
+      });
+      return tx.treasuryAccount.findMany({
+        where: { archivedAt: null, type: { in: ["SAFE", "BANK", "OTHER"] } },
+        orderBy: [{ type: "desc" }, { name: "asc" }],
+        select: { id: true, name: true, type: true },
+      });
+    });
+  }),
 
   /** US-M08-11 — clôture : comptage (coupures facultatives), écart, commentaire, alerte gérant. */
   close: requirePermission("cash:close")

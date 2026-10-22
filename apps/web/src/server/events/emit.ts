@@ -47,6 +47,8 @@ export type DomainEventType =
   | "invoice.fne_failed"
   | "cash.session_closed"
   | "cash.session_not_closed"
+  | "treasury.transfer_created"
+  | "treasury.reconciled"
   | "collection.promised"
   | "collection.disputed"
   | "collection.paused"

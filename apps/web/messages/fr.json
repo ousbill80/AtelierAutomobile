@@ -204,7 +204,10 @@
     "sidebarFooter": "AtelierOS · Pro",
     "myGarages": "Mes garages",
     "notifications": "Notifications",
-    "aiBadge": "IA"
+    "aiBadge": "IA",
+    "treasury": "Trésorerie",
+    "treasuryJournal": "Journal",
+    "treasuryReports": "Rapports de trésorerie"
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -463,7 +466,9 @@
     "payment:void": "Annuler un paiement, confirmer ou rejeter un chèque",
     "cash:review": "Valider un écart de caisse",
     "cash:expense_approve": "Valider une dépense de caisse au-delà du seuil",
-    "accounting:export": "Exporter les écritures comptables"
+    "accounting:export": "Exporter les écritures comptables",
+    "treasury:read": "Consulter la trésorerie (soldes, journal, rapports)",
+    "treasury:manage": "Gérer la trésorerie (comptes, virements, mouvements, rapprochements)"
   },
   "auditActions": {
     "auth.login.failed": "Connexion échouée",
@@ -5594,5 +5599,231 @@
       },
       "testResult": "Test : {status}"
     }
+  },
+  "treasury": {
+    "title": "Trésorerie",
+    "subtitle": "Tout l'argent du garage : caisses, coffre, banques et mobile money.",
+    "loadError": "Impossible de charger la trésorerie.",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "total": "Trésorerie totale",
+    "monthIn": "Entrées du mois",
+    "monthOut": "Sorties du mois",
+    "monthNet": "Solde du mois",
+    "journalLink": "Journal",
+    "reportsLink": "Rapports",
+    "actions": {
+      "transfer": "Virement",
+      "expense": "Dépense",
+      "movement": "Autre mouvement",
+      "newAccount": "Nouveau compte",
+      "reconcile": "Rapprocher",
+      "edit": "Modifier",
+      "archive": "Archiver",
+      "reverse": "Contre-passer",
+      "exportCsv": "Export CSV",
+      "exportPdf": "PDF"
+    },
+    "types": {
+      "CASH_REGISTER": "Caisse",
+      "SAFE": "Coffre",
+      "BANK": "Banque",
+      "MOBILE_MONEY": "Mobile money",
+      "OTHER": "Autre"
+    },
+    "kinds": {
+      "PAYMENT": "Encaissement",
+      "PAYMENT_REVERSAL": "Annulation d'encaissement",
+      "REFUND": "Remboursement",
+      "EXPENSE": "Dépense",
+      "CASH_DROP": "Versement de caisse",
+      "CASH_VARIANCE": "Écart de caisse",
+      "TRANSFER": "Virement",
+      "INCOME": "Entrée diverse",
+      "ADJUSTMENT": "Ajustement"
+    },
+    "direction": {
+      "IN": "Entrée",
+      "OUT": "Sortie"
+    },
+    "alerts": {
+      "unassigned": "{count} encaissement(s) {method} ({amount}) ne sont rattachés à aucun compte.",
+      "unassignedDrop": "{count} versement(s) de caisse ({amount}) sans compte de destination (créez un coffre ou une banque).",
+      "unassignedCash": "{count} encaissement(s) en espèces ({amount}) sur un site sans caisse.",
+      "unassignedAction": "Créer le compte",
+      "negative": "Le compte « {name} » est à découvert ({amount}).",
+      "pendingExpenses": "{count} dépense(s) hors caisse en attente de validation.",
+      "pendingAction": "Examiner"
+    },
+    "account": {
+      "balance": "Solde",
+      "monthIn": "Entrées ce mois",
+      "monthOut": "Sorties ce mois",
+      "methods": "Reçoit",
+      "noMethods": "Aucun mode rattaché",
+      "cashMethod": "Espèces du site",
+      "lastReconciliation": "Rapproché au {date}",
+      "reconciliationGap": "écart {amount}",
+      "neverReconciled": "Jamais rapproché",
+      "archived": "Archivé",
+      "site": "Site : {site}",
+      "openedOn": "Ouvert le {date} avec {amount}",
+      "ledger": "Compte comptable {code}"
+    },
+    "recent": {
+      "title": "Derniers mouvements",
+      "empty": "Aucun mouvement pour le moment.",
+      "all": "Tout le journal"
+    },
+    "journal": {
+      "title": "Journal de trésorerie",
+      "subtitle": "Toutes les entrées et sorties, tous comptes confondus.",
+      "allAccounts": "Tous les comptes",
+      "allKinds": "Toutes natures",
+      "allDirections": "Entrées et sorties",
+      "search": "Rechercher (libellé, référence, catégorie)",
+      "from": "Du",
+      "to": "Au",
+      "reset": "Effacer les filtres",
+      "empty": "Aucun mouvement sur cette sélection.",
+      "totalIn": "Entrées",
+      "totalOut": "Sorties",
+      "net": "Net",
+      "count": "{count} mouvement(s)",
+      "loadMore": "Afficher plus",
+      "source": "Voir la source",
+      "reversal": "Contre-passation",
+      "reversed": "Contre-passé",
+      "direction": "Sens"
+    },
+    "accountForm": {
+      "createTitle": "Nouveau compte de trésorerie",
+      "editTitle": "Modifier le compte",
+      "name": "Nom du compte",
+      "namePlaceholder": "Ex. SGBCI courant, Wave marchand",
+      "type": "Type",
+      "site": "Site",
+      "bankName": "Banque ou opérateur",
+      "accountRef": "N° de compte ou numéro marchand",
+      "accountRefHint": "Affiché masqué (4 derniers chiffres).",
+      "accountRefKeep": "Laissez vide pour conserver le numéro actuel.",
+      "ledgerAccount": "Compte comptable (SYSCOHADA)",
+      "methods": "Modes de paiement encaissés sur ce compte",
+      "methodsHint": "Chaque mode ne va que sur un compte. Les espèces vont toujours dans la caisse du site.",
+      "openingBalance": "Solde d'ouverture",
+      "openingDate": "Date d'ouverture",
+      "openingHint": "Seuls les mouvements à partir de cette date sont comptés. Indiquez le solde réel du compte ce jour-là.",
+      "created": "Compte créé.",
+      "updated": "Compte modifié.",
+      "archiveConfirm": "Archiver ce compte ? Il ne recevra plus de mouvement.",
+      "archived": "Compte archivé."
+    },
+    "transferForm": {
+      "title": "Virement entre comptes",
+      "from": "Depuis",
+      "to": "Vers",
+      "amount": "Montant",
+      "date": "Date",
+      "reference": "Référence (bordereau, chèque…)",
+      "notes": "Note",
+      "available": "Disponible : {amount}",
+      "overdraft": "Ce virement met la banque à découvert.",
+      "done": "Virement enregistré."
+    },
+    "expenseForm": {
+      "title": "Dépense hors caisse",
+      "hint": "Loyer, fournisseur, frais bancaires… payés depuis un compte. Les petites dépenses en espèces se saisissent dans la caisse.",
+      "account": "Payée depuis",
+      "category": "Catégorie",
+      "amount": "Montant",
+      "description": "Description",
+      "date": "Date",
+      "receipt": "Justificatif (photo ou PDF, facultatif)",
+      "receiptTake": "Ajouter le justificatif",
+      "receiptChange": "Changer",
+      "pendingHint": "Au-delà de {amount}, la dépense attend la validation d'un gérant avant de sortir du compte.",
+      "done": "Dépense enregistrée.",
+      "pendingDone": "Dépense envoyée en validation au gérant."
+    },
+    "movementForm": {
+      "title": "Autre mouvement",
+      "kind": "Nature",
+      "income": "Entrée diverse",
+      "adjustmentIn": "Ajustement (+)",
+      "adjustmentOut": "Ajustement (−)",
+      "account": "Compte",
+      "category": "Catégorie",
+      "amount": "Montant",
+      "label": "Motif",
+      "labelPlaceholder": "Ex. apport du gérant pour la paie",
+      "date": "Date",
+      "reference": "Référence",
+      "done": "Mouvement enregistré."
+    },
+    "reverseForm": {
+      "title": "Contre-passer le mouvement",
+      "hint": "Une écriture n'est jamais modifiée : on passe l'écriture inverse. Pour un virement, les deux comptes sont rétablis.",
+      "reason": "Motif",
+      "done": "Mouvement contre-passé."
+    },
+    "reconcileForm": {
+      "title": "Rapprocher avec un relevé",
+      "hint": "Saisissez le solde de votre relevé bancaire ou mobile money à une date : l'écart avec le solde calculé s'affiche.",
+      "date": "Date du relevé",
+      "balance": "Solde du relevé",
+      "computed": "Solde calculé à cette date",
+      "difference": "Écart",
+      "balanced": "Le compte est juste.",
+      "adjust": "Passer l'écart en ajustement",
+      "notes": "Commentaire (obligatoire pour ajuster)",
+      "done": "Rapprochement enregistré."
+    },
+    "detail": {
+      "back": "Trésorerie",
+      "last30": "30 derniers jours",
+      "reconciliations": "Rapprochements",
+      "noReconciliations": "Aucun rapprochement.",
+      "statement": "Relevé",
+      "computed": "Calculé",
+      "difference": "Écart",
+      "movements": "Mouvements du compte",
+      "notFound": "Compte introuvable."
+    },
+    "reports": {
+      "title": "Rapports de trésorerie",
+      "subtitle": "Entrées, sorties et soldes par période.",
+      "from": "Du",
+      "to": "Au",
+      "account": "Compte",
+      "allAccounts": "Tous les comptes",
+      "groupBy": "Regrouper par",
+      "groups": {
+        "day": "Jour",
+        "week": "Semaine",
+        "month": "Mois"
+      },
+      "presets": {
+        "month": "Ce mois",
+        "lastMonth": "Mois dernier",
+        "quarter": "3 derniers mois",
+        "year": "Cette année"
+      },
+      "opening": "Solde d'ouverture",
+      "inflow": "Entrées",
+      "outflow": "Sorties",
+      "closing": "Solde de clôture",
+      "chart": "Entrées et sorties",
+      "chartEmpty": "Aucun mouvement sur la période.",
+      "table": "Détail par période",
+      "period": "Période",
+      "net": "Net",
+      "byMethod": "Encaissements par mode",
+      "byCategory": "Sorties par catégorie",
+      "byAccount": "Par compte",
+      "internalNote": "Virements internes et versements de caisse exclus des totaux (ils ne changent pas l'argent total).",
+      "weekOf": "Sem. du {date}",
+      "total": "Total"
+    },
+    "close": "Fermer"
   }
 }

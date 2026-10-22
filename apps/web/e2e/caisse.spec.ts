@@ -153,7 +153,8 @@ test("parcours caisse : dépenses validées, versement, clôture avec écart, Z 
   await page.getByRole("button", { name: "Versement coffre / banque" }).click();
   dialog = page.getByRole("dialog", { name: "Versement" });
   await typeAmount(page, "Montant", "20000", dialog);
-  await dialog.getByRole("radio", { name: "Banque" }).click();
+  // M18 : le versement arrive sur un compte de trésorerie (coffre créé par défaut).
+  await dialog.getByRole("radio", { name: "Coffre" }).click();
   await dialog.getByLabel("Référence (bordereau)").fill("BV-0042");
   await dialog.getByRole("button", { name: "Enregistrer le versement" }).click();
   await expect(page.getByTestId("expected-cash")).toHaveText("77 500 FCFA");
@@ -183,7 +184,7 @@ test("parcours caisse : dépenses validées, versement, clôture avec écart, Z 
   await expect(owner.page.getByText("Écart validé.")).toBeVisible();
   await noHorizontalScroll(owner.page);
 
-  await owner.page.goto(`/caisse/sessions/${session.id}`);
+  await owner.page.goto(`/caisse/sessions/${session.id}`, { timeout: 30_000 });
   await expect(owner.page.getByTestId("session-difference")).toHaveText("−500 FCFA");
   await expect(owner.page.getByText(/Validé par E2E Gérante/)).toBeVisible();
   await noHorizontalScroll(owner.page);

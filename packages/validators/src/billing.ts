@@ -192,6 +192,8 @@ export const cashDropInputSchema = z.object({
   amount: positive,
   destination: z.enum(["safe", "bank"]),
   reference: z.string().trim().max(100).optional(),
+  /** M18 : compte de trésorerie destinataire (coffre, banque…) ; prioritaire sur `destination`. */
+  toAccountId: z.string().min(1).optional(),
 });
 
 export const cashSessionsInputSchema = z.object({
