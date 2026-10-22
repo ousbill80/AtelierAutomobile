@@ -176,7 +176,7 @@ export default function ChannelsPage() {
                 const existing = configs.find((c) => c.provider === configuring.provider);
                 upsert.mutate({
                   id: existing?.id, // Si existe, on met à jour
-                  channel: configuring.channel,
+                  channel: configuring.channel as "WHATSAPP" | "SMS" | "EMAIL",
                   provider: configuring.provider as never,
                   isActive: true,
                   priority: existing?.priority ?? configs.length + 1,
