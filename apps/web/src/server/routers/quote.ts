@@ -608,27 +608,34 @@ export const quoteRouter = router({
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {
-          customer: { select: { id: true, displayName: true } },
-          vehicle: { select: { id: true, plate: true, make: true, model: true } },
+          customer: { select: { id: true, displayName: true, phone: true, type: true } },
+          vehicle: { select: { id: true, plate: true, plateType: true, make: true, model: true } },
+          repairOrder: { select: { id: true, number: true } },
           createdBy: { select: { id: true, user: { select: { name: true } } } },
           reminders: { where: { status: "SENT" }, select: { id: true } },
         },
       });
       const page = rows.slice(0, input.limit);
       const today = businessDate(now, org.timeZone);
-      const counts = await tenantDb.quote.groupBy({
-        by: ["status"],
-        where: { deletedAt: null, supersededAt: null, ...siteFilter(ctx) },
-        _count: { _all: true },
-      });
-      const pendingDiscounts = await tenantDb.quote.count({
-        where: {
-          deletedAt: null,
-          supersededAt: null,
-          discountApprovalStatus: "PENDING",
-          ...siteFilter(ctx),
-        },
-      });
+      const [counts, pendingDiscounts, totalAgg] = await Promise.all([
+        tenantDb.quote.groupBy({
+          by: ["status"],
+          where: { deletedAt: null, supersededAt: null, ...siteFilter(ctx) },
+          _count: { _all: true },
+        }),
+        tenantDb.quote.count({
+          where: {
+            deletedAt: null,
+            supersededAt: null,
+            discountApprovalStatus: "PENDING",
+            ...siteFilter(ctx),
+          },
+        }),
+        tenantDb.quote.aggregate({
+          where: { deletedAt: null, supersededAt: null, ...siteFilter(ctx) },
+          _sum: { total: true, acceptedTotal: true },
+        }),
+      ]);
       return {
         items: page.map((q) => ({
           id: q.id,
@@ -646,6 +653,7 @@ export const quoteRouter = router({
           acceptedTotal: q.acceptedTotal,
           customer: q.customer,
           vehicle: q.vehicle,
+          repairOrder: q.repairOrder,
           advisor: q.createdBy?.user.name ?? null,
           followupsSent: q.reminders.length,
           discountApprovalStatus: q.discountApprovalStatus,
@@ -661,6 +669,17 @@ export const quoteRouter = router({
             .filter((c) => DECIDED.includes(c.status))
             .reduce((s, c) => s + c._count._all, 0),
           expired: counts.find((c) => c.status === "EXPIRED")?._count._all ?? 0,
+        },
+        kpis: {
+          totalAmount: totalAgg._sum.total ?? 0,
+          acceptedAmount: totalAgg._sum.acceptedTotal ?? 0,
+          totalCount: counts.reduce((s, c) => s + c._count._all, 0),
+          acceptedCount: counts
+            .filter((c) => ["ACCEPTED", "PARTIALLY_ACCEPTED", "CONVERTED"].includes(c.status))
+            .reduce((s, c) => s + c._count._all, 0),
+          expiredOrDeclinedCount: counts
+            .filter((c) => ["EXPIRED", "DECLINED"].includes(c.status))
+            .reduce((s, c) => s + c._count._all, 0),
         },
         timeZone: org.timeZone,
       };

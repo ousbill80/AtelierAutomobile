@@ -239,6 +239,7 @@ function toCard(order: ListRow, now: Date) {
     advisorName: order.advisor?.user.name ?? null,
     mechanics: [...mechanics.values()],
     late: isOverdueOrder(order, now),
+    complaint: order.complaint,
     pendingApproval: order.lines.some((l) => l.approval === "PENDING"),
     waitingParts: order.status === "WAITING_PARTS",
     signaturePending: Boolean(
@@ -254,6 +255,8 @@ function listWhere(
 ): Prisma.RepairOrderWhereInput {
   const where: Prisma.RepairOrderWhereInput = { deletedAt: null, ...siteFilter(ctx) };
   if (input.siteId) where.siteId = input.siteId;
+  if ("vehicleId" in input && input.vehicleId) where.vehicleId = input.vehicleId;
+  if ("customerId" in input && input.customerId) where.customerId = input.customerId;
   if (input.priority) where.priority = input.priority;
   const mechanicId =
     input.mechanicId ??
@@ -388,7 +391,7 @@ export const repairOrderRouter = router({
       });
       const items = rows.slice(0, input.limit).map((r) => toCard(r, now));
       const counterBase = listWhere(ctx, { ...input, statuses: undefined, late: undefined }, now);
-      const [active, awaiting, waitingParts, ready, late] = await Promise.all([
+      const [active, awaiting, waitingParts, ready, late, inProgress] = await Promise.all([
         tenantDb.repairOrder.count({
           where: {
             ...counterBase,
@@ -401,11 +404,12 @@ export const repairOrderRouter = router({
         tenantDb.repairOrder.count({
           where: listWhere(ctx, { ...input, statuses: undefined, late: true }, now),
         }),
+        tenantDb.repairOrder.count({ where: { ...counterBase, status: "IN_PROGRESS" } }),
       ]);
       return {
         items,
         nextCursor: rows.length > input.limit ? rows[input.limit - 1]!.id : null,
-        counters: { active, awaitingApproval: awaiting, waitingParts, ready, late },
+        counters: { active, awaitingApproval: awaiting, waitingParts, ready, late, inProgress },
         timeZone: org.timeZone,
       };
     }),

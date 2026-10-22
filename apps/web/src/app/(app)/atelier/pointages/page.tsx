@@ -4,7 +4,18 @@
 // correction avec motif (audit avant/après), validation des entrées signalées, présences du
 // jour, export CSV.
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Pause, Play } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Download,
+  Pause,
+  Play,
+  Search,
+  UserCheck,
+} from "lucide-react";
 import { Button, Field, Input, Modal, PageHead, Select, StatusBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
@@ -19,16 +30,25 @@ function todayKey() {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date());
 }
 
+function shiftDay(current: string, deltaDays: number): string {
+  const d = new Date(`${current}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function TimeEntriesPage() {
   const utils = trpc.useUtils();
   const [day, setDay] = useState(todayKey);
   const [needsReview, setNeedsReview] = useState(false);
   const [membershipId, setMembershipId] = useState("");
   const [editing, setEditing] = useState<Entry | null>(null);
+  const [q, setQ] = useState("");
+
   const range = useMemo(() => {
     const from = fromLocalInput(`${day}T00:00`, TZ) ?? new Date();
     return { from, to: new Date(from.getTime() + 86_400_000) };
   }, [day]);
+
   const mechanics = trpc.workshop.mechanics.useQuery({}, { staleTime: 60_000 });
   const entries = trpc.workshop.timeEntries.useQuery({
     ...range,
@@ -40,6 +60,28 @@ export default function TimeEntriesPage() {
     onSuccess: () => void utils.workshop.timeEntries.invalidate(),
   });
   const timeZone = entries.data?.timeZone ?? TZ;
+
+  const rawItems = useMemo(() => entries.data?.items ?? [], [entries.data?.items]);
+
+  // Statistiques de la journée
+  const stats = useMemo(() => {
+    const totalMinutes = rawItems.reduce((s, e) => s + (e.minutes ?? 0), 0);
+    const active = rawItems.filter((e) => e.state === "RUNNING" || e.state === "PAUSED").length;
+    const reviewCount = rawItems.filter((e) => e.needsReview).length;
+    const attendancesCount = entries.data?.attendances.length ?? 0;
+    return { totalMinutes, active, reviewCount, attendancesCount, totalEntries: rawItems.length };
+  }, [rawItems, entries.data?.attendances.length]);
+
+  const filteredItems = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return rawItems;
+    return rawItems.filter(
+      (e) =>
+        e.mechanicName.toLowerCase().includes(query) ||
+        e.repairOrder.number.toLowerCase().includes(query) ||
+        (e.lineDescription ? e.lineDescription.toLowerCase().includes(query) : false),
+    );
+  }, [rawItems, q]);
 
   const exportCsv = () => {
     if (!entries.data) return;
@@ -72,45 +114,141 @@ export default function TimeEntriesPage() {
   };
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-5">
       <PageHead
         title={tw("tabs.timeEntries")}
         description={tw("time.description")}
         actions={
           <Button variant="secondary" onClick={exportCsv} disabled={!entries.data}>
+            <Download className="size-4" aria-hidden />
             {tw("exportCsv")}
           </Button>
         }
       />
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          {tw("time.date")}
-          <Input
-            type="date"
-            value={day}
-            onChange={(e) => e.target.value && setDay(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          {tw("time.mechanic")}
-          <Select value={membershipId} onChange={(e) => setMembershipId(e.target.value)}>
-            <option value="">{tw("board.allMechanics")}</option>
-            {mechanics.data?.mechanics.map((m) => (
-              <option key={m.membershipId} value={m.membershipId}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="size-5"
-            checked={needsReview}
-            onChange={(e) => setNeedsReview(e.target.checked)}
-          />
-          {tw("time.needsReviewOnly")}
-        </label>
+
+      {/* KPI Cards / Synthèse Pointages */}
+      {entries.data ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left">
+            <div className="flex items-center justify-between text-muted">
+              <span className="text-xs font-medium uppercase tracking-wider">{tw("kpis.totalHoursToday")}</span>
+              <Clock className="size-4 text-accent" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">
+              {formatDuration(stats.totalMinutes)}
+            </span>
+            <span className="text-xs text-muted">{stats.totalEntries} pointage(s)</span>
+          </div>
+
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left">
+            <div className="flex items-center justify-between text-status-ok">
+              <span className="text-xs font-medium uppercase tracking-wider">{tw("kpis.productiveHours")}</span>
+              <Play className="size-4 text-status-ok" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-status-ok">{stats.active}</span>
+            <span className="text-xs text-muted">En cours actuellement</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setNeedsReview(!needsReview)}
+            className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition ${
+              needsReview
+                ? "border-status-warn bg-status-warn/10 shadow-sm"
+                : "border-border bg-surface hover:border-status-warn/50"
+            }`}
+          >
+            <div className="flex items-center justify-between text-status-warn">
+              <span className="text-xs font-medium uppercase tracking-wider">{tw("kpis.toReviewCount")}</span>
+              <AlertTriangle className="size-4 text-status-warn" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-status-warn">
+              {stats.reviewCount}
+            </span>
+            <span className="text-xs text-muted">À valider ou corriger</span>
+          </button>
+
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left">
+            <div className="flex items-center justify-between text-muted">
+              <span className="text-xs font-medium uppercase tracking-wider">Présences</span>
+              <UserCheck className="size-4 text-muted" aria-hidden />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">{stats.attendancesCount}</span>
+            <span className="text-xs text-muted">Mécaniciens pointés</span>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Barre de navigation date et filtres */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => setDay(shiftDay(day, -1))}
+            aria-label="Jour précédent"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase text-muted">{tw("time.date")}</span>
+            <Input
+              type="date"
+              value={day}
+              onChange={(e) => e.target.value && setDay(e.target.value)}
+              className="max-w-[170px]"
+            />
+          </div>
+
+          <Button
+            variant="ghost"
+            onClick={() => setDay(shiftDay(day, 1))}
+            aria-label="Jour suivant"
+          >
+            <ArrowRight className="size-4" aria-hidden />
+          </Button>
+
+          <Button variant="ghost" onClick={() => setDay(todayKey())} className="text-xs">
+            Aujourd&apos;hui
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-0 flex-1 basis-48 max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
+            <input
+              type="search"
+              value={q}
+              placeholder="Mécanicien, OR ou tâche…"
+              onChange={(e) => setQ(e.target.value)}
+              className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <div className="w-full sm:w-auto sm:min-w-44">
+            <Select value={membershipId} onChange={(e) => setMembershipId(e.target.value)}>
+              <option value="">{tw("board.allMechanics")}</option>
+              {mechanics.data?.mechanics.map((m) => (
+                <option key={m.membershipId} value={m.membershipId}>
+                  {m.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setNeedsReview(!needsReview)}
+            className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition ${
+              needsReview
+                ? "border-status-warn bg-status-warn/10 text-status-warn font-semibold"
+                : "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground"
+            }`}
+          >
+            <AlertTriangle className="size-4" aria-hidden />
+            {tw("time.needsReviewOnly")}
+          </button>
+        </div>
       </div>
 
       {entries.isLoading ? (
@@ -119,31 +257,35 @@ export default function TimeEntriesPage() {
         <ErrorBox message={tw("loadError")} onRetry={() => void entries.refetch()} />
       ) : (
         <>
-          {entries.data.items.length === 0 ? (
-            <p className="text-sm text-muted">{tw("time.empty")}</p>
+          {filteredItems.length === 0 ? (
+            <p className="text-sm text-muted py-4 text-center">{tw("time.empty")}</p>
           ) : (
-            <ul className="flex flex-col gap-2" aria-label={tw("tabs.timeEntries")}>
-              {entries.data.items.map((e) => (
+            <ul className="flex flex-col gap-2.5" aria-label={tw("tabs.timeEntries")}>
+              {filteredItems.map((e) => (
                 <li
                   key={e.id}
                   data-testid="time-entry"
-                  className={`flex flex-col gap-2 rounded-lg border bg-surface p-3 md:flex-row md:items-center ${
+                  className={`flex flex-col justify-between gap-3 rounded-xl border bg-surface p-4 shadow-sm md:flex-row md:items-center ${
                     e.needsReview ? "border-status-warn" : "border-border"
                   }`}
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="font-medium">
-                      {e.mechanicName} · {e.repairOrder.number}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-base text-foreground">{e.mechanicName}</span>
+                      <span className="rounded bg-surface-2 px-1.5 py-0.5 text-xs font-mono font-medium text-foreground">
+                        {e.repairOrder.number}
+                      </span>
+                    </div>
                     <span className="truncate text-sm text-muted">{e.lineDescription}</span>
-                    <span className="text-sm">
+                    <span className="text-xs text-muted pt-0.5">
                       {formatTime(e.startedAt, timeZone)} →{" "}
-                      {e.endedAt ? formatTime(e.endedAt, timeZone) : "…"} ·{" "}
-                      {formatDuration(e.minutes)}
-                      {e.pauseMinutes > 0 ? ` · ${tw("time.pause")} ${e.pauseMinutes}` : ""}
+                      {e.endedAt ? formatTime(e.endedAt, timeZone) : "En cours"} ·{" "}
+                      <strong className="text-foreground">{formatDuration(e.minutes)}</strong>
+                      {e.pauseMinutes > 0 ? ` · ${tw("time.pause")} ${e.pauseMinutes} min` : ""}
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1">
+
+                  <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge
                       tone={e.state === "STOPPED" ? "off" : e.state === "PAUSED" ? "warn" : "ok"}
                     >
@@ -158,15 +300,16 @@ export default function TimeEntriesPage() {
                         e.state === "STOPPED"
                           ? "time.stopped"
                           : e.state === "PAUSED"
-                            ? "time.pausedState"
-                            : "time.running",
+                          ? "time.pausedState"
+                          : "time.running",
                       )}
                     </StatusBadge>
+
                     <StatusBadge
                       tone={e.kind === "REWORK" ? "warn" : "off"}
                       label={tw(`time.kinds.${e.kind}`)}
                     />
-                    <StatusBadge tone="off" label={tw(`time.sources.${e.source}`)} />
+
                     {e.needsReview ? (
                       <StatusBadge tone="warn">
                         <AlertTriangle className="size-3" aria-hidden />
@@ -179,47 +322,51 @@ export default function TimeEntriesPage() {
                           : ""}
                       </StatusBadge>
                     ) : null}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={() => setEditing(e)}>
-                      {tw("time.edit")}
-                    </Button>
-                    {e.needsReview ? (
-                      <Button
-                        onClick={() => review.mutate({ id: e.id })}
-                        disabled={review.isPending}
-                      >
-                        {tw("time.validate")}
+
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="secondary" onClick={() => setEditing(e)}>
+                        {tw("time.edit")}
                       </Button>
-                    ) : null}
+                      {e.needsReview ? (
+                        <Button
+                          onClick={() => review.mutate({ id: e.id })}
+                          disabled={review.isPending}
+                        >
+                          {tw("time.validate")}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </li>
               ))}
             </ul>
           )}
 
-          <section className="flex flex-col gap-2" aria-label={tw("time.attendanceTitle")}>
-            <h3 className="font-semibold">{tw("time.attendanceTitle")}</h3>
+          {/* Section Présences du jour */}
+          <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm" aria-label={tw("time.attendanceTitle")}>
+            <h3 className="font-semibold text-base text-foreground">{tw("time.attendanceTitle")}</h3>
             {entries.data.attendances.length === 0 ? (
               <p className="text-sm text-muted">{tw("time.attendanceEmpty")}</p>
             ) : (
-              <ul className="flex flex-col gap-1">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {entries.data.attendances.map((a) => (
                   <li
                     key={a.id}
-                    className="flex flex-wrap items-center gap-2 rounded-md bg-surface-2 px-3 py-2 text-sm"
+                    className="flex flex-col gap-1 rounded-lg border border-border bg-surface-2/40 p-2.5 text-xs"
                   >
-                    <span className="font-medium">{a.mechanicName}</span>
-                    <span>
-                      {tw("time.arrival")} {formatTime(a.clockIn, timeZone)} ·{" "}
-                      {tw("time.departure")} {formatTime(a.clockOut, timeZone)}
-                    </span>
-                    <span>
-                      {tw("time.presence")} {formatDuration(a.presenceMinutes)}
-                    </span>
-                    {a.autoClosed ? (
-                      <StatusBadge tone="warn" label={tw("time.autoClosed")} />
-                    ) : null}
+                    <div className="flex items-center justify-between font-semibold text-sm text-foreground">
+                      <span>{a.mechanicName}</span>
+                      {a.autoClosed ? (
+                        <StatusBadge tone="warn" label={tw("time.autoClosed")} />
+                      ) : null}
+                    </div>
+                    <div className="text-muted">
+                      {tw("time.arrival")} <strong>{formatTime(a.clockIn, timeZone)}</strong> ·{" "}
+                      {tw("time.departure")} <strong>{formatTime(a.clockOut, timeZone)}</strong>
+                    </div>
+                    <div className="text-muted">
+                      {tw("time.presence")} <strong className="text-foreground">{formatDuration(a.presenceMinutes)}</strong>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -227,6 +374,7 @@ export default function TimeEntriesPage() {
           </section>
         </>
       )}
+
       {editing ? (
         <EditEntryModal
           entry={editing}

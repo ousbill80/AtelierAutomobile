@@ -1,4 +1,5 @@
 import {
+  CI_VEHICLE_CATALOG,
   defaultInspectionTemplate,
   defaultMessageTemplates,
   defaultReminderRules,
@@ -152,7 +153,17 @@ async function main() {
       select: { userId: true },
     });
     await deleteOrganizationCascade(existing.id);
-    await adminDb.user.deleteMany({ where: { id: { in: previousMembers.map((m) => m.userId) } } });
+    const otherMemberships = await adminDb.membership.findMany({
+      where: { userId: { in: previousMembers.map((m) => m.userId) } },
+      select: { userId: true },
+    });
+    const stillReferencedUserIds = new Set(otherMemberships.map((m) => m.userId));
+    const toDelete = previousMembers
+      .map((m) => m.userId)
+      .filter((id) => !stillReferencedUserIds.has(id));
+    if (toDelete.length > 0) {
+      await adminDb.user.deleteMany({ where: { id: { in: toDelete } } });
+    }
   }
 
   console.log("Seed — organisation et sites...");
@@ -322,8 +333,16 @@ async function main() {
   for (const [i, spec] of teamSpec.entries()) {
     const email = `demo.${spec.role.toLowerCase()}.${i}@excellence-auto.ci`;
     const phone = phoneFor(900 + i);
-    const user = await adminDb.user.create({
-      data: {
+    const user = await adminDb.user.upsert({
+      where: { phone },
+      update: {
+        name: spec.name,
+        email,
+        emailVerifiedAt: TODAY,
+        phoneVerifiedAt: TODAY,
+        locale: "fr",
+      },
+      create: {
         name: spec.name,
         email,
         phone,
@@ -332,12 +351,19 @@ async function main() {
         locale: "fr",
       },
     });
-    await adminDb.account.create({
-      data: {
+    await adminDb.account.upsert({
+      where: {
+        providerId_accountId: {
+          providerId: "credential",
+          accountId: user.id,
+        },
+      },
+      update: {
+        password: demoPasswordHash,
+      },
+      create: {
         userId: user.id,
         providerId: "credential",
-        // accountId = User.id : un seul mot de passe par utilisateur, indépendant de
-        // l'identifiant (email ou téléphone) utilisé pour se connecter.
         accountId: user.id,
         password: demoPasswordHash,
       },
@@ -1606,79 +1632,15 @@ async function main() {
   // RG-M02-20 — catalogue marques/modèles global (organizationId null), avec intervalle de
   // révision par défaut. Les modèles d'une organisation peuvent être ajoutés en plus via
   // catalog.addLocalModel ; voir docs/modules/M02-clients-vehicules.md §4.
-  const MAKE_MODEL_CATALOG: Record<
-    string,
-    { name: string; serviceIntervalKm?: number; serviceIntervalMonths?: number }[]
-  > = {
-    Toyota: [
-      { name: "Corolla", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Hilux", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Land Cruiser", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "RAV4", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Yaris", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Hyundai: [
-      { name: "Tucson", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Accent", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "i10", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Kia: [
-      { name: "Picanto", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Sportage", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Rio", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Nissan: [
-      { name: "Navara", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Patrol", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Sentra", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Mitsubishi: [
-      { name: "L200", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Pajero", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Suzuki: [
-      { name: "Swift", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Vitara", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Isuzu: [{ name: "D-Max", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Peugeot: [
-      { name: "301", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "208", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Renault: [
-      { name: "Duster", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-      { name: "Logan", serviceIntervalKm: 10000, serviceIntervalMonths: 12 },
-    ],
-    Citroën: [{ name: "C3", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    "Mercedes-Benz": [{ name: "Classe C", serviceIntervalKm: 15000, serviceIntervalMonths: 12 }],
-    BMW: [{ name: "Série 3", serviceIntervalKm: 15000, serviceIntervalMonths: 12 }],
-    Ford: [{ name: "Ranger", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Honda: [{ name: "CR-V", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Mazda: [{ name: "CX-5", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Volkswagen: [{ name: "Polo", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    "Land Rover": [{ name: "Defender", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Chevrolet: [{ name: "Aveo", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Changan: [{ name: "CS35", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Geely: [{ name: "Coolray", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Chery: [{ name: "Tiggo", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Dongfeng: [{ name: "AX7", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    "Great Wall": [{ name: "Wingle", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    JAC: [{ name: "T6", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-    Tata: [{ name: "Xenon", serviceIntervalKm: 10000, serviceIntervalMonths: 12 }],
-  };
-
-  // findFirst + create plutôt qu'upsert : le sélecteur composé généré par Prisma pour
-  // @@unique([organizationId, name]) n'accepte pas organizationId: null (la contrainte
-  // Postgres elle-même traite les NULL comme toujours distincts), bien que le champ soit
-  // nullable sur le modèle (catalogue global, RG-M02-20).
-  for (const [makeName, models] of Object.entries(MAKE_MODEL_CATALOG)) {
+  // Utilise le catalogue de référence enrichi pour la Côte d'Ivoire.
+  for (const makeDef of CI_VEHICLE_CATALOG) {
     let make = await adminDb.vehicleMake.findFirst({
-      where: { organizationId: null, name: makeName },
+      where: { organizationId: null, name: makeDef.name },
     });
     if (!make) {
-      make = await adminDb.vehicleMake.create({ data: { organizationId: null, name: makeName } });
+      make = await adminDb.vehicleMake.create({ data: { organizationId: null, name: makeDef.name } });
     }
-    for (const model of models) {
+    for (const model of makeDef.models) {
       const existingModel = await adminDb.vehicleModel.findFirst({
         where: { makeId: make.id, organizationId: null, name: model.name },
       });
@@ -1690,6 +1652,7 @@ async function main() {
             name: model.name,
             serviceIntervalKm: model.serviceIntervalKm,
             serviceIntervalMonths: model.serviceIntervalMonths,
+            defaultFuel: model.defaultFuel,
           },
         });
       }
@@ -1699,7 +1662,7 @@ async function main() {
   console.log(
     `Seed terminé : organisation "${organization.name}" (${organization.id}), ` +
       `${1 + 1 + 1 + 1 + 1 + 1 + 1 + fillerCustomers.length} clients, ${createdProducts.length} produits, ` +
-      `${Object.keys(MAKE_MODEL_CATALOG).length} marques au catalogue, ` +
+      `${CI_VEHICLE_CATALOG.length} marques au catalogue, ` +
       `${defaultMessageTemplates().length} modèles de message et ${defaultReminderRules().length} règles de relance (M10) par défaut.`,
   );
 }

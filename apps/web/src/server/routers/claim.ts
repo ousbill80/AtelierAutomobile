@@ -186,6 +186,11 @@ export const claimRouter = router({
           insurer: c.insuranceCompany,
           deductible: c.deductible,
           approvedAmount: c.approvedAmount,
+          expertName: c.expertName,
+          expertVisitAt: c.expertVisitAt,
+          expertVisitedAt: c.expertVisitedAt,
+          estimateSentAt: c.estimateSentAt,
+          approvedAt: c.approvedAt,
           insurerTotal: insurerInvoice?.total ?? null,
           insurerBalance: insurerInvoice?.balance ?? null,
           customerTotal: customerInvoice?.total ?? null,
@@ -194,8 +199,36 @@ export const claimRouter = router({
           createdAt: c.createdAt,
         };
       });
+
+      const filteredItems = input.blockedOnly ? items.filter((i) => i.blockers.length > 0) : items;
+
+      // Agrégats calculés pour la vue globale et les cartes KPI
+      const totalInsurerDue = items.reduce((acc, c) => acc + (c.insurerBalance ?? 0), 0);
+      const totalCustomerDue = items.reduce((acc, c) => acc + (c.customerBalance ?? 0), 0);
+      const blockedCount = items.filter((c) => c.blockers.length > 0).length;
+      const inRepairCount = items.filter((c) => c.status === "REPAIRING").length;
+      const waitingApprovalCount = items.filter(
+        (c) => c.status === "OPENED" || c.status === "EXPERT_SCHEDULED" || c.status === "ESTIMATE_SENT",
+      ).length;
+      const authorizedCount = items.filter(
+        (c) => c.status === "APPROVED" || c.status === "REPAIRING",
+      ).length;
+      const invoicedPendingCount = items.filter(
+        (c) => (c.status === "INVOICED" || c.status === "PARTIALLY_PAID") && (c.insurerBalance ?? 0) > 0,
+      ).length;
+
       return {
-        items: input.blockedOnly ? items.filter((i) => i.blockers.length > 0) : items,
+        items: filteredItems,
+        summary: {
+          totalClaims: items.length,
+          totalInsurerDue,
+          totalCustomerDue,
+          blockedCount,
+          inRepairCount,
+          waitingApprovalCount,
+          authorizedCount,
+          invoicedPendingCount,
+        },
         nextCursor: hasMore ? page[page.length - 1]!.id : null,
         timeZone: org.timeZone,
       };

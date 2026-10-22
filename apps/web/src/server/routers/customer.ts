@@ -152,14 +152,75 @@ export const customerRouter = router({
       }
 
       const where = buildCustomerListWhere(effective);
-      const items = await tenantDb.customer.findMany({
+      const rawItems = await tenantDb.customer.findMany({
         where,
         orderBy: { displayName: "asc" },
         take: effective.limit + 1,
         ...(effective.cursor ? { cursor: { id: effective.cursor }, skip: 1 } : {}),
+        include: {
+          vehicles: {
+            where: { deletedAt: null },
+            select: {
+              id: true,
+              plate: true,
+              plateType: true,
+              make: true,
+              model: true,
+              inspectionExpiryDate: true,
+              nextServiceDueDate: true,
+            },
+          },
+          repairOrders: {
+            where: { deletedAt: null },
+            select: { id: true, status: true },
+          },
+          invoices: {
+            where: {
+              type: "INVOICE",
+              status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"] },
+            },
+            select: { balance: true, dueDate: true },
+          },
+        },
       });
-      const nextCursor = items.length > effective.limit ? items[effective.limit]!.id : null;
-      return { items: items.slice(0, effective.limit), nextCursor };
+
+      const now = new Date();
+      const items = rawItems.slice(0, effective.limit).map((c) => {
+        const vehicleCount = c.vehicles.length;
+        const activeRoCount = c.repairOrders.filter((ro) =>
+          [
+            "CHECKED_IN",
+            "DIAGNOSING",
+            "AWAITING_APPROVAL",
+            "APPROVED",
+            "IN_PROGRESS",
+            "WAITING_PARTS",
+            "QUALITY_CHECK",
+            "READY",
+          ].includes(ro.status),
+        ).length;
+        const repairedRoCount = c.repairOrders.filter((ro) =>
+          ["DELIVERED", "INVOICED"].includes(ro.status),
+        ).length;
+        const dueBalance = c.invoices.reduce((sum, inv) => sum + (inv.balance ?? 0), 0);
+        const overdueBalance = c.invoices
+          .filter((inv) => inv.dueDate && new Date(inv.dueDate) < now)
+          .reduce((sum, inv) => sum + (inv.balance ?? 0), 0);
+
+        return {
+          ...c,
+          stats: {
+            vehicleCount,
+            activeRoCount,
+            repairedRoCount,
+            dueBalance,
+            overdueBalance,
+          },
+        };
+      });
+
+      const nextCursor = rawItems.length > effective.limit ? rawItems[effective.limit]!.id : null;
+      return { items, nextCursor };
     }),
 
   get: requirePermission("customer:read")
@@ -173,19 +234,68 @@ export const customerRouter = router({
             where: { deletedAt: null },
             orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
           },
-          vehicles: { where: { deletedAt: null } },
+          vehicles: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: "desc" },
+          },
         },
       });
 
-      const unpaidInvoices = await tenantDb.invoice.findMany({
-        where: { customerId: input.id, status: { in: [...UNPAID_INVOICE_STATUSES] } },
-        select: { total: true, dueDate: true },
-      });
+      const [repairOrders, quotes, invoices, unpaidInvoices] = await Promise.all([
+        tenantDb.repairOrder.findMany({
+          where: { customerId: input.id, deletedAt: null },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            totalEstimate: true,
+            createdAt: true,
+            vehicle: { select: { id: true, plate: true, plateType: true, make: true, model: true } },
+          },
+        }),
+        tenantDb.quote.findMany({
+          where: { customerId: input.id, supersededAt: null },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            total: true,
+            createdAt: true,
+            validUntil: true,
+            vehicle: { select: { id: true, plate: true, make: true, model: true } },
+          },
+        }),
+        tenantDb.invoice.findMany({
+          where: { customerId: input.id },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            type: true,
+            total: true,
+            balance: true,
+            dueDate: true,
+            issuedAt: true,
+            createdAt: true,
+          },
+        }),
+        tenantDb.invoice.findMany({
+          where: { customerId: input.id, status: { in: [...UNPAID_INVOICE_STATUSES] } },
+          select: { total: true, balance: true, dueDate: true },
+        }),
+      ]);
+
       const now = new Date();
-      const due = unpaidInvoices.reduce((sum, inv) => sum + inv.total, 0);
+      const due = unpaidInvoices.reduce((sum, inv) => sum + (inv.balance || inv.total), 0);
       const overdue = unpaidInvoices
         .filter((inv) => inv.dueDate && inv.dueDate < now)
-        .reduce((sum, inv) => sum + inv.total, 0);
+        .reduce((sum, inv) => sum + (inv.balance || inv.total), 0);
 
       const reachability = customer.doNotRemind
         ? "DO_NOT_REMIND"
@@ -195,10 +305,37 @@ export const customerRouter = router({
             ? "REACHABLE"
             : "UNREACHABLE";
 
+      const activeRoCount = repairOrders.filter((ro) =>
+        [
+          "CHECKED_IN",
+          "DIAGNOSING",
+          "AWAITING_APPROVAL",
+          "APPROVED",
+          "IN_PROGRESS",
+          "WAITING_PARTS",
+          "QUALITY_CHECK",
+          "READY",
+        ].includes(ro.status),
+      ).length;
+      const repairedRoCount = repairOrders.filter((ro) =>
+        ["DELIVERED", "INVOICED"].includes(ro.status),
+      ).length;
+
       return {
         ...customer,
+        repairOrders,
+        quotes,
+        invoices,
         balance: { due, overdue, creditLimit: customer.creditLimit },
         reachability,
+        stats: {
+          vehicleCount: customer.vehicles.length,
+          activeRoCount,
+          repairedRoCount,
+          totalInvoiced: invoices
+            .filter((inv) => inv.type === "INVOICE" && inv.status !== "VOID")
+            .reduce((sum, inv) => sum + inv.total, 0),
+        },
       };
     }),
 

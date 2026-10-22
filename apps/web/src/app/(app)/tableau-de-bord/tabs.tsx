@@ -5,6 +5,15 @@
 // (`dashboard.*`, formules de `core/reports`) : aucun calcul d'indicateur ici.
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
+import {
+  CheckCircle2,
+  CircleDollarSign,
+  Percent,
+  Receipt,
+  Sparkles,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { EmptyState, StatusBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import type { AppRouter } from "@/server/routers/_app";
@@ -45,6 +54,7 @@ export function ReceivablesCard({ receivables }: { receivables: Receivables }) {
       sub={fmt(L.cards.receivablesOver30, { amount: formatAmount(receivables.over30) })}
       help={L.help.receivables}
       href="/creances?filtre=en-retard"
+      icon={<CircleDollarSign size={16} strokeWidth={2.2} />}
     />
   );
 }
@@ -65,6 +75,7 @@ export function SummaryFull({ data }: { data: Overview }) {
           variation={s.revenueHt.variation}
           help={L.help.revenueHt}
           href="/rapports/ventes"
+          icon={<TrendingUp size={16} strokeWidth={2.2} />}
         />
         <KpiCard
           label={L.cards.collected}
@@ -72,6 +83,7 @@ export function SummaryFull({ data }: { data: Overview }) {
           variation={s.collected.variation}
           help={L.help.collected}
           href="/rapports/encaissements"
+          icon={<Wallet size={16} strokeWidth={2.2} />}
         />
         <ReceivablesCard receivables={data.receivables} />
         <KpiCard
@@ -79,6 +91,7 @@ export function SummaryFull({ data }: { data: Overview }) {
           value={formatAmount(data.recovered.value)}
           variation={data.recovered.variation}
           help={L.help.recovered}
+          icon={<Sparkles size={16} strokeWidth={2.2} />}
         />
       </div>
       {empty ? (
@@ -93,12 +106,14 @@ export function SummaryFull({ data }: { data: Overview }) {
                 sub={formatAmount(s.margins.grossMargin)}
                 help={L.help.grossMargin}
                 badge={s.margins.estimated ? L.cards.estimatedCost : undefined}
+                icon={<Percent size={16} strokeWidth={2.2} />}
               />
             )}
             <KpiCard
               label={L.cards.avgTicket}
               value={s.avgTicket === null ? L.dash : formatAmount(s.avgTicket)}
               help={L.help.avgTicket}
+              icon={<Receipt size={16} strokeWidth={2.2} />}
             />
             <KpiCard
               label={L.cards.acceptance}
@@ -106,6 +121,7 @@ export function SummaryFull({ data }: { data: Overview }) {
               sub={fmt(L.cards.acceptanceValue, { pct: formatPct(s.acceptance.valueRate) })}
               help={L.help.acceptance}
               href="/devis"
+              icon={<CheckCircle2 size={16} strokeWidth={2.2} />}
             />
           </div>
           <Section title={L.summary.dailyRevenue} help={L.help.revenueHt}>

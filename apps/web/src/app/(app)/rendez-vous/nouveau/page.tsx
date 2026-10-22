@@ -5,6 +5,8 @@
 // M11 ou la file des relances : ?customerId=…&vehicleId=…&type=INSPECTION_PREP&source=REMINDER&reminderId=…).
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Calendar } from "lucide-react";
+import { FormCard } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { AppointmentForm } from "../appointment-form";
 import { SOURCES, TYPES, ta, type AppointmentSource, type AppointmentType } from "../labels";
@@ -19,9 +21,17 @@ function NewAppointment() {
   const source = params.get("source");
   const startsAt = params.get("startsAt");
   const tz = me.data?.activeOrganization?.timezone ?? "Africa/Abidjan";
+
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-16">
-      <h1 className="text-2xl font-semibold">{ta("form.title")}</h1>
+    <FormCard
+      icon={<Calendar className="size-5" />}
+      title={ta("form.title")}
+      description="Planifiez une intervention dans l'atelier avec créneau horaire, durée, pont et mécanicien assigné"
+      badge="Nouveau rendez-vous"
+      backHref="/rendez-vous"
+      backLabel="Retour au planning"
+      maxWidth="xl"
+    >
       <AppointmentForm
         timeZone={tz}
         initial={{
@@ -43,14 +53,14 @@ function NewAppointment() {
           router.push("/rendez-vous");
         }}
       />
-      <Toast toast={toast} onDone={() => setToast(null)} />
-    </div>
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+    </FormCard>
   );
 }
 
 export default function NewAppointmentPage() {
   return (
-    <Suspense fallback={<div className="skeleton h-96" />}>
+    <Suspense fallback={<p className="text-sm text-muted">Chargement…</p>}>
       <NewAppointment />
     </Suspense>
   );

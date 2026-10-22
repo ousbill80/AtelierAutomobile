@@ -4,10 +4,28 @@
 // Accueil, Finances, Relances, Clients ; CASHIER : « Ma caisse du jour »), version AutoRappel
 // en mode REMINDERS_ONLY (US-M12-10), bloc Alertes (RG-M12-28). Période (dont personnalisée)
 // et site dans l'URL (`?periode=mois&site=…`, US-M12-02).
-import { Suspense, useState } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
+import {
+  ArrowUpRight,
+  BarChart3,
+  BellRing,
+  Building2,
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  CircleDollarSign,
+  LayoutDashboard,
+  RefreshCw,
+  Send,
+  Sparkles,
+  Users,
+  Wallet,
+  Wrench,
+  X,
+} from "lucide-react";
 import { Button, EmptyState, StatusBadge, type StatusTone } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { AssistantFab } from "@/components/assistant-fab";
@@ -26,7 +44,6 @@ import {
   CashierCard,
   CustomersTab,
   FrontDeskTab,
-  PERIODS,
   ReceivablesCard,
   SummaryFull,
   WorkshopTab,
@@ -37,6 +54,16 @@ import {
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type Tab =
   "summary" | "workshop" | "frontDesk" | "finances" | "reminders" | "customers" | "cashier";
+
+const TAB_ICONS: Record<Tab, ReactNode> = {
+  summary: <LayoutDashboard size={15} strokeWidth={2} />,
+  workshop: <Wrench size={15} strokeWidth={2} />,
+  frontDesk: <Calendar size={15} strokeWidth={2} />,
+  finances: <CircleDollarSign size={15} strokeWidth={2} />,
+  reminders: <BellRing size={15} strokeWidth={2} />,
+  customers: <Users size={15} strokeWidth={2} />,
+  cashier: <Wallet size={15} strokeWidth={2} />,
+};
 
 // Valeurs d'URL en français (US-M12-02 : `?periode=mois`).
 const PERIOD_URL: Record<Period | "custom", string> = {
@@ -84,7 +111,9 @@ function Dashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const utils = trpc.useUtils();
   const me = trpc.me.get.useQuery();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const permissions = new Set(me.data?.permissions ?? []);
   const role = me.data?.membership?.role ?? "";
@@ -140,6 +169,15 @@ function Dashboard() {
     router.replace(`${pathname}?${search.toString()}`);
   }
 
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    try {
+      await utils.dashboard.invalidate();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
   if (me.isLoading) return <CardsSkeleton />;
   if (me.isError) return <ErrorState onRetry={() => me.refetch()} />;
   if (role === "MECHANIC") {
@@ -157,62 +195,143 @@ function Dashboard() {
   if (!tab) return <EmptyState title={L.states.noAccess} />;
 
   const input: TabInput = { period, custom, siteId };
-  const periodOptions: (Period | "custom")[] = [...PERIODS, "custom"];
+
+  // Périodes rapides sous forme de pills
+  const quickPeriods: Period[] = ["today", "7d", "month", "prev_month", "year"];
+  const otherPeriods: (Period | "custom")[] = ["30d", "quarter", "custom"];
+  const isQuickSelected = !showCustom && quickPeriods.includes(period);
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 pb-20">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">{L.title}</h1>
-        {(permissions.has("report:read") || permissions.has("report:financial")) && (
-          <Link href="/rapports" className="flex min-h-11 items-center text-sm underline">
-            {L.reportsLink}
-          </Link>
-        )}
+    <div className="flex min-w-0 flex-col gap-5 pb-20">
+      {/* En-tête moderne du tableau de bord */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-fg shadow-sm">
+            <LayoutDashboard size={20} strokeWidth={2.4} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{L.title}</h1>
+            <p className="text-xs text-muted">Vue d&apos;ensemble et indicateurs clés de votre atelier</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition-all hover:bg-surface-2 disabled:opacity-50"
+            title="Rafraîchir les données"
+          >
+            <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
+            <span>{isRefreshing ? "Actualisation..." : L.refresh}</span>
+          </button>
+
+          {(permissions.has("report:read") || permissions.has("report:financial")) && (
+            <Link
+              href="/rapports"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-surface-2 px-3 text-xs font-semibold text-foreground transition-all hover:bg-surface-2/80"
+            >
+              <BarChart3 size={14} />
+              <span>{L.reportsLink}</span>
+              <ArrowUpRight size={12} className="opacity-70" />
+            </Link>
+          )}
+        </div>
       </div>
 
-      <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-end gap-2 bg-background px-1 py-2">
-        <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
-          {L.periodLabel}
-          <select
-            aria-label={L.periodLabel}
-            value={showCustom ? "custom" : period}
-            onChange={(e) => {
-              const value = e.target.value as Period | "custom";
-              update({
-                periode: PERIOD_URL[value],
-                ...(value === "custom" ? {} : { du: undefined, au: undefined }),
-              });
-            }}
-            className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
-          >
-            {periodOptions.map((p) => (
-              <option key={p} value={p}>
-                {L.periods[p]}
-              </option>
-            ))}
-          </select>
-        </label>
-        {sites.length > 1 || !restricted ? (
-          <label className="flex min-w-0 flex-1 flex-col text-xs text-muted sm:flex-none">
-            {L.siteLabel}
+      {/* Barre de filtres intelligente et complète */}
+      <div className="sticky top-0 z-10 -mx-2 rounded-xl border border-border/70 bg-surface/95 px-3 py-2.5 shadow-sm backdrop-blur-md">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          {/* Groupe Sélecteur de période */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="flex items-center gap-1 text-xs font-semibold text-muted pr-1">
+              <CalendarDays size={14} />
+              <span>{L.periodLabel} :</span>
+            </span>
+
+            {/* Périodes d'accès rapide */}
+            {quickPeriods.map((p) => {
+              const active = !showCustom && period === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    update({
+                      periode: PERIOD_URL[p],
+                      du: undefined,
+                      au: undefined,
+                    });
+                  }}
+                  className={`inline-flex h-8 items-center rounded-lg px-2.5 text-xs font-medium transition-all ${
+                    active
+                      ? "bg-accent text-accent-fg font-semibold shadow-xs"
+                      : "bg-surface-2/70 text-foreground hover:bg-surface-2"
+                  }`}
+                >
+                  {L.periods[p]}
+                </button>
+              );
+            })}
+
+            {/* Menu sélecteur pour les autres périodes */}
             <select
-              aria-label={L.siteLabel}
-              value={siteId ?? ""}
-              onChange={(e) => update({ site: e.target.value || undefined })}
-              className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+              aria-label="Autres périodes"
+              value={showCustom ? "custom" : isQuickSelected ? "" : period}
+              onChange={(e) => {
+                const val = e.target.value as Period | "custom";
+                if (!val) return;
+                update({
+                  periode: PERIOD_URL[val],
+                  ...(val === "custom" ? {} : { du: undefined, au: undefined }),
+                });
+              }}
+              className={`h-8 rounded-lg border px-2 text-xs font-medium outline-none transition-all ${
+                !isQuickSelected || showCustom
+                  ? "border-accent bg-accent/10 text-accent font-semibold"
+                  : "border-border bg-surface-2/70 text-muted hover:text-foreground"
+              }`}
             >
-              {!restricted && <option value="">{L.allSites}</option>}
-              {sites.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
+              <option value="" disabled>
+                Plus de périodes...
+              </option>
+              {otherPeriods.map((p) => (
+                <option key={p} value={p}>
+                  {L.periods[p]}
                 </option>
               ))}
             </select>
-          </label>
-        ) : null}
+          </div>
+
+          {/* Groupe Sélecteur de site */}
+          {sites.length > 1 || !restricted ? (
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1 text-xs font-semibold text-muted">
+                <Building2 size={14} />
+                <span>{L.siteLabel} :</span>
+              </span>
+              <select
+                aria-label={L.siteLabel}
+                value={siteId ?? ""}
+                onChange={(e) => update({ site: e.target.value || undefined })}
+                className="h-8 rounded-lg border border-border bg-surface-2/70 px-2.5 text-xs font-medium text-foreground outline-none transition-all hover:bg-surface-2"
+              >
+                {!restricted && <option value="">{L.allSites}</option>}
+                {sites.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Formulaire de période personnalisée */}
         {showCustom && (
           <form
-            className="flex w-full flex-wrap items-end gap-2"
+            className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2.5"
             onSubmit={(e) => {
               e.preventDefault();
               if (ISO_DAY.test(draft.from) && ISO_DAY.test(draft.to) && draft.from <= draft.to) {
@@ -220,44 +339,64 @@ function Dashboard() {
               }
             }}
           >
-            <label className="flex min-w-0 flex-1 flex-col text-xs text-muted">
-              {L.customFrom}
+            <span className="text-xs font-medium text-muted">Intervalle précis :</span>
+            <div className="flex items-center gap-1.5">
               <input
                 type="date"
                 value={draft.from}
                 onChange={(e) => setDraft({ ...draft, from: e.target.value })}
-                className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+                className="h-8 rounded-lg border border-border bg-surface px-2 text-xs text-foreground outline-none focus:border-accent"
+                aria-label={L.customFrom}
               />
-            </label>
-            <label className="flex min-w-0 flex-1 flex-col text-xs text-muted">
-              {L.customTo}
+              <span className="text-xs text-muted">au</span>
               <input
                 type="date"
                 value={draft.to}
                 onChange={(e) => setDraft({ ...draft, to: e.target.value })}
-                className="min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+                className="h-8 rounded-lg border border-border bg-surface px-2 text-xs text-foreground outline-none focus:border-accent"
+                aria-label={L.customTo}
               />
-            </label>
-            <Button type="submit" variant="secondary">
+            </div>
+            <Button type="submit" variant="primary" size="sm">
               {L.customApply}
             </Button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                update({ periode: PERIOD_URL.month, du: undefined, au: undefined });
+              }}
+              className="inline-flex h-8 items-center gap-1 text-xs text-muted hover:text-foreground"
+            >
+              <X size={12} />
+              <span>Annuler</span>
+            </button>
           </form>
         )}
       </div>
 
+      {/* Barre d'onglets de vue avec icônes Lucide */}
       {tabs.length > 1 && (
-        <div role="tablist" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 text-sm">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={t === tab}
-              onClick={() => update({ onglet: TAB_URL[t] })}
-              className={`min-h-11 shrink-0 rounded-md px-3 ${t === tab ? "bg-accent text-accent-foreground" : "bg-surface-2"}`}
-            >
-              {L.tabs[t]}
-            </button>
-          ))}
+        <div role="tablist" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 text-sm">
+          {tabs.map((t) => {
+            const active = t === tab;
+            return (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={active}
+                onClick={() => update({ onglet: TAB_URL[t] })}
+                className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-xs font-medium transition-all ${
+                  active
+                    ? "bg-accent text-accent-fg font-semibold shadow-sm"
+                    : "border border-border/70 bg-surface text-muted hover:border-border hover:bg-surface-2/60 hover:text-foreground"
+                }`}
+              >
+                {TAB_ICONS[t]}
+                <span>{L.tabs[t]}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -296,36 +435,46 @@ function SummaryTab({ input }: { input: TabInput }) {
         {d.hasInvoices ? (
           <ReceivablesCard receivables={d.receivables} />
         ) : (
-          <KpiCard label={L.cards.receivables} value={L.dash} help={L.help.receivables} />
+          <KpiCard
+            label={L.cards.receivables}
+            value={L.dash}
+            help={L.help.receivables}
+            icon={<CircleDollarSign size={16} strokeWidth={2.2} />}
+          />
         )}
         <KpiCard
           label={L.cards.recovered}
           value={formatAmount(d.recovered.value)}
           variation={d.recovered.variation}
           help={L.help.recovered}
+          icon={<Sparkles size={16} strokeWidth={2.2} />}
         />
         <KpiCard
           label={L.cards.toHandleToday}
           value={String(d.remindersToHandleToday)}
           href="/relances"
+          icon={<BellRing size={16} strokeWidth={2.2} />}
         />
         <KpiCard
           label={L.cards.remindersSent}
           value={String(d.reminders.sent)}
           variation={d.reminders.sentVariation}
           sub={`${L.cards.returnedCustomers} : ${d.reminders.returnedCustomers}`}
+          icon={<Send size={16} strokeWidth={2.2} />}
         />
         <KpiCard
           label={L.cards.inspectionsDue30}
           value={d.inspectionsDue30 === null ? L.dash : String(d.inspectionsDue30)}
           help={d.inspectionsDue30 === null ? L.cards.notAttributable : undefined}
           href="/relances/echeances"
+          icon={<CalendarClock size={16} strokeWidth={2.2} />}
         />
         <KpiCard
           label={L.cards.servicesDueThisMonth}
           value={d.servicesDueThisMonth === null ? L.dash : String(d.servicesDueThisMonth)}
           help={d.servicesDueThisMonth === null ? L.cards.notAttributable : undefined}
           href="/relances/echeances"
+          icon={<Wrench size={16} strokeWidth={2.2} />}
         />
       </div>
       {d.hasInvoices ? (
@@ -348,15 +497,30 @@ function RemindersTab({ input }: { input: TabInput }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard label={L.reminders.sent} value={String(d.sent)} variation={d.sentVariation} />
+        <KpiCard
+          label={L.reminders.sent}
+          value={String(d.sent)}
+          variation={d.sentVariation}
+          icon={<Send size={16} strokeWidth={2.2} />}
+        />
         <KpiCard
           label={L.reminders.recovered}
           value={formatAmount(d.recoveredAmount)}
           variation={d.recoveredVariation}
           help={L.help.recovered}
+          icon={<Sparkles size={16} strokeWidth={2.2} />}
         />
-        <KpiCard label={L.cards.returnedCustomers} value={String(d.returnedCustomers)} />
-        <KpiCard label={L.reminders.toApprove} value={String(d.toApprove)} href="/relances" />
+        <KpiCard
+          label={L.cards.returnedCustomers}
+          value={String(d.returnedCustomers)}
+          icon={<Users size={16} strokeWidth={2.2} />}
+        />
+        <KpiCard
+          label={L.reminders.toApprove}
+          value={String(d.toApprove)}
+          href="/relances"
+          icon={<BellRing size={16} strokeWidth={2.2} />}
+        />
       </div>
 
       {isEmpty ? (

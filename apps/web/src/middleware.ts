@@ -65,6 +65,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // M06 : le service worker et le manifeste de la PWA tablette restent publics.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest).*)"],
+  // M06 : le service worker et le manifeste de la PWA tablette restent publics, ainsi que les assets statiques /images.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|images|sw.js|manifest.webmanifest).*)"],
 };

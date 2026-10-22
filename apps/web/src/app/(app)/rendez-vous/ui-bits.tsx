@@ -24,26 +24,26 @@ export function SidePanel({
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-black/40 backdrop-blur-[2px] transition-opacity" onClick={onClose}>
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="flex h-full w-full flex-col overflow-y-auto bg-surface shadow-xl md:w-[460px]"
+        className="flex h-full w-full flex-col overflow-y-auto bg-surface shadow-2xl border-l border-border md:w-[500px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface px-4 py-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface/95 backdrop-blur-sm px-5 py-3.5">
+          <h2 className="text-base font-bold text-foreground">{title}</h2>
           <button
             type="button"
             aria-label={ta("panel.close")}
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-surface-2"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition"
           >
             <X size={18} />
           </button>
         </div>
-        <div className="flex flex-col gap-4 p-4">{children}</div>
+        <div className="flex flex-col gap-4 p-5">{children}</div>
       </aside>
     </div>
   );
@@ -51,12 +51,21 @@ export function SidePanel({
 
 export type ToastState = { message: string; tone: "ok" | "bad" } | null;
 
-export function Toast({ toast, onDone }: { toast: ToastState; onDone: () => void }) {
+export function Toast({
+  toast,
+  onDone,
+  onClose,
+}: {
+  toast: ToastState;
+  onDone?: () => void;
+  onClose?: () => void;
+}) {
+  const dismiss = onDone ?? onClose ?? (() => {});
   useEffect(() => {
     if (!toast) return;
-    const id = window.setTimeout(onDone, 5000);
+    const id = window.setTimeout(dismiss, 5000);
     return () => window.clearTimeout(id);
-  }, [toast, onDone]);
+  }, [toast, dismiss]);
   if (!toast) return null;
   return (
     <div

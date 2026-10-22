@@ -11,7 +11,6 @@ import {
   ErrorBox,
   ListSkeleton,
   ModuleNav,
-  PageTitle,
   useCan,
 } from "../../../stock/_lib/components";
 import { formatDay, PO_TONE, t } from "../../../stock/_lib/i18n";
@@ -36,31 +35,86 @@ export function SupplierView({ id }: { id: string }) {
   }
   const { supplier, purchaseOrders, products, totalPurchased } = query.data;
   return (
-    <div className="flex flex-col gap-4 pb-10">
+    <div className="flex flex-col gap-6 pb-16">
       <ModuleNav section="purchases" />
-      <Link href="/achats/fournisseurs" className="min-h-11 text-sm text-muted underline">
-        {t("common.back")}
-      </Link>
-      <PageTitle
-        title={supplier.name}
-        description={t("suppliers.totalPurchased", { value: formatFCFA(totalPurchased) })}
-        actions={
-          can("supplier:manage") ? (
-            <>
-              <Button variant="secondary" onClick={() => setEditing(true)}>
-                {t("common.edit")}
-              </Button>
-              <Button
-                variant="ghost"
-                loading={toggle.isPending}
-                onClick={() => toggle.mutate({ id, isActive: !supplier.isActive })}
-              >
-                {supplier.isActive ? t("suppliers.deactivate") : t("suppliers.activate")}
-              </Button>
-            </>
-          ) : null
-        }
-      />
+
+      {/* En-tête enrichi */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/achats/fournisseurs"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted hover:text-foreground hover:bg-surface-2"
+          >
+            ←
+          </Link>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                {supplier.name}
+              </h1>
+              <StatusBadge
+                tone={supplier.isActive ? "ok" : "off"}
+                label={supplier.isActive ? t("suppliers.active") : t("suppliers.inactive")}
+              />
+            </div>
+            <p className="text-xs text-muted">
+              {t("suppliers.totalPurchased", { value: formatFCFA(totalPurchased) })} ·{" "}
+              {products.length} référence{products.length > 1 ? "s" : ""} catalogue
+            </p>
+          </div>
+        </div>
+
+        {can("supplier:manage") && (
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" className="h-9 text-xs" onClick={() => setEditing(true)}>
+              {t("common.edit")}
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-9 text-xs"
+              loading={toggle.isPending}
+              onClick={() => toggle.mutate({ id, isActive: !supplier.isActive })}
+            >
+              {supplier.isActive ? t("suppliers.deactivate") : t("suppliers.activate")}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Cartes KPI Fournisseur */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Total des achats</span>
+          <div className="mt-2 text-xl font-bold tracking-tight text-foreground">
+            {formatFCFA(totalPurchased)}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">Volume d&apos;affaires cumulé</span>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Commandes passées</span>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+            {purchaseOrders.length}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">Bons de commande émis</span>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Délai de règlement</span>
+          <div className="mt-2 text-xl font-bold tracking-tight text-foreground">
+            {supplier.paymentTermsDays === 0 ? "Comptant" : `${supplier.paymentTermsDays} jours`}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">Conditions négociées</span>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm">
+          <span className="text-xs font-medium text-muted">Catalogue associé</span>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-accent">
+            {products.length}
+          </div>
+          <span className="mt-1 text-[11px] text-muted">Fournisseur par défaut</span>
+        </div>
+      </div>
       <StatusBadge
         tone={supplier.isActive ? "ok" : "off"}
         label={supplier.isActive ? t("suppliers.active") : t("suppliers.inactive")}

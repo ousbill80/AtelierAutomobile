@@ -204,6 +204,8 @@ export const setSubcontractStatusInputSchema = z.object({
 
 export const listRepairOrdersInputSchema = z.object({
   siteId: id.optional(),
+  customerId: id.optional(),
+  vehicleId: id.optional(),
   statuses: z.array(repairOrderStatusSchema).optional(),
   advisorId: id.optional(),
   mechanicId: id.optional(),

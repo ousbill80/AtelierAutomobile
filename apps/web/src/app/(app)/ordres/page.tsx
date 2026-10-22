@@ -1,12 +1,27 @@
 "use client";
 
-// M04 §7 — /ordres : compteurs, vues Tableau (kanban par statut actif, glisser-déposer
-// contrôlé par la machine à états) et Liste (cartes sur mobile), filtres et recherche.
-import { useState, type DragEvent } from "react";
+// M04 §7 — /ordres : KPIs opérationnels interactifs, Tableau (kanban par statut actif,
+// glisser-déposer contrôlé par la machine à états) et Liste (DataTable responsive),
+// recherche textuelle intelligente instantanée, filtres dynamiques et actions rapides.
+import { useCallback, useState, type DragEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Clock,
+  Download,
+  Kanban,
+  Layers,
+  List as ListIcon,
+  RotateCcw,
+  Search,
+  Wrench,
+  X,
+} from "lucide-react";
 import { formatFCFA } from "@atelieros/core/money";
 import { BOARD_STATUSES, REPAIR_ORDER_STATUSES } from "@atelieros/core/repairOrders";
-import { Button, EmptyState, PlateBadge } from "@atelieros/ui";
+import { Button, DataTable, type DataTableColumn, PlateBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { PromiseCountdown, RepairOrderStatusBadge } from "@/components/repair-orders/badges";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
@@ -52,87 +67,322 @@ export default function RepairOrdersPage() {
     comeback: false,
     q: "",
   });
-  const counters = trpc.repairOrder.list.useQuery({ limit: 1 });
 
-  const toggle = (key: "mine" | "late" | "comeback") =>
+  const countersQuery = trpc.repairOrder.list.useQuery(
+    { limit: 1 },
+    { refetchInterval: 30_000 },
+  );
+
+  const counters = countersQuery.data?.counters;
+
+  const toggle = useCallback((key: "mine" | "late" | "comeback") => {
     setFilters((f) => ({ ...f, [key]: !f[key] }));
+  }, []);
+
+  const hasActiveFilters = Boolean(
+    filters.q.trim() ||
+      filters.status ||
+      filters.priority ||
+      filters.late ||
+      filters.mine ||
+      filters.comeback,
+  );
+
+  const resetFilters = useCallback(() => {
+    setFilters({
+      mine: false,
+      late: false,
+      comeback: false,
+      priority: undefined,
+      status: undefined,
+      q: "",
+    });
+  }, []);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {/* En-tête de page */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <Link href="/ordres/reception" className="btn btn-primary min-h-11">
-          + {t("newReception")}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("title")}</h1>
+          <p className="text-xs text-muted sm:text-sm">{t("description")}</p>
+        </div>
+        <Link
+          href="/ordres/reception"
+          className="btn btn-primary inline-flex min-h-11 items-center gap-2 px-4 shadow-sm"
+        >
+          <span>+</span>
+          <span>{t("newReception")}</span>
         </Link>
       </div>
 
-      {counters.data && (
-        <div className="flex flex-wrap gap-2 text-sm" aria-label={t("title")}>
-          <span className="rounded-md bg-surface-2 px-3 py-2">
-            {t("counters.active", { count: counters.data.counters.active })}
+      {/* Cartes d'indicateurs opérationnels (KPIs) interactives */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {/* KPI 1 : Total OR ouverts */}
+        <button
+          type="button"
+          onClick={() => {
+            setFilters((f) => ({ ...f, status: undefined, late: false }));
+          }}
+          className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-all hover:border-foreground/30 ${
+            !filters.status && !filters.late
+              ? "border-accent bg-accent/5 ring-1 ring-accent"
+              : "border-border bg-surface"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-medium uppercase tracking-wider">{t("kpis.totalOpen")}</span>
+            <Wrench className="size-4" aria-hidden />
+          </div>
+          <span className="text-2xl font-bold text-foreground">
+            {counters?.active ?? 0}
           </span>
-          <span className="rounded-md bg-status-warn-bg px-3 py-2 text-status-warn">
-            {t("counters.awaitingApproval", { count: counters.data.counters.awaitingApproval })}
-          </span>
-          <span className="rounded-md bg-status-bad-bg px-3 py-2 text-status-bad">
-            {t("counters.waitingParts", { count: counters.data.counters.waitingParts })}
-          </span>
-          <span className="rounded-md bg-status-ok-bg px-3 py-2 text-status-ok">
-            {t("counters.ready", { count: counters.data.counters.ready })}
-          </span>
-          <span className="rounded-md bg-status-bad-bg px-3 py-2 font-semibold text-status-bad">
-            ⏰ {t("counters.late", { count: counters.data.counters.late })}
-          </span>
-        </div>
-      )}
+          <span className="text-xs text-muted">{t("kpis.totalOpenSub")}</span>
+        </button>
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        {(["board", "list"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            aria-pressed={view === v}
-            className={`min-h-11 rounded-md px-3 ${view === v ? "bg-accent text-accent-foreground" : "bg-surface-2"}`}
-          >
-            {t(`views.${v}`)}
-          </button>
-        ))}
-        <span className="mx-1 hidden h-6 w-px bg-border sm:block" />
-        {(["mine", "late", "comeback"] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => toggle(key)}
-            aria-pressed={filters[key]}
-            className={`min-h-11 rounded-md border border-border px-3 ${filters[key] ? "bg-surface-2 font-semibold" : "bg-surface"}`}
-          >
-            {filters[key] ? "✓ " : ""}
-            {t(`filters.${key}`)}
-          </button>
-        ))}
-        <select
-          aria-label={t("filters.priority")}
-          className="min-h-11 rounded-md border border-border bg-surface px-2"
-          value={filters.priority ?? ""}
-          onChange={(e) =>
+        {/* KPI 2 : En cours d'intervention */}
+        <button
+          type="button"
+          onClick={() => {
             setFilters((f) => ({
               ...f,
-              priority: (e.target.value || undefined) as Priority | undefined,
-            }))
-          }
+              status: f.status === "IN_PROGRESS" ? undefined : "IN_PROGRESS",
+              late: false,
+            }));
+          }}
+          className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-all hover:border-foreground/30 ${
+            filters.status === "IN_PROGRESS"
+              ? "border-accent bg-accent/5 ring-1 ring-accent"
+              : "border-border bg-surface"
+          }`}
         >
-          <option value="">{t("filters.allPriorities")}</option>
-          {(["URGENT", "HIGH", "NORMAL", "LOW"] as const).map((p) => (
-            <option key={p} value={p}>
-              {t(`priority.${p}`)}
-            </option>
-          ))}
-        </select>
-        {view === "list" && (
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-medium uppercase tracking-wider">{t("kpis.inProgress")}</span>
+            <Clock className="size-4 text-accent" aria-hidden />
+          </div>
+          <span className="text-2xl font-bold text-foreground">
+            {counters?.inProgress ?? 0}
+          </span>
+          <span className="text-xs text-muted">{t("kpis.inProgressSub")}</span>
+        </button>
+
+        {/* KPI 3 : Attente accord client */}
+        <button
+          type="button"
+          onClick={() => {
+            setFilters((f) => ({
+              ...f,
+              status: f.status === "AWAITING_APPROVAL" ? undefined : "AWAITING_APPROVAL",
+              late: false,
+            }));
+          }}
+          className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-all hover:border-foreground/30 ${
+            filters.status === "AWAITING_APPROVAL"
+              ? "border-status-warn bg-status-warn/5 ring-1 ring-status-warn"
+              : "border-border bg-surface"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-medium uppercase tracking-wider">{t("kpis.awaitingApproval")}</span>
+            <AlertTriangle className="size-4 text-status-warn" aria-hidden />
+          </div>
+          <span className="text-2xl font-bold text-status-warn">
+            {counters?.awaitingApproval ?? 0}
+          </span>
+          <span className="text-xs text-muted">{t("kpis.awaitingApprovalSub")}</span>
+        </button>
+
+        {/* KPI 4 : Attente pièces */}
+        <button
+          type="button"
+          onClick={() => {
+            setFilters((f) => ({
+              ...f,
+              status: f.status === "WAITING_PARTS" ? undefined : "WAITING_PARTS",
+              late: false,
+            }));
+          }}
+          className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-all hover:border-foreground/30 ${
+            filters.status === "WAITING_PARTS"
+              ? "border-status-bad bg-status-bad/5 ring-1 ring-status-bad"
+              : "border-border bg-surface"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-medium uppercase tracking-wider">{t("kpis.waitingParts")}</span>
+            <Layers className="size-4 text-status-bad" aria-hidden />
+          </div>
+          <span className="text-2xl font-bold text-status-bad">
+            {counters?.waitingParts ?? 0}
+          </span>
+          <span className="text-xs text-muted">{t("kpis.waitingPartsSub")}</span>
+        </button>
+
+        {/* KPI 5 : OR en retard ⚠️ */}
+        <button
+          type="button"
+          onClick={() => {
+            toggle("late");
+          }}
+          className={`col-span-2 flex flex-col gap-1 rounded-xl border p-3 text-left transition-all hover:border-foreground/30 sm:col-span-1 ${
+            filters.late
+              ? "border-status-bad bg-status-bad/10 ring-1 ring-status-bad"
+              : "border-border bg-surface"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted">
+            <span className="text-xs font-semibold uppercase tracking-wider text-status-bad">
+              {t("kpis.late")}
+            </span>
+            <AlertTriangle className="size-4 text-status-bad" aria-hidden />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-status-bad">
+              {counters?.late ?? 0}
+            </span>
+            {(counters?.late ?? 0) > 0 && (
+              <span className="rounded-full bg-status-bad/20 px-1.5 py-0.5 text-[10px] font-bold text-status-bad">
+                ⚠️
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-muted">{t("kpis.lateSub")}</span>
+        </button>
+      </div>
+
+      {/* Barre de filtres et recherche intelligente */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Recherche textuelle avec bouton effacer */}
+          <div className="relative min-w-[240px] flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+              aria-hidden
+            />
+            <input
+              type="search"
+              className="min-h-11 w-full rounded-lg border border-border bg-surface pl-9 pr-9 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              placeholder={t("filters.searchPlaceholder")}
+              aria-label={t("filters.searchPlaceholder")}
+              value={filters.q}
+              onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+            />
+            {filters.q ? (
+              <button
+                type="button"
+                onClick={() => setFilters((f) => ({ ...f, q: "" }))}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                aria-label={t("cancel")}
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            ) : null}
+          </div>
+
+          {/* Bascule de vue Tableau / Liste */}
+          <div className="inline-flex rounded-lg border border-border bg-surface-2 p-0.5" role="group">
+            <button
+              type="button"
+              onClick={() => setView("board")}
+              aria-pressed={view === "board"}
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition ${
+                view === "board"
+                  ? "bg-surface text-foreground shadow-sm font-semibold"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <Kanban className="size-3.5" aria-hidden />
+              <span>{t("views.board")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              aria-pressed={view === "list"}
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition ${
+                view === "list"
+                  ? "bg-surface text-foreground shadow-sm font-semibold"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <ListIcon className="size-3.5" aria-hidden />
+              <span>{t("views.list")}</span>
+            </button>
+          </div>
+
+          {/* Filtre Mes OR */}
+          <button
+            type="button"
+            onClick={() => toggle("mine")}
+            aria-pressed={filters.mine}
+            className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${
+              filters.mine
+                ? "border-accent bg-accent/10 text-accent font-semibold"
+                : "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground"
+            }`}
+          >
+            {filters.mine ? "✓ " : ""}
+            {t("filters.mine")}
+          </button>
+
+          {/* Filtre En retard */}
+          <button
+            type="button"
+            onClick={() => toggle("late")}
+            aria-pressed={filters.late}
+            className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${
+              filters.late
+                ? "border-status-bad bg-status-bad/10 text-status-bad font-semibold"
+                : "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground"
+            }`}
+          >
+            <AlertTriangle className="size-3.5" aria-hidden />
+            {t("filters.late")}
+            {(counters?.late ?? 0) > 0 && (
+              <span className="rounded-full bg-status-bad/20 px-1.5 py-0.2 text-[10px] font-bold text-status-bad">
+                {counters?.late}
+              </span>
+            )}
+          </button>
+
+          {/* Filtre Retours garantie */}
+          <button
+            type="button"
+            onClick={() => toggle("comeback")}
+            aria-pressed={filters.comeback}
+            className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${
+              filters.comeback
+                ? "border-accent bg-accent/10 text-accent font-semibold"
+                : "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground"
+            }`}
+          >
+            {filters.comeback ? "✓ " : ""}
+            {t("filters.comeback")}
+          </button>
+
+          {/* Sélecteur de priorité */}
+          <select
+            aria-label={t("filters.priority")}
+            className="min-h-11 rounded-lg border border-border bg-surface px-2.5 text-xs text-foreground focus:border-accent focus:outline-none"
+            value={filters.priority ?? ""}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                priority: (e.target.value || undefined) as Priority | undefined,
+              }))
+            }
+          >
+            <option value="">{t("filters.allPriorities")}</option>
+            {(["URGENT", "HIGH", "NORMAL", "LOW"] as const).map((p) => (
+              <option key={p} value={p}>
+                {t(`priority.${p}`)}
+              </option>
+            ))}
+          </select>
+
+          {/* Sélecteur de statut */}
           <select
             aria-label={t("filters.status")}
-            className="min-h-11 rounded-md border border-border bg-surface px-2"
+            className="min-h-11 rounded-lg border border-border bg-surface px-2.5 text-xs text-foreground focus:border-accent focus:outline-none"
             value={filters.status ?? ""}
             onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value || undefined }))}
           >
@@ -143,17 +393,27 @@ export default function RepairOrdersPage() {
               </option>
             ))}
           </select>
-        )}
-      </div>
-      <input
-        className="min-h-11 w-full rounded-md border border-border bg-surface px-3 text-sm"
-        placeholder={t("filters.search")}
-        aria-label={t("filters.search")}
-        value={filters.q}
-        onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
-      />
 
-      {view === "board" ? <Board filters={filters} /> : <List filters={filters} />}
+          {/* Bouton de réinitialisation */}
+          {hasActiveFilters ? (
+            <Button
+              variant="ghost"
+              onClick={resetFilters}
+              className="inline-flex min-h-11 items-center gap-1.5 text-xs text-muted hover:text-foreground"
+            >
+              <RotateCcw className="size-3.5" aria-hidden />
+              <span>{t("filters.resetFilters")}</span>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Contenu principal : Vue Tableau ou Vue Liste */}
+      {view === "board" ? (
+        <Board filters={filters} onResetFilters={resetFilters} hasActiveFilters={hasActiveFilters} />
+      ) : (
+        <List filters={filters} onResetFilters={resetFilters} hasActiveFilters={hasActiveFilters} />
+      )}
     </div>
   );
 }
@@ -175,11 +435,11 @@ function CardBody({ card, timeZone }: { card: Card; timeZone?: string }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <PlateBadge plate={card.vehicle.plate} />
-        <span className="text-sm">
+        <span className="text-sm font-medium">
           {card.vehicle.make} {card.vehicle.model}
         </span>
       </div>
-      <span className="truncate text-sm font-medium">{card.customer.displayName}</span>
+      <span className="truncate text-sm font-medium text-foreground">{card.customer.displayName}</span>
       <span className="text-xs text-muted">
         🔧 {card.mechanics.length ? card.mechanics.join(", ") : t("card.noMechanic")}
       </span>
@@ -201,7 +461,7 @@ function CardBody({ card, timeZone }: { card: Card; timeZone?: string }) {
           </span>
         )}
         {card.signaturePending && (
-          <span className="rounded bg-surface-2 px-1.5 py-0.5">
+          <span className="rounded bg-surface-2 px-1.5 py-0.5 text-foreground">
             ✍ {t("card.signaturePending")}
           </span>
         )}
@@ -210,7 +470,15 @@ function CardBody({ card, timeZone }: { card: Card; timeZone?: string }) {
   );
 }
 
-function Board({ filters }: { filters: Filters }) {
+function Board({
+  filters,
+  onResetFilters,
+  hasActiveFilters,
+}: {
+  filters: Filters;
+  onResetFilters: () => void;
+  hasActiveFilters: boolean;
+}) {
   const utils = trpc.useUtils();
   const [message, setMessage] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const board = trpc.repairOrder.board.useQuery({
@@ -218,6 +486,7 @@ function Board({ filters }: { filters: Filters }) {
     late: filters.late || undefined,
     priority: filters.priority,
   });
+
   const transition = trpc.repairOrder.transition.useMutation({
     onSuccess(order) {
       setMessage({
@@ -246,16 +515,25 @@ function Board({ filters }: { filters: Filters }) {
   if (board.isError) return <ErrorBox onRetry={() => board.refetch()} />;
   const data = board.data!;
   const q = filters.q.trim().toLowerCase();
+
   const visible = (cards: Card[]) =>
     cards.filter(
       (c) =>
         (!filters.comeback || c.isComeback) &&
+        (!filters.status || c.status === filters.status) &&
         (!q ||
           c.number.toLowerCase().includes(q) ||
           c.vehicle.plate.toLowerCase().replace(/\s/g, "").includes(q.replace(/\s/g, "")) ||
+          c.vehicle.make.toLowerCase().includes(q) ||
+          c.vehicle.model.toLowerCase().includes(q) ||
           c.customer.displayName.toLowerCase().includes(q)),
     );
-  const total = data.columns.reduce((s, c) => s + visible(c.cards).length, 0);
+
+  const displayedColumns = filters.status
+    ? data.columns.filter((col) => col.status === filters.status)
+    : data.columns;
+
+  const total = displayedColumns.reduce((s, c) => s + visible(c.cards).length, 0);
   const all = data.columns.flatMap((c) => c.cards);
 
   return (
@@ -263,72 +541,104 @@ function Board({ filters }: { filters: Filters }) {
       {message && (
         <p
           role={message.tone === "bad" ? "alert" : "status"}
-          className={`rounded-md p-2 text-sm ${message.tone === "bad" ? "bg-status-bad-bg text-status-bad" : "bg-status-ok-bg text-status-ok"}`}
+          className={`rounded-md p-2 text-sm ${
+            message.tone === "bad"
+              ? "bg-status-bad-bg text-status-bad"
+              : "bg-status-ok-bg text-status-ok"
+          }`}
         >
           {message.text}
         </p>
       )}
+
       {total === 0 ? (
-        <EmptyState
-          title={t("empty")}
-          action={
-            <Link href="/ordres/reception" className="btn btn-primary">
-              {t("newReception")}
-            </Link>
-          }
-        />
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface p-8 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-surface-2 text-muted">
+            <Search className="size-6" aria-hidden />
+          </div>
+          <h3 className="mt-3 text-sm font-semibold text-foreground">
+            {hasActiveFilters ? t("emptyFiltered") : t("empty")}
+          </h3>
+          <p className="mt-1 max-w-sm text-xs text-muted">
+            {hasActiveFilters
+              ? t("emptyFilteredDescription")
+              : t("emptyDescription")}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {hasActiveFilters ? (
+              <Button variant="secondary" onClick={onResetFilters}>
+                <RotateCcw className="size-4" aria-hidden />
+                {t("filters.resetFilters")}
+              </Button>
+            ) : (
+              <Link href="/ordres/reception" className="btn btn-primary">
+                + {t("newReception")}
+              </Link>
+            )}
+          </div>
+        </div>
       ) : (
         <>
-          <p className="hidden text-xs text-muted md:block">{t("board.dragHint")}</p>
+          <div className="flex items-center justify-between text-xs text-muted">
+            <p className="hidden md:block">{t("board.dragHint")}</p>
+            <span>{t("filters.shown", { count: total })}</span>
+          </div>
           <div className="w-full max-w-full overflow-x-auto pb-2" data-testid="kanban">
             <div className="flex gap-3">
-              {data.columns.map((column) => (
-                <section
-                  key={column.status}
-                  aria-label={t(`status.${column.status}`)}
-                  data-status={column.status}
-                  className="flex w-64 shrink-0 flex-col gap-2 rounded-lg bg-surface-2 p-2"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e: DragEvent) => {
-                    const id = e.dataTransfer.getData("text/plain");
-                    const card = all.find((c) => c.id === id);
-                    if (card) move(card, column.status);
-                  }}
-                >
-                  <header className="flex items-center justify-between px-1">
-                    <RepairOrderStatusBadge status={column.status} />
-                    <span className="text-xs text-muted">{visible(column.cards).length}</span>
-                  </header>
-                  {visible(column.cards).map((card) => (
-                    <article
-                      key={card.id}
-                      draggable
-                      onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-                      className={`flex flex-col gap-1 rounded-md border bg-surface p-2 ${card.late ? "border-status-bad" : "border-border"}`}
-                    >
-                      <Link
-                        href={`/ordres/${card.id}`}
-                        className="flex flex-col gap-1 hover:underline-offset-2"
+              {displayedColumns.map((column) => {
+                const columnCards = visible(column.cards);
+                return (
+                  <section
+                    key={column.status}
+                    aria-label={t(`status.${column.status}`)}
+                    data-status={column.status}
+                    className="flex w-64 shrink-0 flex-col gap-2 rounded-lg bg-surface-2 p-2"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e: DragEvent) => {
+                      const id = e.dataTransfer.getData("text/plain");
+                      const card = all.find((c) => c.id === id);
+                      if (card) move(card, column.status);
+                    }}
+                  >
+                    <header className="flex items-center justify-between px-1">
+                      <RepairOrderStatusBadge status={column.status} />
+                      <span className="rounded-full bg-surface px-1.5 py-0.5 text-xs font-semibold text-muted">
+                        {columnCards.length}
+                      </span>
+                    </header>
+                    {columnCards.map((card) => (
+                      <article
+                        key={card.id}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
+                        className={`flex flex-col gap-1 rounded-md border bg-surface p-2 shadow-sm transition hover:border-accent ${
+                          card.late ? "border-status-bad" : "border-border"
+                        }`}
                       >
-                        <CardBody card={card} timeZone={data.timeZone} />
-                      </Link>
-                      <select
-                        aria-label={`${t("board.moveTo")} ${card.number}`}
-                        className="mt-1 min-h-11 rounded border border-border bg-surface px-1 text-xs"
-                        value=""
-                        onChange={(e) => move(card, e.target.value)}
-                      >
-                        <option value="">{t("board.moveTo")}</option>
-                        {BOARD_STATUSES.filter((s) => s !== card.status).map((s) => (
-                          <option key={s} value={s}>
-                            {t(`status.${s}`)}
-                          </option>
-                        ))}
-                      </select>
-                    </article>
-                  ))}
-                </section>
-              ))}
+                        <Link
+                          href={`/ordres/${card.id}`}
+                          className="flex flex-col gap-1 hover:underline-offset-2"
+                        >
+                          <CardBody card={card} timeZone={data.timeZone} />
+                        </Link>
+                        <select
+                          aria-label={`${t("board.moveTo")} ${card.number}`}
+                          className="mt-1 min-h-10 rounded border border-border bg-surface px-1 text-xs text-muted hover:text-foreground"
+                          value=""
+                          onChange={(e) => move(card, e.target.value)}
+                        >
+                          <option value="">{t("board.moveTo")}</option>
+                          {BOARD_STATUSES.filter((s) => s !== card.status).map((s) => (
+                            <option key={s} value={s}>
+                              {t(`status.${s}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </article>
+                    ))}
+                  </section>
+                );
+              })}
             </div>
           </div>
         </>
@@ -337,7 +647,16 @@ function Board({ filters }: { filters: Filters }) {
   );
 }
 
-function List({ filters }: { filters: Filters }) {
+function List({
+  filters,
+  onResetFilters,
+  hasActiveFilters,
+}: {
+  filters: Filters;
+  onResetFilters: () => void;
+  hasActiveFilters: boolean;
+}) {
+  const router = useRouter();
   const query = trpc.repairOrder.list.useInfiniteQuery(
     {
       mine: filters.mine || undefined,
@@ -350,66 +669,167 @@ function List({ filters }: { filters: Filters }) {
     },
     { getNextPageParam: (last) => last.nextCursor ?? undefined },
   );
+
   if (query.isLoading) return <ListSkeleton />;
   if (query.isError) return <ErrorBox onRetry={() => query.refetch()} />;
   const pages = query.data?.pages ?? [];
   const items = pages.flatMap((p) => p.items);
   const timeZone = pages[0]?.timeZone;
+
   if (items.length === 0) {
     return (
-      <EmptyState
-        title={filters.q || filters.status || filters.late ? t("emptyFiltered") : t("empty")}
-        action={
-          <Link href="/ordres/reception" className="btn btn-primary">
-            {t("newReception")}
-          </Link>
-        }
-      />
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface p-8 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-surface-2 text-muted">
+          <Search className="size-6" aria-hidden />
+        </div>
+        <h3 className="mt-3 text-sm font-semibold text-foreground">
+          {hasActiveFilters ? t("emptyFiltered") : t("empty")}
+        </h3>
+        <p className="mt-1 max-w-sm text-xs text-muted">
+          {hasActiveFilters
+            ? t("emptyFilteredDescription")
+            : t("emptyDescription")}
+        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {hasActiveFilters ? (
+            <Button variant="secondary" onClick={onResetFilters}>
+              <RotateCcw className="size-4" aria-hidden />
+              {t("filters.resetFilters")}
+            </Button>
+          ) : (
+            <Link href="/ordres/reception" className="btn btn-primary">
+              + {t("newReception")}
+            </Link>
+          )}
+        </div>
+      </div>
     );
   }
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="hidden grid-cols-[8rem_6rem_7rem_1fr_9rem_8rem_9rem_8rem] gap-2 px-3 text-xs font-semibold text-muted lg:grid">
-        <span>{t("columns.number")}</span>
-        <span>{t("columns.date")}</span>
-        <span>{t("columns.plate")}</span>
-        <span>{t("columns.customer")}</span>
-        <span>{t("columns.status")}</span>
-        <span>{t("columns.advisor")}</span>
-        <span>{t("columns.promise")}</span>
-        <span className="text-right">{t("columns.total")}</span>
-      </div>
-      {items.map((o) => (
-        <Link
-          key={o.id}
-          href={`/ordres/${o.id}`}
-          className={`flex flex-col gap-1 rounded-lg border bg-surface p-3 hover:bg-surface-2 lg:grid lg:grid-cols-[8rem_6rem_7rem_1fr_9rem_8rem_9rem_8rem] lg:items-center lg:gap-2 ${o.late ? "border-status-bad" : "border-border"}`}
-        >
-          <span className="font-mono text-sm font-semibold">{o.number}</span>
-          <span className="text-sm text-muted">{formatDay(o.createdAt, timeZone)}</span>
-          <span>
-            <PlateBadge plate={o.vehicle.plate} />
+
+  type ItemType = (typeof items)[number];
+
+  const columns: DataTableColumn<ItemType>[] = [
+    {
+      key: "number",
+      header: t("columns.number"),
+      primary: true,
+      render: (o) => (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-sm font-semibold text-foreground">{o.number}</span>
+            {o.late && (
+              <span className="rounded bg-status-bad/20 px-1 text-[10px] font-bold text-status-bad">
+                ⏰
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-muted">{formatDay(o.createdAt, timeZone)}</span>
+        </div>
+      ),
+    },
+    {
+      key: "vehicle",
+      header: t("columns.vehicle"),
+      render: (o) => (
+        <div className="flex flex-col gap-1">
+          <PlateBadge plate={o.vehicle.plate} />
+          <span className="text-xs text-muted">
+            {o.vehicle.make} {o.vehicle.model}
           </span>
-          <span className="truncate text-sm">
-            {o.customer.displayName}
-            <span className="text-muted">
-              {" "}
-              · {o.vehicle.make} {o.vehicle.model}
+        </div>
+      ),
+    },
+    {
+      key: "customer",
+      header: t("columns.customer"),
+      render: (o) => (
+        <div className="flex flex-col">
+          <span className="truncate text-sm font-medium text-foreground">{o.customer.displayName}</span>
+          <span className="text-xs text-muted">
+            {o.advisorName ? `${t("columns.advisor")}: ${o.advisorName}` : "—"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: t("columns.status"),
+      render: (o) => (
+        <div className="flex flex-col gap-1">
+          <RepairOrderStatusBadge status={o.status} />
+          {o.priority !== "NORMAL" && (
+            <span
+              className={`text-[11px] font-semibold ${
+                o.priority === "URGENT" ? "text-status-bad" : "text-status-warn"
+              }`}
+            >
+              {t(`priority.${o.priority}`)}
             </span>
-          </span>
-          <span>
-            <RepairOrderStatusBadge status={o.status} />
-          </span>
-          <span className="truncate text-sm text-muted">{o.advisorName ?? "—"}</span>
-          <PromiseCountdown promisedAt={o.promisedAt} late={o.late} timeZone={timeZone} />
-          <span className="text-sm font-semibold lg:text-right">{formatFCFA(o.totalEstimate)}</span>
-        </Link>
-      ))}
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "promise",
+      header: t("columns.promise"),
+      render: (o) => (
+        <PromiseCountdown promisedAt={o.promisedAt} late={o.late} timeZone={timeZone} />
+      ),
+    },
+    {
+      key: "total",
+      header: t("columns.total"),
+      render: (o) => (
+        <span className="text-sm font-bold text-foreground">
+          {formatFCFA(o.totalEstimate)}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: t("columns.actions"),
+      render: (o) => (
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <a
+            href={`/api/ordres/${o.id}/pdf?kind=workshop`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t("actions.pdfWorkshop")}
+            className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-surface text-muted transition hover:bg-surface-2 hover:text-foreground"
+          >
+            <Download className="size-4" aria-hidden />
+          </a>
+          <Link
+            href={`/ordres/${o.id}`}
+            title={t("actions.open")}
+            className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-surface text-muted transition hover:bg-surface-2 hover:text-foreground"
+          >
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between text-xs text-muted">
+        <span>{t("filters.shown", { count: items.length })}</span>
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={items}
+        rowKey={(o) => o.id}
+        onRowClick={(o) => router.push(`/ordres/${o.id}`)}
+      />
+
       {query.hasNextPage && (
         <Button
           variant="secondary"
           onClick={() => query.fetchNextPage()}
           loading={query.isFetchingNextPage}
+          className="self-center"
         >
           {t("loadMore")}
         </Button>

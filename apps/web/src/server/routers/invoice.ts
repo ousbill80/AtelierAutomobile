@@ -501,39 +501,84 @@ export const invoiceRouter = router({
       const org = await loadOrgBillingContext(ctx.organizationId);
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const where = listWhere(input, ctx);
-      const rows = await tenantDb.invoice.findMany({
-        where,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: input.limit + 1,
-        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-        select: {
-          id: true,
-          number: true,
-          type: true,
-          status: true,
-          billTo: true,
-          issuedAt: true,
-          dueDate: true,
-          createdAt: true,
-          total: true,
-          amountPaid: true,
-          balance: true,
-          fneStatus: true,
-          customer: { select: { id: true, displayName: true } },
-          vehicle: { select: { plate: true, make: true, model: true } },
-          repairOrder: { select: { number: true } },
-        },
-      });
+      const [rows, kpiAgg, overdueCount, draftCount, fnePendingCount, paidCount, creditNoteCount] = await Promise.all([
+        tenantDb.invoice.findMany({
+          where,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: input.limit + 1,
+          ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+          select: {
+            id: true,
+            number: true,
+            type: true,
+            status: true,
+            billTo: true,
+            issuedAt: true,
+            dueDate: true,
+            createdAt: true,
+            total: true,
+            amountPaid: true,
+            balance: true,
+            fneStatus: true,
+            customer: { select: { id: true, displayName: true, phone: true, type: true } },
+            vehicle: { select: { id: true, plate: true, plateType: true, make: true, model: true } },
+            repairOrder: { select: { id: true, number: true } },
+          },
+        }),
+        tenantDb.invoice.aggregate({
+          where: { type: "INVOICE", status: { notIn: ["DRAFT", "VOID"] } },
+          _sum: { total: true, amountPaid: true, balance: true },
+          _count: { _all: true },
+        }),
+        tenantDb.invoice.count({
+          where: {
+            type: "INVOICE",
+            status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"] },
+            dueDate: { lt: new Date() },
+          },
+        }),
+        tenantDb.invoice.count({
+          where: { status: "DRAFT" },
+        }),
+        tenantDb.invoice.count({
+          where: { status: { not: "DRAFT" }, fneStatus: { in: ["PENDING", "FAILED"] } },
+        }),
+        tenantDb.invoice.count({
+          where: { type: "INVOICE", status: "PAID" },
+        }),
+        tenantDb.invoice.count({
+          where: { type: "CREDIT_NOTE" },
+        }),
+      ]);
+
+      const now = new Date();
       const hasMore = rows.length > input.limit;
-      const items = hasMore ? rows.slice(0, input.limit) : rows;
-      const fnePendingCount = await tenantDb.invoice.count({
-        where: { status: { not: "DRAFT" }, fneStatus: { in: ["PENDING", "FAILED"] } },
-      });
+      const rawItems = hasMore ? rows.slice(0, input.limit) : rows;
+      const items = rawItems.map((inv) => ({
+        ...inv,
+        isOverdue:
+          inv.status !== "PAID" &&
+          inv.status !== "DRAFT" &&
+          inv.status !== "VOID" &&
+          inv.balance > 0 &&
+          inv.dueDate != null &&
+          new Date(inv.dueDate) < now,
+      }));
       return {
         items,
         nextCursor: hasMore ? items[items.length - 1]!.id : null,
         timeZone: org.timeZone,
         fnePendingCount,
+        kpis: {
+          totalInvoiced: kpiAgg._sum.total ?? 0,
+          totalPaid: kpiAgg._sum.amountPaid ?? 0,
+          totalDue: kpiAgg._sum.balance ?? 0,
+          invoiceCount: kpiAgg._count._all ?? 0,
+          overdueCount,
+          draftCount,
+          paidCount,
+          creditNoteCount,
+        },
       };
     }),
 
