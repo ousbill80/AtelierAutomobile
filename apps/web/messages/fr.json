@@ -318,7 +318,11 @@
       "title": "Rôles et permissions",
       "description": "Matrice des permissions par rôle.",
       "resetDefaults": "Réinitialiser aux valeurs par défaut",
-      "ownerColumnNote": "Le rôle Propriétaire a toujours accès à tout."
+      "ownerColumnNote": "Le rôle Propriétaire a toujours accès à tout.",
+      "resetShort": "Réinitialiser",
+      "resetTitle": "Remettre les permissions par défaut du rôle {role}",
+      "customized": "Personnalisé",
+      "permission": "Permission"
     },
     "sites": {
       "title": "Sites",
