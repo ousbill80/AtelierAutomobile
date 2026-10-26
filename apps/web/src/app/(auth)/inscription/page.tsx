@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { checkPasswordPolicy } from "@atelieros/core/src/auth/password-policy";
 import { Button, CheckboxRow, Field, Input, PhoneInput } from "@atelieros/ui";
 import { t } from "@/i18n/t";
@@ -21,6 +22,7 @@ export default function InscriptionPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +34,10 @@ export default function InscriptionPage() {
         purpose: "VERIFY",
         channel: result.otpChannel,
       });
+      // En développement, passer le code OTP pour faciliter les tests
+      if (result.devCode) {
+        params.set("devCode", result.devCode);
+      }
       router.push(`/verification?${params.toString()}`);
     },
     onError(err) {
@@ -73,12 +79,28 @@ export default function InscriptionPage() {
           error={policyViolation ? POLICY_MESSAGES[policyViolation] : undefined}
         >
           <Input
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
             required
             minLength={8}
+            rightAction={
+              <button
+                type="button"
+                className="input-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={
+                  showPassword ? t("auth.signIn.hidePassword") : t("auth.signIn.showPassword")
+                }
+                title={
+                  showPassword ? t("auth.signIn.hidePassword") : t("auth.signIn.showPassword")
+                }
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            }
           />
         </Field>
         <CheckboxRow

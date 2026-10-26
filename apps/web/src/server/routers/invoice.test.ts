@@ -575,14 +575,18 @@ describe("M08 — facturation, paiements, caisse", () => {
   it("US-M08-11/12 : dépense, versement, clôture avec écart commenté", async () => {
     const current = await cashier.cash.current({});
     const session = current.session!;
-    await expect(
-      cashier.cash.expense({
-        sessionId: session.id,
-        category: "Carburant",
-        amount: 30_000,
-        description: "Essai",
-      }),
-    ).rejects.toThrow(/validée par le gérant/);
+    // RG-M08-30 : au-delà du seuil, la dépense attend le gérant (elle ne sort pas de la caisse).
+    const big = await cashier.cash.expense({
+      sessionId: session.id,
+      category: "Carburant",
+      amount: 30_000,
+      description: "Essai",
+    });
+    expect(big.status).toBe("PENDING");
+    await expect(cashier.cash.close({ id: session.id, countedCash: 0 })).rejects.toThrow(
+      /attend la validation du gérant/,
+    );
+    await owner.cash.decideExpense({ id: big.id, decision: "reject", comment: "Pas de reçu" });
     await cashier.cash.expense({
       sessionId: session.id,
       category: "Carburant",
@@ -614,6 +618,14 @@ describe("M08 — facturation, paiements, caisse", () => {
       countedCash: 270_000,
       difference: -2_500,
       lateClose: false,
+    });
+    // Instantané figé (Z de caisse) : la dépense refusée n'y figure pas.
+    expect(closed.closingSummary).toMatchObject({
+      expectedCash: 272_500,
+      expensesTotal: 12_500,
+      dropsTotal: 40_000,
+      difference: -2_500,
+      counts: { expenses: 1, drops: 1 },
     });
     await expect(cashier.cash.review({ id: session.id, comment: "Vu" })).rejects.toThrow(
       /Permission manquante/,

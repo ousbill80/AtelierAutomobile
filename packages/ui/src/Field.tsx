@@ -141,13 +141,18 @@ export function CheckboxRow({
 
 export function Switch({
   label,
+  showLabel = false,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode }) {
+}: InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode; showLabel?: boolean }) {
   return (
-    <label className="switch">
-      <input type="checkbox" {...rest} />
-      <span className="track" />
-      {label ? <span className="visually-hidden">{label}</span> : null}
+    <label className="switch-row">
+      <span className="switch">
+        <input type="checkbox" {...rest} />
+        <span className="track" />
+      </span>
+      {label ? (
+        <span className={showLabel ? "switch-label" : "visually-hidden"}>{label}</span>
+      ) : null}
     </label>
   );
 }

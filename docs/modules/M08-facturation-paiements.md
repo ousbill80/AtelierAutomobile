@@ -8,55 +8,66 @@ Transformer le travail fait en **argent encaissé et traçable** : factures conf
 
 ## 2. Utilisateurs et cas d'usage
 
-| Rôle | Ce qu'il fait | Fréquence |
-|---|---|---|
-| `ADVISOR` | Facture un OR terminé, encaisse au comptoir si pas de caissier, envoie facture et lien de paiement | 10 à 40/jour |
-| `CASHIER` | Ouvre/clôture la caisse, encaisse, émet les reçus, enregistre les dépenses | Continu |
-| `ACCOUNTANT` | Avoirs, suivi FNE, rapprochements, exports comptables | Quotidien / mensuel |
-| `OWNER` | Valide annulations, écarts de caisse, consulte encaissements | Quotidien |
-| `CUSTOMER` | Reçoit la facture, paie par lien mobile money (M14) | Ponctuel |
+| Rôle         | Ce qu'il fait                                                                                      | Fréquence           |
+| ------------ | -------------------------------------------------------------------------------------------------- | ------------------- |
+| `ADVISOR`    | Facture un OR terminé, encaisse au comptoir si pas de caissier, envoie facture et lien de paiement | 10 à 40/jour        |
+| `CASHIER`    | Ouvre/clôture la caisse, encaisse, émet les reçus, enregistre les dépenses                         | Continu             |
+| `ACCOUNTANT` | Avoirs, suivi FNE, rapprochements, exports comptables                                              | Quotidien / mensuel |
+| `OWNER`      | Valide annulations, écarts de caisse, consulte encaissements                                       | Quotidien           |
+| `CUSTOMER`   | Reçoit la facture, paie par lien mobile money (M14)                                                | Ponctuel            |
 
 ## 3. User stories
 
 **US-M08-01 — En tant que conseiller, je veux facturer un OR terminé en un clic.**
+
 - Étant donné l'OR OR-YOP-2026-00042 en `READY` ou `DELIVERED`, quand je clique « Facturer », alors une facture `DRAFT` est créée avec les lignes non annulées, non refusées (`approval ≠ DECLINED`) et `payer = CUSTOMER`, le kilométrage d'entrée, le véhicule et le client ; les lignes `payer = INSURANCE` partent sur la facture assurance (M16) ; les lignes `WARRANTY`/`INTERNAL` ne sont pas facturées.
 - Quand j'émets la facture, alors elle reçoit son numéro définitif, ses totaux sont figés, l'OR passe `INVOICED` (M04), l'événement `invoice.issued` est émis et la certification FNE démarre.
 
 **US-M08-02 — En tant que conseiller, je veux créer une facture directe (vente comptoir) ou depuis un devis accepté.**
+
 - Quand je crée une facture sans OR (vente de 2 balais d'essuie-glace), alors le client est obligatoire (client « Comptoir » générique autorisé si `settings.billing.allowWalkIn`), et la sortie de stock est faite à l'émission (M07).
 - Depuis un devis `ACCEPTED`/`PARTIALLY_ACCEPTED` sans OR, seules les lignes `accepted = true` sont reprises ; le devis passe `CONVERTED`.
 
 **US-M08-03 — En tant que conseiller, je veux demander un acompte avant de commander une pièce chère.**
+
 - Étant donné un devis de 650 000 FCFA avec une boîte de vitesses à commander, quand je crée une facture d'acompte de 50 000 FCFA TTC, alors une `Invoice` `type = DEPOSIT` est émise (numéro `FAC`, FNE comme toute facture) avec une ligne unique « Acompte sur devis DEV-YOP-2026-00017 » : HT 42 373, TVA 7 627 (RG-M08-07).
 - Quand la facture finale est émise, alors l'acompte est déduit par une ligne négative « Déduction acompte FAC-2026-000398 » (HT −42 373, TVA −7 627) et le paiement de l'acompte reste affecté à la facture d'acompte (soldée) : la facture finale a un `total` déjà diminué de 50 000 (ex. 653 720 − 50 000 = 603 720 TTC). Un acompte ne peut être déduit qu'une fois et seulement s'il est payé.
 
 **US-M08-04 — En tant que comptable, je veux corriger une facture émise par un avoir.**
+
 - Étant donné FAC-2026-000412 émise et certifiée FNE, quand je clique « Créer un avoir » (total ou partiel, lignes et quantités sélectionnées) avec motif, alors une `Invoice` `type = CREDIT_NOTE`, numéro `AV-2026-000014`, montants négatifs, `creditedInvoiceId` renseigné, est émise et soumise à la FNE.
 - Alors la facture d'origine voit son solde réduit (RG-M08-12) ; si l'avoir est total, elle passe `VOID` avec `voidedAt`/`voidReason`.
 - Étant donné une facture `DRAFT`, alors aucun avoir n'est possible : on la modifie ou on la supprime (seuls les brouillons sont supprimables).
 
 **US-M08-05 — En tant que gérant, je veux que chaque facture émise soit certifiée FNE, et être alerté sinon.**
+
 - Étant donné `FneConfig.mode = api`, quand une facture est émise, alors `fneStatus = PENDING` et le job `fne.certify` appelle l'adaptateur ; en cas de succès `fneStatus = CERTIFIED`, `fneNumber`, `fneQrCode`, `fneCertifiedAt` sont enregistrés et le PDF est régénéré avec le QR code.
 - Étant donné un échec (réseau, service DGI indisponible), alors `fneStatus = FAILED`, `fneError` est renseigné, le job réessaie (RG-M08-15), et un badge rouge « Non certifiée FNE » s'affiche sur la facture, la liste et le tableau de bord.
 - Étant donné `mode = manual`, quand j'ouvre une facture `PENDING`, alors je saisis le numéro FNE et j'importe l'image ou le contenu du QR code obtenus sur la plateforme DGI → `fneStatus = MANUAL`.
 
 **US-M08-06 — En tant que caissier, je veux encaisser un paiement partiel.**
+
 - Étant donné FAC-2026-000415 de 185 000 FCFA, quand M. Kouassi Jean-Marc paie 100 000 en espèces, alors un `Payment` `REC-2026-000310` est créé, alloué de 100 000, `amountPaid = 100 000`, `balance = 85 000`, statut `PARTIALLY_PAID`, un reçu est proposé (impression / WhatsApp), et l'événement `payment.received` est émis (M09 met à jour la créance).
 
 **US-M08-07 — En tant que caissier, je veux répartir un paiement sur plusieurs factures.**
+
 - Étant donné SOTRA Logistique SARL avec 3 factures ouvertes (soldes 240 000, 410 000, 590 000), quand elle vire 800 000 FCFA, alors l'allocation par défaut solde les plus anciennes d'abord (RG-M08-19) : 240 000 + 410 000 + 150 000 ; je peux modifier la répartition avant validation ; la somme allouée ≤ montant ; le reste éventuel devient `unallocated`.
 
 **US-M08-08 — En tant que caissier, je veux gérer un trop-perçu.**
+
 - Étant donné un solde de 85 000 et un paiement Wave de 90 000, alors 85 000 sont alloués, `unallocated = 5 000`, et je choisis : laisser en avoir client (crédit utilisable sur la prochaine facture), ou rembourser (sortie de caisse tracée ou remboursement mobile money manuel, `Refund`).
 
 **US-M08-09 — En tant que conseiller, je veux envoyer un lien de paiement mobile money.**
+
 - Quand je clique « Lien de paiement » sur une facture de solde 85 000, alors un `PaymentLink` est créé via le fournisseur actif (CinetPay ou Wave Business), montant = solde (modifiable vers le bas), expiration 72 h, et envoyé par WhatsApp/SMS via M11 (`{{lien.paiement}}`).
 - Quand le client paie, alors le webhook signé crée le `Payment` (méthode selon le canal réel), l'alloue, et le client reçoit son reçu automatiquement.
 
 **US-M08-10 — En tant que comptable, je veux qu'un même paiement Wave ne soit jamais compté deux fois.**
+
 - Étant donné que le fournisseur envoie deux fois le webhook de la transaction `T_8f2a…`, alors un seul `Payment` existe (contrainte `@@unique([provider, providerRef])` + idempotence RG-M08-24) et la seconde réponse est un `200 OK` sans effet.
 
 **US-M08-11 — En tant que caissier, je veux ouvrir et clôturer ma caisse.**
+
 - Quand j'ouvre la caisse du site YOP avec un fond de 50 000 FCFA, alors une `CashSession` est créée ; aucune autre session ouverte n'est permise sur ce site (et pour ce caissier).
 - Quand je clôture et compte 612 500 FCFA (détail par billets/pièces facultatif), alors `expectedCash` = fond + encaissements espèces − dépenses − remboursements espèces (RG-M08-28), `difference` est calculé ; un écart ≠ 0 exige un commentaire ; un écart > seuil notifie le gérant.
 
@@ -81,6 +92,7 @@ Transformer le travail fait en **argent encaissé et traçable** : factures conf
 ### Calculs (packages/core/money)
 
 **RG-M08-05 — Calcul par ligne** (entiers FCFA, arrondi au plus proche, demi vers le haut en valeur absolue) :
+
 ```
 gross       = quantity × unitPrice
 lineSubtotal = round(gross × (100 − discountRate) / 100)      // HT net
@@ -90,19 +102,20 @@ subtotal     = Σ round(gross)                                   // HT brut
 discountTotal = subtotal − Σ lineSubtotal
 vatTotal     = Σ lineVat ; total = Σ lineTotal
 ```
+
 Mode alternatif `settings.billing.vatRounding = "total"` : TVA calculée par taux sur la somme des HT. Défaut : `"line"`.
 
 **RG-M08-06 — Exemple chiffré** (TVA 18 %, arrondi par ligne) :
 
-| Ligne | Qté | PU HT | Remise | HT net | TVA | TTC |
-|---|---|---|---|---|---|---|
-| MO Vidange moteur | 1 | 15 000 | 0 % | 15 000 | 2 700 | 17 700 |
-| Huile 5W30 (L) | 4,5 | 6 350 | 0 % | 28 575 | 5 144 | 33 719 |
-| Filtre à huile | 1 | 4 750 | 10 % | 4 275 | 770 | 5 045 |
-| Plaquettes AV | 1 | 37 900 | 5 % | 36 005 | 6 481 | 42 486 |
-| MO plaquettes | 1,5 | 15 000 | 0 % | 22 500 | 4 050 | 26 550 |
-| Liquide de frein (L) | 0,5 | 5 900 | 0 % | 2 950 | 531 | 3 481 |
-| **Totaux** | | | | **109 305** | **19 676** | **128 981** |
+| Ligne                | Qté | PU HT  | Remise | HT net      | TVA        | TTC         |
+| -------------------- | --- | ------ | ------ | ----------- | ---------- | ----------- |
+| MO Vidange moteur    | 1   | 15 000 | 0 %    | 15 000      | 2 700      | 17 700      |
+| Huile 5W30 (L)       | 4,5 | 6 350  | 0 %    | 28 575      | 5 144      | 33 719      |
+| Filtre à huile       | 1   | 4 750  | 10 %   | 4 275       | 770        | 5 045       |
+| Plaquettes AV        | 1   | 37 900 | 5 %    | 36 005      | 6 481      | 42 486      |
+| MO plaquettes        | 1,5 | 15 000 | 0 %    | 22 500      | 4 050      | 26 550      |
+| Liquide de frein (L) | 0,5 | 5 900  | 0 %    | 2 950       | 531        | 3 481       |
+| **Totaux**           |     |        |        | **109 305** | **19 676** | **128 981** |
 
 (Huile : 28 575 × 18 % = 5 143,5 → 5 144. Remise totale = 475 + 1 895 = 2 370 ; HT brut 111 675.)
 
@@ -149,6 +162,7 @@ Mode alternatif `settings.billing.vatRounding = "total"` : TVA calculée par tau
 **RG-M08-23 — Création de lien.** `PaymentProvider.createPaymentLink({ invoiceId, amount, customer, expiresAt })`. Montant ≤ `balance` ; un seul lien `PENDING` actif par facture et montant (un nouveau lien expire l'ancien côté application). `expiresAt` défaut 72 h. Les frais éventuels de l'agrégateur ne sont jamais ajoutés au montant client par défaut (`settings.payments.passFeesToCustomer = false`).
 
 **RG-M08-24 — Webhook** `POST /api/webhooks/payments/[provider]/[organizationId]` :
+
 1. Lire le corps brut ; vérifier la signature HMAC-SHA256 avec le secret de `PaymentProviderConfig` (comparaison à temps constant) ; échec → `401`, journalisé.
 2. `parseWebhook` → `PaymentEvent { providerRef, status, amount, method, paidAt, raw }`.
 3. **Ne jamais faire confiance au webhook seul** : appeler `getStatus(providerRef)` pour confirmer statut et montant.
@@ -157,7 +171,7 @@ Mode alternatif `settings.billing.vatRounding = "total"` : TVA calculée par tau
 6. `PaymentLink.status = CONFIRMED`, `paymentId`.
 7. Émettre `payment.received` ; reçu envoyé au client.
 8. Répondre `200` en < 5 s (traitement lourd en file).
-Montant reçu ≠ montant du lien → le montant **réellement confirmé** est enregistré et l'écart signalé.
+   Montant reçu ≠ montant du lien → le montant **réellement confirmé** est enregistré et l'écart signalé.
 
 **RG-M08-25 — Rapprochement.** `payments.reconcile` (30 min) interroge `getStatus` des liens `PENDING` non expirés (et expirés depuis < 24 h) pour rattraper les webhooks perdus ; liens expirés sans paiement → `FAILED`. Écran de rapprochement : import du relevé CSV du fournisseur / du compte marchand, correspondance par `providerRef` puis par (montant, date ± 1 j, téléphone) ; lignes non rapprochées listées.
 
@@ -171,7 +185,9 @@ Montant reçu ≠ montant du lien → le montant **réellement confirmé** est e
 
 **RG-M08-29 — Seuils.** Écart |d| > `settings.cash.varianceAlert` (défaut 5 000 FCFA) → notification OWNER. Session non clôturée à 23:00 (fuseau org) → notification caissier et OWNER ; le lendemain, l'ouverture d'une nouvelle session est **bloquée** tant que la précédente n'est pas clôturée (clôture tardive possible par le caissier ou OWNER, horodatée et marquée `lateClose`).
 
-**RG-M08-30 — Dépenses.** Catégories configurables (Carburant, Transport, Achat petite pièce, Restauration, Divers). Montant > `settings.cash.expenseApproval` (défaut 25 000) → validation MANAGER/OWNER. Une dépense d'une session clôturée n'est plus modifiable.
+**RG-M08-30 — Dépenses.** Catégories configurables (Carburant, Transport, Achat petite pièce, Restauration, Divers) dans Paramètres › Paiements (`settings:billing`). Montant > `settings.cash.expenseApproval` (défaut 25 000) → validation MANAGER/OWNER : si l'auteur a `cash:expense_approve`, la dépense est validée d'office ; sinon elle est enregistrée **en attente** (`Expense.status = PENDING`), les OWNER et MANAGER du site sont notifiés, et elle **ne réduit pas les espèces attendues** tant qu'elle n'est pas validée. Le gérant valide (refusé si l'espèce attendue ne la couvre pas) ou refuse avec un motif obligatoire (`REJECTED`, conservée pour la trace) ; l'auteur est notifié. **La clôture est bloquée** tant qu'une dépense de la session est en attente. Justificatif photo/PDF facultatif (`Attachment` entity `expense`). Une dépense d'une session clôturée n'est plus modifiable. Seules les dépenses validées alimentent le journal CA (RG-M08-31).
+
+**RG-M08-30b — Instantané de clôture (Z de caisse).** À la clôture, `CashSession.closingSummary` fige : fond, encaissements confirmés **par mode de paiement** (chèques en attente à part), total encaissé, espèces encaissées, dépenses validées, versements, remboursements espèces, espèces attendues/comptées, écart et nombres d'opérations. Le Z de caisse (PDF A4, `/api/caisse/sessions/{id}/z`) et l'écran de détail lisent cet instantané ; une session antérieure à l'instantané est recalculée. L'historique (`/caisse/sessions`) se filtre par période, statut (ouverte, écart à valider, avec écart, validée, clôture tardive) et caissier, et affiche les écarts agrégés par caissier (M08 §11).
 
 ### Exports
 
@@ -181,16 +197,16 @@ Montant reçu ≠ montant du lien → le montant **réellement confirmé** est e
 
 **`InvoiceStatus`**
 
-| De | Vers | Déclencheur | Effets |
-|---|---|---|---|
-| `DRAFT` | `ISSUED` | `invoice.issue` (ADVISOR, CASHIER, ACCOUNTANT) | numéro, totaux figés, `invoice.issued`, job FNE, OR → `INVOICED`, sorties de stock manquantes (M07) |
-| `DRAFT` | (supprimée) | `invoice.deleteDraft` | suppression logique |
-| `ISSUED`/`OVERDUE` | `PARTIALLY_PAID` / `PAID` | allocation | `payment.received` |
-| `ISSUED`/`PARTIALLY_PAID` | `OVERDUE` | worker `receivables.age` | M09 |
-| `PAID`/`PARTIALLY_PAID` | `ISSUED`/`PARTIALLY_PAID` | paiement annulé/chèque rejeté | recalcul |
-| tout émis | `VOID` | avoir total | `invoice.voided` |
-| `ISSUED`/`PARTIALLY_PAID`/`OVERDUE` | `DISPUTED` ↔ précédent | M09 | |
-| `OVERDUE`/`PARTIALLY_PAID` | `WRITTEN_OFF` | M09 (`receivable:writeoff`) | |
+| De                                  | Vers                      | Déclencheur                                    | Effets                                                                                              |
+| ----------------------------------- | ------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `DRAFT`                             | `ISSUED`                  | `invoice.issue` (ADVISOR, CASHIER, ACCOUNTANT) | numéro, totaux figés, `invoice.issued`, job FNE, OR → `INVOICED`, sorties de stock manquantes (M07) |
+| `DRAFT`                             | (supprimée)               | `invoice.deleteDraft`                          | suppression logique                                                                                 |
+| `ISSUED`/`OVERDUE`                  | `PARTIALLY_PAID` / `PAID` | allocation                                     | `payment.received`                                                                                  |
+| `ISSUED`/`PARTIALLY_PAID`           | `OVERDUE`                 | worker `receivables.age`                       | M09                                                                                                 |
+| `PAID`/`PARTIALLY_PAID`             | `ISSUED`/`PARTIALLY_PAID` | paiement annulé/chèque rejeté                  | recalcul                                                                                            |
+| tout émis                           | `VOID`                    | avoir total                                    | `invoice.voided`                                                                                    |
+| `ISSUED`/`PARTIALLY_PAID`/`OVERDUE` | `DISPUTED` ↔ précédent    | M09                                            |                                                                                                     |
+| `OVERDUE`/`PARTIALLY_PAID`          | `WRITTEN_OFF`             | M09 (`receivable:writeoff`)                    |                                                                                                     |
 
 **`FneStatus`** : `NOT_REQUIRED` (mode disabled) ; `PENDING → CERTIFIED` (API OK) ; `PENDING → FAILED → PENDING` (retry) ; `PENDING/FAILED → MANUAL` (saisie manuelle). `CERTIFIED`/`MANUAL` sont finaux.
 
@@ -206,18 +222,20 @@ Ajouts (§14) : `InvoiceLine.costAmount` (coût pour la marge), `InvoiceLine.dep
 
 ## 7. Écrans et interface
 
-| Route | Contenu | Actions |
-|---|---|---|
-| `/factures` | Tableau : n°, date, client, véhicule, total, payé, solde, échéance, statut, badge FNE | Filtres (statut, FNE non certifiées, période, site, méthode), recherche, export |
-| `/factures/nouvelle` | Éditeur : client/véhicule, lignes (recherche produit/MO, contrôle prix), totaux en direct (RG-M08-05), acomptes disponibles à déduire | Enregistrer brouillon, Émettre (confirmation « La facture ne sera plus modifiable »), aperçu PDF |
-| `/factures/[id]` | En-tête statut + FNE, lignes, paiements, avoirs, historique d'envois, audit | Encaisser, Lien de paiement, Envoyer (WhatsApp/email), Imprimer, Avoir, Saisir FNE manuel, Réessayer FNE |
-| `/factures/[id]/encaisser` (modale) | Méthode (gros boutons avec logo Wave/OM/MTN/Moov), montant (défaut = solde), référence, allocation multi-factures | Valider → reçu |
-| `/caisse` | Session en cours : fond, encaissements par méthode, dépenses, espèces attendues | Ouvrir, Encaisser, Dépense, Versement coffre/banque, Clôturer (comptage par coupures 10 000 / 5 000 / 2 000 / 1 000 / 500 / 250 / 200 / 100 / 50 / 25 / 10 / 5) |
-| `/caisse/sessions` | Historique des sessions, écarts, clôtures tardives | Valider écart (OWNER), imprimer Z de caisse |
-| `/caisse/paiements` | Tous les paiements (méthode, statut, non alloués) | Allouer, annuler, rembourser, confirmer chèque |
-| `/caisse/rapprochement` | Liens en attente, import relevé fournisseur, non rapprochés | Rapprocher, forcer vérification |
-| `/factures/exports` | Période, type d'export, aperçu des écritures, contrôle d'équilibre | Télécharger CSV |
-| `/p/[token]/facture` (M14) | Facture publique, bouton « Payer avec Wave / Orange Money / MTN / Moov » | Paiement |
+| Route                               | Contenu                                                                                                                               | Actions                                                                                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/factures`                         | Tableau : n°, date, client, véhicule, total, payé, solde, échéance, statut, badge FNE                                                 | Filtres (statut, FNE non certifiées, période, site, méthode), recherche, export                                                                                 |
+| `/factures/nouvelle`                | Éditeur : client/véhicule, lignes (recherche produit/MO, contrôle prix), totaux en direct (RG-M08-05), acomptes disponibles à déduire | Enregistrer brouillon, Émettre (confirmation « La facture ne sera plus modifiable »), aperçu PDF                                                                |
+| `/factures/[id]`                    | En-tête statut + FNE, lignes, paiements, avoirs, historique d'envois, audit                                                           | Encaisser, Lien de paiement, Envoyer (WhatsApp/email), Imprimer, Avoir, Saisir FNE manuel, Réessayer FNE                                                        |
+| `/factures/[id]/encaisser` (modale) | Méthode (gros boutons avec logo Wave/OM/MTN/Moov), montant (défaut = solde), référence, allocation multi-factures                     | Valider → reçu                                                                                                                                                  |
+| `/caisse`                           | Session en cours : fond, encaissements par méthode, dépenses, espèces attendues                                                       | Ouvrir, Encaisser, Dépense, Versement coffre/banque, Clôturer (comptage par coupures 10 000 / 5 000 / 2 000 / 1 000 / 500 / 250 / 200 / 100 / 50 / 25 / 10 / 5) |
+| `/caisse/sessions`                  | Historique des sessions, écarts, clôtures tardives                                                                                    | Valider écart (OWNER), imprimer Z de caisse                                                                                                                     |
+| `/caisse/sessions/[id]`             | Détail : totaux par mode figés, calcul des espèces, coupures, validation, journal                                                     | Z de caisse (PDF), Valider écart                                                                                                                                |
+| `/caisse/depenses`                  | Dépenses par statut (en attente, validées, refusées), catégorie, période ; totaux par catégorie ; justificatifs                       | Valider, Refuser (motif)                                                                                                                                        |
+| `/caisse/paiements`                 | Tous les paiements (méthode, statut, non alloués)                                                                                     | Allouer, annuler, rembourser, confirmer chèque                                                                                                                  |
+| `/caisse/rapprochement`             | Liens en attente, import relevé fournisseur, non rapprochés                                                                           | Rapprocher, forcer vérification                                                                                                                                 |
+| `/factures/exports`                 | Période, type d'export, aperçu des écritures, contrôle d'équilibre                                                                    | Télécharger CSV                                                                                                                                                 |
+| `/p/[token]/facture` (M14)          | Facture publique, bouton « Payer avec Wave / Orange Money / MTN / Moov »                                                              | Paiement                                                                                                                                                        |
 
 PDF (`packages/pdf`) : `InvoicePdf` A4 (et format ticket 80 mm pour les reçus `ReceiptPdf`), logo, mentions RG-M08-04, QR FNE en bas à droite, montant en lettres (`core/money/toFrenchWords`), mention « Pièce fournie par le client » (M07), pied `invoiceFooter`. Envoi WhatsApp : document PDF + lien portail via M11 (modèles `invoice_issued`, `payment_receipt`, `payment_link`).
 
@@ -225,29 +243,34 @@ PDF (`packages/pdf`) : `InvoicePdf` A4 (et format ticket 80 mm pour les reçus `
 
 ## 8. API (tRPC)
 
-| Procédure | Entrée | Sortie |
-|---|---|---|
-| `invoice.createFromRepairOrder` | `{ repairOrderId }` | `{ customerInvoice, insuranceInvoice? }` (brouillons) |
-| `invoice.createFromQuote` / `.createDirect` | `{ quoteId }` / `{ siteId, customerId, vehicleId?, lines }` | `Invoice` |
-| `invoice.createDeposit` | `{ customerId, quoteId? , repairOrderId?, amountTtc }` | `Invoice` (DRAFT) |
-| `invoice.update` | `{ id, lines, notes, dueDate? }` (DRAFT seulement) | `Invoice` |
-| `invoice.preview` | `{ lines }` | totaux calculés (RG-M08-05) |
-| `invoice.issue` | `{ id, applyDepositIds?: string[] }` | `Invoice` émise |
-| `invoice.createCreditNote` | `{ invoiceId, lines: [{ invoiceLineId, quantity }] \| 'FULL', reason }` | avoir émis |
-| `invoice.list` / `.get` | filtres + curseur / id | |
-| `invoice.send` | `{ id, channels: Channel[], contactIds? }` | messages créés |
-| `invoice.pdf` | `{ id }` | URL signée |
-| `fne.retry` / `fne.setManual` | `{ invoiceId }` / `{ invoiceId, fneNumber, qrCode?: string, qrImageAttachmentId?: string }` | `Invoice` |
-| `payment.create` | `{ siteId, customerId, method, amount, receivedAt?, reference?, allocations?: [{ invoiceId, amount }], notes? }` | `{ payment, receiptUrl }` |
-| `payment.suggestAllocation` | `{ customerId, amount, currentInvoiceId? }` | allocations proposées |
-| `payment.allocate` | `{ paymentId \| creditId, allocations }` | `Payment` |
-| `payment.void` / `.confirmCheque` / `.failCheque` | `{ id, reason }` | `Payment` |
-| `refund.create` | `{ paymentId? , creditId?, amount, method, reference? }` | `Refund` |
-| `paymentLink.create` / `.cancel` / `.checkStatus` | `{ invoiceId, amount?, expiresInHours?, send?: Channel[] }` | `PaymentLink` |
-| `cash.open` / `.current` / `.close` / `.review` | `{ siteId, openingFloat }` / `{ siteId }` / `{ id, countedCash, denominations?, notes? }` / `{ id, comment }` | `CashSession` + récapitulatif |
-| `cash.expense` / `cash.drop` | `{ sessionId, category, amount, description, attachmentId? }` / `{ sessionId, amount, destination }` | |
-| `reconcile.importStatement` / `.match` | `{ provider, fileUrl }` / `{ lineId, paymentId }` | |
-| `accounting.export` | `{ from, to, journal: 'VT'\|'EN'\|'CA'\|'ALL', format: 'syscohada_csv'\|'sales_csv' }` | URL du fichier |
+| Procédure                                         | Entrée                                                                                                           | Sortie                                                        |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `invoice.createFromRepairOrder`                   | `{ repairOrderId }`                                                                                              | `{ customerInvoice, insuranceInvoice? }` (brouillons)         |
+| `invoice.createFromQuote` / `.createDirect`       | `{ quoteId }` / `{ siteId, customerId, vehicleId?, lines }`                                                      | `Invoice`                                                     |
+| `invoice.createDeposit`                           | `{ customerId, quoteId? , repairOrderId?, amountTtc }`                                                           | `Invoice` (DRAFT)                                             |
+| `invoice.update`                                  | `{ id, lines, notes, dueDate? }` (DRAFT seulement)                                                               | `Invoice`                                                     |
+| `invoice.preview`                                 | `{ lines }`                                                                                                      | totaux calculés (RG-M08-05)                                   |
+| `invoice.issue`                                   | `{ id, applyDepositIds?: string[] }`                                                                             | `Invoice` émise                                               |
+| `invoice.createCreditNote`                        | `{ invoiceId, lines: [{ invoiceLineId, quantity }] \| 'FULL', reason }`                                          | avoir émis                                                    |
+| `invoice.list` / `.get`                           | filtres + curseur / id                                                                                           |                                                               |
+| `invoice.send`                                    | `{ id, channels: Channel[], contactIds? }`                                                                       | messages créés                                                |
+| `invoice.pdf`                                     | `{ id }`                                                                                                         | URL signée                                                    |
+| `fne.retry` / `fne.setManual`                     | `{ invoiceId }` / `{ invoiceId, fneNumber, qrCode?: string, qrImageAttachmentId?: string }`                      | `Invoice`                                                     |
+| `payment.create`                                  | `{ siteId, customerId, method, amount, receivedAt?, reference?, allocations?: [{ invoiceId, amount }], notes? }` | `{ payment, receiptUrl }`                                     |
+| `payment.suggestAllocation`                       | `{ customerId, amount, currentInvoiceId? }`                                                                      | allocations proposées                                         |
+| `payment.allocate`                                | `{ paymentId \| creditId, allocations }`                                                                         | `Payment`                                                     |
+| `payment.void` / `.confirmCheque` / `.failCheque` | `{ id, reason }`                                                                                                 | `Payment`                                                     |
+| `refund.create`                                   | `{ paymentId? , creditId?, amount, method, reference? }`                                                         | `Refund`                                                      |
+| `paymentLink.create` / `.cancel` / `.checkStatus` | `{ invoiceId, amount?, expiresInHours?, send?: Channel[] }`                                                      | `PaymentLink`                                                 |
+| `cash.open` / `.current` / `.close` / `.review`   | `{ siteId, openingFloat }` / `{ siteId }` / `{ id, countedCash, denominations?, notes? }` / `{ id, comment }`    | `CashSession` + récapitulatif                                 |
+| `cash.expense` / `cash.drop`                      | `{ sessionId, category, amount, description, attachmentId? }` / `{ sessionId, amount, destination }`             | Dépense au-delà du seuil sans droit de validation → `PENDING` |
+| `cash.decideExpense`                              | `{ id, decision: approve\|reject, comment? }`                                                                    | `cash:expense_approve` ; motif obligatoire au refus           |
+| `cash.uploadExpenseReceipt`                       | `{ expenseId, mimeType, dataBase64 }`                                                                            | Justificatif, session ouverte                                 |
+| `cash.expenses`                                   | `{ status?, category?, from?, to?, siteId?, cursor }`                                                            | Liste + totaux par catégorie + nombre en attente              |
+| `cash.sessions` / `cash.session`                  | `{ from?, to?, status?, openedById?, cursor }` / `{ id }`                                                        | Historique filtré, écarts par caissier / détail et instantané |
+| `cash.settings` / `cash.updateSettings`           | — / `{ varianceAlert, expenseApproval, oneSessionPerSite, expenseCategories }`                                   | `settings:read` / `settings:billing`                          |
+| `reconcile.importStatement` / `.match`            | `{ provider, fileUrl }` / `{ lineId, paymentId }`                                                                |                                                               |
+| `accounting.export`                               | `{ from, to, journal: 'VT'\|'EN'\|'CA'\|'ALL', format: 'syscohada_csv'\|'sales_csv' }`                           | URL du fichier                                                |
 
 REST : `POST /api/webhooks/payments/[provider]/[organizationId]` (RG-M08-24) ; API publique (M13) `GET /api/v1/invoices`, `GET /api/v1/payments`, `POST /api/v1/payments` (enregistrement par le logiciel existant), scopes `invoice:read`, `payment:write`.
 
@@ -263,45 +286,46 @@ IA (M17) : explication en français clair d'une erreur FNE ; suggestion d'alloca
 
 ## 10. Permissions
 
-| Action | Permission | Rôles par défaut |
-|---|---|---|
-| Voir factures | `invoice:view` | OWNER, MANAGER, ADVISOR, CASHIER, ACCOUNTANT |
-| Créer/émettre | `invoice:create` / `invoice:issue` | ADVISOR, CASHIER, ACCOUNTANT, OWNER |
-| Avoir | `invoice:credit` | ACCOUNTANT, OWNER |
-| Modifier échéance | `invoice:edit_due` | ACCOUNTANT, OWNER |
-| FNE manuel / réessayer | `fne:manage` | ACCOUNTANT, OWNER |
-| Encaisser | `payment:create` | CASHIER, ADVISOR, ACCOUNTANT, OWNER |
-| Annuler un paiement / rembourser | `payment:void` / `payment:refund` | OWNER (+ ACCOUNTANT pour void) |
-| Caisse ouvrir/clôturer | `cash:operate` | CASHIER, ADVISOR, OWNER |
-| Valider écart de caisse | `cash:review` | OWNER |
-| Dépenses | `cash:expense` | CASHIER, OWNER |
-| Rapprochement / exports | `payment:reconcile` / `accounting:export` | ACCOUNTANT, OWNER |
+| Action                           | Permission                                | Rôles par défaut                             |
+| -------------------------------- | ----------------------------------------- | -------------------------------------------- |
+| Voir factures                    | `invoice:view`                            | OWNER, MANAGER, ADVISOR, CASHIER, ACCOUNTANT |
+| Créer/émettre                    | `invoice:create` / `invoice:issue`        | ADVISOR, CASHIER, ACCOUNTANT, OWNER          |
+| Avoir                            | `invoice:credit`                          | ACCOUNTANT, OWNER                            |
+| Modifier échéance                | `invoice:edit_due`                        | ACCOUNTANT, OWNER                            |
+| FNE manuel / réessayer           | `fne:manage`                              | ACCOUNTANT, OWNER                            |
+| Encaisser                        | `payment:create`                          | CASHIER, ADVISOR, ACCOUNTANT, OWNER          |
+| Annuler un paiement / rembourser | `payment:void` / `payment:refund`         | OWNER (+ ACCOUNTANT pour void)               |
+| Caisse ouvrir/clôturer           | `cash:operate`                            | CASHIER, ADVISOR, OWNER                      |
+| Valider écart de caisse          | `cash:review`                             | OWNER                                        |
+| Dépenses                         | `cash:expense`                            | CASHIER, OWNER                               |
+| Rapprochement / exports          | `payment:reconcile` / `accounting:export` | ACCOUNTANT, OWNER                            |
 
 ## 11. Cas limites et erreurs
 
-| Situation | Comportement |
-|---|---|
-| Client paie 100 000 sur 185 000 | `PARTIALLY_PAID`, solde 85 000, M09 suit l'échéance ; reçu indique « Reste à payer : 85 000 FCFA » |
-| Webhook Wave reçu deux fois | Idempotence RG-M08-24 ; un seul paiement |
-| Webhook arrive avant que le client ait fermé la page / ou jamais | Rapprochement 30 min |
-| Client paie le lien après avoir payé en espèces | Facture déjà soldée → paiement en `unallocated`, alerte « paiement en double probable », proposition de remboursement ou de crédit |
-| Facture à annuler après certification FNE | Avoir total certifié FNE ; facture `VOID` ; jamais de suppression |
-| Erreur sur le nom du client après émission | Avoir total + nouvelle facture (bouton « Corriger » qui fait les deux) |
-| Service FNE indisponible toute la journée | Factures émises en `FAILED`, retries, badge, alerte ; bascule possible en mode manuel |
-| Deux caissiers émettent en même temps | Verrou `DocumentSequence` → numéros consécutifs sans trou |
-| Caissier oublie de clôturer | Notification 23:00 ; ouverture suivante bloquée jusqu'à clôture tardive `lateClose` |
-| Écart de caisse −2 500 | Commentaire obligatoire ; sous seuil : pas d'alerte ; OWNER voit l'historique des écarts par caissier |
-| Signature webhook invalide | `401`, `PaymentWebhookLog` conservé, alerte après 5 échecs/heure |
-| Montant webhook différent du lien | Montant confirmé par `getStatus` enregistré, écart signalé |
-| Référence Wave saisie deux fois à la main | Bloqué (RG-M08-26) |
-| Facture à 0 FCFA (garantie entière) | Émission autorisée si au moins une ligne ; statut `PAID` direct ; FNE selon spec |
-| Organisation sans RCCM/NCC | Émission bloquée (RG-M08-04) |
-| Avoir supérieur au total restant | « L'avoir ne peut pas dépasser 128 981 FCFA » |
-| Changement du taux de TVA en cours d'année | N'affecte que les nouvelles lignes ; factures émises figées |
+| Situation                                                        | Comportement                                                                                                                       |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Client paie 100 000 sur 185 000                                  | `PARTIALLY_PAID`, solde 85 000, M09 suit l'échéance ; reçu indique « Reste à payer : 85 000 FCFA »                                 |
+| Webhook Wave reçu deux fois                                      | Idempotence RG-M08-24 ; un seul paiement                                                                                           |
+| Webhook arrive avant que le client ait fermé la page / ou jamais | Rapprochement 30 min                                                                                                               |
+| Client paie le lien après avoir payé en espèces                  | Facture déjà soldée → paiement en `unallocated`, alerte « paiement en double probable », proposition de remboursement ou de crédit |
+| Facture à annuler après certification FNE                        | Avoir total certifié FNE ; facture `VOID` ; jamais de suppression                                                                  |
+| Erreur sur le nom du client après émission                       | Avoir total + nouvelle facture (bouton « Corriger » qui fait les deux)                                                             |
+| Service FNE indisponible toute la journée                        | Factures émises en `FAILED`, retries, badge, alerte ; bascule possible en mode manuel                                              |
+| Deux caissiers émettent en même temps                            | Verrou `DocumentSequence` → numéros consécutifs sans trou                                                                          |
+| Caissier oublie de clôturer                                      | Notification 23:00 ; ouverture suivante bloquée jusqu'à clôture tardive `lateClose`                                                |
+| Écart de caisse −2 500                                           | Commentaire obligatoire ; sous seuil : pas d'alerte ; OWNER voit l'historique des écarts par caissier                              |
+| Signature webhook invalide                                       | `401`, `PaymentWebhookLog` conservé, alerte après 5 échecs/heure                                                                   |
+| Montant webhook différent du lien                                | Montant confirmé par `getStatus` enregistré, écart signalé                                                                         |
+| Référence Wave saisie deux fois à la main                        | Bloqué (RG-M08-26)                                                                                                                 |
+| Facture à 0 FCFA (garantie entière)                              | Émission autorisée si au moins une ligne ; statut `PAID` direct ; FNE selon spec                                                   |
+| Organisation sans RCCM/NCC                                       | Émission bloquée (RG-M08-04)                                                                                                       |
+| Avoir supérieur au total restant                                 | « L'avoir ne peut pas dépasser 128 981 FCFA »                                                                                      |
+| Changement du taux de TVA en cours d'année                       | N'affecte que les nouvelles lignes ; factures émises figées                                                                        |
 
 ## 12. Tests
 
 Unitaires (`packages/core/money`, `core/receivables`, `core/numbering`, `core/fne`) :
+
 - `computeLine` / `computeInvoiceTotals` : tableau RG-M08-06 exact (109 305 / 19 676 / 128 981), quantités décimales, remise, TVA désactivée, mode `total`, lignes négatives.
 - `ttcToHt` : 50 000 → 42 373 / 7 627 ; 100 000 → 84 746 / 15 254.
 - `allocatePayment` : exemple SOTRA (240 000 + 410 000 + 150 000), trop-perçu 5 000, facture courante prioritaire.
@@ -417,3 +441,5 @@ model PaymentWebhookLog {
 ```
 
 `PaymentAllocation` : ajouter `customerCreditId String?` (allocation d'un crédit client) et `voidedAt DateTime?`. `DocumentSequence.docType` : `FAC`, `AV`, `REC` avec `siteId = null`. Paramètres `Organization.settings` : `billing.vatRounding`, `billing.allowWalkIn`, `fne.blockSendUntilCertified`, `payments.passFeesToCustomer`, `cash.varianceAlert`, `cash.expenseApproval`, `cash.oneSessionPerSite`, `accounting.accounts` (plan de comptes).
+
+**Caisse et clôture (complément, migration `20261022100000_m08_caisse_cloture`)** : `Expense.status ExpenseStatus @default(APPROVED)` (`PENDING`, `APPROVED`, `REJECTED`), `Expense.rejectedById`, `rejectedAt`, `decisionComment`, index `(organizationId, status, paidAt)` ; `CashSession.closingSummary Json?` (instantané de clôture, RG-M08-30b). Paramètre `cash.expenseCategories` éditable.

@@ -59,9 +59,15 @@
   --font-display: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Graphiques entrées / sorties (M18) — paire catégorielle validée (CVD, contraste). */
+  --chart-in: #2a78d6;
+  --chart-out: #eb6834;
 }
 
 .dark {
+  --chart-in: #3987e5;
+  --chart-out: #d95926;
   --bg: oklch(17% 0.018 240);
   --surface: oklch(22% 0.022 240);
   --surface-2: oklch(26% 0.024 240);
@@ -164,4 +170,23 @@ h4 {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Bannière de développement pour afficher le code OTP */
+.dev-code-banner {
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+.dev-code-banner code {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  margin-left: 0.5rem;
 }

@@ -551,6 +551,9 @@ export interface AppointmentNotification {
   sendAt: Date;
 }
 
+/** Canal préféré : AUTO = ordre par défaut, sinon le canal spécifié en priorité. */
+export type PreferredChannel = "AUTO" | "WHATSAPP" | "SMS" | "EMAIL";
+
 /**
  * Met en file un message transactionnel (envoyé même si le client est désinscrit des
  * relances). Idempotent par `appt:<id>:<kind>:<suffix>`. Renvoie `null` si le client n'a
@@ -576,8 +579,17 @@ export async function enqueueAppointmentMessage(
     now: Date;
     templateKey?: string;
     context?: Record<string, unknown>;
+    /** Canal préféré : AUTO = ordre par défaut (WA > SMS > Email), sinon uniquement le canal choisi. */
+    preferredChannel?: PreferredChannel;
   },
 ): Promise<AppointmentNotification | null> {
+  // Déterminer les canaux à essayer selon la préférence
+  const defaultChannels: Channel[] = ["WHATSAPP", "SMS", "EMAIL"];
+  const channels: Channel[] =
+    input.preferredChannel && input.preferredChannel !== "AUTO"
+      ? [input.preferredChannel]
+      : defaultChannels;
+
   const req: EnqueueRequest = {
     idempotencyKey: `appt:${input.appointmentId}:${input.kind}:${input.idempotencySuffix}`,
     kind: "transactional",
@@ -588,7 +600,7 @@ export async function enqueueAppointmentMessage(
       email: input.customer.email,
       name: input.customer.displayName,
     },
-    channels: ["WHATSAPP", "SMS", "EMAIL"] satisfies Channel[],
+    channels,
     ...(input.templateKey
       ? { templateKey: input.templateKey, context: input.context }
       : { bodyOverride: input.body, subjectOverride: "Votre rendez-vous" }),

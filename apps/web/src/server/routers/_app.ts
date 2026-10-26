@@ -32,6 +32,7 @@ import { claimRouter } from "./claim";
 import { insurerRouter } from "./insurer";
 import { fneRouter } from "./fne";
 import { cashRouter, refundRouter } from "./cash";
+import { treasuryRouter } from "./treasury";
 import { accountingRouter } from "./accounting";
 import { planningRouter, planningSettingsRouter, resourceBlockRouter } from "./planning";
 import { portalAppointmentRouter } from "./portal";
@@ -86,6 +87,7 @@ export const appRouter = router({
   fne: fneRouter,
   cash: cashRouter,
   refund: refundRouter,
+  treasury: treasuryRouter,
   accounting: accountingRouter,
   auth: authRouter,
   me: meRouter,

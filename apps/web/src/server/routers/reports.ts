@@ -4,17 +4,23 @@
 import { TRPCError } from "@trpc/server";
 import {
   compareSites,
+  localDay,
   OPEN_INVOICE_STATUSES,
   PREVIEW_PAGE_SIZE,
   quoteAcceptance,
   REPORT_SLUGS,
   REPORTS,
+  shiftDay,
   VALID_INVOICE_STATUSES,
   type ReportSlug,
   type SiteFacts,
 } from "@atelieros/core";
 import { db, reportFacts } from "@atelieros/db";
-import { compareSitesInputSchema, reportPreviewInputSchema } from "@atelieros/validators";
+import {
+  compareSitesInputSchema,
+  reportCatalogInputSchema,
+  reportPreviewInputSchema,
+} from "@atelieros/validators";
 import { buildReport } from "../reports/builders";
 import {
   loadOrgReportContext,
@@ -47,14 +53,28 @@ export function assertReportPermission(
 
 export const reportsRouter = router({
   /** `/rapports` : rapports visibles pour le membre et disponibilité de la comparaison. */
-  catalog: orgProcedure.query(async ({ ctx }) => {
+  /**
+   * Rapports accessibles et dates de la période choisie sur la grille (`/rapports?periode=`),
+   * pour ouvrir chaque rapport ou l'exporter directement sur cette période.
+   */
+  catalog: orgProcedure.input(reportCatalogInputSchema).query(async ({ ctx, input }) => {
     const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-    const activeSites = await tenantDb.site.count({ where: { isActive: true } });
+    const [activeSites, org] = await Promise.all([
+      tenantDb.site.count({ where: { isActive: true } }),
+      loadOrgReportContext(ctx.organizationId),
+    ]);
+    const now = reportsNow();
+    const period = resolvePeriodInput(input.period, now, org.timezone);
     return {
       reports: REPORT_SLUGS.filter((slug) => ctx.permissions.has(REPORTS[slug].permission)).map(
         (slug) => ({ slug, filter: REPORTS[slug].filter }),
       ),
       compareSites: ctx.permissions.has("dashboard:owner") && activeSites >= 2,
+      period: {
+        from: period.fromDate,
+        to: shiftDay(period.toDate, -1),
+        asOf: localDay(now, org.timezone),
+      },
     };
   }),
 

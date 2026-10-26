@@ -20,7 +20,7 @@ function NewAppointment() {
   const startsAt = params.get("startsAt");
   const tz = me.data?.activeOrganization?.timezone ?? "Africa/Abidjan";
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-16">
+    <div className="flex w-full min-w-0 flex-col gap-4 pb-16">
       <h1 className="text-2xl font-semibold">{ta("form.title")}</h1>
       <AppointmentForm
         timeZone={tz}

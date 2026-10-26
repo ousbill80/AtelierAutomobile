@@ -152,14 +152,33 @@ export const customerRouter = router({
       }
 
       const where = buildCustomerListWhere(effective);
-      const items = await tenantDb.customer.findMany({
-        where,
-        orderBy: { displayName: "asc" },
-        take: effective.limit + 1,
-        ...(effective.cursor ? { cursor: { id: effective.cursor }, skip: 1 } : {}),
-      });
+
+      const [items, total] = await Promise.all([
+        tenantDb.customer.findMany({
+          where,
+          orderBy: { displayName: "asc" },
+          take: effective.limit + 1,
+          ...(effective.offset != null
+            ? { skip: effective.offset }
+            : effective.cursor
+              ? { cursor: { id: effective.cursor }, skip: 1 }
+              : {}),
+          include: {
+            _count: { select: { vehicles: { where: { deletedAt: null } } } },
+          },
+        }),
+        tenantDb.customer.count({ where }),
+      ]);
+
       const nextCursor = items.length > effective.limit ? items[effective.limit]!.id : null;
-      return { items: items.slice(0, effective.limit), nextCursor };
+      return {
+        items: items.slice(0, effective.limit).map((c) => ({
+          ...c,
+          vehicleCount: c._count.vehicles,
+        })),
+        total,
+        nextCursor,
+      };
     }),
 
   get: requirePermission("customer:read")

@@ -201,6 +201,57 @@ describe("vehicle router (M02)", () => {
     // otherCustomer est nettoyé par afterAll (il possède désormais le véhicule transféré).
   });
 
+  it("vehicle.setInsurance rattache une police, refuse la compagnie d'une autre organisation (M16)", async () => {
+    const vehicle = await caller.vehicle.create({
+      customerId: customer.id,
+      plate: "8812 HK 01",
+      make: "Hyundai",
+      model: "Tucson",
+    });
+    const insurer = await adminDb.insuranceCompany.create({
+      data: { organizationId: org.id, name: "Compagnie A Assurances" },
+    });
+    const otherOrg = await adminDb.organization.create({ data: { name: "Garage Autre" } });
+    const foreign = await adminDb.insuranceCompany.create({
+      data: { organizationId: otherOrg.id, name: "Compagnie étrangère" },
+    });
+
+    const linked = await caller.vehicle.setInsurance({
+      vehicleId: vehicle.id,
+      insuranceCompanyId: insurer.id,
+      policyNumber: "POL-2026-778",
+      expiryDate: "2026-12-31",
+    });
+    expect(linked.insuranceCompany?.name).toBe("Compagnie A Assurances");
+    expect(linked.insurancePolicyNumber).toBe("POL-2026-778");
+    expect(linked.insuranceExpiryDate?.toISOString().slice(0, 10)).toBe("2026-12-31");
+    const audit = await adminDb.auditLog.findFirst({
+      where: { organizationId: org.id, action: "vehicle.insurance_updated", entityId: vehicle.id },
+    });
+    expect(audit).not.toBeNull();
+
+    await expect(
+      caller.vehicle.setInsurance({
+        vehicleId: vehicle.id,
+        insuranceCompanyId: foreign.id,
+        policyNumber: null,
+        expiryDate: null,
+      }),
+    ).rejects.toThrow(/introuvable/);
+
+    const cleared = await caller.vehicle.setInsurance({
+      vehicleId: vehicle.id,
+      insuranceCompanyId: null,
+      policyNumber: null,
+      expiryDate: null,
+    });
+    expect(cleared.insuranceCompanyId).toBeNull();
+    expect(cleared.insurancePolicyNumber).toBeNull();
+
+    await adminDb.insuranceCompany.deleteMany({ where: { id: { in: [insurer.id, foreign.id] } } });
+    await adminDb.organization.delete({ where: { id: otherOrg.id } });
+  });
+
   it("catalog.addLocalModel crée une marque/modèle local, visible ensuite par catalog.makes (RG-M02-20)", async () => {
     const localMakeName = `MarqueLocale-${randomBytes(3).toString("hex")}`;
     await caller.catalog.addLocalModel({ make: localMakeName, model: "ModèleX" });

@@ -5,7 +5,7 @@
 // (`dashboard.*`, formules de `core/reports`) : aucun calcul d'indicateur ici.
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
-import { EmptyState, StatusBadge } from "@atelieros/ui";
+import { EmptyState, StatusBadge, type StatusTone } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import type { AppRouter } from "@/server/routers/_app";
 import {
@@ -21,11 +21,13 @@ import {
   BarList,
   CardsSkeleton,
   DailyChart,
+  EmptyLine,
   ErrorState,
   formatDateTime,
   formatPct,
   formatTime,
   KpiCard,
+  ListRow,
   Section,
 } from "./parts";
 
@@ -36,6 +38,26 @@ export type TabInput = { period: Period; custom?: { from: string; to: string }; 
 
 type Overview = RouterOutputs["dashboard"]["overview"];
 type Receivables = Overview["receivables"];
+
+/** Teinte des statuts d'OR (toujours accompagnée du libellé). */
+const RO_STATUS_TONE: Record<string, StatusTone> = {
+  CHECKED_IN: "off",
+  DIAGNOSING: "warn",
+  AWAITING_APPROVAL: "warn",
+  APPROVED: "warn",
+  IN_PROGRESS: "warn",
+  WAITING_PARTS: "bad",
+  QUALITY_CHECK: "warn",
+  READY: "ok",
+};
+const APPOINTMENT_TONE: Record<string, StatusTone> = {
+  BOOKED: "off",
+  CONFIRMED: "ok",
+  ARRIVED: "ok",
+  COMPLETED: "ok",
+  NO_SHOW: "bad",
+  CANCELLED: "bad",
+};
 
 export function ReceivablesCard({ receivables }: { receivables: Receivables }) {
   return (
@@ -108,18 +130,22 @@ export function SummaryFull({ data }: { data: Overview }) {
               href="/devis"
             />
           </div>
-          <Section title={L.summary.dailyRevenue} help={L.help.revenueHt}>
-            <DailyChart points={s.daily} />
-          </Section>
-          <Section title={L.summary.byNature}>
-            <BarList
-              items={natures.map((n) => ({
-                key: n,
-                label: L.summary.natures[n],
-                value: s.byNature[n],
-              }))}
-            />
-          </Section>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+            <div className="min-w-0 lg:col-span-2">
+              <Section title={L.summary.dailyRevenue} help={L.help.revenueHt}>
+                <DailyChart points={s.daily} />
+              </Section>
+            </div>
+            <Section title={L.summary.byNature}>
+              <BarList
+                items={natures.map((n) => ({
+                  key: n,
+                  label: L.summary.natures[n],
+                  value: s.byNature[n],
+                }))}
+              />
+            </Section>
+          </div>
         </>
       )}
     </div>
@@ -140,22 +166,17 @@ export function WorkshopTab({ input, timeZone }: { input: TabInput; timeZone: st
     detail: (o: (typeof d.late.orders)[number]) => string,
   ) =>
     orders.length === 0 ? (
-      <p className="text-sm text-muted">{W.none}</p>
+      <EmptyLine>{W.none}</EmptyLine>
     ) : (
       <ul className="divide-y divide-border">
         {orders.map((o) => (
-          <li key={o.id}>
-            <Link
-              href={`/ordres/${o.id}`}
-              className="flex min-h-11 flex-wrap items-center justify-between gap-2 py-2 text-sm hover:underline"
-            >
-              <span className="min-w-0">
-                <span className="font-medium">{o.number}</span> · {o.plate}
-                <span className="block text-xs text-muted">{o.customerName}</span>
-              </span>
-              <span className="text-xs text-muted">{detail(o)}</span>
-            </Link>
-          </li>
+          <ListRow
+            key={o.id}
+            href={`/ordres/${o.id}`}
+            title={`${o.number} · ${o.plate}`}
+            sub={o.customerName}
+            right={<span className="text-xs text-muted">{detail(o)}</span>}
+          />
         ))}
       </ul>
     );
@@ -163,17 +184,19 @@ export function WorkshopTab({ input, timeZone }: { input: TabInput; timeZone: st
     <div className="flex flex-col gap-4">
       <Section title={W.statusCounts}>
         {statuses.length === 0 ? (
-          <p className="text-sm text-muted">{W.none}</p>
+          <EmptyLine>{W.none}</EmptyLine>
         ) : (
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {statuses.map(([status, count]) => (
               <li key={status}>
                 <Link
                   href="/ordres"
-                  className="flex min-h-11 items-center justify-between gap-2 rounded-md bg-surface-2 px-3 py-2 text-sm hover:underline"
+                  className="flex min-h-20 flex-col justify-between gap-2 rounded-lg border border-border bg-surface-2/50 p-3 transition-colors hover:bg-surface-2"
                 >
-                  <span className="truncate">{roStatusLabel(status)}</span>
-                  <span className="font-semibold">{count}</span>
+                  <StatusBadge tone={RO_STATUS_TONE[status] ?? "off"}>
+                    {roStatusLabel(status)}
+                  </StatusBadge>
+                  <span className="text-2xl font-bold">{count}</span>
                 </Link>
               </li>
             ))}
@@ -206,20 +229,22 @@ export function WorkshopTab({ input, timeZone }: { input: TabInput; timeZone: st
           </Link>
         </p>
       )}
-      <Section title={W.late}>
-        {orderList(d.late.orders, (o) =>
-          fmt(W.promisedAt, { date: formatDateTime(o.promisedAt, timeZone) }),
-        )}
-      </Section>
-      <Section title={W.waitingParts}>
-        {orderList(d.waitingParts.orders, (o) =>
-          fmt(W.since, { date: formatDateTime(o.waitingPartsSince, timeZone) }),
-        )}
-      </Section>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <Section title={W.late}>
+          {orderList(d.late.orders, (o) =>
+            fmt(W.promisedAt, { date: formatDateTime(o.promisedAt, timeZone) }),
+          )}
+        </Section>
+        <Section title={W.waitingParts}>
+          {orderList(d.waitingParts.orders, (o) =>
+            fmt(W.since, { date: formatDateTime(o.waitingPartsSince, timeZone) }),
+          )}
+        </Section>
+      </div>
       {d.mechanics && (
         <Section title={W.mechanics} help={L.help.efficiency}>
           {d.mechanics.length === 0 ? (
-            <p className="text-sm text-muted">{W.none}</p>
+            <EmptyLine>{W.none}</EmptyLine>
           ) : (
             <ul className="divide-y divide-border">
               {d.mechanics.map((m) => (
@@ -264,104 +289,118 @@ export function FrontDeskTab({ input }: { input: TabInput }) {
   const d = q.data;
   const F = L.frontDesk;
   const tz = d.timeZone;
-  const row = (key: string, href: string, title: string, sub: string, right?: string) => (
-    <li key={key}>
-      <Link
-        href={href}
-        className="flex min-h-11 items-center justify-between gap-2 py-2 text-sm hover:underline"
-      >
-        <span className="min-w-0">
-          <span className="block truncate font-medium">{title}</span>
-          <span className="block truncate text-xs text-muted">{sub}</span>
-        </span>
-        {right && <span className="shrink-0 text-xs">{right}</span>}
-      </Link>
-    </li>
-  );
+  const appointments = d.appointments;
   return (
     <div className="flex flex-col gap-4">
-      {d.unreadConversations !== null && (
-        <div className="grid grid-cols-2 gap-3">
+      {/* Toutes les cartes sur une ligne en grand écran, quel que soit leur nombre. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:auto-cols-fr lg:grid-flow-col lg:grid-cols-none">
+        {appointments && (
+          <KpiCard
+            label={F.kpiAppointments}
+            value={String(appointments.length)}
+            href="/rendez-vous/aujourdhui"
+          />
+        )}
+        {d.reminders && (
+          <KpiCard label={F.kpiReminders} value={String(d.reminders.count)} href="/relances" />
+        )}
+        {d.quotes && <KpiCard label={F.kpiQuotes} value={String(d.quotes.count)} href="/devis" />}
+        {d.ready && <KpiCard label={F.kpiReady} value={String(d.ready.length)} href="/ordres" />}
+        {d.unreadConversations !== null && (
           <KpiCard label={F.unread} value={String(d.unreadConversations)} href="/messages" />
-        </div>
-      )}
-      {d.appointments && (
-        <Section title={F.appointments}>
-          {d.appointments.length === 0 ? (
-            <p className="text-sm text-muted">{F.noAppointments}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {d.appointments.map((a) =>
-                row(
-                  a.id,
-                  "/rendez-vous/aujourdhui",
-                  `${formatTime(a.startsAt, tz)} · ${a.customerName}`,
-                  a.plate ?? "",
-                  appointmentStatusLabel(a.status),
-                ),
-              )}
-            </ul>
-          )}
-        </Section>
-      )}
-      {d.reminders && (
-        <Section
-          title={F.reminders}
-          action={
-            <Link href="/relances" className="text-sm underline">
-              {fmt(F.seeAll, { count: d.reminders.count })}
-            </Link>
-          }
-        >
-          {d.reminders.items.length === 0 ? (
-            <p className="text-sm text-muted">{F.none}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {d.reminders.items.map((r) =>
-                row(r.id, "/relances", r.customerName, reminderTypeLabel(r.type)),
-              )}
-            </ul>
-          )}
-        </Section>
-      )}
-      {d.quotes && (
-        <Section title={F.quotes}>
-          {d.quotes.items.length === 0 ? (
-            <p className="text-sm text-muted">{F.none}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {d.quotes.items.map((x) =>
-                row(
-                  x.id,
-                  `/devis/${x.id}`,
-                  `${x.number} · ${x.customerName}`,
-                  formatDateTime(x.sentAt, tz),
-                  formatAmount(x.total),
-                ),
-              )}
-            </ul>
-          )}
-        </Section>
-      )}
-      {d.ready && (
-        <Section title={F.ready}>
-          {d.ready.length === 0 ? (
-            <p className="text-sm text-muted">{F.none}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {d.ready.map((r) =>
-                row(
-                  r.id,
-                  `/ordres/${r.id}`,
-                  `${r.number} · ${r.plate}`,
-                  r.customerName,
-                  formatDateTime(r.readyAt, tz),
-                ),
-              )}
-            </ul>
-          )}
-        </Section>
-      )}
+        )}
+      </div>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        {appointments && (
+          <Section title={F.appointments}>
+            {appointments.length === 0 ? (
+              <EmptyLine>{F.noAppointments}</EmptyLine>
+            ) : (
+              <ul className="divide-y divide-border">
+                {appointments.map((a) => (
+                  <ListRow
+                    key={a.id}
+                    href="/rendez-vous/aujourdhui"
+                    title={`${formatTime(a.startsAt, tz)} · ${a.customerName}`}
+                    sub={a.plate ?? undefined}
+                    right={
+                      <StatusBadge tone={APPOINTMENT_TONE[a.status] ?? "off"}>
+                        {appointmentStatusLabel(a.status)}
+                      </StatusBadge>
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </Section>
+        )}
+        {d.reminders && (
+          <Section
+            title={F.reminders}
+            action={
+              <Link href="/relances" className="text-sm font-medium text-accent hover:underline">
+                {fmt(F.seeAll, { count: d.reminders.count })} →
+              </Link>
+            }
+          >
+            {d.reminders.items.length === 0 ? (
+              <EmptyLine>{F.none}</EmptyLine>
+            ) : (
+              <ul className="divide-y divide-border">
+                {d.reminders.items.map((r) => (
+                  <ListRow
+                    key={r.id}
+                    href="/relances"
+                    title={r.customerName}
+                    sub={reminderTypeLabel(r.type)}
+                    right={<StatusBadge tone="warn">{F.kpiReminders}</StatusBadge>}
+                  />
+                ))}
+              </ul>
+            )}
+          </Section>
+        )}
+        {d.quotes && (
+          <Section title={F.quotes}>
+            {d.quotes.items.length === 0 ? (
+              <EmptyLine>{F.none}</EmptyLine>
+            ) : (
+              <ul className="divide-y divide-border">
+                {d.quotes.items.map((x) => (
+                  <ListRow
+                    key={x.id}
+                    href={`/devis/${x.id}`}
+                    title={`${x.number} · ${x.customerName}`}
+                    sub={formatDateTime(x.sentAt, tz)}
+                    right={<span className="font-medium">{formatAmount(x.total)}</span>}
+                  />
+                ))}
+              </ul>
+            )}
+          </Section>
+        )}
+        {d.ready && (
+          <Section title={F.ready}>
+            {d.ready.length === 0 ? (
+              <EmptyLine>{F.none}</EmptyLine>
+            ) : (
+              <ul className="divide-y divide-border">
+                {d.ready.map((r) => (
+                  <ListRow
+                    key={r.id}
+                    href={`/ordres/${r.id}`}
+                    title={`${r.number} · ${r.plate}`}
+                    sub={r.customerName}
+                    right={
+                      <span className="text-xs text-muted">{formatDateTime(r.readyAt, tz)}</span>
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </Section>
+        )}
+      </div>
     </div>
   );
 }
@@ -384,30 +423,36 @@ export function CustomersTab({ input }: { input: TabInput }) {
       <Section
         title={C.topParts}
         action={
-          <Link href="/rapports/top-pieces" className="text-sm underline">
-            {L.reportsLink}
+          <Link
+            href="/rapports/top-pieces"
+            className="text-sm font-medium text-accent hover:underline"
+          >
+            {L.reportsLink} →
           </Link>
         }
       >
         {d.topParts.length === 0 ? (
-          <p className="text-sm text-muted">{L.states.empty}</p>
+          <EmptyLine>{L.states.empty}</EmptyLine>
         ) : (
           <ol className="divide-y divide-border">
             {d.topParts.map((p, i) => (
-              <li key={p.key} className="flex items-center justify-between gap-2 py-2 text-sm">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">
-                    {i + 1}. {p.label}
+              <ListRow
+                key={p.key}
+                title={
+                  <span className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold">
+                      {i + 1}
+                    </span>
+                    <span className="truncate">{p.label}</span>
                   </span>
-                  <span className="block text-xs text-muted">
-                    {C.quantity} {p.quantity} · {fmt(C.orders, { count: p.repairOrders })}
-                    {"margin" in p && typeof p.margin === "number"
-                      ? ` · ${fmt(C.margin, { amount: formatAmount(p.margin) })}`
-                      : ""}
-                  </span>
-                </span>
-                <span className="shrink-0 font-semibold">{formatAmount(p.ht)}</span>
-              </li>
+                }
+                sub={`${C.quantity} ${p.quantity} · ${fmt(C.orders, { count: p.repairOrders })}${
+                  "margin" in p && typeof p.margin === "number"
+                    ? ` · ${fmt(C.margin, { amount: formatAmount(p.margin) })}`
+                    : ""
+                }`}
+                right={<span className="font-semibold">{formatAmount(p.ht)}</span>}
+              />
             ))}
           </ol>
         )}
@@ -424,20 +469,30 @@ export function CashierCard({ timeZone }: { timeZone: string }) {
   if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
   const d = q.data;
   return (
-    <Section title={L.cashier.title}>
+    <Section
+      title={L.cashier.title}
+      action={
+        <Link href="/caisse" className="text-sm font-medium text-accent hover:underline">
+          {L.cashier.goToCash} →
+        </Link>
+      }
+    >
       {!d.session ? (
-        <p className="text-sm text-muted">{L.cashier.noSession}</p>
+        <EmptyLine>{L.cashier.noSession}</EmptyLine>
       ) : (
-        <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted">
+        <div className="flex flex-col gap-4">
+          <StatusBadge tone="ok">
             {fmt(L.cashier.openedAt, {
               date: formatDateTime(d.session.openedAt, timeZone),
               site: d.session.siteName,
             })}
-          </p>
-          <p className="text-2xl font-semibold">
-            {L.cashier.total} : {formatAmount(d.total)}
-          </p>
+          </StatusBadge>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              {L.cashier.total}
+            </p>
+            <p className="text-3xl font-bold tracking-tight">{formatAmount(d.total)}</p>
+          </div>
           <BarList
             items={Object.entries(d.byMethod).map(([method, amount]) => ({
               key: method,

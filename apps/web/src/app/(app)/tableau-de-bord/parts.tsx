@@ -60,11 +60,11 @@ export function KpiCard({
 }) {
   const content = (
     <>
-      <span className="flex items-start justify-between gap-1 text-xs text-muted">
+      <span className="flex items-start justify-between gap-1 text-xs font-medium text-muted">
         {label}
         {help && <HelpTip text={help} />}
       </span>
-      <span className="text-lg font-semibold leading-tight sm:text-xl">{value}</span>
+      <KpiValue value={value} />
       {sub && <span className="text-xs text-muted">{sub}</span>}
       {variation && <VariationText variation={variation} />}
       {badge && (
@@ -75,9 +75,13 @@ export function KpiCard({
     </>
   );
   const className =
-    "flex min-h-24 min-w-0 flex-col gap-1 break-words rounded-lg border border-border bg-surface p-3";
+    "flex min-h-28 min-w-0 flex-col gap-1.5 break-words rounded-xl border border-border bg-surface p-4 shadow-sm";
   return href ? (
-    <Link href={href} className={`${className} hover:bg-surface-2`} data-testid="kpi-card">
+    <Link
+      href={href}
+      className={`${className} transition-colors hover:border-accent/40 hover:bg-surface-2`}
+      data-testid="kpi-card"
+    >
       {content}
     </Link>
   ) : (
@@ -87,11 +91,28 @@ export function KpiCard({
   );
 }
 
+/** Valeur d'une carte : chiffre en grand, unité « FCFA » plus petite (le texte reste « 185 000 FCFA »). */
+function KpiValue({ value }: { value: string }) {
+  const unit = value.endsWith(" FCFA") ? "FCFA" : null;
+  const figure = unit ? value.slice(0, -" FCFA".length) : value;
+  return (
+    <span className="text-2xl font-bold leading-tight tracking-tight sm:text-[28px]">
+      {figure}
+      {unit && (
+        <>
+          {" "}
+          <span className="text-xs font-semibold text-muted">{unit}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
 export function Stat({ label, value, tone }: { label: string; value: number; tone?: StatusTone }) {
   return (
-    <div className="rounded-md bg-surface-2 p-2">
+    <div className="rounded-lg bg-surface-2 p-3">
       <dt className="text-xs text-muted">{label}</dt>
-      <dd className="text-lg font-semibold">
+      <dd className="mt-1 text-xl font-bold">
         {tone ? <StatusBadge tone={tone}>{value}</StatusBadge> : value}
       </dd>
     </div>
@@ -110,9 +131,9 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-surface p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-1 font-semibold">
+    <section className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1 text-base font-semibold">
           {title}
           {help && (
             <span className="text-xs text-muted">
@@ -137,21 +158,67 @@ export function BarList({
 }) {
   const max = Math.max(...items.map((i) => Math.abs(i.value)), 1);
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col gap-3">
       {items.map((item) => (
-        <li key={item.key} className="grid grid-cols-[7rem_1fr] items-center gap-2 text-xs">
-          <span className="truncate text-muted">{item.label}</span>
-          <span className="flex min-w-0 items-center gap-2">
+        <li key={item.key} className="flex flex-col gap-1 text-sm">
+          <span className="flex justify-between gap-2">
+            <span className="min-w-0 truncate">{item.label}</span>
+            <span className="shrink-0 font-medium">{format(item.value)}</span>
+          </span>
+          <span className="h-1.5 rounded-full bg-surface-2" aria-hidden="true">
             <span
-              className="h-3 shrink-0 rounded bg-accent"
-              style={{ width: `${(Math.abs(item.value) / max) * 55}%` }}
-              aria-hidden="true"
+              className="block h-full rounded-full bg-accent"
+              style={{ width: `${(Math.abs(item.value) / max) * 100}%` }}
             />
-            <span className="font-medium">{format(item.value)}</span>
           </span>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Ligne de liste cliquable (≥ 44 px) : titre, sous-titre, élément à droite. */
+export function ListRow({
+  href,
+  title,
+  sub,
+  right,
+}: {
+  href?: string;
+  title: ReactNode;
+  sub?: ReactNode;
+  right?: ReactNode;
+}) {
+  const content = (
+    <>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate font-medium">{title}</span>
+        {sub && <span className="truncate text-xs text-muted">{sub}</span>}
+      </span>
+      {right && <span className="shrink-0 text-right">{right}</span>}
+    </>
+  );
+  const className = "flex min-h-12 items-center justify-between gap-3 py-2 text-sm";
+  return (
+    <li>
+      {href ? (
+        <Link
+          href={href}
+          className={`${className} -mx-2 rounded-md px-2 transition-colors hover:bg-surface-2`}
+        >
+          {content}
+        </Link>
+      ) : (
+        <div className={className}>{content}</div>
+      )}
+    </li>
+  );
+}
+
+/** Texte d'état vide d'un bloc. */
+export function EmptyLine({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-lg bg-surface-2 px-3 py-4 text-center text-sm text-muted">{children}</p>
   );
 }
 
@@ -226,10 +293,13 @@ export function DailyChart({
 
 export function CardsSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true">
-      {Array.from({ length: 4 }, (_, i) => (
-        <div key={i} className="h-24 animate-pulse rounded-lg bg-surface-2" />
-      ))}
+    <div className="flex flex-col gap-4" aria-busy="true">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="h-28 animate-pulse rounded-xl bg-surface-2" />
+        ))}
+      </div>
+      <div className="h-56 animate-pulse rounded-xl bg-surface-2" />
     </div>
   );
 }

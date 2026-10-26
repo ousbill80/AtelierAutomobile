@@ -113,6 +113,11 @@ export const reportPreviewInputSchema = z.object({
   cursor: z.number().int().min(0).default(0),
 });
 
+/** Grille `/rapports` : période proposée pour ouvrir ou exporter chaque rapport. */
+export const reportCatalogInputSchema = z
+  .object({ period: dashboardPeriodSchema.default("month") })
+  .default({});
+
 export const compareSitesInputSchema = z.object({
   period: dashboardPeriodSchema.default("month"),
   custom: customPeriodSchema.optional(),

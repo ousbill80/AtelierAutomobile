@@ -544,6 +544,7 @@ export const appointmentRouter = router({
                 sentById: ctx.membership.id,
                 timeZone: org.timezone,
                 now,
+                preferredChannel: input.preferredChannel,
                 ...(useTemplate
                   ? {
                       templateKey: "rdv_confirm",

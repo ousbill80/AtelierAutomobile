@@ -127,6 +127,9 @@ export const PERMISSIONS = [
   "cash:review",
   "cash:expense_approve",
   "accounting:export",
+  // Trésorerie (M18)
+  "treasury:read",
+  "treasury:manage",
   // Créances (M09)
   "receivable:read",
   "receivable:manage",
@@ -260,6 +263,8 @@ const GRANTS: ReadonlyArray<readonly [Permission, readonly NonOwnerRole[]]> = [
   ["payment:void", ["ACCOUNTANT"]],
   ["cash:expense_approve", ["MANAGER"]],
   ["accounting:export", ["ACCOUNTANT"]],
+  ["treasury:read", ["MANAGER", "ACCOUNTANT"]],
+  ["treasury:manage", ["ACCOUNTANT"]],
   ["receivable:read", ["MANAGER", "ADVISOR", "CASHIER", "ACCOUNTANT"]],
   ["receivable:manage", ["MANAGER", "ADVISOR", "ACCOUNTANT"]],
   ["receivable:dispute", ["MANAGER", "ACCOUNTANT"]],

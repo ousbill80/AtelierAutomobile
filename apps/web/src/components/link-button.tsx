@@ -12,19 +12,22 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 export interface LinkButtonProps extends LinkProps {
   children: ReactNode;
   variant?: ButtonVariant;
+  /** `sm` : plus compact horizontalement (la hauteur tactile de 44 px est conservée). */
+  size?: "md" | "sm";
   className?: string;
 }
 
 /** Même rendu que `Button` (packages/ui) mais pour une navigation (`<a>`), jamais un `<button>`. */
 export function LinkButton({
   variant = "primary",
+  size = "md",
   className = "",
   children,
   ...props
 }: LinkButtonProps) {
   return (
     <Link
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors ${size === "sm" ? "px-3" : "px-4"} ${VARIANT_CLASSES[variant]} ${className}`}
       {...props}
     >
       {children}

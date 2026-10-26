@@ -64,6 +64,10 @@ export type AppointmentListInput = z.infer<typeof appointmentListInputSchema>;
 
 export const appointmentIdInputSchema = z.object({ id });
 
+/** Canal préféré pour la notification (AUTO = sélection automatique par priorité). */
+export const preferredChannelSchema = z.enum(["AUTO", "WHATSAPP", "SMS", "EMAIL"]);
+export type PreferredChannel = z.infer<typeof preferredChannelSchema>;
+
 export const appointmentCreateInputSchema = z.object({
   siteId: id.optional(),
   customerId: id,
@@ -80,6 +84,8 @@ export const appointmentCreateInputSchema = z.object({
   reminderId: id.nullable().optional(),
   notes: z.string().trim().max(2000).optional(),
   notifyCustomer: z.boolean().default(true),
+  /** Canal préféré pour la notification (AUTO = sélection automatique par priorité). */
+  preferredChannel: preferredChannelSchema.default("AUTO"),
   /** Forçage (planning:manage) : surréservation, hors horaires, capacité, doublon du jour. */
   force: z.boolean().default(false),
 });

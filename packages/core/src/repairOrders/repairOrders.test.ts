@@ -21,6 +21,7 @@ import {
   storageFee,
   suggestPromisedAt,
   summarizeInspection,
+  PUBLIC_TIMELINE,
   timelineIndex,
   warrantyFor,
   worstResult,
@@ -743,5 +744,11 @@ describe("canTransition (§5)", () => {
     expect(timelineIndex("WAITING_PARTS")).toBe(3);
     expect(timelineIndex("READY")).toBe(5);
     expect(timelineIndex("DRAFT")).toBe(-1);
+  });
+
+  it("la frise publique se termine par « Restitué », fait une fois le véhicule rendu", () => {
+    expect(PUBLIC_TIMELINE.at(-1)).toBe("DELIVERED");
+    expect(timelineIndex("DELIVERED")).toBe(PUBLIC_TIMELINE.length);
+    expect(timelineIndex("INVOICED")).toBe(PUBLIC_TIMELINE.length);
   });
 });

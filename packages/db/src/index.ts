@@ -94,5 +94,12 @@ export {
 } from "./usage";
 export type { OrgPlanContext } from "./usage";
 export { buildInvoicePdfData } from "./billing/invoicePdfData";
+export {
+  ensureTreasuryDefaults,
+  syncTreasuryLedger,
+  toAccountLike,
+  treasuryTotals,
+  type TreasurySyncResult,
+} from "./treasury";
 export type { AttachmentBytesReader, InvoicePdfGarage } from "./billing/invoicePdfData";
 export { deleteTestOrganizations } from "./testing";

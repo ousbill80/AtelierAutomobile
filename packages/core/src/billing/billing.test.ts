@@ -580,9 +580,19 @@ describe("cash (RG-M08-27/28/29/30)", () => {
       canApprove: false,
       sessionClosed: false,
     };
-    expect(checkExpense({ ...base, amount: 12_500 })).toEqual({ approved: false });
-    expect(() => checkExpense({ ...base, amount: 30_000 })).toThrow(/validée par le gérant/);
-    expect(checkExpense({ ...base, amount: 30_000, canApprove: true })).toEqual({ approved: true });
+    expect(checkExpense({ ...base, amount: 12_500 })).toEqual({
+      approved: false,
+      status: "APPROVED",
+    });
+    // Au-delà du seuil sans droit de validation : en attente (plus de refus sec).
+    expect(checkExpense({ ...base, amount: 30_000 })).toEqual({
+      approved: false,
+      status: "PENDING",
+    });
+    expect(checkExpense({ ...base, amount: 30_000, canApprove: true })).toEqual({
+      approved: true,
+      status: "APPROVED",
+    });
     expect(() => checkExpense({ ...base, amount: 1, sessionClosed: true })).toThrow(/clôturée/);
   });
 });

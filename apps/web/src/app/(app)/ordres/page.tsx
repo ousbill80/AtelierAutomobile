@@ -4,6 +4,24 @@
 // contrôlé par la machine à états) et Liste (cartes sur mobile), filtres et recherche.
 import { useState, type DragEvent } from "react";
 import Link from "next/link";
+import {
+  Car,
+  Check,
+  CircleCheck,
+  Columns3,
+  Hand,
+  List as ListIcon,
+  Package,
+  PenLine,
+  Plus,
+  Search,
+  TriangleAlert,
+  Undo2,
+  User,
+  Wrench,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { formatFCFA } from "@atelieros/core/money";
 import { BOARD_STATUSES, REPAIR_ORDER_STATUSES } from "@atelieros/core/repairOrders";
 import { Button, EmptyState, PlateBadge } from "@atelieros/ui";
@@ -57,104 +75,226 @@ export default function RepairOrdersPage() {
   const toggle = (key: "mine" | "late" | "comeback") =>
     setFilters((f) => ({ ...f, [key]: !f[key] }));
 
-  return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <Link href="/ordres/reception" className="btn btn-primary min-h-11">
-          + {t("newReception")}
-        </Link>
-      </div>
+  const c = counters.data?.counters;
 
-      {counters.data && (
-        <div className="flex flex-wrap gap-2 text-sm" aria-label={t("title")}>
-          <span className="rounded-md bg-surface-2 px-3 py-2">
-            {t("counters.active", { count: counters.data.counters.active })}
-          </span>
-          <span className="rounded-md bg-status-warn-bg px-3 py-2 text-status-warn">
-            {t("counters.awaitingApproval", { count: counters.data.counters.awaitingApproval })}
-          </span>
-          <span className="rounded-md bg-status-bad-bg px-3 py-2 text-status-bad">
-            {t("counters.waitingParts", { count: counters.data.counters.waitingParts })}
-          </span>
-          <span className="rounded-md bg-status-ok-bg px-3 py-2 text-status-ok">
-            {t("counters.ready", { count: counters.data.counters.ready })}
-          </span>
-          <span className="rounded-md bg-status-bad-bg px-3 py-2 font-semibold text-status-bad">
-            ⏰ {t("counters.late", { count: counters.data.counters.late })}
-          </span>
+  return (
+    <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-5 pb-16">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="mt-1 text-sm text-muted">{t("subtitle")}</p>
+        </div>
+        <Link href="/ordres/reception" className="btn btn-primary min-h-11">
+          <Plus size={16} aria-hidden /> {t("newReception")}
+        </Link>
+      </header>
+
+      {counters.isLoading && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-[74px] animate-pulse rounded-lg bg-surface-2" />
+          ))}
+        </div>
+      )}
+      {c && (
+        <div
+          className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"
+          aria-label={t("title")}
+        >
+          <Kpi icon={Wrench} label={t("kpi.active")} value={c.active} />
+          <Kpi
+            icon={Hand}
+            label={t("kpi.awaitingApproval")}
+            value={c.awaitingApproval}
+            tone={c.awaitingApproval > 0 ? "warn" : "neutral"}
+          />
+          <Kpi
+            icon={Package}
+            label={t("kpi.waitingParts")}
+            value={c.waitingParts}
+            tone={c.waitingParts > 0 ? "bad" : "neutral"}
+          />
+          <Kpi icon={CircleCheck} label={t("kpi.ready")} value={c.ready} tone="ok" />
+          <Kpi
+            icon={TriangleAlert}
+            label={t("kpi.late")}
+            value={c.late}
+            tone={c.late > 0 ? "bad" : "neutral"}
+            pressed={filters.late}
+            onClick={() => toggle("late")}
+          />
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        {(["board", "list"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            aria-pressed={view === v}
-            className={`min-h-11 rounded-md px-3 ${view === v ? "bg-accent text-accent-foreground" : "bg-surface-2"}`}
-          >
-            {t(`views.${v}`)}
-          </button>
-        ))}
-        <span className="mx-1 hidden h-6 w-px bg-border sm:block" />
-        {(["mine", "late", "comeback"] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => toggle(key)}
-            aria-pressed={filters[key]}
-            className={`min-h-11 rounded-md border border-border px-3 ${filters[key] ? "bg-surface-2 font-semibold" : "bg-surface"}`}
-          >
-            {filters[key] ? "✓ " : ""}
-            {t(`filters.${key}`)}
-          </button>
-        ))}
-        <select
-          aria-label={t("filters.priority")}
-          className="min-h-11 rounded-md border border-border bg-surface px-2"
-          value={filters.priority ?? ""}
-          onChange={(e) =>
-            setFilters((f) => ({
-              ...f,
-              priority: (e.target.value || undefined) as Priority | undefined,
-            }))
-          }
-        >
-          <option value="">{t("filters.allPriorities")}</option>
-          {(["URGENT", "HIGH", "NORMAL", "LOW"] as const).map((p) => (
-            <option key={p} value={p}>
-              {t(`priority.${p}`)}
-            </option>
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex h-11 min-w-0 flex-1 basis-64 items-center gap-2 rounded-md border border-border bg-bg px-3 focus-within:border-primary">
+            <Search size={16} aria-hidden className="shrink-0 text-muted" />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+              placeholder={t("filters.search")}
+              aria-label={t("filters.search")}
+              value={filters.q}
+              onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+            />
+            {filters.q && (
+              <button
+                type="button"
+                aria-label={t("close")}
+                onClick={() => setFilters((f) => ({ ...f, q: "" }))}
+                className="flex h-8 w-8 items-center justify-center rounded text-muted hover:text-foreground"
+              >
+                <X size={14} aria-hidden />
+              </button>
+            )}
+          </label>
+          <div className="flex shrink-0 gap-1 rounded-lg bg-surface-2 p-1" role="group">
+            {VIEWS.map(({ key, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setView(key)}
+                aria-pressed={view === key}
+                className={`flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors ${
+                  view === key
+                    ? "bg-surface text-foreground shadow-sm"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                <Icon size={15} aria-hidden />
+                {t(`views.${key}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {FILTER_CHIPS.map(({ key, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => toggle(key)}
+              aria-pressed={filters[key]}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors ${
+                filters[key]
+                  ? "border-primary bg-primary font-medium text-primary-foreground"
+                  : "border-border bg-surface text-muted hover:border-primary hover:text-foreground"
+              }`}
+            >
+              {filters[key] ? <Check size={14} aria-hidden /> : <Icon size={14} aria-hidden />}
+              {t(`filters.${key}`)}
+            </button>
           ))}
-        </select>
-        {view === "list" && (
           <select
-            aria-label={t("filters.status")}
-            className="min-h-11 rounded-md border border-border bg-surface px-2"
-            value={filters.status ?? ""}
-            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value || undefined }))}
+            aria-label={t("filters.priority")}
+            className="h-9 rounded-full border border-border bg-surface px-3 text-sm text-foreground"
+            value={filters.priority ?? ""}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                priority: (e.target.value || undefined) as Priority | undefined,
+              }))
+            }
           >
-            <option value="">{t("filters.allStatuses")}</option>
-            {REPAIR_ORDER_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t(`status.${s}`)}
+            <option value="">{t("filters.allPriorities")}</option>
+            {(["URGENT", "HIGH", "NORMAL", "LOW"] as const).map((p) => (
+              <option key={p} value={p}>
+                {t(`priority.${p}`)}
               </option>
             ))}
           </select>
-        )}
+          {view === "list" && (
+            <select
+              aria-label={t("filters.status")}
+              className="h-9 rounded-full border border-border bg-surface px-3 text-sm text-foreground"
+              value={filters.status ?? ""}
+              onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value || undefined }))}
+            >
+              <option value="">{t("filters.allStatuses")}</option>
+              {REPAIR_ORDER_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {t(`status.${s}`)}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
-      <input
-        className="min-h-11 w-full rounded-md border border-border bg-surface px-3 text-sm"
-        placeholder={t("filters.search")}
-        aria-label={t("filters.search")}
-        value={filters.q}
-        onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
-      />
 
       {view === "board" ? <Board filters={filters} /> : <List filters={filters} />}
     </div>
+  );
+}
+
+const VIEWS = [
+  { key: "board", Icon: Columns3 },
+  { key: "list", Icon: ListIcon },
+] as const;
+
+const FILTER_CHIPS = [
+  { key: "mine", Icon: User },
+  { key: "late", Icon: TriangleAlert },
+  { key: "comeback", Icon: Undo2 },
+] as const;
+
+type Tone = "neutral" | "ok" | "warn" | "bad";
+
+const TONE_TEXT: Record<Tone, string> = {
+  neutral: "text-foreground",
+  ok: "text-status-ok",
+  warn: "text-status-warn",
+  bad: "text-status-bad",
+};
+
+const TONE_ICON_BG: Record<Tone, string> = {
+  neutral: "bg-surface-2 text-foreground",
+  ok: "bg-status-ok-bg text-status-ok",
+  warn: "bg-status-warn-bg text-status-warn",
+  bad: "bg-status-bad-bg text-status-bad",
+};
+
+function Kpi({
+  icon: Icon,
+  label,
+  value,
+  tone = "neutral",
+  pressed,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  tone?: Tone;
+  pressed?: boolean;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${TONE_ICON_BG[tone]}`}
+      >
+        <Icon size={18} aria-hidden />
+      </span>
+      <span className="min-w-0 text-left">
+        <span
+          className={`block text-2xl leading-none font-semibold tabular-nums ${TONE_TEXT[tone]}`}
+        >
+          {value}
+        </span>
+        <span className="mt-1 block truncate text-xs font-medium text-muted">{label}</span>
+      </span>
+    </>
+  );
+  const base = "flex min-h-11 items-center gap-3 rounded-lg border bg-surface p-4";
+  if (!onClick) return <div className={`${base} border-border`}>{body}</div>;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={pressed}
+      className={`${base} transition-colors hover:border-primary ${pressed ? "border-primary ring-1 ring-primary" : "border-border"}`}
+    >
+      {body}
+    </button>
   );
 }
 
@@ -163,46 +303,45 @@ type Card = BoardCard;
 function CardBody({ card, timeZone }: { card: Card; timeZone?: string }) {
   return (
     <>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs font-semibold">{card.number}</span>
+      <div className="orders-card-header">
+        <span className="orders-card-number">{card.number}</span>
         {card.priority !== "NORMAL" && (
-          <span
-            className={`text-xs ${card.priority === "URGENT" ? "font-semibold text-status-bad" : "text-muted"}`}
-          >
+          <span className={`orders-card-priority ${card.priority.toLowerCase()}`}>
             {t(`priority.${card.priority}`)}
           </span>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="orders-card-vehicle">
         <PlateBadge plate={card.vehicle.plate} />
-        <span className="text-sm">
+        <span>
           {card.vehicle.make} {card.vehicle.model}
         </span>
       </div>
-      <span className="truncate text-sm font-medium">{card.customer.displayName}</span>
-      <span className="text-xs text-muted">
-        🔧 {card.mechanics.length ? card.mechanics.join(", ") : t("card.noMechanic")}
+      <span className="orders-card-customer">{card.customer.displayName}</span>
+      <span className="orders-card-mechanic flex items-center gap-1.5">
+        <Wrench size={12} aria-hidden className="shrink-0" />
+        {card.mechanics.length ? card.mechanics.join(", ") : t("card.noMechanic")}
       </span>
       <PromiseCountdown promisedAt={card.promisedAt} late={card.late} timeZone={timeZone} />
-      <div className="flex flex-wrap gap-1 text-xs">
+      <div className="orders-card-badges">
         {card.pendingApproval && (
-          <span className="rounded bg-status-warn-bg px-1.5 py-0.5 text-status-warn">
-            ✋ {t("card.pendingApproval")}
+          <span className="orders-card-badge approval">
+            <Hand size={11} aria-hidden /> {t("card.pendingApproval")}
           </span>
         )}
         {card.waitingParts && (
-          <span className="rounded bg-status-bad-bg px-1.5 py-0.5 text-status-bad">
-            📦 {t("card.waitingParts")}
+          <span className="orders-card-badge parts">
+            <Package size={11} aria-hidden /> {t("card.waitingParts")}
           </span>
         )}
         {card.isComeback && (
-          <span className="rounded bg-status-bad-bg px-1.5 py-0.5 text-status-bad">
-            ↩ {t("card.comeback")}
+          <span className="orders-card-badge comeback">
+            <Undo2 size={11} aria-hidden /> {t("card.comeback")}
           </span>
         )}
         {card.signaturePending && (
-          <span className="rounded bg-surface-2 px-1.5 py-0.5">
-            ✍ {t("card.signaturePending")}
+          <span className="orders-card-badge signature">
+            <PenLine size={11} aria-hidden /> {t("card.signaturePending")}
           </span>
         )}
       </div>
@@ -259,77 +398,83 @@ function Board({ filters }: { filters: Filters }) {
   const all = data.columns.flatMap((c) => c.cards);
 
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <div className="orders-board">
       {message && (
         <p
           role={message.tone === "bad" ? "alert" : "status"}
-          className={`rounded-md p-2 text-sm ${message.tone === "bad" ? "bg-status-bad-bg text-status-bad" : "bg-status-ok-bg text-status-ok"}`}
+          className={`orders-message ${message.tone}`}
         >
           {message.text}
         </p>
       )}
       {total === 0 ? (
-        <EmptyState
-          title={t("empty")}
-          action={
-            <Link href="/ordres/reception" className="btn btn-primary">
-              {t("newReception")}
-            </Link>
-          }
-        />
+        <div className="rounded-lg border border-dashed border-border bg-surface">
+          <EmptyState
+            icon={<Car size={28} aria-hidden />}
+            title={
+              filters.q || filters.late || filters.mine || filters.comeback || filters.priority
+                ? t("emptyFiltered")
+                : t("empty")
+            }
+            description={t("emptyHint")}
+            action={
+              <Link href="/ordres/reception" className="btn btn-primary min-h-11">
+                <Plus size={16} aria-hidden /> {t("newReception")}
+              </Link>
+            }
+          />
+        </div>
       ) : (
         <>
-          <p className="hidden text-xs text-muted md:block">{t("board.dragHint")}</p>
-          <div className="w-full max-w-full overflow-x-auto pb-2" data-testid="kanban">
-            <div className="flex gap-3">
-              {data.columns.map((column) => (
-                <section
-                  key={column.status}
-                  aria-label={t(`status.${column.status}`)}
-                  data-status={column.status}
-                  className="flex w-64 shrink-0 flex-col gap-2 rounded-lg bg-surface-2 p-2"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e: DragEvent) => {
-                    const id = e.dataTransfer.getData("text/plain");
-                    const card = all.find((c) => c.id === id);
-                    if (card) move(card, column.status);
-                  }}
-                >
-                  <header className="flex items-center justify-between px-1">
-                    <RepairOrderStatusBadge status={column.status} />
-                    <span className="text-xs text-muted">{visible(column.cards).length}</span>
-                  </header>
+          <p className="orders-drag-hint">{t("board.dragHint")}</p>
+          <div className="orders-kanban" data-testid="kanban">
+            {data.columns.map((column) => (
+              <section
+                key={column.status}
+                aria-label={t(`status.${column.status}`)}
+                data-status={column.status}
+                className="orders-kanban-column"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e: DragEvent) => {
+                  const id = e.dataTransfer.getData("text/plain");
+                  const card = all.find((c) => c.id === id);
+                  if (card) move(card, column.status);
+                }}
+              >
+                <header className="orders-kanban-header">
+                  <RepairOrderStatusBadge status={column.status} />
+                  <span className="orders-kanban-count">{visible(column.cards).length}</span>
+                </header>
+                <div className="orders-kanban-cards">
                   {visible(column.cards).map((card) => (
                     <article
                       key={card.id}
                       draggable
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-                      className={`flex flex-col gap-1 rounded-md border bg-surface p-2 ${card.late ? "border-status-bad" : "border-border"}`}
+                      className={`orders-card ${card.late ? "late" : ""}`}
                     >
-                      <Link
-                        href={`/ordres/${card.id}`}
-                        className="flex flex-col gap-1 hover:underline-offset-2"
-                      >
+                      <Link href={`/ordres/${card.id}`}>
                         <CardBody card={card} timeZone={data.timeZone} />
                       </Link>
-                      <select
-                        aria-label={`${t("board.moveTo")} ${card.number}`}
-                        className="mt-1 min-h-11 rounded border border-border bg-surface px-1 text-xs"
-                        value=""
-                        onChange={(e) => move(card, e.target.value)}
-                      >
-                        <option value="">{t("board.moveTo")}</option>
-                        {BOARD_STATUSES.filter((s) => s !== card.status).map((s) => (
-                          <option key={s} value={s}>
-                            {t(`status.${s}`)}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="orders-card-move">
+                        <select
+                          aria-label={`${t("board.moveTo")} ${card.number}`}
+                          value=""
+                          onChange={(e) => move(card, e.target.value)}
+                        >
+                          <option value="">{t("board.moveTo")}</option>
+                          {BOARD_STATUSES.filter((s) => s !== card.status).map((s) => (
+                            <option key={s} value={s}>
+                              {t(`status.${s}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </article>
                   ))}
-                </section>
-              ))}
-            </div>
+                </div>
+              </section>
+            ))}
           </div>
         </>
       )}
@@ -357,19 +502,32 @@ function List({ filters }: { filters: Filters }) {
   const timeZone = pages[0]?.timeZone;
   if (items.length === 0) {
     return (
-      <EmptyState
-        title={filters.q || filters.status || filters.late ? t("emptyFiltered") : t("empty")}
-        action={
-          <Link href="/ordres/reception" className="btn btn-primary">
-            {t("newReception")}
-          </Link>
-        }
-      />
+      <div className="rounded-lg border border-dashed border-border bg-surface">
+        <EmptyState
+          icon={<Car size={28} aria-hidden />}
+          title={
+            filters.q ||
+            filters.status ||
+            filters.late ||
+            filters.mine ||
+            filters.comeback ||
+            filters.priority
+              ? t("emptyFiltered")
+              : t("empty")
+          }
+          description={t("emptyHint")}
+          action={
+            <Link href="/ordres/reception" className="btn btn-primary min-h-11">
+              <Plus size={16} aria-hidden /> {t("newReception")}
+            </Link>
+          }
+        />
+      </div>
     );
   }
   return (
-    <div className="flex flex-col gap-2">
-      <div className="hidden grid-cols-[8rem_6rem_7rem_1fr_9rem_8rem_9rem_8rem] gap-2 px-3 text-xs font-semibold text-muted lg:grid">
+    <div className="orders-list">
+      <div className="orders-list-header">
         <span>{t("columns.number")}</span>
         <span>{t("columns.date")}</span>
         <span>{t("columns.plate")}</span>
@@ -377,22 +535,22 @@ function List({ filters }: { filters: Filters }) {
         <span>{t("columns.status")}</span>
         <span>{t("columns.advisor")}</span>
         <span>{t("columns.promise")}</span>
-        <span className="text-right">{t("columns.total")}</span>
+        <span>{t("columns.total")}</span>
       </div>
       {items.map((o) => (
         <Link
           key={o.id}
           href={`/ordres/${o.id}`}
-          className={`flex flex-col gap-1 rounded-lg border bg-surface p-3 hover:bg-surface-2 lg:grid lg:grid-cols-[8rem_6rem_7rem_1fr_9rem_8rem_9rem_8rem] lg:items-center lg:gap-2 ${o.late ? "border-status-bad" : "border-border"}`}
+          className={`orders-list-item ${o.late ? "late" : ""}`}
         >
-          <span className="font-mono text-sm font-semibold">{o.number}</span>
-          <span className="text-sm text-muted">{formatDay(o.createdAt, timeZone)}</span>
+          <span className="orders-list-number">{o.number}</span>
+          <span className="orders-list-date">{formatDay(o.createdAt, timeZone)}</span>
           <span>
             <PlateBadge plate={o.vehicle.plate} />
           </span>
-          <span className="truncate text-sm">
+          <span className="orders-list-customer">
             {o.customer.displayName}
-            <span className="text-muted">
+            <span>
               {" "}
               · {o.vehicle.make} {o.vehicle.model}
             </span>
@@ -400,9 +558,9 @@ function List({ filters }: { filters: Filters }) {
           <span>
             <RepairOrderStatusBadge status={o.status} />
           </span>
-          <span className="truncate text-sm text-muted">{o.advisorName ?? "—"}</span>
+          <span className="orders-list-advisor">{o.advisorName ?? "—"}</span>
           <PromiseCountdown promisedAt={o.promisedAt} late={o.late} timeZone={timeZone} />
-          <span className="text-sm font-semibold lg:text-right">{formatFCFA(o.totalEstimate)}</span>
+          <span className="orders-list-total">{formatFCFA(o.totalEstimate)}</span>
         </Link>
       ))}
       {query.hasNextPage && (

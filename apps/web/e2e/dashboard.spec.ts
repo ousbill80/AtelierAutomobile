@@ -4,8 +4,9 @@ import { computeSessionAbsoluteExpiry } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 
 // M12 §12 — parcours principal (partie 1, étape 2.4) : le gérant ouvre le tableau de bord
-// sur mobile (390 px), voit ses créances et le montant récupéré grâce aux relances, change la
-// période (URL partageable), consulte l'onglet Relances, puis touche « Créances en cours ».
+// sur mobile (390 px), voit la vue du jour (onglet « Aujourd'hui »), puis ses créances et le
+// montant récupéré grâce aux relances, change la période (URL partageable), consulte l'onglet
+// Relances, puis touche « Créances en cours ».
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -123,6 +124,25 @@ test("gérant mobile : créances, relances, changement de période", async ({ pa
 
   await page.goto("/tableau-de-bord");
   await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible();
+
+  // Onglet par défaut du gérant : « Aujourd'hui » (vue du jour de l'atelier).
+  await expect(page.getByRole("tab", { name: "Aujourd'hui" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(
+    page.getByTestId("kpi-card").filter({ hasText: "Encaissé aujourd'hui" }),
+  ).toContainText("185 000 FCFA");
+  await expect(page.getByTestId("kpi-card").filter({ hasText: "Factures impayées" })).toContainText(
+    "1 240 000 FCFA",
+  );
+  await expect(page.getByText(/Échue depuis \d+ jours/)).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(
+    false,
+  );
+
+  await page.getByRole("tab", { name: "Synthèse" }).click();
+  await expect(page).toHaveURL(/onglet=synthese/);
   const receivablesCard = page.getByRole("link", { name: /Créances en cours/ }).first();
   await expect(receivablesCard).toContainText("1 240 000 FCFA");
   await expect(

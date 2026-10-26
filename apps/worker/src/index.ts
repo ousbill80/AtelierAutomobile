@@ -76,6 +76,7 @@ async function main(): Promise<void> {
   const { processPortalTokensExpireJob } = await import("./jobs/portal");
   const { CASH_JOB_NAMES, CASH_QUEUE_NAME, scheduleCashJobs } = await import("./queues/cash");
   const { processCashCheckUnclosedJob } = await import("./jobs/cashJobs");
+  const { processTreasurySyncJob } = await import("./jobs/treasuryJobs");
   const { WORKSHOP_JOB_NAMES, WORKSHOP_QUEUE_NAME, scheduleWorkshopJobs } =
     await import("./queues/workshop");
   const { processWorkshopCloseStaleJob, processWorkshopLateAlertsJob } =
@@ -348,6 +349,7 @@ async function main(): Promise<void> {
     CASH_QUEUE_NAME,
     async (job: Job) => {
       if (job.name === CASH_JOB_NAMES.CHECK_UNCLOSED) return processCashCheckUnclosedJob();
+      if (job.name === CASH_JOB_NAMES.TREASURY_SYNC) return processTreasurySyncJob();
       logger.warn({ jobName: job.name }, "cash : job inconnu, ignoré");
       return undefined;
     },

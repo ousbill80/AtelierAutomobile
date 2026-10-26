@@ -49,114 +49,118 @@ model Organization {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  sites                  Site[]
-  memberships            Membership[]
-  customers              Customer[]
-  customerContacts       CustomerContact[]
-  vehicles               Vehicle[]
-  mileageReadings        MileageReading[]
-  vehicleEvents          VehicleEvent[]
-  appointments           Appointment[]
-  repairOrders           RepairOrder[]
-  repairOrderLines       RepairOrderLine[]
-  inspections            Inspection[]
-  inspectionItems        InspectionItem[]
-  inspectionTemplates    InspectionTemplate[]
-  laborOperations        LaborOperation[]
-  orStatusHistory        RepairOrderStatusHistory[] // M04 §14
-  vehicleRecommendations VehicleRecommendation[] // M04 §14
-  timeEntries            TimeEntry[]
-  attendances            Attendance[]
-  qualityChecks          QualityCheck[] // M06 §14
-  partRequests           PartRequest[] // M06 §14
-  workNotes              WorkNote[] // M06 §14
-  techSyncOperations     TechSyncOperation[] // M06 (hors §14)
-  quotes                 Quote[]
-  quoteLines             QuoteLine[]
-  products               Product[]
-  stockLevels            StockLevel[]
-  stockMovements         StockMovement[]
-  suppliers              Supplier[]
-  purchaseOrders         PurchaseOrder[]
-  purchaseOrderLines     PurchaseOrderLine[]
-  stockReservations      StockReservation[]
-  stockCounts            StockCount[]
-  stockCountLines        StockCountLine[]
-  stockTransfers         StockTransfer[]
-  stockTransferLines     StockTransferLine[]
-  invoices               Invoice[]
-  invoiceLines           InvoiceLine[]
-  payments               Payment[]
-  paymentAllocations     PaymentAllocation[]
-  paymentLinks           PaymentLink[]
-  cashSessions           CashSession[]
-  expenses               Expense[]
-  cashDrops              CashDrop[]
-  refunds                Refund[]
-  customerCredits        CustomerCredit[]
-  paymentWebhookLogs     PaymentWebhookLog[]
-  collectionCases        CollectionCase[]
-  paymentPromises        PaymentPromise[]
-  collectionNotes        CollectionNote[]
-  creditOverrides        CreditOverride[]
-  paymentAttributions    PaymentAttribution[]
-  receivableSnapshots    ReceivableSnapshot[]
-  reminderRules          ReminderRule[]
-  reminders              Reminder[]
-  reminderSuppressions   ReminderSuppression[]
-  messageTemplates       MessageTemplate[]
-  conversations          Conversation[]
-  messages               Message[]
-  messageStatusEvents    MessageStatusEvent[]
-  messageAttempts        MessageAttempt[]
-  quickReplies           QuickReply[]
-  channelConfigs         ChannelConfig[]
-  optOuts                OptOut[]
-  paymentProviderConfigs PaymentProviderConfig[]
-  fneConfig              FneConfig?
-  dataSources            DataSource[]
-  syncAgents             SyncAgent[]
-  syncBatches            SyncBatch[]
-  importJobs             ImportJob[]
-  importRowErrors        ImportRowError[]
-  externalRefs           ExternalRef[]
-  apiKeys                ApiKey[]
-  webhookEndpoints       WebhookEndpoint[]
-  webhookDeliveries      WebhookDelivery[]
-  idempotencyKeys        IdempotencyKey[]
-  apiRequestLogs         ApiRequestLog[]
-  insuranceCompanies     InsuranceCompany[]
-  insuranceClaims        InsuranceClaim[]
-  claimActivities        ClaimActivity[]
-  claimFollowUps         ClaimFollowUp[]
-  attachments            Attachment[]
-  documentSequences      DocumentSequence[]
-  auditLogs              AuditLog[]
-  domainEvents           DomainEvent[]
-  notifications          Notification[]
-  aiInteractions         AiInteraction[]
-  aiSuggestions          AiSuggestion[]
-  aiAssistantThreads     AiAssistantThread[]
-  aiAssistantMessages    AiAssistantMessage[]
-  automationRules        AutomationRule[]
-  automationRuns         AutomationRun[]
-  holidays               Holiday[]
-  usageCounters          UsageCounter[] // M15 §14
-  dataExports            DataExport[] // M15 §14
-  portalTokens           PortalToken[]
-  portalAccesses         PortalAccess[]
-  portalSessions         PortalSession[]
-  portalOtpChallenges    PortalOtpChallenge[]
-  customerFeedbacks      CustomerFeedback[]
-  resourceBlocks         ResourceBlock[]
-  invitations            Invitation[]
-  rolePermissions        RolePermission[]
-  trustedDevices         TrustedDevice[]
-  customerNotes          CustomerNote[]
-  duplicateDismissals    DuplicateDismissal[]
-  customerSegments       CustomerSegment[]
-  vehicleMakes           VehicleMake[]
-  vehicleModels          VehicleModel[]
+  sites                   Site[]
+  memberships             Membership[]
+  customers               Customer[]
+  customerContacts        CustomerContact[]
+  vehicles                Vehicle[]
+  mileageReadings         MileageReading[]
+  vehicleEvents           VehicleEvent[]
+  appointments            Appointment[]
+  repairOrders            RepairOrder[]
+  repairOrderLines        RepairOrderLine[]
+  inspections             Inspection[]
+  inspectionItems         InspectionItem[]
+  inspectionTemplates     InspectionTemplate[]
+  laborOperations         LaborOperation[]
+  orStatusHistory         RepairOrderStatusHistory[] // M04 §14
+  vehicleRecommendations  VehicleRecommendation[] // M04 §14
+  timeEntries             TimeEntry[]
+  attendances             Attendance[]
+  qualityChecks           QualityCheck[] // M06 §14
+  partRequests            PartRequest[] // M06 §14
+  workNotes               WorkNote[] // M06 §14
+  techSyncOperations      TechSyncOperation[] // M06 (hors §14)
+  quotes                  Quote[]
+  quoteLines              QuoteLine[]
+  products                Product[]
+  stockLevels             StockLevel[]
+  stockMovements          StockMovement[]
+  suppliers               Supplier[]
+  purchaseOrders          PurchaseOrder[]
+  purchaseOrderLines      PurchaseOrderLine[]
+  stockReservations       StockReservation[]
+  stockCounts             StockCount[]
+  stockCountLines         StockCountLine[]
+  stockTransfers          StockTransfer[]
+  stockTransferLines      StockTransferLine[]
+  invoices                Invoice[]
+  invoiceLines            InvoiceLine[]
+  payments                Payment[]
+  paymentAllocations      PaymentAllocation[]
+  paymentLinks            PaymentLink[]
+  cashSessions            CashSession[]
+  expenses                Expense[]
+  cashDrops               CashDrop[]
+  treasuryAccounts        TreasuryAccount[] // M18
+  treasuryMovements       TreasuryMovement[]
+  treasuryTransfers       TreasuryTransfer[]
+  treasuryReconciliations TreasuryReconciliation[]
+  refunds                 Refund[]
+  customerCredits         CustomerCredit[]
+  paymentWebhookLogs      PaymentWebhookLog[]
+  collectionCases         CollectionCase[]
+  paymentPromises         PaymentPromise[]
+  collectionNotes         CollectionNote[]
+  creditOverrides         CreditOverride[]
+  paymentAttributions     PaymentAttribution[]
+  receivableSnapshots     ReceivableSnapshot[]
+  reminderRules           ReminderRule[]
+  reminders               Reminder[]
+  reminderSuppressions    ReminderSuppression[]
+  messageTemplates        MessageTemplate[]
+  conversations           Conversation[]
+  messages                Message[]
+  messageStatusEvents     MessageStatusEvent[]
+  messageAttempts         MessageAttempt[]
+  quickReplies            QuickReply[]
+  channelConfigs          ChannelConfig[]
+  optOuts                 OptOut[]
+  paymentProviderConfigs  PaymentProviderConfig[]
+  fneConfig               FneConfig?
+  dataSources             DataSource[]
+  syncAgents              SyncAgent[]
+  syncBatches             SyncBatch[]
+  importJobs              ImportJob[]
+  importRowErrors         ImportRowError[]
+  externalRefs            ExternalRef[]
+  apiKeys                 ApiKey[]
+  webhookEndpoints        WebhookEndpoint[]
+  webhookDeliveries       WebhookDelivery[]
+  idempotencyKeys         IdempotencyKey[]
+  apiRequestLogs          ApiRequestLog[]
+  insuranceCompanies      InsuranceCompany[]
+  insuranceClaims         InsuranceClaim[]
+  claimActivities         ClaimActivity[]
+  claimFollowUps          ClaimFollowUp[]
+  attachments             Attachment[]
+  documentSequences       DocumentSequence[]
+  auditLogs               AuditLog[]
+  domainEvents            DomainEvent[]
+  notifications           Notification[]
+  aiInteractions          AiInteraction[]
+  aiSuggestions           AiSuggestion[]
+  aiAssistantThreads      AiAssistantThread[]
+  aiAssistantMessages     AiAssistantMessage[]
+  automationRules         AutomationRule[]
+  automationRuns          AutomationRun[]
+  holidays                Holiday[]
+  usageCounters           UsageCounter[] // M15 §14
+  dataExports             DataExport[] // M15 §14
+  portalTokens            PortalToken[]
+  portalAccesses          PortalAccess[]
+  portalSessions          PortalSession[]
+  portalOtpChallenges     PortalOtpChallenge[]
+  customerFeedbacks       CustomerFeedback[]
+  resourceBlocks          ResourceBlock[]
+  invitations             Invitation[]
+  rolePermissions         RolePermission[]
+  trustedDevices          TrustedDevice[]
+  customerNotes           CustomerNote[]
+  duplicateDismissals     DuplicateDismissal[]
+  customerSegments        CustomerSegment[]
+  vehicleMakes            VehicleMake[]
+  vehicleModels           VehicleModel[]
 }
 
 enum TaxRegime {
@@ -217,6 +221,7 @@ model Site {
   cashSessions      CashSession[]
   expenses          Expense[]
   cashDrops         CashDrop[] // M08 §14
+  treasuryAccounts  TreasuryAccount[] // M18 : caisse du site
   refunds           Refund[] // M08 §14
   insuranceClaims   InsuranceClaim[] // M16 §14
   holidays          Holiday[]
@@ -333,6 +338,7 @@ model Membership {
   cashSessionsClosed          CashSession[]         @relation("CashSessionClosedBy")
   expensesCreated             Expense[]             @relation("ExpenseCreatedBy")
   expensesApproved            Expense[]             @relation("ExpenseApprovedBy")
+  expensesRejected            Expense[]             @relation("ExpenseRejectedBy")
   cashSessionsReviewed        CashSession[]         @relation("CashSessionReviewedBy")
   cashDropsCreated            CashDrop[]            @relation("CashDropCreatedBy")
   refundsCreated              Refund[]              @relation("RefundCreatedBy")
@@ -2137,6 +2143,9 @@ model CashSession {
   reviewedById   String?
   reviewedAt     DateTime?
   reviewComment  String? // M08 (hors §14) : commentaire de validation de l'écart (cash.review)
+  // M08 §14 (caisse et clôture) : instantané figé à la clôture (totaux par mode, dépenses,
+  // versements, remboursements, nombres d'opérations) — source du Z de caisse.
+  closingSummary Json?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   site         Site         @relation(fields: [siteId], references: [id])
@@ -2154,27 +2163,44 @@ model CashSession {
 
 model Expense {
   // décaissements de caisse (petites dépenses)
-  id             String    @id @default(cuid(2))
-  organizationId String
-  siteId         String
-  cashSessionId  String?
-  category       String
-  amount         Int
-  description    String
-  paidAt         DateTime
-  createdById    String?
+  id                String        @id @default(cuid(2))
+  organizationId    String
+  siteId            String
+  cashSessionId     String?
+  category          String
+  amount            Int
+  description       String
+  paidAt            DateTime
+  createdById       String?
   // M08 (hors §14) : justificatif (US-M08-12) et validation au-delà du seuil (RG-M08-30)
-  attachmentId   String?
-  approvedById   String?
-  approvedAt     DateTime?
+  attachmentId      String?
+  approvedById      String?
+  approvedAt        DateTime?
+  // M08 §14 (caisse et clôture) : circuit de validation au-delà du seuil (RG-M08-30) —
+  // PENDING ne réduit pas les espèces attendues ; REJECTED garde la trace et le motif.
+  status            ExpenseStatus @default(APPROVED)
+  rejectedById      String?
+  rejectedAt        DateTime?
+  decisionComment   String?
+  // M18 §14 : dépense payée hors caisse depuis un compte de trésorerie (banque, mobile money…)
+  treasuryAccountId String?
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  site         Site         @relation(fields: [siteId], references: [id])
-  cashSession  CashSession? @relation(fields: [cashSessionId], references: [id])
-  createdBy    Membership?  @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
-  approvedBy   Membership?  @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
+  treasuryAccount TreasuryAccount? @relation("ExpenseTreasuryAccount", fields: [treasuryAccountId], references: [id])
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  site            Site             @relation(fields: [siteId], references: [id])
+  cashSession     CashSession?     @relation(fields: [cashSessionId], references: [id])
+  createdBy       Membership?      @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  approvedBy      Membership?      @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy      Membership?      @relation("ExpenseRejectedBy", fields: [rejectedById], references: [id])
 
   @@index([organizationId, siteId])
+  @@index([organizationId, status, paidAt])
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model CashDrop {
@@ -2188,13 +2214,140 @@ model CashDrop {
   reference      String?
   createdById    String?
   createdAt      DateTime @default(now())
+  // M18 §14 : compte de trésorerie qui reçoit le versement (coffre, banque) ; null = compte par défaut
+  toAccountId    String?
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  site         Site         @relation(fields: [siteId], references: [id])
-  cashSession  CashSession  @relation(fields: [cashSessionId], references: [id])
-  createdBy    Membership?  @relation("CashDropCreatedBy", fields: [createdById], references: [id])
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  site         Site             @relation(fields: [siteId], references: [id])
+  cashSession  CashSession      @relation(fields: [cashSessionId], references: [id])
+  createdBy    Membership?      @relation("CashDropCreatedBy", fields: [createdById], references: [id])
+  toAccount    TreasuryAccount? @relation("CashDropToAccount", fields: [toAccountId], references: [id])
 
   @@index([organizationId, cashSessionId])
+}
+
+// M18 — Trésorerie : comptes (caisses, coffre, banques, mobile money), grand livre immuable,
+// virements, rapprochements.
+enum TreasuryAccountType {
+  CASH_REGISTER
+  SAFE
+  BANK
+  MOBILE_MONEY
+  OTHER
+}
+
+enum TreasuryDirection {
+  IN
+  OUT
+}
+
+enum TreasuryMovementKind {
+  PAYMENT
+  PAYMENT_REVERSAL
+  REFUND
+  EXPENSE
+  CASH_DROP
+  CASH_VARIANCE
+  TRANSFER
+  INCOME
+  ADJUSTMENT
+}
+
+model TreasuryAccount {
+  id             String              @id @default(cuid(2))
+  organizationId String
+  siteId         String? // CASH_REGISTER : caisse de ce site (une par site)
+  type           TreasuryAccountType
+  name           String
+  paymentMethods PaymentMethod[] // RG-M18-02 : modes encaissés sur ce compte (hors CASH)
+  bankName       String?
+  accountRef     String? // n° de compte / numéro marchand (masqué à l'affichage)
+  ledgerAccount  String? // compte SYSCOHADA (521, 571, 585…)
+  openingBalance Int                 @default(0)
+  openingDate    DateTime            @db.Date
+  archivedAt     DateTime?
+  createdById    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @default(now()) @updatedAt
+
+  organization    Organization             @relation(fields: [organizationId], references: [id])
+  site            Site?                    @relation(fields: [siteId], references: [id])
+  movements       TreasuryMovement[]
+  reconciliations TreasuryReconciliation[]
+  transfersOut    TreasuryTransfer[]       @relation("TreasuryTransferFrom")
+  transfersIn     TreasuryTransfer[]       @relation("TreasuryTransferTo")
+  cashDrops       CashDrop[]               @relation("CashDropToAccount")
+  expenses        Expense[]                @relation("ExpenseTreasuryAccount")
+
+  @@unique([organizationId, name])
+  @@index([organizationId, type])
+}
+
+model TreasuryMovement {
+  // RG-M18-03 : grand livre immuable ; correction par contre-passation (`reversalOfId`).
+  id                   String               @id @default(cuid(2))
+  organizationId       String
+  accountId            String
+  siteId               String?
+  direction            TreasuryDirection
+  kind                 TreasuryMovementKind
+  amount               Int
+  occurredAt           DateTime
+  label                String
+  category             String?
+  reference            String?
+  sourceType           String? // payment | refund | expense | cash_drop | cash_session | transfer | reconciliation | manual
+  sourceId             String?
+  transferId           String?
+  counterpartAccountId String?
+  reversalOfId         String?              @unique
+  reconciliationId     String?
+  createdById          String?
+  createdAt            DateTime             @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  account      TreasuryAccount @relation(fields: [accountId], references: [id])
+
+  @@unique([organizationId, accountId, sourceType, sourceId, kind])
+  @@index([organizationId, accountId, occurredAt])
+  @@index([organizationId, occurredAt])
+}
+
+model TreasuryTransfer {
+  id             String   @id @default(cuid(2))
+  organizationId String
+  fromAccountId  String
+  toAccountId    String
+  amount         Int
+  occurredAt     DateTime
+  reference      String?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  fromAccount  TreasuryAccount @relation("TreasuryTransferFrom", fields: [fromAccountId], references: [id])
+  toAccount    TreasuryAccount @relation("TreasuryTransferTo", fields: [toAccountId], references: [id])
+
+  @@index([organizationId, occurredAt])
+}
+
+model TreasuryReconciliation {
+  id               String   @id @default(cuid(2))
+  organizationId   String
+  accountId        String
+  statementDate    DateTime @db.Date
+  statementBalance Int
+  computedBalance  Int
+  difference       Int
+  notes            String?
+  createdById      String?
+  createdAt        DateTime @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  account      TreasuryAccount @relation(fields: [accountId], references: [id])
+
+  @@index([organizationId, accountId, statementDate])
 }
 
 model Refund {

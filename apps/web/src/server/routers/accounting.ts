@@ -152,7 +152,11 @@ export async function buildAccountingExport(
   }
   if (wants("CA")) {
     const [expenses, drops] = await Promise.all([
-      tenantDb.expense.findMany({ where: { paidAt: range }, orderBy: { paidAt: "asc" } }),
+      // RG-M08-30 : seules les dépenses validées sont des sorties de caisse.
+      tenantDb.expense.findMany({
+        where: { paidAt: range, status: "APPROVED" },
+        orderBy: { paidAt: "asc" },
+      }),
       tenantDb.cashDrop.findMany({ where: { createdAt: range }, orderBy: { createdAt: "asc" } }),
     ]);
     entries.push(
