@@ -74,6 +74,7 @@ describe("numbering router (M15 étape 1.2, RG-M15-06/RG-M15-12)", () => {
     await adminDb.documentSequence.deleteMany({
       where: { organizationId: { in: [orgA.id, orgB.id] } },
     });
+    await adminDb.site.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.session.deleteMany({
       where: { userId: { in: [ownerA.userId, ownerB.userId] } },
     });
@@ -130,6 +131,60 @@ describe("numbering router (M15 étape 1.2, RG-M15-06/RG-M15-12)", () => {
         startAt: 5,
       }),
     ).rejects.toThrow(/doit être supérieure/);
+  });
+
+  it("numbering.update applique la valeur de départ sans séquence existante (remise annuelle)", async () => {
+    const caller = callerFactory(await contextFor(ownerA.token));
+    const updated = await caller.numbering.update({
+      docType: "AV",
+      prefix: "AV",
+      pattern: "{TYPE}-{AAAA}-{N}",
+      padding: 6,
+      perSite: false,
+      resetYearly: true,
+      startAt: 120,
+    });
+    expect(updated.nextValue).toBe(120);
+    expect(updated.nextPreview).toBe(`AV-${currentYear}-000120`);
+    const seq = await adminDb.documentSequence.findFirst({
+      where: { organizationId: orgA.id, docType: "AV", year: currentYear, siteId: null },
+    });
+    expect(seq?.lastValue).toBe(119);
+  });
+
+  it("numbering.update applique la valeur de départ par site sans remise annuelle (year = 0)", async () => {
+    const caller = callerFactory(await contextFor(ownerA.token));
+    const sites = await Promise.all(
+      ["NUMA", "NUMB"].map((code) =>
+        adminDb.site.create({ data: { organizationId: orgA.id, name: `Site ${code}`, code } }),
+      ),
+    );
+    await adminDb.documentSequence.create({
+      data: { organizationId: orgA.id, siteId: sites[0]!.id, docType: "OR", year: 0, lastValue: 7 },
+    });
+    const input = {
+      docType: "OR" as const,
+      prefix: "OR",
+      pattern: "{TYPE}-{SITE}-{N}",
+      padding: 5,
+      perSite: true,
+      resetYearly: false,
+    };
+
+    await expect(caller.numbering.update({ ...input, startAt: 7 })).rejects.toThrow(
+      /doit être supérieure/,
+    );
+
+    const updated = await caller.numbering.update({ ...input, startAt: 50 });
+    expect(updated.nextValue).toBe(50);
+    const seqs = await adminDb.documentSequence.findMany({
+      where: { organizationId: orgA.id, docType: "OR", year: 0 },
+    });
+    expect(seqs).toHaveLength(2);
+    expect(seqs.every((seq) => seq.lastValue === 49)).toBe(true);
+
+    const refetched = await caller.numbering.get();
+    expect(refetched.find((r) => r.docType === "OR")!.nextValue).toBe(50);
   });
 
   it("numbering.update refuse une facture numérotée par site (RG-M15-12, document fiscal — A4)", async () => {

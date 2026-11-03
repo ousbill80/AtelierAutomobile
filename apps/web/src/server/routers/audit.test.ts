@@ -83,6 +83,40 @@ describe("audit router (M01)", () => {
     expect(secondPage.nextCursor).toBeUndefined();
   });
 
+  it("audit.list inclut toute la journée de fin (toDate) et le nom de l'utilisateur", async () => {
+    // Organisation au fuseau Africa/Abidjan (UTC) : une entrée à 15:30 hier (dans la rétention).
+    const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const previousDay = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
+    await adminDb.auditLog.create({
+      data: {
+        organizationId: org.id,
+        userId: manager.userId,
+        action: "numbering.updated",
+        entity: "Organization",
+        entityId: org.id,
+        reason: "Reprise de l'ancien logiciel",
+        createdAt: new Date(`${day}T15:30:00.000Z`),
+      },
+    });
+    const caller = callerFactory(await contextFor(manager.token));
+    const sameDay = await caller.audit.list({
+      limit: 50,
+      action: "numbering.updated",
+      fromDate: day,
+      toDate: day,
+    });
+    expect(sameDay.items).toHaveLength(1);
+    expect(sameDay.items[0]!.user?.name).toBe("Manager Audit Test");
+    expect(sameDay.items[0]!.reason).toBe("Reprise de l'ancien logiciel");
+
+    const dayBefore = await caller.audit.list({
+      limit: 50,
+      action: "numbering.updated",
+      toDate: previousDay,
+    });
+    expect(dayBefore.items).toHaveLength(0);
+  });
+
   it("audit.export refuse quand aucune entrée ne correspond aux filtres", async () => {
     const caller = callerFactory(await contextFor(manager.token));
     await expect(caller.audit.export({ action: "inconnu.action" })).rejects.toThrow(

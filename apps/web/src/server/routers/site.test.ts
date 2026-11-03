@@ -122,6 +122,13 @@ describe("site router (M01)", () => {
       bays: [{ name: "Pont 1", type: "LIFT" }],
     });
     const existingBay = created.bays[0]!;
+    // Horaires par défaut : sans eux, aucun créneau de RDV n'est proposé.
+    expect(created.openingHours).toMatchObject({
+      mon: [["08:00", "18:00"]],
+      fri: [["08:00", "18:00"]],
+      sat: [["08:00", "13:00"]],
+      sun: [],
+    });
 
     const updated = await caller.site.update({
       siteId: created.id,
@@ -141,6 +148,17 @@ describe("site router (M01)", () => {
       where: { organizationId: proOrg.id, action: "site.updated", entityId: created.id },
     });
     expect(log).not.toBeNull();
+
+    const withPhone = await caller.site.update({
+      siteId: created.id,
+      phone: "07 07 12 34 56",
+      whatsappNumber: "+225 05 05 12 34 56",
+    });
+    expect(withPhone.phone).toBe("+2250707123456");
+    expect(withPhone.whatsappNumber).toBe("+2250505123456");
+    await expect(caller.site.update({ siteId: created.id, phone: "123" })).rejects.toThrow(
+      /Téléphone du site invalide/,
+    );
   });
 
   it("site.deactivate refuse un site avec des OR ouverts puis réussit une fois clôturés", async () => {

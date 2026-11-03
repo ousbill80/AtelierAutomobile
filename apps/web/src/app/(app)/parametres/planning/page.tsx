@@ -2,10 +2,11 @@
 
 // US-M03-10 — `/parametres/planning` : durées par type, pas, capacité, productivité, pause,
 // portail (types, délai, horizon, validation), et indisponibilités (pont / mécanicien / site).
-// Les jours fériés restent gérés dans Paramètres › Sites (modèle Holiday, 04 A1).
+// Les jours fériés et fermetures sont gérés dans Paramètres › Jours fériés
+// (`/parametres/jours-feries`, modèle Holiday, 04 A1).
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Button, CheckboxRow, Field, Input, Select } from "@atelieros/ui";
+import { Button, CheckboxRow, Field, Input, Modal, PageHead, Select } from "@atelieros/ui";
 import { addDaysToKey, localDateKey } from "@atelieros/core/planning";
 import type { PlanningSettingsInput } from "@atelieros/validators";
 import { trpc } from "@/trpc/react";
@@ -20,10 +21,7 @@ export default function PlanningSettingsPage() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 pb-16">
-      <div>
-        <h1 className="text-2xl font-semibold">{ta("settings.title")}</h1>
-        <p className="text-sm text-muted">{ta("settings.description")}</p>
-      </div>
+      <PageHead title={ta("settings.title")} description={ta("settings.description")} />
       {!canManage && me.data && <p className="alert-banner warn">{ta("settings.forbidden")}</p>}
       {settings.isLoading && <div className="skeleton h-96" />}
       {settings.isError && (
@@ -245,7 +243,10 @@ function SettingsForm({
       <div className="rounded-lg border border-border p-4 text-sm">
         <p className="font-semibold">{ta("settings.holidays")}</p>
         <p className="text-muted">
-          <Link href="/parametres/sites" className="underline">
+          <Link
+            href="/parametres/jours-feries"
+            className="inline-flex min-h-11 items-center underline"
+          >
             {ta("settings.holidaysHint")}
           </Link>
         </p>
@@ -304,8 +305,18 @@ function BlocksSection({
       else onToast(info?.message ?? ta("errors.generic"), "bad");
     },
   });
+  const [toDelete, setToDelete] = useState<string | null>(null);
   const remove = trpc.resourceBlock.delete.useMutation({
-    onSuccess: () => utils.resourceBlock.invalidate(),
+    onSuccess() {
+      setToDelete(null);
+      utils.resourceBlock.invalidate();
+      utils.appointment.invalidate();
+      onToast(ta("settings.blockDeleted"), "ok");
+    },
+    onError(e) {
+      setToDelete(null);
+      onToast(errorInfo(e)?.message ?? ta("errors.generic"), "bad");
+    },
   });
 
   function submit(force: boolean) {
@@ -324,6 +335,9 @@ function BlocksSection({
     <section className="flex flex-col gap-3 rounded-lg border border-border p-4">
       <h2 className="font-semibold">{ta("settings.blocks")}</h2>
       {blocks.isLoading && <div className="skeleton h-16" />}
+      {blocks.isError && (
+        <ErrorBox message={ta("settings.blocksLoadError")} onRetry={() => blocks.refetch()} />
+      )}
       {blocks.data && blocks.data.length === 0 && (
         <p className="text-sm text-muted">{ta("settings.blocksEmpty")}</p>
       )}
@@ -349,7 +363,7 @@ function BlocksSection({
                 size="sm"
                 variant="ghost"
                 className="min-h-11"
-                onClick={() => remove.mutate({ id: b.id })}
+                onClick={() => setToDelete(b.id)}
               >
                 {ta("settings.blockDelete")}
               </Button>
@@ -393,8 +407,7 @@ function BlocksSection({
               className="min-h-11"
             />
             <Input
-              label=" "
-              aria-label={ta("settings.blockFrom")}
+              label={ta("settings.blockFromTime")}
               type="time"
               value={form.fromTime}
               onChange={(e) => setForm({ ...form, fromTime: e.target.value })}
@@ -408,8 +421,7 @@ function BlocksSection({
               className="min-h-11"
             />
             <Input
-              label=" "
-              aria-label={ta("settings.blockTo")}
+              label={ta("settings.blockToTime")}
               type="time"
               value={form.toTime}
               onChange={(e) => setForm({ ...form, toTime: e.target.value })}
@@ -426,7 +438,13 @@ function BlocksSection({
           {conflict && (
             <div className="alert-banner warn flex-wrap">
               <span>{conflict}</span>
-              <Button type="button" size="sm" variant="secondary" onClick={() => submit(true)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="min-h-11"
+                onClick={() => submit(true)}
+              >
                 {ta("settings.blockForce")}
               </Button>
             </div>
@@ -435,6 +453,30 @@ function BlocksSection({
             {ta("settings.blockAdd")}
           </Button>
         </form>
+      )}
+      {toDelete && (
+        <Modal
+          open
+          title={ta("settings.blockDeleteTitle")}
+          onClose={() => setToDelete(null)}
+          footer={
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" className="min-h-11" onClick={() => setToDelete(null)}>
+                {ta("settings.blockDeleteCancel")}
+              </Button>
+              <Button
+                variant="danger"
+                className="min-h-11"
+                loading={remove.isPending}
+                onClick={() => remove.mutate({ id: toDelete })}
+              >
+                {ta("settings.blockDelete")}
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-sm">{ta("settings.blockDeleteBody")}</p>
+        </Modal>
       )}
     </section>
   );

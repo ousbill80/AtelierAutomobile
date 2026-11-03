@@ -21,40 +21,20 @@ function docTypeLabel(docType: string): string {
   return DOC_TYPES.includes(docType) ? t(`documentSettings.types.${docType}`) : docType;
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** Rendu local identique à `renderNumberingPattern` (core) pour l'aperçu en direct. */
-function renderPattern(config: NumberingConfig, value: number, year: number): string {
-  const yyyy = String(year).padStart(4, "0");
+function renderPattern(
+  config: NumberingConfig,
+  value: number,
+  period: { year: number; month: number },
+): string {
+  const yyyy = String(period.year).padStart(4, "0");
   return config.pattern
     .replace(/\{TYPE\}/g, config.prefix)
     .replace(/\{SITE\}/g, config.perSite ? "XXX" : "")
     .replace(/\{AAAA\}/g, yyyy)
     .replace(/\{AA\}/g, yyyy.slice(-2))
-    .replace(/\{MM\}/g, "")
+    .replace(/\{MM\}/g, String(period.month).padStart(2, "0"))
     .replace(/\{N+\}/g, String(value).padStart(config.padding, "0"));
-}
-
-/** Retrouve la valeur séquentielle contenue dans l'aperçu renvoyé par le serveur. */
-function extractNextValue(config: NumberingConfig, preview: string, year: number): number {
-  const yyyy = String(year).padStart(4, "0");
-  const source = config.pattern
-    .split(/(\{[A-Z]+\})/)
-    .map((part) => {
-      if (/^\{N+\}$/.test(part)) return "(\\d+)";
-      if (part === "{TYPE}") return escapeRegex(config.prefix);
-      if (part === "{SITE}") return config.perSite ? "XXX" : "";
-      if (part === "{AAAA}") return yyyy;
-      if (part === "{AA}") return yyyy.slice(-2);
-      if (part === "{MM}") return "";
-      return escapeRegex(part);
-    })
-    .join("");
-  const match = new RegExp(`^${source}$`).exec(preview);
-  const value = match?.[1] ? Number(match[1]) : NaN;
-  return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
 function Skeleton() {
@@ -72,7 +52,8 @@ export default function DocumentSettingsPage() {
   const numbering = trpc.numbering.get.useQuery();
   const [editing, setEditing] = useState<NumberingRow | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const period = { year: now.getFullYear(), month: now.getMonth() + 1 };
 
   if (numbering.isError || me.isError) {
     return (
@@ -176,7 +157,7 @@ export default function DocumentSettingsPage() {
         <NumberingModal
           key={editing.docType}
           row={editing}
-          year={year}
+          period={period}
           onClose={() => setEditing(null)}
           onSaved={(docType) => {
             setEditing(null);
@@ -191,17 +172,17 @@ export default function DocumentSettingsPage() {
 
 function NumberingModal({
   row,
-  year,
+  period,
   onClose,
   onSaved,
 }: {
   row: NumberingRow;
-  year: number;
+  period: { year: number; month: number };
   onClose: () => void;
   onSaved: (docType: string) => void;
 }) {
   const fiscal = FISCAL_TYPES.has(row.docType);
-  const currentNext = extractNextValue(row.config, row.nextPreview, year);
+  const currentNext = row.nextValue;
   const [prefix, setPrefix] = useState(row.config.prefix);
   const [pattern, setPattern] = useState(row.config.pattern);
   const [padding, setPadding] = useState(String(row.config.padding));
@@ -235,7 +216,7 @@ function NumberingModal({
             resetYearly,
           },
           previewValue,
-          year,
+          period,
         )
       : "—";
 

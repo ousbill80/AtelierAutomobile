@@ -8,6 +8,16 @@ const auditFiltersSchema = z.object({
   siteId: z.string().min(1).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
+  /** Jour civil (`yyyy-MM-dd`, fuseau de l'organisation) : début de période inclus. */
+  fromDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date de début invalide (format attendu : AAAA-MM-JJ).")
+    .optional(),
+  /** Jour civil (`yyyy-MM-dd`, fuseau de l'organisation) : fin de période incluse (toute la journée). */
+  toDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date de fin invalide (format attendu : AAAA-MM-JJ).")
+    .optional(),
 });
 
 export const auditListInputSchema = auditFiltersSchema.extend({

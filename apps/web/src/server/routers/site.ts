@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
-import { validateOpeningHours } from "@atelieros/core";
+import { normalizePhoneCI, validateOpeningHours, type OpeningHours } from "@atelieros/core";
 import { assertPlanLimit } from "../plan/limits";
-import { db } from "@atelieros/db";
+import { db, type Prisma } from "@atelieros/db";
 import {
   createSiteInputSchema,
   deactivateSiteInputSchema,
@@ -22,6 +22,41 @@ const OPEN_REPAIR_ORDER_STATUSES = [
   "QUALITY_CHECK",
   "READY",
 ] as const;
+
+/**
+ * Horaires appliqués à un nouveau site sans horaires saisis : sans eux, aucun créneau de RDV
+ * n'est proposé (`openIntervalsForDay` renvoie un jour fermé). Lun–ven 08:00–18:00, sam 08:00–13:00.
+ */
+const DEFAULT_SITE_OPENING_HOURS: OpeningHours = {
+  mon: [["08:00", "18:00"]],
+  tue: [["08:00", "18:00"]],
+  wed: [["08:00", "18:00"]],
+  thu: [["08:00", "18:00"]],
+  fri: [["08:00", "18:00"]],
+  sat: [["08:00", "13:00"]],
+  sun: [],
+};
+
+/** Numéro du site normalisé E.164 (`core/phone`) ; `undefined`/`null` laissés tels quels. */
+function normalizeSitePhone(
+  value: string | null | undefined,
+  label: string,
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  let e164: string | null = null;
+  try {
+    e164 = normalizePhoneCI(value).e164;
+  } catch {
+    e164 = null;
+  }
+  if (!e164) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `${label} invalide : saisissez un numéro ivoirien à 10 chiffres (ex. 07 07 12 34 56).`,
+    });
+  }
+  return e164;
+}
 
 export const siteRouter = router({
   list: requirePermission("site:manage").query(async ({ ctx }) => {
@@ -50,6 +85,8 @@ export const siteRouter = router({
       if (input.openingHours) {
         withDomainErrors(() => validateOpeningHours(input.openingHours!));
       }
+      const phone = normalizeSitePhone(input.phone, "Téléphone du site");
+      const whatsappNumber = normalizeSitePhone(input.whatsappNumber, "Numéro WhatsApp du site");
 
       const site = await tenantDb.site.create({
         data: {
@@ -58,9 +95,9 @@ export const siteRouter = router({
           code: input.code,
           address: input.address,
           commune: input.commune,
-          phone: input.phone,
-          whatsappNumber: input.whatsappNumber,
-          openingHours: input.openingHours ?? {},
+          phone,
+          whatsappNumber,
+          openingHours: (input.openingHours ?? DEFAULT_SITE_OPENING_HOURS) as Prisma.InputJsonValue,
           bays: {
             create: input.bays.map((bay) => ({
               name: bay.name,
@@ -123,6 +160,8 @@ export const siteRouter = router({
       if (input.openingHours) {
         withDomainErrors(() => validateOpeningHours(input.openingHours!));
       }
+      const phone = normalizeSitePhone(input.phone, "Téléphone du site");
+      const whatsappNumber = normalizeSitePhone(input.whatsappNumber, "Numéro WhatsApp du site");
 
       const newBays = (input.bays ?? []).filter((bay) => !bay.id);
       const existingBays = (input.bays ?? []).filter(
@@ -136,8 +175,8 @@ export const siteRouter = router({
           code: input.code,
           address: input.address,
           commune: input.commune,
-          phone: input.phone,
-          whatsappNumber: input.whatsappNumber,
+          phone,
+          whatsappNumber,
           openingHours: input.openingHours,
           bays: {
             update: existingBays.map((bay) => ({

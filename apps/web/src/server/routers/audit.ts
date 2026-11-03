@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
+import { addDaysToKey, zonedInstant } from "@atelieros/core";
 import type { Prisma } from "@atelieros/db";
-import { db, loadOrgPlan } from "@atelieros/db";
+import { adminDb, db, loadOrgPlan } from "@atelieros/db";
 import { auditExportInputSchema, auditListInputSchema } from "@atelieros/validators";
 import { requirePermission, router } from "../trpc";
 
@@ -17,19 +18,36 @@ function buildWhere(
     siteId?: string;
     from?: Date;
     to?: Date;
+    fromDate?: string;
+    toDate?: string;
   },
   retentionStart: Date,
+  timeZone: string,
 ): Prisma.AuditLogWhereInput {
+  // `fromDate`/`toDate` : jours civils dans le fuseau de l'organisation, bornes incluses
+  // (la fin couvre toute la journée : < minuit du lendemain).
+  const requestedFrom = input.fromDate ? zonedInstant(input.fromDate, 0, timeZone) : input.from;
+  const endExclusive = input.toDate
+    ? zonedInstant(addDaysToKey(input.toDate, 1), 0, timeZone)
+    : undefined;
   // RG-M15-26 : profondeur consultable selon le plan (90 j / 1 an / 3 ans), conservation 10 ans.
-  const from = input.from && input.from > retentionStart ? input.from : retentionStart;
+  const from = requestedFrom && requestedFrom > retentionStart ? requestedFrom : retentionStart;
   return {
     userId: input.userId,
     action: input.action,
     entity: input.entity,
     entityId: input.entityId,
     siteId: input.siteId,
-    createdAt: { gte: from, lte: input.to },
+    createdAt: { gte: from, lte: input.to, lt: endExclusive },
   };
+}
+
+async function orgTimeZone(organizationId: string): Promise<string> {
+  const org = await adminDb.organization.findUniqueOrThrow({
+    where: { id: organizationId },
+    select: { timezone: true },
+  });
+  return org.timezone;
 }
 
 async function retentionStartFor(organizationId: string): Promise<Date> {
@@ -53,8 +71,13 @@ export const auditRouter = router({
       const { cursor, limit, ...filters } = input;
 
       const items = await tenantDb.auditLog.findMany({
-        where: buildWhere(filters, await retentionStartFor(ctx.organizationId)),
+        where: buildWhere(
+          filters,
+          await retentionStartFor(ctx.organizationId),
+          await orgTimeZone(ctx.organizationId),
+        ),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        include: { user: { select: { name: true } } },
         take: limit + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       });
@@ -74,7 +97,11 @@ export const auditRouter = router({
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
 
       const rows = await tenantDb.auditLog.findMany({
-        where: buildWhere(input, await retentionStartFor(ctx.organizationId)),
+        where: buildWhere(
+          input,
+          await retentionStartFor(ctx.organizationId),
+          await orgTimeZone(ctx.organizationId),
+        ),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: EXPORT_MAX_ROWS,
       });
