@@ -7,6 +7,7 @@ import { useRef, useState, type ReactNode } from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import {
   ArrowDownLeft,
+  ArrowRight,
   ArrowUpRight,
   Banknote,
   Camera,
@@ -214,14 +215,25 @@ function ErrorLine({ message }: { message?: string | null }) {
   );
 }
 
-function Footer({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+function Footer({
+  onClose,
+  hint,
+  children,
+}: {
+  onClose: () => void;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
-    <>
-      <Button variant="secondary" className="min-h-11" onClick={onClose}>
-        {tt("cancel")}
-      </Button>
-      {children}
-    </>
+    <div className="flex w-full flex-col gap-2">
+      {hint ? <p className="text-sm text-muted">{hint}</p> : null}
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" className="min-h-11" onClick={onClose}>
+          {tt("cancel")}
+        </Button>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -503,17 +515,23 @@ export function TransferModal({
   });
   const source = accounts.find((a) => a.id === from);
   const overdraft = source?.type === "BANK" && (amount ?? 0) > source.balance;
+  const blocker =
+    !from || !to || from === to
+      ? tt("transferForm.needAccounts")
+      : !amount
+        ? tt("transferForm.needAmount")
+        : undefined;
   return (
     <Modal
       open
       title={tt("transferForm.title")}
       onClose={onClose}
       footer={
-        <Footer onClose={onClose}>
+        <Footer onClose={onClose} hint={blocker}>
           <Button
             className="min-h-11"
             loading={m.isPending}
-            disabled={!amount || !from || !to || from === to}
+            disabled={!!blocker}
             onClick={() =>
               amount &&
               m.mutate({
@@ -531,58 +549,74 @@ export function TransferModal({
         </Footer>
       }
     >
-      <SelectField
-        label={tt("transferForm.from")}
-        value={from}
-        onChange={(v) => {
-          setFrom(v);
-          if (v === to) setTo(accounts.find((a) => a.id !== v)?.id ?? "");
-        }}
-      >
-        {accounts.map((a) => (
-          <option key={a.id} value={a.id}>
-            {accountOption(a)}
-          </option>
-        ))}
-      </SelectField>
-      <SelectField label={tt("transferForm.to")} value={to} onChange={setTo}>
-        {accounts
-          .filter((a) => a.id !== from)
-          .map((a) => (
-            <option key={a.id} value={a.id}>
-              {accountOption(a)}
-            </option>
-          ))}
-      </SelectField>
-      <MoneyInput
-        label={tt("transferForm.amount")}
-        value={amount}
-        onChange={setAmount}
-        hint={
-          source ? tt("transferForm.available", { amount: formatFCFA(source.balance) }) : undefined
-        }
-      />
-      {overdraft && (
-        <p className="-mt-2 mb-4 flex items-center gap-2 text-sm text-status-warn">
-          <TriangleAlert size={15} aria-hidden /> {tt("transferForm.overdraft")}
-        </p>
-      )}
-      <div className="grid gap-x-4 sm:grid-cols-2">
-        <DateField label={tt("transferForm.date")} value={date} max={todayKey} onChange={setDate} />
-        <Input
-          label={tt("transferForm.reference")}
-          value={reference}
-          maxLength={80}
-          onChange={(e) => setReference(e.target.value)}
-        />
+      <div className="form-dense flex flex-col gap-4">
+        <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3">
+          <SelectField
+            label={tt("transferForm.from")}
+            value={from}
+            onChange={(v) => {
+              setFrom(v);
+              if (v === to) setTo(accounts.find((a) => a.id !== v)?.id ?? "");
+            }}
+          >
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {accountOption(a)}
+              </option>
+            ))}
+          </SelectField>
+          <span className="flex justify-center text-muted" aria-hidden>
+            <ArrowRight size={18} className="rotate-90" />
+          </span>
+          <SelectField label={tt("transferForm.to")} value={to} onChange={setTo}>
+            {accounts
+              .filter((a) => a.id !== from)
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountOption(a)}
+                </option>
+              ))}
+          </SelectField>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <MoneyInput
+            label={tt("transferForm.amount")}
+            value={amount}
+            onChange={setAmount}
+            hint={
+              source
+                ? tt("transferForm.available", { amount: formatFCFA(source.balance) })
+                : undefined
+            }
+          />
+          <DateField
+            label={tt("transferForm.date")}
+            value={date}
+            max={todayKey}
+            onChange={setDate}
+          />
+        </div>
+        {overdraft && (
+          <p className="flex items-center gap-2 text-sm text-status-warn">
+            <TriangleAlert size={15} aria-hidden /> {tt("transferForm.overdraft")}
+          </p>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            label={tt("transferForm.reference")}
+            value={reference}
+            maxLength={80}
+            onChange={(e) => setReference(e.target.value)}
+          />
+          <Input
+            label={tt("transferForm.notes")}
+            value={notes}
+            maxLength={300}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+        <ErrorLine message={m.error?.message} />
       </div>
-      <Input
-        label={tt("transferForm.notes")}
-        value={notes}
-        maxLength={300}
-        onChange={(e) => setNotes(e.target.value)}
-      />
-      <ErrorLine message={m.error?.message} />
     </Modal>
   );
 }
@@ -614,6 +648,8 @@ export function TreasuryExpenseModal({
   const [date, setDate] = useState(todayKey);
   const [file, setFile] = useState<{ name: string; mimeType: string; base64: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const me = trpc.me.get.useQuery();
+  const canApprove = (me.data?.permissions ?? []).includes("cash:expense_approve");
   const upload = trpc.treasury.uploadExpenseReceipt.useMutation();
   const m = trpc.treasury.expense.useMutation({
     async onSuccess(expense) {
@@ -632,18 +668,30 @@ export function TreasuryExpenseModal({
       onDone(pending ? tt("expenseForm.pendingDone") : tt("expenseForm.done"), pending);
     },
   });
-  const pending = (amount ?? 0) > approval;
+  const pending = !canApprove && (amount ?? 0) > approval;
+  const hint = canApprove
+    ? tt("expenseForm.selfApproveHint")
+    : pending
+      ? tt("expenseForm.pendingHint", { amount: formatFCFA(approval) })
+      : tt("expenseForm.underHint", { amount: formatFCFA(approval) });
+  const blocker = !accountId
+    ? tt("expenseForm.needAccount")
+    : !amount
+      ? tt("expenseForm.needAmount")
+      : !description.trim()
+        ? tt("expenseForm.needDescription")
+        : undefined;
   return (
     <Modal
       open
       title={tt("expenseForm.title")}
       onClose={onClose}
       footer={
-        <Footer onClose={onClose}>
+        <Footer onClose={onClose} hint={blocker}>
           <Button
             className="min-h-11"
             loading={m.isPending || upload.isPending}
-            disabled={!amount || !description.trim() || !accountId}
+            disabled={!!blocker}
             onClick={() => amount && m.mutate({ accountId, category, amount, description, date })}
           >
             {tt("save")}
@@ -651,64 +699,73 @@ export function TreasuryExpenseModal({
         </Footer>
       }
     >
-      <p className="mb-4 text-sm text-muted">{tt("expenseForm.hint")}</p>
-      <SelectField label={tt("expenseForm.account")} value={accountId} onChange={setAccountId}>
-        {payable.map((a) => (
-          <option key={a.id} value={a.id}>
-            {accountOption(a)}
-          </option>
-        ))}
-      </SelectField>
-      <div className="grid gap-x-4 sm:grid-cols-2">
-        <SelectField label={tt("expenseForm.category")} value={category} onChange={setCategory}>
-          {categories.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </SelectField>
-        <MoneyInput label={tt("expenseForm.amount")} value={amount} onChange={setAmount} />
-      </div>
-      <Input
-        label={tt("expenseForm.description")}
-        value={description}
-        maxLength={300}
-        onChange={(e) => setDescription(e.target.value)}
-      />
-      <DateField label={tt("expenseForm.date")} value={date} max={todayKey} onChange={setDate} />
-      <div className="field">
-        <span className="text-[13px] font-semibold">{tt("expenseForm.receipt")}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-11"
-            onClick={() => inputRef.current?.click()}
-          >
-            {file ? <Paperclip size={16} aria-hidden /> : <Camera size={16} aria-hidden />}
-            {file ? tt("expenseForm.receiptChange") : tt("expenseForm.receiptTake")}
-          </Button>
-          {file && <span className="min-w-0 truncate text-sm text-muted">{file.name}</span>}
+      <div className="form-dense flex flex-col gap-4">
+        <p className="text-sm text-muted">{tt("expenseForm.hint")}</p>
+        <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3">
+          <SelectField label={tt("expenseForm.account")} value={accountId} onChange={setAccountId}>
+            {payable.map((a) => (
+              <option key={a.id} value={a.id}>
+                {accountOption(a)}
+              </option>
+            ))}
+          </SelectField>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SelectField label={tt("expenseForm.category")} value={category} onChange={setCategory}>
+              {categories.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </SelectField>
+            <MoneyInput label={tt("expenseForm.amount")} value={amount} onChange={setAmount} />
+          </div>
+          <Input
+            label={tt("expenseForm.description")}
+            value={description}
+            maxLength={300}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <div className="grid items-end gap-3 sm:grid-cols-2">
+            <DateField
+              label={tt("expenseForm.date")}
+              value={date}
+              max={todayKey}
+              onChange={setDate}
+            />
+            <div className="field">
+              <span className="text-[13px] font-semibold">{tt("expenseForm.receipt")}</span>
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-12 w-full"
+                onClick={() => inputRef.current?.click()}
+              >
+                {file ? <Paperclip size={16} aria-hidden /> : <Camera size={16} aria-hidden />}
+                {file ? tt("expenseForm.receiptChange") : tt("expenseForm.receiptTake")}
+              </Button>
+              {file && <span className="min-w-0 truncate text-sm text-muted">{file.name}</span>}
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void readReceipt(f).then(setFile);
+                }}
+              />
+            </div>
+          </div>
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (f) void readReceipt(f).then(setFile);
-          }}
-        />
+        <p
+          className={`flex items-start gap-2 rounded-md p-3 text-sm ${
+            pending ? "bg-status-warn-bg text-status-warn" : "bg-surface-2 text-muted"
+          }`}
+        >
+          <Hourglass size={15} aria-hidden className="mt-0.5 shrink-0" />
+          {hint}
+        </p>
+        <ErrorLine message={m.error?.message} />
       </div>
-      <p
-        className={`flex items-start gap-2 rounded-md p-3 text-sm ${
-          pending ? "bg-status-warn-bg text-status-warn" : "bg-surface-2 text-muted"
-        }`}
-      >
-        <Hourglass size={15} aria-hidden className="mt-0.5 shrink-0" />
-        {tt("expenseForm.pendingHint", { amount: formatFCFA(approval) })}
-      </p>
-      <ErrorLine message={m.error?.message} />
     </Modal>
   );
 }
@@ -745,17 +802,24 @@ export function MovementModal({
     setChoice(next);
     setCategory((next === "income" ? categories.income : categories.adjustment)[0] ?? "");
   };
+  const blocker = !accountId
+    ? tt("movementForm.needAccount")
+    : !amount
+      ? tt("movementForm.needAmount")
+      : label.trim().length < 3
+        ? tt("movementForm.needLabel")
+        : undefined;
   return (
     <Modal
       open
       title={tt("movementForm.title")}
       onClose={onClose}
       footer={
-        <Footer onClose={onClose}>
+        <Footer onClose={onClose} hint={blocker}>
           <Button
             className="min-h-11"
             loading={m.isPending}
-            disabled={!amount || label.trim().length < 3 || !accountId}
+            disabled={!!blocker}
             onClick={() =>
               amount &&
               m.mutate({
@@ -775,64 +839,77 @@ export function MovementModal({
         </Footer>
       }
     >
-      <div className="field">
-        <span className="text-[13px] font-semibold">{tt("movementForm.kind")}</span>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup">
-          {(["income", "adjustmentIn", "adjustmentOut"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="radio"
-              aria-checked={choice === k}
-              onClick={() => select(k)}
-              className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-2 text-sm font-medium ${
-                choice === k
-                  ? "border-accent bg-accent/10"
-                  : "border-border text-muted hover:border-accent"
-              }`}
+      <div className="form-dense flex flex-col gap-4">
+        <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3">
+          <div className="field">
+            <span className="text-[13px] font-semibold">{tt("movementForm.kind")}</span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup">
+              {(["income", "adjustmentIn", "adjustmentOut"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={choice === k}
+                  onClick={() => select(k)}
+                  className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-2 text-sm font-medium ${
+                    choice === k
+                      ? "border-accent bg-accent/10 text-foreground"
+                      : "border-border bg-surface text-muted hover:border-accent"
+                  }`}
+                >
+                  {k === "adjustmentOut" ? (
+                    <ArrowUpRight size={15} aria-hidden />
+                  ) : (
+                    <ArrowDownLeft size={15} aria-hidden />
+                  )}
+                  {tt(`movementForm.${k}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <SelectField label={tt("movementForm.account")} value={accountId} onChange={setAccountId}>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {accountOption(a)}
+              </option>
+            ))}
+          </SelectField>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SelectField
+              label={tt("movementForm.category")}
+              value={category}
+              onChange={setCategory}
             >
-              {k === "adjustmentOut" ? (
-                <ArrowUpRight size={15} aria-hidden />
-              ) : (
-                <ArrowDownLeft size={15} aria-hidden />
-              )}
-              {tt(`movementForm.${k}`)}
-            </button>
-          ))}
+              {list.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </SelectField>
+            <MoneyInput label={tt("movementForm.amount")} value={amount} onChange={setAmount} />
+          </div>
+          <Input
+            label={tt("movementForm.label")}
+            placeholder={tt("movementForm.labelPlaceholder")}
+            value={label}
+            maxLength={200}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DateField
+              label={tt("movementForm.date")}
+              value={date}
+              max={todayKey}
+              onChange={setDate}
+            />
+            <Input
+              label={tt("movementForm.reference")}
+              value={reference}
+              maxLength={80}
+              onChange={(e) => setReference(e.target.value)}
+            />
+          </div>
         </div>
+        <ErrorLine message={m.error?.message} />
       </div>
-      <SelectField label={tt("movementForm.account")} value={accountId} onChange={setAccountId}>
-        {accounts.map((a) => (
-          <option key={a.id} value={a.id}>
-            {accountOption(a)}
-          </option>
-        ))}
-      </SelectField>
-      <div className="grid gap-x-4 sm:grid-cols-2">
-        <SelectField label={tt("movementForm.category")} value={category} onChange={setCategory}>
-          {list.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </SelectField>
-        <MoneyInput label={tt("movementForm.amount")} value={amount} onChange={setAmount} />
-      </div>
-      <Input
-        label={tt("movementForm.label")}
-        placeholder={tt("movementForm.labelPlaceholder")}
-        value={label}
-        maxLength={200}
-        onChange={(e) => setLabel(e.target.value)}
-      />
-      <div className="grid gap-x-4 sm:grid-cols-2">
-        <DateField label={tt("movementForm.date")} value={date} max={todayKey} onChange={setDate} />
-        <Input
-          label={tt("movementForm.reference")}
-          value={reference}
-          maxLength={80}
-          onChange={(e) => setReference(e.target.value)}
-        />
-      </div>
-      <ErrorLine message={m.error?.message} />
     </Modal>
   );
 }

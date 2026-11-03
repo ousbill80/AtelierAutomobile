@@ -17,16 +17,34 @@ function toText(items: Template["items"]): string {
     .join("\n");
 }
 
+/**
+ * « Catégorie ; Libellé ; unité » par ligne. Une ligne sans « ; » (ou sans catégorie) n'est
+ * plus ignorée : elle devient un point de la catégorie par défaut, signalé sous l'éditeur.
+ */
 function fromText(text: string) {
-  return text
-    .split("\n")
-    .map((line) => line.split(";").map((p) => p.trim()))
-    .filter((parts) => parts[0] && parts[1])
-    .map(([category, label, unit]) => ({
-      category: category!,
-      label: label!,
-      ...(unit ? { measurementUnit: unit } : {}),
-    }));
+  const fallback = t("templates.defaultCategory");
+  const items: { category: string; label: string; measurementUnit?: string }[] = [];
+  const defaulted: string[] = [];
+  for (const line of text.split("\n")) {
+    const parts = line.split(";").map((p) => p.trim());
+    if (!parts.some(Boolean)) continue;
+    let category = parts[0] ?? "";
+    let label = parts[1] ?? "";
+    let unit = parts[2] ?? "";
+    if (!label) {
+      // « Libellé » seul, ou « Libellé ; » : pas de catégorie exploitable.
+      label = category || parts.slice(2).find(Boolean) || "";
+      category = "";
+      unit = "";
+    }
+    if (!label) continue;
+    if (!category) {
+      category = fallback;
+      defaulted.push(label);
+    }
+    items.push({ category, label, ...(unit ? { measurementUnit: unit } : {}) });
+  }
+  return { items, defaulted };
 }
 
 export default function InspectionTemplatesPage() {
@@ -38,15 +56,47 @@ export default function InspectionTemplatesPage() {
     text: string;
     isDefault: boolean;
   } | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState<Template | null>(null);
+  const refresh = () => void utils.inspectionTemplate.list.invalidate();
   const done = () => {
     setEditing(null);
-    void utils.inspectionTemplate.list.invalidate();
+    refresh();
   };
   const create = trpc.inspectionTemplate.create.useMutation({ onSuccess: done });
   const update = trpc.inspectionTemplate.update.useMutation({ onSuccess: done });
-  const duplicate = trpc.inspectionTemplate.duplicate.useMutation({ onSuccess: done });
-  const archive = trpc.inspectionTemplate.archive.useMutation({ onSuccess: done });
+  // Dupliquer ne ferme pas un éditeur ouvert (modifications en cours) ; sinon la copie s'ouvre
+  // directement pour être renommée.
+  const duplicate = trpc.inspectionTemplate.duplicate.useMutation({
+    onSuccess: (copy) => {
+      refresh();
+      setEditing(
+        (current) =>
+          current ?? {
+            id: copy.id,
+            name: copy.name,
+            text: toText(copy.items as unknown as Template["items"]),
+            isDefault: copy.isDefault,
+          },
+      );
+    },
+  });
+  const archive = trpc.inspectionTemplate.archive.useMutation({
+    onSuccess: () => {
+      setConfirmArchive(null);
+      refresh();
+    },
+  });
   const error = create.error ?? update.error ?? duplicate.error ?? archive.error;
+  const parsed = editing ? fromText(editing.text) : null;
+  // Modèle qui deviendra le défaut si on archive le défaut actuel (même règle que le serveur).
+  const nextDefault = (tpl: Template) =>
+    list.data
+      ?.filter((o) => o.isActive && o.id !== tpl.id)
+      .sort((a, b) => a.name.localeCompare(b.name))[0];
+  const onArchive = (tpl: Template) => {
+    if (tpl.isActive && tpl.isDefault) setConfirmArchive(tpl);
+    else archive.mutate({ id: tpl.id, archived: tpl.isActive });
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -60,6 +110,35 @@ export default function InspectionTemplatesPage() {
         }
       />
       {error && <ErrorBox message={error.message} />}
+      {confirmArchive && (
+        <section
+          role="alertdialog"
+          aria-labelledby="archive-default-title"
+          className="flex flex-col gap-2 rounded-lg border border-status-warn bg-surface p-3"
+        >
+          <p id="archive-default-title" className="text-sm font-medium">
+            ⚠{" "}
+            {nextDefault(confirmArchive)
+              ? t("templates.archiveDefaultWarning", {
+                  name: confirmArchive.name,
+                  next: nextDefault(confirmArchive)!.name,
+                })
+              : t("templates.archiveDefaultWarningLast", { name: confirmArchive.name })}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="min-h-11"
+              loading={archive.isPending}
+              onClick={() => archive.mutate({ id: confirmArchive.id, archived: true })}
+            >
+              {t("templates.archiveConfirm")}
+            </Button>
+            <Button variant="ghost" className="min-h-11" onClick={() => setConfirmArchive(null)}>
+              {t("cancel")}
+            </Button>
+          </div>
+        </section>
+      )}
       {editing && (
         <section className="flex flex-col gap-2 rounded-lg border border-accent bg-surface p-3">
           <Input
@@ -75,6 +154,15 @@ export default function InspectionTemplatesPage() {
               onChange={(e) => setEditing({ ...editing, text: e.target.value })}
             />
           </label>
+          {parsed && parsed.defaulted.length > 0 && (
+            <p role="status" className="text-sm text-status-warn">
+              ⚠{" "}
+              {t("templates.defaultedLines", {
+                category: t("templates.defaultCategory"),
+                labels: parsed.defaulted.join(", "),
+              })}
+            </p>
+          )}
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -90,7 +178,7 @@ export default function InspectionTemplatesPage() {
               onClick={() => {
                 const payload = {
                   name: editing.name,
-                  items: fromText(editing.text),
+                  items: fromText(editing.text).items,
                   isDefault: editing.isDefault,
                 };
                 if (editing.id) update.mutate({ id: editing.id, ...payload });
@@ -146,12 +234,7 @@ export default function InspectionTemplatesPage() {
               >
                 {t("templates.duplicate")}
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="min-h-11"
-                onClick={() => archive.mutate({ id: tpl.id, archived: tpl.isActive })}
-              >
+              <Button size="sm" variant="ghost" className="min-h-11" onClick={() => onArchive(tpl)}>
                 {tpl.isActive ? t("templates.archive") : t("templates.restore")}
               </Button>
             </div>

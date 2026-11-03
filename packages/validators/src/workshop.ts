@@ -79,6 +79,24 @@ export const editTimeEntryInputSchema = z
 
 export const reviewTimeEntryInputSchema = z.object({ id });
 
+/** Saisie ou correction de la présence du jour par le chef d'atelier. */
+export const recordAttendanceInputSchema = z
+  .object({
+    membershipId: id,
+    clockIn: z.coerce.date(),
+    clockOut: z.coerce.date().nullable(),
+    breakMinutes: z
+      .number()
+      .int()
+      .min(0)
+      .max(24 * 60),
+    reason,
+  })
+  .refine((v) => !v.clockOut || v.clockOut.getTime() > v.clockIn.getTime(), {
+    message: "Le départ doit être après l'arrivée.",
+    path: ["clockOut"],
+  });
+
 export const productivityInputSchema = z.object({
   siteId: id.optional(),
   from: z.coerce.date(),

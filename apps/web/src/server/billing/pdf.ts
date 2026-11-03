@@ -8,14 +8,25 @@ import {
 import { renderCashClosingPdf, renderInvoicePdf, renderReceiptPdf } from "@atelieros/pdf";
 import { buildInvoicePdfData, type CashSession, type Invoice, type Payment } from "@atelieros/db";
 import { sessionSummary } from "../routers/cash";
+import { ensurePortalQrUrl } from "../portal/documentQr";
 import { getAttachmentStorage } from "../storage";
 import type { OrgBillingContext, Tx } from "./service";
 
 export async function renderInvoicePdfFor(tx: Tx, org: OrgBillingContext, invoice: Invoice) {
   const storage = getAttachmentStorage();
-  return renderInvoicePdf(
-    await buildInvoicePdfData(tx, org, invoice, (key) => storage.getObjectBytes(key)),
-  );
+  const data = await buildInvoicePdfData(tx, org, invoice, (key) => storage.getObjectBytes(key));
+  const portalUrl =
+    invoice.number && invoice.status !== "DRAFT" && invoice.status !== "VOID"
+      ? await ensurePortalQrUrl(tx, {
+          organizationId: org.id,
+          scope: "INVOICE",
+          targetId: invoice.id,
+          customerId: invoice.customerId,
+          now: org.now,
+          issuedAt: invoice.issuedAt,
+        })
+      : null;
+  return renderInvoicePdf({ ...data, portalUrl });
 }
 
 export async function renderReceiptPdfFor(tx: Tx, org: OrgBillingContext, payment: Payment) {
@@ -25,7 +36,18 @@ export async function renderReceiptPdfFor(tx: Tx, org: OrgBillingContext, paymen
       : null,
     tx.paymentAllocation.findMany({
       where: { paymentId: payment.id, voidedAt: null },
-      include: { invoice: { select: { number: true, balance: true } } },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            number: true,
+            balance: true,
+            status: true,
+            issuedAt: true,
+            customerId: true,
+          },
+        },
+      },
     }),
     payment.receivedById
       ? tx.membership.findFirst({
@@ -39,6 +61,19 @@ export async function renderReceiptPdfFor(tx: Tx, org: OrgBillingContext, paymen
     hour: "2-digit",
     minute: "2-digit",
   }).format(payment.receivedAt);
+  const linked = allocations.find(
+    (a) => a.invoice.status !== "DRAFT" && a.invoice.status !== "VOID",
+  );
+  const qrText = linked
+    ? await ensurePortalQrUrl(tx, {
+        organizationId: org.id,
+        scope: "INVOICE",
+        targetId: linked.invoice.id,
+        customerId: payment.customerId ?? linked.invoice.customerId,
+        now: org.now,
+        issuedAt: linked.invoice.issuedAt,
+      })
+    : `Reçu ${payment.number} · ${payment.amount} FCFA`;
   return renderReceiptPdf({
     number: payment.number,
     receivedAt: `${formatDate(payment.receivedAt, org.timeZone)} ${time}`,
@@ -47,6 +82,7 @@ export async function renderReceiptPdfFor(tx: Tx, org: OrgBillingContext, paymen
       address: org.address,
       phone: org.phone,
       ncc: org.ncc,
+      logo: org.logoUrl,
     },
     customer: customer?.displayName ?? "—",
     method: METHOD_LABELS[payment.method as PaymentMethodLike],
@@ -60,6 +96,8 @@ export async function renderReceiptPdfFor(tx: Tx, org: OrgBillingContext, paymen
     })),
     unallocated: payment.unallocated,
     cashier: cashier?.user.name ?? null,
+    qrText,
+    qrCaption: linked ? "Scannez pour la facture" : "Vérification du reçu",
   });
 }
 

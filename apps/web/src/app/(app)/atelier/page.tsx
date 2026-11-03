@@ -5,12 +5,13 @@
 // « Déplacer vers… » pour le tactile. Mobile : colonnes en onglets horizontaux.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock } from "lucide-react";
+import { CircleCheck, Clock } from "lucide-react";
 import { EmptyState, PageHead, Select } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { OrderCard } from "@/components/workshop/card";
 import { tw } from "@/components/workshop/i18n";
+import { GuideLink } from "@/components/guide-link";
 import type { ColumnKey, WorkshopCard } from "@/components/workshop/types";
 
 type Priority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -56,12 +57,17 @@ export default function WorkshopBoardPage() {
 
   const columns = board.data?.columns ?? [];
   const total = columns.reduce((s, c) => s + c.cards.length, 0);
+  const readyCount = columns.find((c) => c.key === "ready")?.cards.length ?? 0;
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <PageHead title={tw("title")} description={tw("board.description")} />
+      <PageHead
+        title={tw("title")}
+        description={tw("board.description")}
+        actions={<GuideLink href="/atelier/guide" />}
+      />
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-3">
         <label className="flex flex-col gap-1 text-sm">
           {tw("board.priority")}
           <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")}>
@@ -95,6 +101,17 @@ export default function WorkshopBoardPage() {
         </label>
       </div>
 
+      {readyCount > 0 ? (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-lg border border-status-ok bg-status-ok-bg px-3 py-2 text-sm font-semibold text-status-ok"
+        >
+          <CircleCheck className="size-4" aria-hidden />
+          {readyCount === 1
+            ? tw("board.readyHintOne")
+            : tw("board.readyHintMany", { count: readyCount })}
+        </div>
+      ) : null}
       {board.data && board.data.lateCount > 0 ? (
         <div
           role="status"
@@ -156,16 +173,18 @@ export default function WorkshopBoardPage() {
             </div>
           </div>
 
-          {/* Bureau : 7 colonnes, glisser-déposer. */}
-          <div className="hidden overflow-x-auto pb-2 md:block">
-            <div className="grid min-w-[1400px] grid-cols-7 gap-3">
+          {/* Bureau : les 7 colonnes tiennent dans l'écran, glisser-déposer. */}
+          <div className="hidden min-w-0 md:block">
+            <div className="grid w-full grid-cols-7 gap-1.5">
               {columns.map((col) => {
                 const allowed = !dragging || dragging.allowedColumns.includes(col.key);
                 const isSource = dragging?.column === col.key;
+                const label = tw(`columns.${col.key}`);
+                const occupied = col.cards.length > 0;
                 return (
                   <section
                     key={col.key}
-                    aria-label={tw(`columns.${col.key}`)}
+                    aria-label={`${label}, ${tw("board.count", { count: col.cards.length })}`}
                     data-testid={`column-${col.key}`}
                     onDragOver={(e) => {
                       if (allowed && !isSource) e.preventDefault();
@@ -174,20 +193,34 @@ export default function WorkshopBoardPage() {
                       e.preventDefault();
                       if (dragging && allowed) drop(dragging, col.key);
                     }}
-                    className={`flex min-h-64 flex-col gap-2 rounded-lg p-2 transition-opacity ${
+                    className={`flex min-h-28 min-w-0 flex-col gap-2 rounded-lg border p-2 ${
                       dragging && !allowed && !isSource
-                        ? "bg-surface-2 opacity-40"
-                        : "bg-surface-2/60"
+                        ? "border-transparent bg-surface-2 opacity-40"
+                        : dragging && allowed && !isSource
+                          ? "border-accent bg-surface"
+                          : occupied && col.key === "ready"
+                            ? "border-status-ok bg-status-ok-bg"
+                            : occupied
+                              ? "border-border bg-surface-2/80"
+                              : "border-transparent bg-surface-2/60"
                     }`}
                   >
-                    <h3 className="flex items-center justify-between text-sm font-semibold">
-                      {tw(`columns.${col.key}`)}
-                      <span className="text-xs text-muted">
-                        {tw("board.count", { count: col.cards.length })}
+                    <h3 className="flex min-w-0 items-center gap-1.5 text-xs font-semibold">
+                      <span className="min-w-0 flex-1 truncate" title={label}>
+                        {label}
+                      </span>
+                      <span
+                        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${
+                          occupied ? "bg-accent text-accent-foreground" : "text-muted"
+                        }`}
+                      >
+                        {col.cards.length}
                       </span>
                     </h3>
                     {col.cards.length === 0 ? (
-                      <p className="text-xs text-muted">{tw("board.empty")}</p>
+                      <p className="py-4 text-center text-xs text-muted">
+                        {tw("board.emptyShort")}
+                      </p>
                     ) : (
                       col.cards.map((card) => (
                         <OrderCard
@@ -217,6 +250,7 @@ function MoveSelect({ card, onMove }: { card: WorkshopCard; onMove: (to: ColumnK
   if (card.allowedColumns.length === 0) return null;
   return (
     <Select
+      className="select-compact w-full max-w-full"
       aria-label={tw("board.moveLabel", { number: card.number })}
       value=""
       onChange={(e) => {

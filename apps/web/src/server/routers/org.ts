@@ -3,6 +3,7 @@ import {
   assertCanCancelDeletion,
   canSwitchOperatingMode,
   isDomainError,
+  normalizePhoneCI,
   planDeletion,
   type OrgLifecycleStatus,
 } from "@atelieros/core";
@@ -30,11 +31,40 @@ export const orgRouter = router({
         where: { id: ctx.organizationId },
       });
 
+      // Téléphone du garage en E.164 (il s'imprime sur les factures et sert de contact).
+      let phone = input.phone;
+      if (phone) {
+        let normalized: string | null = null;
+        try {
+          normalized = normalizePhoneCI(phone).e164;
+        } catch {
+          normalized = null;
+        }
+        if (!normalized) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Numéro de téléphone invalide : saisissez 10 chiffres, ex. 07 00 00 00 00.",
+          });
+        }
+        phone = normalized;
+      }
+      if (input.logoUrl && input.logoUrl.length > 1_500_000) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Logo trop lourd : 1 Mo maximum (PNG ou JPEG).",
+        });
+      }
+
       const after = await adminDb.organization.update({
         where: { id: ctx.organizationId },
-        data: input,
+        data: { ...input, ...(phone !== undefined ? { phone } : {}) },
       });
 
+      // Le logo (image encodée) ne va pas dans le journal : on note seulement qu'il a changé.
+      const forAudit = <T extends { logoUrl: string | null }>(o: T) => ({
+        ...o,
+        logoUrl: o.logoUrl ? `(logo, ${o.logoUrl.length} caractères)` : null,
+      });
       await writeAuditLog({
         organizationId: ctx.organizationId,
         userId: ctx.user.id,
@@ -42,8 +72,8 @@ export const orgRouter = router({
         action: "org.updated",
         entity: "Organization",
         entityId: ctx.organizationId,
-        before,
-        after,
+        before: forAudit(before),
+        after: forAudit(after),
         ip: ctx.ip,
         userAgent: ctx.userAgent,
       });

@@ -1,4 +1,326 @@
 {
+  "eduTip": {
+    "how": "Comment est-ce calculé ?",
+    "exampleLabel": "Exemple"
+  },
+  "messagesPage": {
+    "title": "Messages",
+    "unreadOne": "{count} non lu",
+    "unreadMany": "{count} non lus",
+    "new": "Nouveau message",
+    "customer": "Client",
+    "searchPlaceholder": "Nom, téléphone ou email",
+    "searchHint": "Saisissez au moins 2 caractères.",
+    "searching": "Recherche…",
+    "noResult": "Aucun client pour « {query} ».",
+    "change": "Changer",
+    "noContact": "Ce client n'a ni téléphone ni email.",
+    "channel": "Canal",
+    "template": "Modèle",
+    "freeText": "Texte libre",
+    "freeTextWhatsapp": "Texte libre — seulement si le client a écrit dans les 24 dernières heures",
+    "message": "Message",
+    "messagePlaceholder": "Écrivez le message au client…",
+    "invoice": "Facture concernée",
+    "invoiceNone": "Aucune facture",
+    "templateHint": "Le texte libre part tel quel. Un modèle de relance remplit la facture et les liens avant l'envoi.",
+    "send": "Envoyer",
+    "needCustomer": "Choisissez un client.",
+    "needChannel": "Ce client n'a pas de coordonnée pour ce canal.",
+    "needBody": "Écrivez le message, ou choisissez un modèle.",
+    "needInvoice": "Choisissez la facture : ce modèle en a besoin pour le montant, l'échéance et le lien.",
+    "noOpenInvoice": "Ce client n'a aucune facture ouverte. Émettez-la d'abord, ou écrivez un texte libre.",
+    "sent": "Message envoyé à {name}. La conversation est dans la liste.",
+    "sentSimulated": "Message enregistré pour {name}. Le canal est encore en simulation : le client ne le recevra pas tant qu'un fournisseur réel n'est pas activé dans Paramètres → Canaux.",
+    "openWhatsapp": "Le texte pour {name} est prêt. Ouvrez WhatsApp, envoyez-le, puis confirmez.",
+    "openWhatsappButton": "Ouvrir dans WhatsApp",
+    "confirmSent": "J'ai envoyé le message",
+    "all": "Toutes",
+    "unread": "Non lues",
+    "assigned": "À moi",
+    "unassigned": "Sans responsable",
+    "emptyTitle": "Aucun message.",
+    "emptyDescription": "Une conversation s'ouvre quand un client répond ou quand vous lui écrivez. Les relances et reçus envoyés sont dans l'onglet « Envois ».",
+    "loading": "Chargement…",
+    "loadError": "Impossible de charger les messages.",
+    "conversation": {
+      "loading": "Chargement…",
+      "notFound": "Conversation introuvable.",
+      "windowOpen": "Fenêtre WhatsApp ouverte (24 h)",
+      "windowClosed": "Fenêtre WhatsApp fermée",
+      "empty": "Aucun message dans cette conversation.",
+      "placeholder": "Écrire un message…",
+      "send": "Envoyer",
+      "status": {
+        "QUEUED": "En attente",
+        "SENDING": "Envoi…",
+        "SENT": "Envoyé",
+        "DELIVERED": "Délivré",
+        "READ": "Lu",
+        "FAILED": "Échec",
+        "RECEIVED": "Reçu"
+      },
+      "back": "Retour aux messages",
+      "auto": "Envoi automatique",
+      "autoReminder": "Relance automatique · {type}",
+      "truncated": "Seuls les 200 derniers messages sont affichés.",
+      "windowClosedHint": "Le client n'a pas écrit depuis plus de 24 h : WhatsApp n'accepte qu'un modèle approuvé. Utilisez « Nouveau message » avec un modèle, ou passez par SMS."
+    },
+    "subtitle": "Les échanges avec vos clients, et tout ce qui leur a été envoyé.",
+    "close": "Fermer",
+    "dismiss": "Masquer",
+    "tabs": {
+      "conversations": "Conversations",
+      "sent": "Envois"
+    },
+    "filterLabel": "Filtrer les conversations",
+    "searchConversations": "Rechercher un client ou un numéro",
+    "allChannels": "Tous les canaux",
+    "channels": {
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS",
+      "EMAIL": "Email"
+    },
+    "you": "Vous :",
+    "yesterday": "Hier",
+    "today": "Aujourd'hui",
+    "retry": "Réessayer",
+    "loadMore": "Charger plus",
+    "emptyFiltered": "Aucune conversation ne correspond.",
+    "log": {
+      "states": {
+        "FAILED": "Échecs",
+        "UNCONFIRMED": "Sans accusé",
+        "PENDING": "En attente",
+        "DELIVERED": "Reçus",
+        "READ": "Lus"
+      },
+      "stateHelp": {
+        "FAILED": "Le message n'est pas parti : numéro invalide, fournisseur en erreur…",
+        "UNCONFIRMED": "Parti il y a plus de 2 h, mais le fournisseur n'a pas confirmé la réception.",
+        "PENDING": "En file d'envoi : il part dans quelques minutes.",
+        "DELIVERED": "Arrivé sur le téléphone ou dans la boîte mail du client.",
+        "READ": "Le client l'a ouvert (WhatsApp, email)."
+      },
+      "search": "Client, numéro, email ou texte",
+      "kindLabel": "Type d'envoi",
+      "allKinds": "Tous les envois",
+      "kinds": {
+        "REMINDER": "Relance",
+        "TRANSACTIONAL": "Reçu ou document",
+        "CONVERSATION": "Message écrit",
+        "SYSTEM": "Message système"
+      },
+      "reminderOf": "Relance {type}",
+      "by": "par {name}",
+      "auto": "automatique",
+      "reset": "Effacer les filtres",
+      "empty": "Aucun envoi pour l'instant.",
+      "emptyFiltered": "Aucun envoi ne correspond à ces filtres.",
+      "emptyDescription": "Les relances, reçus et messages envoyés aux clients apparaissent ici avec leur accusé de réception."
+    },
+    "filterHelp": {
+      "ASSIGNED_TO_ME": "Conversations dont vous êtes responsable",
+      "UNASSIGNED": "Personne ne s'occupe encore de ces conversations"
+    },
+    "assignee": {
+      "label": "Pris en charge par",
+      "nobody": "Personne",
+      "meSuffix": "{name} (moi)",
+      "take": "Prendre en charge",
+      "byYou": "Vous",
+      "error": "Impossible de changer le responsable. Réessayez."
+    }
+  },
+  "customers": {
+    "list": {
+      "widgetsLabel": "Répartition des clients",
+      "all": "Clients",
+      "individual": "Particuliers",
+      "company": "Entreprises",
+      "balance": "Avec solde",
+      "help": {
+        "all": "Nombre de fiches clients du garage, particuliers et entreprises. Une fiche archivée n'est pas comptée.",
+        "individual": "Clients personnes physiques. Une société, même avec un gérant nommé, n'est pas ici.",
+        "company": "Clients sociétés : SARL, flottes, administrations.",
+        "balance": "Clients qui doivent encore de l'argent sur au moins une facture émise."
+      },
+      "example": {
+        "all": "Le garage a 120 particuliers et 18 entreprises. Le total est 138.",
+        "individual": "Kouassi Ghislan est un particulier : il compte. PRODESTIC SARL est une entreprise : elle est dans l'autre indicateur.",
+        "company": "PRODESTIC SARL et une flotte de taxis sont deux entreprises. Le chiffre est 2, même si chacune a plusieurs véhicules.",
+        "balance": "Mme Koné doit 45 000 FCFA et M. Traoré 80 000. Ils sont 2 ici. Un client soldé n'y figure pas."
+      }
+    },
+    "contacts": {
+      "title": "Contacts",
+      "add": "Ajouter un contact",
+      "createTitle": "Nouveau contact",
+      "editTitle": "Modifier le contact",
+      "deleteTitle": "Supprimer le contact",
+      "deleteConfirm": "Supprimer « {name} » ? Les messages déjà envoyés restent dans l'historique.",
+      "loadError": "Impossible de charger les contacts.",
+      "retry": "Réessayer",
+      "empty": {
+        "title": "Aucun contact.",
+        "description": "Sans contact coché, les messages partent au téléphone principal du client."
+      },
+      "badges": {
+        "primary": "Contact principal",
+        "reminders": "Reçoit les relances",
+        "invoices": "Reçoit les factures"
+      },
+      "fields": {
+        "name": "Nom",
+        "role": "Fonction",
+        "rolePlaceholder": "Responsable flotte, Comptabilité…",
+        "phone": "Téléphone",
+        "phone2": "Téléphone 2",
+        "email": "Email",
+        "isPrimary": "Contact principal",
+        "receivesReminders": "Reçoit les relances (visite technique, révision)",
+        "receivesInvoices": "Reçoit les factures et relances de créances"
+      }
+    },
+    "timeline": {
+      "title": "Chronologie",
+      "empty": "Pas encore d'historique",
+      "note": "Note",
+      "reminder": "Relance {type} · {step}",
+      "mileage": "Kilométrage relevé : {km} km"
+    },
+    "form": {
+      "backToList": "Retour aux clients",
+      "back": "Retour",
+      "newTitle": "Nouveau client",
+      "newSubtitle": "Remplissez les informations pour créer un nouveau client.",
+      "editTitle": "Modifier le client",
+      "loading": "Chargement…",
+      "notFound": "Client introuvable",
+      "typeTitle": "Type de client",
+      "individual": "Particulier",
+      "individualHint": "Personne physique",
+      "company": "Entreprise",
+      "companyHint": "Société, association",
+      "typeLocked": "Le type de client ne peut pas être modifié après sa création.",
+      "identity": "Identité",
+      "civility": "Civilité",
+      "civilityM": "M.",
+      "civilityMme": "Mme",
+      "civilityMlle": "Mlle",
+      "lastName": "Nom",
+      "lastNamePlaceholder": "KOULIBALI",
+      "firstName": "Prénom(s)",
+      "firstNamePlaceholder": "Jean-Marc",
+      "companyName": "Raison sociale",
+      "companyNamePlaceholder": "SOTRA Logistique SARL",
+      "ncc": "N° contribuable (NCC)",
+      "nccPlaceholder": "CI-ABJ-2024-XXXXX",
+      "rccm": "RCCM",
+      "rccmPlaceholder": "CI-ABJ-2024-B-XXXXX",
+      "contact": "Coordonnées",
+      "phone": "Téléphone",
+      "email": "Email",
+      "emailPlaceholder": "client@email.com",
+      "commune": "Commune",
+      "communePlaceholder": "Cocody",
+      "address": "Adresse",
+      "addressPlaceholder": "Rue des Jardins",
+      "vehicle": "Véhicule",
+      "vehicleOptional": "Facultatif : ajoutez un véhicule maintenant ou plus tard.",
+      "vehicleCount": "{count} véhicule(s) enregistré(s)",
+      "vehicleEditHint": "Pour modifier ou ajouter d'autres véhicules, passez par la fiche client.",
+      "plate": "Plaque",
+      "make": "Marque",
+      "makePlaceholder": "Toyota",
+      "model": "Modèle",
+      "modelPlaceholder": "Corolla",
+      "year": "Année",
+      "vin": "VIN (châssis)",
+      "vinPlaceholder": "1HGBH41JXMN109186",
+      "duplicateReason": "Motif pour créer quand même",
+      "duplicateReasonPlaceholder": "Numéro partagé, autre personne…",
+      "cancel": "Annuler",
+      "saving": "Enregistrement…",
+      "saveNew": "Enregistrer le client",
+      "saveEdit": "Enregistrer les modifications"
+    },
+    "page": {
+      "title": "Clients",
+      "countOne": "{count} client",
+      "countMany": "{count} clients",
+      "new": "Nouveau client",
+      "searchPlaceholder": "Rechercher…",
+      "filters": "Filtres",
+      "viewList": "Vue liste",
+      "viewGrid": "Vue grille",
+      "clearSearch": "Effacer la recherche",
+      "type": "Type",
+      "all": "Tous",
+      "individual": "Particulier",
+      "company": "Entreprise",
+      "clearFilters": "Effacer les filtres",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger les clients.",
+      "retry": "Réessayer",
+      "emptySearchTitle": "Aucun résultat pour « {q} »",
+      "emptySearchHint": "Essayez avec d'autres termes.",
+      "emptyTitle": "Aucun client",
+      "emptyHint": "Créez votre premier client.",
+      "colClient": "Client",
+      "colType": "Type",
+      "colPhone": "Téléphone",
+      "colCommune": "Commune",
+      "colVehicles": "Véhicules",
+      "actions": "Actions",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "vehicleOne": "{count} véhicule",
+      "vehicleMany": "{count} véhicules",
+      "pageRange": "{start} - {end} sur {total} clients",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "detail": {
+      "loading": "Chargement…",
+      "notFound": "Client introuvable.",
+      "backToList": "Retour aux clients",
+      "back": "Clients",
+      "company": "Entreprise",
+      "individual": "Particulier",
+      "optedOut": "Désinscrit",
+      "doNotRemind": "Ne plus relancer",
+      "unreachable": "Injoignable",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "edit": "Modifier",
+      "contact": "Coordonnées",
+      "balanceTitle": "À solder",
+      "overdue": "dont {amount} en retard",
+      "noDebt": "Aucun impayé",
+      "creditLimit": "Limite de crédit : {amount}",
+      "ncc": "NCC",
+      "rccm": "RCCM",
+      "vehicles": "Véhicules",
+      "addVehicle": "Ajouter",
+      "noVehicle": "Aucun véhicule",
+      "noVehicleHint": "Ajoutez le premier véhicule de ce client.",
+      "vin": "VIN : {vin}"
+    },
+    "backToInsurers": "Assurances",
+    "insurerBillingNote": "Fiche de facturation d'une compagnie d'assurance : elle reçoit les factures des sinistres et se gère depuis le module Assurances.",
+    "insurerBillingLink": "Ouvrir les assurances",
+    "duplicates": {
+      "title": "Doublons suggérés",
+      "loading": "Chargement…",
+      "empty": "Aucun doublon détecté pour l'instant.",
+      "confirmPrompt": "Pour confirmer la fusion, saisissez le nom du client absorbé : « {name} »",
+      "score": "Score {score}",
+      "merge": "Fusionner",
+      "dismiss": "Ignorer"
+    }
+  },
   "common": {
     "appName": "AtelierOS",
     "save": "Enregistrer",
@@ -68,10 +390,11 @@
       "resetLocked": "Réinitialiser mon mot de passe",
       "useAtelierMode": "Mode atelier (code PIN)",
       "atelierModeTitle": "Mode atelier sur tablette",
-      "atelierModeDesc": "Accès rapide mécanicien par code PIN à 4 chiffres",
+      "atelierModeDesc": "Accès rapide mécanicien par code PIN à 6 chiffres",
       "securityCheck": "Vérification de sécurité",
       "securityCheckDesc": "Nouvel appareil détecté. Entrez le code de vérification reçu pour confirmer votre identité.",
-      "devTestCode": "Code de test (environnement local) :"
+      "devTestCode": "Code de test (environnement local) :",
+      "modeTabs": "Mode de connexion"
     },
     "showcase": {
       "badge": "Solution Garage · Côte d'Ivoire",
@@ -126,7 +449,14 @@
     },
     "atelier": {
       "title": "Mode atelier",
+      "membershipLabel": "Identifiant du membre",
       "pinLabel": "Code PIN",
+      "pinHint": "Six chiffres.",
+      "pinIncomplete": "Saisissez l'identifiant du membre et les 6 chiffres du code PIN.",
+      "deviceDenied": "Cet appareil n'est pas enregistré comme appareil partagé d'atelier.",
+      "memberDenied": "Connexion par code PIN non autorisée pour ce membre.",
+      "noPin": "Aucun code PIN n'est défini pour ce membre.",
+      "tooMany": "Trop de tentatives. Réessayez dans quelques minutes.",
       "wrongPin": "Code PIN incorrect.",
       "blocked": "Trop d'essais. Utilisez votre mot de passe."
     }
@@ -139,7 +469,7 @@
     "settingsSites": "Sites",
     "settingsJournal": "Journal d'audit",
     "settingsChannels": "Canaux",
-    "settingsTemplates": "Modèles",
+    "settingsTemplates": "Modèles de messages",
     "settingsReminderRules": "Règles de relance",
     "customers": "Clients",
     "vehicles": "Véhicules",
@@ -148,6 +478,8 @@
     "messages": "Messages",
     "reminders": "Relances",
     "dueDates": "Échéances",
+    "inspectionsAndServices": "VT et révisions",
+    "unpaidInvoices": "Factures impayées",
     "import": "Import",
     "profile": "Mon profil",
     "profileSecurity": "Sécurité",
@@ -201,6 +533,7 @@
     "collapseSidebar": "Réduire le menu",
     "expandSidebar": "Développer le menu",
     "noMenuFound": "Aucun résultat",
+    "moduleUnavailable": "Cette fonction est disponible en gestion complète.",
     "sidebarFooter": "AtelierOS · Pro",
     "myGarages": "Mes garages",
     "notifications": "Notifications",
@@ -209,12 +542,28 @@
     "treasuryJournal": "Journal",
     "treasuryReports": "Rapports de trésorerie",
     "sectionTreasury": "Trésorerie",
-    "treasuryOverview": "Vue d'ensemble",
+    "treasuryOverview": "Comptes",
     "cashToday": "Caisse du jour",
     "planning": "Planning",
     "groupWorkshop": "Atelier",
     "workshopBoard": "Suivi atelier",
-    "remindersQueue": "Relances à traiter"
+    "remindersQueue": "Relances à traiter",
+    "mobile": {
+      "tabsLabel": "Navigation principale",
+      "menu": "Menu",
+      "menuTitle": "Tous les modules",
+      "close": "Fermer le menu",
+      "badge": "{count} à traiter",
+      "home": "Accueil",
+      "orders": "Ordres",
+      "appointments": "RDV",
+      "reminders": "Relances",
+      "receivables": "Créances",
+      "customers": "Clients",
+      "invoices": "Factures",
+      "tablet": "Tablette",
+      "cash": "Caisse"
+    }
   },
   "onboarding": {
     "title": "Bienvenue sur AtelierOS",
@@ -237,14 +586,20 @@
       "legalNameLabel": "Raison sociale",
       "communeLabel": "Commune",
       "addressLabel": "Adresse",
-      "phoneLabel": "Téléphone"
+      "phoneLabel": "Téléphone",
+      "namePlaceholder": "Ex. : Garage Central Abidjan",
+      "legalNamePlaceholder": "Ex. : SARL Garage Central",
+      "communePlaceholder": "Ex. : Cocody",
+      "addressPlaceholder": "Ex. : boulevard Lagunaire, lot 45"
     },
     "workshop": {
       "title": "Votre premier site",
       "description": "Un site représente un atelier physique. Vous pourrez en ajouter d'autres plus tard.",
       "nameLabel": "Nom du site",
       "codeLabel": "Code du site",
-      "codeHint": "Lettres majuscules et chiffres uniquement (ex: ATL01)."
+      "codeHint": "Lettres majuscules et chiffres uniquement (ex: ATL01).",
+      "namePlaceholder": "Ex. : Atelier principal",
+      "codePlaceholder": "Ex. : ATL01"
     },
     "mode": {
       "title": "Mode d'utilisation",
@@ -252,7 +607,7 @@
       "full": "Gestion complète",
       "fullDescription": "RDV, ordres de réparation, devis, facturation et gestion de stock. La solution tout-en-un pour votre atelier.",
       "remindersOnly": "Relances uniquement",
-      "remindersOnlyDescription": "Gardez votre logiciel actuel, AtelierOS s'occupe des relances automatiques (VT, révisions, créances)."
+      "remindersOnlyDescription": "Gardez votre logiciel actuel. AtelierOS relance les factures impayées, les visites techniques et les révisions."
     },
     "team": {
       "title": "Invitez votre équipe",
@@ -299,10 +654,13 @@
         "phone": "Téléphone",
         "lastActive": "Dernière connexion",
         "status": "Statut",
-        "channel": "Canal"
+        "channel": "Canal",
+        "contact": "Contact"
       },
       "statusActive": "Actif",
       "statusInactive": "Désactivé",
+      "emptyMembers": "Aucun membre.",
+      "emptyInvitations": "Aucune invitation en attente.",
       "inviteModal": {
         "title": "Inviter un membre",
         "nameLabel": "Nom",
@@ -310,9 +668,71 @@
         "emailLabel": "Email",
         "roleLabel": "Rôle",
         "sitesLabel": "Sites autorisés",
-        "submit": "Envoyer l'invitation"
+        "submit": "Envoyer l'invitation",
+        "needEmail": "Indiquez l'email : l'invitation est envoyée par email.",
+        "needPhone": "Indiquez le téléphone : l'invitation est envoyée sur ce numéro.",
+        "allSitesHint": "Aucune case cochée : la personne a accès à tous les sites."
       },
-      "planLimitError": "Limite de membres atteinte pour votre forfait."
+      "pinModal": {
+        "title": "Définir le code PIN",
+        "description": "Ce code à 6 chiffres permettra à {name} de pointer sur la tablette atelier.",
+        "pinLabel": "Code PIN (6 chiffres)",
+        "submit": "Enregistrer le PIN",
+        "success": "Code PIN enregistré.",
+        "trivialError": "Ce code PIN est trop simple. Évitez les suites (123456) et les répétitions (000000).",
+        "formatError": "Le code PIN doit comporter exactement 6 chiffres."
+      },
+      "setPin": "Définir PIN",
+      "pinSet": "PIN défini",
+      "queued": "L'invitation est en cours d'envoi par le canal configuré.",
+      "sendUnavailable": "L'invitation est enregistrée. Le message n'a pas pu partir : le service d'envoi est arrêté. Renvoyez-la depuis Invitations en attente.",
+      "channelInactive": "L'invitation est enregistrée, mais ce canal n'est pas actif. Ouvrez Paramètres, Canaux, activez-le, puis cliquez Renvoyer.",
+      "planLimitError": "Limite de membres atteinte pour votre forfait.",
+      "seePlans": "Voir les offres",
+      "you": "(vous)",
+      "emptyInactive": "Aucun membre désactivé.",
+      "loadError": "Impossible de charger la liste. Vérifiez votre connexion puis réessayez.",
+      "retry": "Réessayer",
+      "filter": {
+        "label": "Afficher",
+        "active": "Actifs",
+        "inactive": "Désactivés"
+      },
+      "actions": {
+        "edit": "Modifier",
+        "deactivate": "Désactiver",
+        "reactivate": "Réactiver",
+        "revokeSessions": "Déconnecter partout"
+      },
+      "editModal": {
+        "title": "Modifier {name}",
+        "roleLabel": "Rôle",
+        "sitesLabel": "Sites autorisés",
+        "submit": "Enregistrer",
+        "success": "Membre mis à jour."
+      },
+      "deactivateModal": {
+        "title": "Désactiver {name}",
+        "description": "{name} ne pourra plus se connecter. Son historique est conservé et vous pourrez le réactiver plus tard.",
+        "reasonLabel": "Motif",
+        "reasonPlaceholder": "Ex. fin de contrat",
+        "reasonRequired": "Indiquez le motif de la désactivation.",
+        "submit": "Désactiver",
+        "success": "{name} a été désactivé."
+      },
+      "reactivated": "{name} a été réactivé.",
+      "revokeSessionsModal": {
+        "title": "Déconnecter {name} partout",
+        "description": "Toutes les sessions ouvertes de {name} (ordinateur, téléphone, tablette) seront fermées. Il devra se reconnecter.",
+        "submit": "Déconnecter partout",
+        "success": "{name} a été déconnecté ({count} session(s) fermée(s))."
+      },
+      "revokeModal": {
+        "title": "Révoquer l'invitation",
+        "description": "L'invitation envoyée à {name} ne fonctionnera plus. Vous pourrez en envoyer une nouvelle.",
+        "submit": "Révoquer l'invitation",
+        "success": "Invitation révoquée."
+      }
     },
     "roles": {
       "title": "Rôles et permissions",
@@ -322,7 +742,60 @@
       "resetShort": "Réinitialiser",
       "resetTitle": "Remettre les permissions par défaut du rôle {role}",
       "customized": "Personnalisé",
-      "permission": "Permission"
+      "permission": "Permission",
+      "loadError": "Impossible de charger la matrice des permissions.",
+      "retry": "Réessayer",
+      "saved": "Permissions enregistrées.",
+      "saveError": "La modification n'a pas été enregistrée : {message}",
+      "resetDone": "Permissions par défaut rétablies pour le rôle {role}.",
+      "searchLabel": "Rechercher une permission",
+      "searchPlaceholder": "Ex. facture, stock, relance…",
+      "noResults": "Aucune permission ne correspond à « {query} ».",
+      "modules": {
+        "accounting": "Comptabilité",
+        "ai": "Assistant IA",
+        "appointment": "Rendez-vous",
+        "attendance": "Présences",
+        "audit": "Journal d'audit",
+        "cash": "Caisse",
+        "claim": "Sinistres",
+        "customer": "Clients",
+        "dashboard": "Tableau de bord",
+        "fne": "Facture normalisée (FNE)",
+        "import": "Import de données",
+        "inspection": "Inspections",
+        "insurance": "Assurances",
+        "insurer": "Compagnies d'assurance",
+        "integration": "Intégrations",
+        "invoice": "Factures",
+        "labor_catalog": "Catalogue main-d'œuvre",
+        "member": "Équipe",
+        "message": "Messages",
+        "optout": "Désinscriptions",
+        "org": "Organisation",
+        "partrequest": "Demandes de pièces",
+        "payment": "Paiements",
+        "planning": "Planning",
+        "product": "Articles",
+        "purchase": "Achats",
+        "quote": "Devis",
+        "receivable": "Créances",
+        "reminder": "Relances",
+        "repair_order": "Ordres de réparation",
+        "report": "Rapports",
+        "role": "Rôles",
+        "settings": "Paramètres",
+        "site": "Sites",
+        "stock": "Stock",
+        "supplier": "Fournisseurs",
+        "task": "Tâches",
+        "template": "Modèles de messages",
+        "time": "Pointages",
+        "treasury": "Trésorerie",
+        "vehicle": "Véhicules",
+        "workshop": "Atelier",
+        "other": "Autres"
+      }
     },
     "sites": {
       "title": "Sites",
@@ -431,6 +904,103 @@
       "emptyDescription": "Les actions sensibles (factures, paiements, réglages, accès) apparaissent ici. La profondeur consultable dépend de votre offre.",
       "system": "Système",
       "unknownUser": "Utilisateur supprimé"
+    },
+    "templatesPage": {
+      "title": "Modèles",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger les modèles.",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucun modèle de message.",
+      "emptyHint": "Les modèles livrés par défaut sont installés pendant la configuration initiale.",
+      "selectHint": "Choisissez un modèle dans la liste pour le consulter ou le modifier.",
+      "bodyLabel": "Texte du message",
+      "readOnly": "Lecture seule : seul le gérant peut modifier les modèles et voir l'aperçu.",
+      "previewTitle": "Aperçu (données de démonstration)",
+      "previewLoading": "Calcul de l'aperçu…",
+      "previewError": "Aperçu indisponible : {message}",
+      "smsCounter": "{chars} caractère(s) · {segments} SMS · encodage {encoding}",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saved": "Modèle enregistré.",
+      "saveError": "Enregistrement impossible : {message}",
+      "channels": {
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email"
+      }
+    },
+    "channelsPage": {
+      "title": "Canaux",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger les canaux.",
+      "retry": "Réessayer",
+      "noConfig": "Aucun fournisseur configuré : les messages de ce canal restent en console (aucun envoi réel).",
+      "providerLabel": "Fournisseur",
+      "configure": "Configurer",
+      "reconfigure": "Modifier les identifiants",
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "verify": "Vérifier maintenant",
+      "verifying": "Vérification…",
+      "verifyOk": "Vérification réussie.",
+      "verifyFailed": "Échec de la vérification : {detail}",
+      "lastChecked": "Dernière vérification : {date}",
+      "credentialsStored": "Identifiants enregistrés (jamais affichés).",
+      "actionError": "Action impossible : {message}",
+      "modalTitle": "Configurer {provider}",
+      "keepHint": "Laissez un champ vide pour conserver la valeur déjà enregistrée.",
+      "keepOption": "Conserver la valeur enregistrée",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "channels": {
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email"
+      },
+      "status": {
+        "ok": "Connecté",
+        "error": "Erreur",
+        "unchecked": "Non vérifié",
+        "inactive": "Désactivé"
+      },
+      "providers": {
+        "console": "Console (tests, aucun envoi réel)",
+        "wa_link": "Lien WhatsApp (envoi manuel)",
+        "whatsapp_cloud": "WhatsApp Cloud API (Meta)",
+        "orange_sms": "Orange SMS API",
+        "twilio": "Twilio",
+        "http_sms": "Agrégateur SMS (HTTP)",
+        "resend": "Resend",
+        "smtp": "Serveur SMTP"
+      },
+      "fields": {
+        "resendApiKey": "Clé API Resend",
+        "resendFromEmail": "Email d'envoi (ex. : noreply@domaine.ci)",
+        "resendFromName": "Nom d'expéditeur (ex. : Garage Démo)",
+        "smtpHost": "Serveur SMTP",
+        "smtpPort": "Port",
+        "smtpUser": "Utilisateur",
+        "smtpPassword": "Mot de passe",
+        "smtpFromEmail": "Email d'envoi",
+        "twilioAccountSid": "Account SID",
+        "twilioAuthToken": "Auth Token",
+        "twilioFromNumber": "Numéro d'envoi (le « From » Twilio, ex. : +17372508034)",
+        "orangeClientId": "Client ID",
+        "orangeClientSecret": "Client Secret",
+        "orangeSenderId": "Sender ID",
+        "waAccessToken": "Access Token",
+        "waPhoneNumberId": "Phone Number ID",
+        "httpUrl": "URL d'envoi de l'agrégateur",
+        "httpMethod": "Méthode HTTP",
+        "httpContentType": "Format du corps (POST)",
+        "httpContentTypeJson": "JSON",
+        "httpContentTypeForm": "Formulaire (x-www-form-urlencoded)",
+        "httpBodyTemplate": "Gabarit du corps (POST) ou des paramètres (GET)",
+        "httpBodyTemplateHint": "{{to}} est remplacé par le numéro du destinataire et {{body}} par le texte du message. Exemple JSON : {\"to\":\"{{to}}\",\"text\":\"{{body}}\"} ; exemple GET : to={{to}}&text={{body}}",
+        "httpResponseIdPath": "Chemin de l'identifiant du message dans la réponse (ex. : data.id)",
+        "httpWebhookToken": "Jeton partagé des accusés de réception (facultatif)"
+      }
     }
   },
   "profile": {
@@ -811,6 +1381,7 @@
   "import": {
     "list": {
       "title": "Imports",
+      "intro": "Reprenez vos données depuis un fichier, ou branchez le logiciel que vous utilisez déjà.",
       "fileImportCardTitle": "Fichier Excel/CSV",
       "fileImportCardDescription": "Importez vos clients, véhicules, factures ou paiements depuis un fichier Excel ou CSV existant.",
       "fileImportCardCta": "Importer un fichier",
@@ -1103,6 +1674,7 @@
   "receivables": {
     "nav": "Créances",
     "title": "Créances",
+    "titleReminders": "Factures impayées",
     "kpi": {
       "totalDue": "Total dû",
       "overdue": "En retard",
@@ -1111,16 +1683,34 @@
       "recoveredByReminders": "dont relances : {amount}",
       "unallocated": "Crédits non affectés"
     },
+    "kpiHelp": {
+      "totalDue": "Somme encore due sur les factures émises, y compris celles qui ne sont pas encore échues.",
+      "overdue": "Part du total dont la date d'échéance est dépassée. Une facture due la semaine prochaine n'y est pas.",
+      "recovered": "Encaissements du mois sur d'anciennes factures. Le détail indique la part arrivée dans les 14 jours après une relance.",
+      "unallocated": "Argent reçu d'un client qui n'a pas encore été affecté à une facture. Il ne réduit pas encore le total dû.",
+      "maxDays": "Plus long retard, en jours, parmi les factures ouvertes de ce client.",
+      "credit": "Encours du client comparé à son plafond. Au-dessus du plafond, les nouveaux travaux peuvent être bloqués."
+    },
+    "kpiExample": {
+      "totalDue": "Deux factures ouvertes : 80 000 dus dans 10 jours et 45 000 déjà en retard. Le total dû est 125 000 FCFA.",
+      "overdue": "Sur 125 000 FCFA dus, 45 000 devaient être payés la semaine dernière. L'en retard est 45 000 FCFA. Les 80 000 à venir n'y sont pas.",
+      "recovered": "Ce mois, 100 000 FCFA ont été encaissés sur d'anciennes factures, dont 30 000 dans les 14 jours après un rappel. Le chiffre est 100 000, et « dont relances » est 30 000.",
+      "unallocated": "M. Traoré a payé 20 000 FCFA par Wave sans préciser la facture. Ces 20 000 restent ici jusqu'à ce que vous les affectiez.",
+      "maxDays": "Une facture a 4 jours de retard et une autre 20. Le maximum affiché est 20 jours.",
+      "credit": "Plafond 200 000 FCFA, le client doit déjà 180 000. Il reste 20 000 de marge. À 250 000 d'encours, le plafond est dépassé."
+    },
     "importedBalances": "Soldes du {date} (données importées).",
     "aging": {
-      "title": "Balance âgée",
-      "notDue": "Non échu",
-      "b0_30": "0-30 j",
-      "b31_60": "31-60 j",
-      "b61_90": "61-90 j",
-      "b90p": "+90 j",
+      "title": "Depuis combien de temps on vous doit",
+      "notDue": "Pas encore à payer",
+      "b0_30": "En retard de 1 à 30 jours",
+      "b31_60": "En retard de 31 à 60 jours",
+      "b61_90": "En retard de 61 à 90 jours",
+      "b90p": "En retard de plus de 90 jours",
       "customers": "{count} client(s)",
-      "clearFilter": "Retirer le filtre"
+      "clearFilter": "Retirer le filtre",
+      "help": "Le total que vos clients vous doivent, rangé selon le retard. « Pas encore à payer » : la date limite n'est pas passée. Plus le retard est ancien, plus l'argent est difficile à récupérer. Touchez une ligne pour voir les clients concernés.",
+      "example": "On vous doit 125 000 FCFA : 80 000 dont la date limite n'est pas passée, et 45 000 en retard de 12 jours. « Pas encore à payer » montre 80 000, « En retard de 1 à 30 jours » montre 45 000."
     },
     "views": {
       "byCustomer": "Par client",
@@ -1189,7 +1779,7 @@
     },
     "reminderStatus": {
       "PLANNED": "Planifiée",
-      "NEEDS_APPROVAL": "À valider",
+      "NEEDS_APPROVAL": "Prête — envoi à confirmer",
       "QUEUED": "En file",
       "SENT": "Envoyée",
       "FAILED": "Échec",
@@ -1225,7 +1815,19 @@
       "paymentLine": "Paiement {number} : {amount} ({method})",
       "pausedUntil": "En pause jusqu'au {date}",
       "statement": "Relevé de compte (PDF)",
-      "fne": "FNE {number}"
+      "fne": "FNE {number}",
+      "whatsappText": "Bonjour {name}, sauf erreur de notre part, il reste {amount} à régler sur vos factures. Merci de nous indiquer la date de paiement prévue (Wave, Orange Money, espèces ou virement). Bonne journée.",
+      "riskHelp": "Note de 0 à 100 calculée chaque nuit : plus elle est haute, plus le client risque de ne pas payer. Elle tient compte du retard actuel, du montant dû, des promesses non tenues, de l'historique de paiement et des appels sans réponse.",
+      "riskExample": "Un client qui paie d'habitude à temps et doit 50 000 FCFA depuis 5 jours a une note basse (« Bon payeur »). Un client qui a manqué 2 promesses et doit 600 000 FCFA depuis 60 jours a une note haute (« Risqué »).",
+      "callShort": "Appeler",
+      "statementShort": "Relevé de compte",
+      "oldestDelay": "Retard le plus ancien",
+      "creditTitle": "Plafond de crédit",
+      "creditLimitShort": "{limit}",
+      "noCreditLimitShort": "Aucun plafond",
+      "late": "de retard",
+      "ofTotal": "sur {total}",
+      "promisedFor": "Promis pour le {date}"
     },
     "actions": {
       "recordPayment": "Enregistrer un paiement",
@@ -1242,7 +1844,10 @@
       "cancel": "Annuler",
       "save": "Enregistrer",
       "addInstallment": "Ajouter une échéance",
-      "removeInstallment": "Retirer"
+      "removeInstallment": "Retirer",
+      "remindNow": "Relancer maintenant",
+      "remindShort": "Relancer",
+      "more": "Plus d'actions"
     },
     "form": {
       "amount": "Montant (FCFA)",
@@ -1303,6 +1908,153 @@
     "creditAlert": {
       "blockTitle": "Crédit bloqué",
       "warnTitle": "Client en retard de paiement"
+    },
+    "remind": {
+      "title": "Relancer {name}",
+      "hint": "Le client reçoit tout de suite un rappel du montant dû (le message part dans les 5 minutes, pendant la fenêtre d'envoi de la règle « Créances »).",
+      "channel": "Canal",
+      "channels": {
+        "AUTO": "Automatique (WhatsApp, puis SMS, puis email)",
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email"
+      },
+      "safety": "Sécurités : rien ne part si le client a payé entre-temps ou s'est désinscrit, et un client n'est jamais relancé deux fois en 20 h.",
+      "submit": "Envoyer la relance",
+      "sent": "Relance programmée : elle part dans les 5 minutes. Vous la retrouverez dans « Séquence de relances » et dans Relances › Envoyées aujourd'hui.",
+      "sentShort": "Relance programmée : elle part dans les 5 minutes.",
+      "confirmQuestion": "Envoyer un rappel du montant dû à ce client ?",
+      "confirmShort": "Confirmer ?",
+      "confirmSend": "Confirmer l'envoi",
+      "sending": "Envoi…"
+    },
+    "list": {
+      "customer": "Client",
+      "lastReminder": "Dernière relance",
+      "actions": "Actions",
+      "neverReminded": "Jamais relancé",
+      "reminderPending": "Relance en cours d'envoi",
+      "remindedOn": "Relancé le {date}",
+      "channels": {
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email"
+      },
+      "open": "Ouvrir le dossier",
+      "call": "Appeler le client",
+      "remind": "Relancer",
+      "reminderToApprove": "Message prêt, pas envoyé",
+      "reminded": "Relancé",
+      "delay": "Retard",
+      "invoice": "Facture",
+      "notDue": "Pas échue"
+    },
+    "bulk": {
+      "title": "Relancer les clients",
+      "subtitle": "Choisissez qui relancer et par quels canaux. Le message rappelle le montant dû et contient un lien de paiement.",
+      "whoTitle": "Qui relancer ?",
+      "whoSingle": "Client",
+      "minDays": "Retard minimum",
+      "minDaysAll": "Tous les impayés",
+      "minDaysOption": "{days} jours et plus",
+      "nobody": "Aucun client à relancer avec ce filtre.",
+      "selectAll": "Tout cocher",
+      "selectNone": "Tout décocher",
+      "rowInfo": "{amount} en retard · {days} j",
+      "reachable": "Canaux joignables",
+      "yes": "oui",
+      "no": "non",
+      "channelsTitle": "Par quels canaux ?",
+      "mode": {
+        "auto": "Envoi réel",
+        "test": "Mode test : simulé, rien ne part réellement",
+        "manual_only": "Mode lien : envoi un par un depuis Relances (pas d'envoi groupé)",
+        "off": "Non configuré"
+      },
+      "channelsHelp": "Pour envoyer automatiquement sur ce canal, configurez un fournisseur :",
+      "channelsLink": "Paramètres › Canaux",
+      "safety": "Sécurités : rien ne part si le client a payé entre-temps ou s'est désinscrit ; un client n'est jamais relancé deux fois en 20 h. Hors des heures d'envoi de la règle « Créances », le message part à la prochaine ouverture.",
+      "summary": "{customers} client(s) · {messages} message(s) · {amount} en retard",
+      "submit": "Relancer {count} client(s)",
+      "noRule": "La relance des créances est désactivée.",
+      "noRuleLink": "Activer dans Paramètres › Relances",
+      "doneTitle": "{customers} client(s) relancé(s) — {messages} message(s) en cours d'envoi",
+      "doneHint": "Les messages partent dans les 5 minutes. Suivez-les dans Relances › Envoyées aujourd'hui.",
+      "skippedTitle": "Non relancés",
+      "seeReminders": "Voir les relances",
+      "close": "Fermer",
+      "bannerTitle": "{count} client(s) à relancer · {amount} en retard",
+      "bannerNone": "Aucun client à relancer pour le moment",
+      "bannerHint": "Envoyez-leur un rappel du montant dû par WhatsApp, SMS ou email, en un clic.",
+      "bannerBlocked": "{count} autre(s) client(s) ne peuvent pas être relancés maintenant (déjà relancés aujourd'hui, litige, sans contact…).",
+      "bannerButton": "Relancer les clients ({count})",
+      "modeError": "En erreur ({error}) : corrigez dans Paramètres › Canaux"
+    },
+    "selection": {
+      "selectAll": "Tout cocher",
+      "selectOne": "Sélectionner {name}",
+      "selectInvoice": "Sélectionner la facture {number}",
+      "count": "{count} client(s) sélectionné(s)",
+      "amount": "{amount} en retard",
+      "clear": "Tout décocher",
+      "remind": "Relancer la sélection ({count})",
+      "dialogTitle": "Relancer les {count} clients sélectionnés",
+      "remindAll": "Relancer tous les clients à relancer ({count})",
+      "nobodyToRemind": "Aucun client à relancer maintenant",
+      "blockedShort": "{count} non relançable(s) maintenant",
+      "invoiceNote": "Cochez des factures pour relancer leurs clients : chaque client reçoit un seul message qui rappelle toutes ses factures impayées."
+    },
+    "tabsHelp": {
+      "ALL": "Tous les clients qui vous doivent encore de l'argent (dossiers en cours). Un client sort de la liste dès qu'il a tout payé.",
+      "TO_HANDLE": "Les clients qui demandent votre intervention : relances automatiques terminées sans paiement (45 jours de retard), promesse de paiement non tenue, ou 3 appels sans réponse. Appelez-les, passez les voir ou décidez de la suite.",
+      "PROMISES": "Les clients qui ont promis de payer à une date. Les relances sont suspendues jusqu'à cette date. La nuit qui suit, si la somme promise n'est pas entièrement payée, la promesse est marquée « non tenue » et le client passe dans « À traiter ».",
+      "DISPUTES": "Les clients qui contestent une facture (montant, travaux…). Plus aucune relance n'est envoyée tant que le litige n'est pas réglé dans le dossier.",
+      "WRITTEN_OFF": "Les montants que vous avez décidé de ne plus réclamer (« Passer en perte » dans le dossier). Ils ne sont plus relancés et sortent du total dû."
+    },
+    "emptyTabs": {
+      "ALL": "Aucun client ne correspond à cette recherche.",
+      "TO_HANDLE": "Rien à traiter : aucun client ne demande votre intervention.",
+      "PROMISES": "Aucune promesse de paiement en cours.",
+      "DISPUTES": "Aucun litige en cours.",
+      "WRITTEN_OFF": "Aucun montant passé en perte."
+    },
+    "emptyTabsHint": "Les autres clients sont dans l'onglet « Tous ».",
+    "formalNotice": {
+      "title": "Mise en demeure",
+      "intro": "Dernier courrier avant une procédure : il récapitule les factures impayées et fixe un délai de 8 jours pour payer. Gardez la preuve de remise (accusé de réception).",
+      "none": "Pas encore de mise en demeure pour ce client.",
+      "issuedOn": "Mise en demeure du {date}",
+      "sentTo": "Envoyée par email à {to} le {date}",
+      "deliveredOn": "Remise le {date} {method} — accusé de réception enregistré",
+      "notDeliveredYet": "Remise pas encore confirmée : quand le client l'a reçue, cliquez « Marquer comme remise ».",
+      "ownerOnly": "Seul le gérant peut préparer et envoyer une mise en demeure.",
+      "preview": "Voir / imprimer le PDF",
+      "sendEmail": "Envoyer par email",
+      "markDelivered": "Marquer comme remise",
+      "confirmSend": "Le client recevra un email avec la mise en demeure en PDF. Quand son serveur confirmera la réception, la date de remise sera enregistrée automatiquement.",
+      "confirmSendButton": "Confirmer l'envoi",
+      "sending": "Envoi…",
+      "sent": "Mise en demeure envoyée à {to}. L'accusé de réception s'affichera ici dès que le fournisseur le confirme.",
+      "markHint": "Indiquez quand et comment le client a reçu la mise en demeure (main propre contre signature, huissier, lettre recommandée…). Gardez le document signé ou l'avis de réception.",
+      "deliveredOnLabel": "Date de remise",
+      "methodLabel": "Mode de remise",
+      "noteLabel": "Précision (facultatif)",
+      "notePlaceholder": "Ex. : signée par M. Kouassi, comptable",
+      "methods": {
+        "email": "par email",
+        "whatsapp": "par WhatsApp",
+        "hand": "en main propre",
+        "bailiff": "par huissier",
+        "registered_mail": "par lettre recommandée"
+      },
+      "legal": "Le texte est un modèle : AtelierOS ne fournit pas de conseil juridique. En cas de doute, demandez conseil à un professionnel du droit."
+    },
+    "steps": {
+      "before": "{days} jours avant l'échéance",
+      "after": "{days} jours après l'échéance",
+      "on": "Le jour de l'échéance",
+      "manual": "Relance envoyée à la main",
+      "promise": "Promesse non tenue"
     }
   },
   "dashboard": {
@@ -1338,7 +2090,7 @@
       "retry": "Réessayer",
       "noAccess": "Vous n'avez accès à aucun onglet du tableau de bord.",
       "noInvoices": "Aucune facture pour le moment",
-      "noInvoicesHint": "Importez vos factures pour suivre vos créances ici."
+      "noInvoicesHint": "Importez vos factures impayées. AtelierOS les relance pour vous."
     },
     "variation": {
       "new": "nouveau",
@@ -1349,6 +2101,7 @@
     },
     "cards": {
       "receivables": "Créances en cours",
+      "unpaidInvoices": "Factures impayées",
       "receivablesOver30": "dont {amount} à plus de 30 j",
       "recovered": "Récupéré grâce aux relances",
       "toHandleToday": "Relances à traiter aujourd'hui",
@@ -1366,17 +2119,87 @@
       "estimatedCost": "coût estimé"
     },
     "help": {
-      "receivables": "Somme des soldes des factures émises non réglées (y compris en litige), à l'instant présent.",
-      "recovered": "Paiements reçus dans les 14 jours suivant une relance de créance (dernier contact, relance ou appel tracé).",
-      "returnRate": "Véhicules revenus (RDV ou visite) entre la première relance et l'échéance + 30 j (VT) ou + 60 j (révision). Les échéances encore dans ce délai sont « en cours ».",
-      "dso": "Encours ÷ CA TTC des 90 derniers jours × 90.",
-      "revenueHt": "Somme HT des lignes des factures émises sur la période (acomptes exclus), moins les avoirs émis sur la période.",
-      "collected": "Paiements confirmés reçus sur la période, tous modes, moins les remboursements.",
-      "avgTicket": "CA HT ÷ nombre de factures émises (avoirs non comptés).",
-      "grossMargin": "Marge pièces (CA − coût figé à la facture) + marge MO (CA − heures pointées × coût horaire) + frais + sous-traitance, ÷ CA HT.",
-      "acceptance": "Devis (dernière version) acceptés ou convertis ÷ devis décidés ou expirés sur la période.",
-      "occupancy": "Heures pointées (réel) ou réservées (planifié) ÷ capacité des ponts sur les heures d'ouverture.",
-      "efficiency": "Heures vendues ÷ heures pointées sur les lignes facturées. Objectif ≥ 100 %."
+      "how": "Comment est-ce calculé ?",
+      "exampleLabel": "Exemple",
+      "receivables": "Somme encore due sur les factures émises et non soldées, y compris celles en litige. Une facture payée ou un avoir n'y entre pas. C'est la photo à l'instant présent, pas sur la période choisie.",
+      "receivablesExample": "Trois factures ouvertes : 80 000, 45 000 et 120 000 FCFA, dont une contestée par le client. Le total affiché est 245 000 FCFA. Dès que le client paie les 45 000, le chiffre descend à 200 000.",
+      "recovered": "Argent encaissé dans les 14 jours après une relance de créance (message, relance ou appel tracé). Un paiement arrivé plus tard n'est pas attribué à la relance.",
+      "recoveredExample": "Vous relancez une facture de 200 000 FCFA. Le client règle 80 000 FCFA par Wave huit jours après. Ces 80 000 comptent. Les 120 000 restants, payés trois semaines plus tard, ne comptent pas.",
+      "returnRate": "Part des véhicules revenus (rendez-vous ou passage à l'atelier) entre la première relance et l'échéance + 30 jours pour une visite technique, + 60 jours pour une révision. Tant que ce délai n'est pas fini, le dossier reste « en cours » et ne fait pas baisser le taux.",
+      "returnRateExample": "Dix visites techniques ont été rappelées et leur délai est clos. Quatre voitures sont revenues prendre rendez-vous. Le taux est 4 ÷ 10 = 40 %. Deux autres sont encore dans le délai : elles restent « en cours ».",
+      "dso": "Délai moyen pour encaisser : encours actuel ÷ chiffre d'affaires TTC des 90 derniers jours × 90. Plus le nombre de jours est bas, plus l'argent rentre vite.",
+      "dsoExample": "Encours 900 000 FCFA, CA TTC des 90 derniers jours 2 700 000 FCFA. Délai = 900 000 ÷ 2 700 000 × 90 = 30 jours : un franc facturé met en moyenne un mois à rentrer.",
+      "revenueHt": "Somme hors taxes des factures émises sur la période, moins les avoirs émis sur la période. Les acomptes encaissés avant la facture ne sont pas dans ce chiffre.",
+      "revenueHtExample": "Une vidange facturée 118 000 FCFA TTC, soit 100 000 HT, et un avoir de 10 000 HT le même mois. Le CA HT est 100 000 − 10 000 = 90 000 FCFA.",
+      "collected": "Paiements confirmés sur la période, tous modes (espèces, Orange Money, Wave, MTN MoMo, virement), moins les remboursements. On compte l'argent reçu, pas le solde des factures.",
+      "collectedExample": "45 000 FCFA en espèces et 100 000 par Orange Money, moins un remboursement de 5 000. L'encaissé est 140 000 FCFA, même si une facture reste partiellement impayée.",
+      "avgTicket": "CA HT de la période divisé par le nombre de factures émises. Un avoir ne compte pas comme une facture de plus.",
+      "avgTicketExample": "Trois factures : 40 000, 60 000 et 80 000 FCFA HT. Panier moyen = 180 000 ÷ 3 = 60 000 FCFA.",
+      "grossMargin": "Ce qui reste après le coût des pièces (figé à la facture), de la main-d'œuvre (heures pointées × coût horaire), des frais et de la sous-traitance, divisé par le CA HT.",
+      "grossMarginExample": "Pièces vendues 50 000 HT, achetées 30 000. Main-d'œuvre vendue 40 000 HT pour 2 h pointées à 5 000 FCFA/h, soit 10 000 de coût. Marge = 20 000 + 30 000 = 50 000 FCFA, soit 50 000 ÷ 90 000 = 55,6 %.",
+      "acceptance": "Devis acceptés ou déjà convertis en ordre, divisés par les devis décidés ou expirés sur la période. Un devis encore sans réponse du client n'entre pas dans le calcul.",
+      "acceptanceExample": "Dix devis acceptés ou convertis, quatre refusés ou expirés. Le taux est 10 ÷ 14, soit environ 71 %. Un devis envoyé hier et pas encore ouvert n'est pas compté.",
+      "occupancy": "Heures réellement pointées, ou heures déjà réservées au planning, divisées par la capacité des ponts sur les heures d'ouverture.",
+      "occupancyExampleReal": "Deux ponts ouverts 8 h, soit 16 h de capacité. Les mécaniciens ont pointé 8 h. L'occupation réelle est 8 ÷ 16 = 50 %.",
+      "occupancyExamplePlanned": "Les mêmes 16 h de capacité, et 12 h déjà posées sur le planning. L'occupation planifiée est 12 ÷ 16 = 75 %, même si personne n'a encore pointé.",
+      "efficiency": "Heures de main-d'œuvre vendues divisées par les heures pointées, sur les lignes facturées. À partir de 100 %, le travail a été fait au moins aussi vite que le temps facturé.",
+      "efficiencyExample": "Un mécanicien a pointé 8 h et 10 h de main-d'œuvre ont été facturées sur ses lignes. Efficacité = 10 ÷ 8 = 125 %. Sous 100 %, le travail a pris plus de temps que ce qui a été facturé.",
+      "late": "Ordres dont l'heure de livraison promise est dépassée et qui ne sont pas encore prêts. Un ordre promis pour demain n'y figure pas.",
+      "lateExample": "La Corolla de M. Traoré était promise hier à 17 h et elle est encore en réparation. Elle compte ici jusqu'à ce qu'elle passe « prête » ou soit livrée.",
+      "waitingParts": "Ordres bloqués « en attente de pièces » depuis plus de 48 h. Le but est de relancer le fournisseur avant que le client n'attende trop.",
+      "waitingPartsExample": "L'ordre de la Tucson attend un filtre depuis avant-hier. Il apparaît ici. Un ordre passé en attente de pièces ce matin n'y est pas encore.",
+      "toHandleToday": "Relances à envoyer aujourd'hui, plus celles qui attendent votre accord avant de partir. Une relance déjà envoyée hier n'y est plus.",
+      "toHandleTodayExample": "Un rappel de visite technique est programmé aujourd'hui à 9 h, et un message de créance attend votre validation. Les deux comptent.",
+      "remindersSent": "Messages de relance partis sur la période (WhatsApp, SMS ou e-mail). Un envoi en échec n'est pas dans ce chiffre.",
+      "remindersSentExample": "Trois WhatsApp partis ce mois-ci : une visite technique, une révision, une facture impayée. Ils comptent, même si le client n'a pas encore répondu.",
+      "returnedCustomers": "Clients revenus à l'atelier après un rappel : ils ont pris rendez-vous ou sont passés. Un message seulement lu, sans visite, ne compte pas.",
+      "returnedCustomersExample": "Mme Koné reçoit un rappel de révision, prend rendez-vous et dépose sa Tucson. Elle compte. Un client qui a lu le message sans venir ne compte pas.",
+      "toApprove": "Relances prêtes, qui attendent votre accord avant l'envoi. Rien ne part tant que vous n'avez pas validé.",
+      "toApproveExample": "Le rappel de visite technique de la Peugeot 307 est rédigé, mais le canal demande une validation. Il reste ici jusqu'à votre accord, puis il part.",
+      "inspectionsDue30": "Véhicules dont la visite technique expire dans les 30 prochains jours. C'est le moment de proposer un rendez-vous avant la vignette.",
+      "inspectionsDue30Example": "La Peugeot de M. Bamba expire dans 18 jours : elle compte. Une échéance dans 45 jours n'y est pas encore.",
+      "servicesDueThisMonth": "Révisions dont l'échéance tombe dans le mois en cours. Elles ne sont pas liées au filtre de période du tableau de bord.",
+      "servicesDueThisMonthExample": "La révision des 10 000 km de la Tucson est prévue le 12 de ce mois. Elle compte. Une révision prévue le mois prochain n'y figure pas.",
+      "overdue": "Solde des factures dont la date d'échéance est dépassée. Une facture due la semaine prochaine est à recevoir, mais pas encore en retard.",
+      "overdueExample": "Une facture de 85 000 FCFA devait être payée le 10. Nous sommes le 30 et il reste 85 000. Ce solde est en retard. Une facture due le 5 du mois prochain n'y est pas.",
+      "disputed": "Montant que le client conteste (pièce non posée, désaccord sur le devis). Il reste dans les créances jusqu'à résolution, et il est isolé ici.",
+      "disputedExample": "Le client refuse 75 000 FCFA sur une facture, le temps de vérifier une pièce. Ces 75 000 sont ici, et aussi dans les créances en cours.",
+      "appointments": "Rendez-vous dont le début tombe aujourd'hui, tous statuts confondus (réservé, confirmé, arrivé, absent).",
+      "appointmentsExample": "Mme Koné a un créneau à 9 h pour la révision de sa Tucson, et M. Traoré un diagnostic à 14 h. Les deux comptent, même si l'un est déjà arrivé.",
+      "quotesWaiting": "Devis envoyés au client depuis plus de 48 h, sans acceptation ni refus. Le plus ancien est en tête de liste.",
+      "quotesWaitingExample": "Le devis DEV-2026-014 de 185 000 FCFA a été envoyé lundi sur WhatsApp. Nous sommes jeudi et le client n'a pas répondu : il compte. Un devis envoyé ce matin n'y est pas encore.",
+      "readyVehicles": "Véhicules dont les travaux sont finis et qui n'ont pas encore été restitués au client.",
+      "readyVehiclesExample": "La Corolla RT212 est « prête à livrer » depuis hier. Elle compte jusqu'à ce que le client vienne la chercher.",
+      "unread": "Conversations (WhatsApp, SMS) où le dernier message du client n'a pas été lu dans l'atelier.",
+      "unreadExample": "Un client a écrit « la voiture est prête ? » et personne n'a ouvert le fil. La conversation compte. Dès qu'un conseiller l'ouvre, elle sort du chiffre.",
+      "activeCustomers": "Clients avec au moins une facture ou un ordre non annulé dans les 12 mois avant la fin de la période.",
+      "activeCustomersExample": "M. Traoré est venu pour une vidange il y a trois mois : il est actif. Un client du fichier qui n'est pas revenu depuis 14 mois ne l'est plus.",
+      "newCustomers": "Clients dont la toute première facture ou le premier ordre tombe dans la période affichée.",
+      "newCustomersExample": "Mme Bamba dépose sa voiture pour la première fois cette semaine et une facture est émise. Elle compte comme nouvelle. Une deuxième visite le mois suivant ne la recompte pas.",
+      "lostCustomers": "Clients dont la dernière activité date de 12 à 24 mois avant la fin de période, et qui ne sont pas revenus depuis.",
+      "lostCustomersExample": "M. Kouassi est venu il y a 14 mois et plus depuis. Il est perdu : c'est un client à relancer pour une révision, pas un client actif.",
+      "cashier": "Encaissements de votre caisse ouverte seulement, pas ceux des autres caissiers du garage.",
+      "cashierExample": "Vous avez enregistré 100 000 FCFA par Orange Money depuis l'ouverture. Un collègue sur une autre caisse n'entre pas dans ce total.",
+      "byNature": "Répartition du CA HT entre main-d'œuvre, pièces, sous-traitance et frais, sur la période choisie.",
+      "byNatureExample": "Une vidange facturée 40 000 FCFA HT de main-d'œuvre et 25 000 HT de filtres. Chaque montant s'ajoute dans sa barre. Un avoir diminue la nature concernée.",
+      "statusCounts": "Nombre d'ordres encore ouverts, un compteur par statut. Un ordre déjà livré ou annulé n'y figure plus.",
+      "statusCountsExample": "3 ordres « Prêt » attendent que le client vienne chercher sa voiture. 1 ordre « En attente de pièces » attend une livraison fournisseur.",
+      "funnel": "Parcours des relances de la période : parties, arrivées sur le téléphone, lues, puis échecs. Un message peut être parti sans avoir été lu.",
+      "funnelExample": "10 messages partis, 8 arrivés, 3 lus, 1 échec (numéro injoignable). Les pastilles en dessous répartissent les envois par motif : visite technique, révision, créance.",
+      "weekly": "Nombre de relances envoyées par semaine. Une semaine basse peut venir d'échéances peu nombreuses, pas seulement d'un canal en panne.",
+      "weeklyExample": "Semaine du 20/10 : 6 envois. Semaine suivante : 1. Le chiffre exact est écrit à droite de chaque barre.",
+      "aged": "Créances clients rangées par ancienneté. « Non échu » n'est pas encore en retard. « Plus de 90 j » est la tranche à relancer en premier.",
+      "agedExample": "80 000 FCFA non échus et 45 000 FCFA entre 1 et 30 jours. Seule la seconde tranche est en retard. L'ensemble des tranches égale les créances en cours.",
+      "fneFailed": "Factures que la plateforme FNE a refusées. Tant que l'erreur n'est pas corrigée, la facture n'est pas certifiée.",
+      "fneFailedExample": "Une facture est rejetée parce que le NIF du client manque. Elle reste ici jusqu'à correction et renvoi.",
+      "promises": "Clients qui ont promis de payer aujourd'hui. Le montant est celui convenu, pas forcément le solde entier de la facture.",
+      "promisesExample": "Un client a promis 50 000 FCFA aujourd'hui sur une facture de 179 000. S'il ne paie pas, la promesse reste à relancer.",
+      "topUnpaid": "Clients qui doivent le plus, toutes factures ouvertes confondues. Le badge donne le plus long retard de ce client.",
+      "topUnpaidExample": "{customer} doit {amount}. Retard le plus long : {days}.",
+      "topParts": "Pièces les plus vendues sur la période, en montant HT. La marge n'apparaît que si vous avez le droit de voir les chiffres financiers.",
+      "topPartsExample": "12 filtres à huile vendus sur 8 ordres, pour 96 000 FCFA HT. C'est le haut du classement de la période.",
+      "alerts": "Événements qui demandent une action : canal de message en panne, ordre en retard, stock bas. Marquer comme lu retire l'alerte de la liste, ça ne corrige pas le problème.",
+      "alertsExample": "« Canal SMS en erreur » : les SMS ne partent plus. Lire l'alerte ne répare pas le canal. Il faut vérifier la configuration dans Paramètres."
     },
     "reminders": {
       "funnel": "Envois sur la période",
@@ -1384,7 +2207,7 @@
       "delivered": "Délivrés",
       "read": "Lus",
       "failed": "Échecs",
-      "toApprove": "À valider",
+      "toApprove": "À envoyer",
       "recovered": "Montant récupéré",
       "generatedRevenue": "CA généré par les retours (affiché à part)",
       "returnRate": "Taux de retour",
@@ -1396,7 +2219,7 @@
       "types": {
         "INSPECTION": "Visite technique",
         "SERVICE": "Révision",
-        "RECEIVABLE": "Créance",
+        "RECEIVABLE": "Facture impayée",
         "APPOINTMENT": "Rendez-vous",
         "QUOTE_FOLLOWUP": "Devis",
         "VEHICLE_READY": "Véhicule prêt",
@@ -1407,7 +2230,7 @@
       }
     },
     "finances": {
-      "aged": "Balance âgée",
+      "aged": "Impayés par ancienneté",
       "buckets": {
         "notDue": "Non échu",
         "b0_30": "1 à 30 j",
@@ -1482,14 +2305,14 @@
     "frontDesk": {
       "appointments": "RDV du jour",
       "noAppointments": "Aucun RDV aujourd'hui",
-      "reminders": "Relances à valider",
+      "reminders": "Relances prêtes à envoyer",
       "seeAll": "Tout voir ({count})",
       "quotes": "Devis sans réponse depuis plus de 48 h",
       "ready": "Véhicules prêts non livrés",
       "unread": "Conversations non lues",
       "none": "Rien à traiter",
       "kpiAppointments": "RDV aujourd'hui",
-      "kpiReminders": "Relances à valider",
+      "kpiReminders": "Relances prêtes à envoyer",
       "kpiQuotes": "Devis en attente",
       "kpiReady": "Véhicules prêts"
     },
@@ -1522,7 +2345,24 @@
         "unpaid": "Factures impayées",
         "unpaidSub": "{count} factures · {long} échues depuis plus de 15 jours",
         "inspections": "Visites techniques à relancer",
-        "inspectionsSub": "{j60} à J-60 · {j30} à J-30 · {j15} à J-15"
+        "inspectionsSub": "{j60} à J-60 · {j30} à J-30 · {j15} à J-15",
+        "vehiclesHelp": "Voitures encore dans le garage, de la réception jusqu'au « prêt à livrer ». Le véhicule sort de ce chiffre seulement quand le client le récupère.",
+        "vehiclesExample": "{customer} a sa {vehicle} ({plate}) au statut « {stage} ». Elle compte parmi les {total} tant qu'elle n'est pas restituée.",
+        "vehiclesExampleEmpty": "Le garage est vide pour l'instant. Dès qu'un client dépose sa voiture, elle entre dans ce chiffre et en sort seulement à la restitution.",
+        "collectedHelp": "Argent réellement reçu aujourd'hui : espèces, Orange Money, Wave, MTN MoMo et virement, moins les remboursements. Une facture non soldée n'entre pas ici.",
+        "collectedExample": "{amount} sont arrivés par {method}. Ils sont inclus dans les {total} du jour. La caisse est {state} : un remboursement confirmé aujourd'hui serait retiré.",
+        "collectedExampleRecent": "Aujourd'hui, rien n'est encore rentré. Le dernier encaissement date du {date} : {amount}. Il ne compte pas ici, ce chiffre ne retient que les paiements confirmés du jour.",
+        "collectedExampleEmpty": "Rien n'a été encaissé aujourd'hui. Un règlement de 25 000 FCFA en espèces ou par Wave apparaîtra ici dès qu'il est confirmé.",
+        "unpaidHelp": "Somme encore due par les clients sur les factures émises. Le compteur « plus de 15 jours » isole les retards qui méritent une relance tout de suite.",
+        "unpaidExample": "{number} · {customer} : {amount} encore dus, facture échue depuis {days}. Ce solde est compris dans les {total} ({count} factures).",
+        "unpaidExampleOpen": "Les {count} factures ouvertes totalisent {total}. Aucune n'est échue depuis plus de 15 jours : soit l'échéance n'est pas passée, soit le retard est plus récent.",
+        "unpaidExampleEmpty": "Aucun impayé. Une facture de 85 000 FCFA émise et non réglée apparaîtrait ici jusqu'au paiement complet.",
+        "inspectionsHelp": "Véhicules dont la visite technique expire dans les 60 prochains jours. J-60, J-30 et J-15 sont les rappels pour proposer un rendez-vous avant l'échéance.",
+        "inspectionsExample": "{customer} ({plate}, {vehicle}) : la visite technique tombe {when} (échéance le {date}). Tranche {band} — la relance sert à caler un créneau avant cette date.",
+        "inspectionsExampleEmpty": "Aucune visite technique dans les 60 prochains jours. Une voiture dont la vignette expire dans 12 jours apparaîtrait en J-15.",
+        "whenIn": "dans {days} jours",
+        "whenToday": "aujourd'hui",
+        "whenLate": "échéance dépassée de {days} jours"
       },
       "workshop": {
         "title": "Véhicules en atelier",
@@ -1541,7 +2381,10 @@
         "customerPays": "Paiement client",
         "noDate": "Non fixée",
         "empty": "Aucun véhicule en atelier.",
-        "more": "+ {count} autres véhicules"
+        "more": "+ {count} autres véhicules",
+        "help": "Chaque ligne est une voiture encore dans le garage. Le statut résume l'étape. « Prise en charge » dit si c'est le client ou un assureur qui paie. « Livraison prévue » est la date promise au client.",
+        "example": "{customer} ({plate}, {vehicle}) est « {stage} ». Qui paie : {payer}. Livraison prévue : {date}.",
+        "exampleEmpty": "Aucune voiture dans le garage. Dès qu'un client dépose son véhicule, une ligne apparaît ici jusqu'à la restitution."
       },
       "cash": {
         "title": "Caisse du jour",
@@ -1551,7 +2394,11 @@
         "payments": "{count} paiements enregistrés",
         "close": "Clôturer la caisse",
         "open": "Ouvrir la caisse",
-        "closeHint": "La clôture se fait dans la caisse, avec le comptage des espèces."
+        "closeHint": "La clôture se fait dans la caisse, avec le comptage des espèces.",
+        "help": "Répartition de l'argent reçu aujourd'hui, mode par mode. Le total est le même que la carte « Encaissé aujourd'hui ». Clôturer se fait ensuite, après le comptage des espèces.",
+        "example": "{method} : {amount} aujourd'hui, sur un total de {total}. La barre compare ce mode aux autres.",
+        "exampleQuiet": "Tous les modes sont à 0 aujourd'hui. Le dernier encaissement date du {date} ({amount}) : il est dans le graphique des 7 jours, pas dans cette caisse.",
+        "exampleEmpty": "Aucun paiement confirmé aujourd'hui. Un règlement en espèces ou par Wave apparaîtra sur sa ligne dès qu'il est enregistré."
       },
       "inspections": {
         "title": "Visites techniques à préparer",
@@ -1572,20 +2419,26 @@
           "toCall": "À appeler",
           "read": "Message lu",
           "sent": "Envoyée",
-          "toApprove": "À valider",
+          "toApprove": "À envoyer",
           "planned": "Planifiée",
           "none": "Aucune"
         },
         "empty": "Aucune visite technique dans les 60 prochains jours.",
-        "siteFiltered": "Les visites techniques ne sont pas rattachées à un site : choisissez « Tous les sites » pour les voir."
+        "siteFiltered": "Les visites techniques ne sont pas rattachées à un site : choisissez « Tous les sites » pour les voir.",
+        "help": "Voitures dont la visite technique expire dans les 60 jours. J-60 laisse le temps de proposer un créneau, J-15 est urgent. La colonne Relance dit où en est le contact : aucune, envoyée, lue, à appeler, ou rendez-vous déjà pris.",
+        "example": "{customer} ({plate}, {vehicle}) : échéance le {date} ({when}). Relance : « {follow} ».",
+        "exampleEmpty": "Aucune visite technique dans les 60 prochains jours. Une voiture dont la vignette expire dans 12 jours apparaîtrait en J-15."
       },
       "reminders": {
         "title": "Relances automatiques",
         "sentThisWeek": "Envoyées cette semaine",
-        "toApprove": "À valider",
+        "toApprove": "À envoyer",
         "upcoming": "Prochains envois",
         "noUpcoming": "Aucun envoi programmé dans les 7 prochains jours.",
-        "manage": "Gérer les relances"
+        "manage": "Gérer les relances",
+        "help": "« Envoyées cette semaine » compte les messages déjà partis. « À envoyer » : le message est prêt mais ne part pas tant que vous n'avez pas cliqué sur Envoyer. En dessous, les envois prévus sur les 7 prochains jours.",
+        "example": "Le {date} : {detail}. {sent} {approve}",
+        "exampleQuiet": "{sent} {approve} Aucun envoi n'est programmé dans les 7 prochains jours."
       },
       "claims": {
         "title": "Dossiers assurance",
@@ -1598,7 +2451,10 @@
         },
         "count": "{count} dossiers",
         "empty": "Aucun dossier assurance en cours.",
-        "all": "Voir les sinistres"
+        "all": "Voir les sinistres",
+        "help": "Sommes à recevoir des compagnies, distinctes des factures clients. Un dossier passe d'abord en attente d'accord, puis accord reçu, puis facturé à l'assureur. Passé l'échéance, il devient « remboursement en retard ».",
+        "example": "{dossiers} « {stage} », pour {amount}. Ce montant est compris dans les {total} à recevoir des assureurs.",
+        "exampleEmpty": "Aucun sinistre en cours. Dès qu'un dossier a un montant à recevoir, il apparaît ici jusqu'au paiement de la compagnie."
       },
       "unpaid": {
         "title": "Factures impayées",
@@ -1608,14 +2464,19 @@
         "noNumber": "Facture",
         "more": "+ {count} autres factures en retard · {amount}",
         "remind": "Relancer les factures échues",
-        "empty": "Aucune facture en retard."
+        "empty": "Aucune facture en retard.",
+        "help": "Factures clients non soldées, les plus en retard en haut. Le badge indique depuis combien de jours l'échéance est dépassée. Au-delà de 15 jours, il passe au rouge.",
+        "exampleEmpty": "Aucune facture en retard. Une facture dont l'échéance est passée apparaîtrait ici, avec le nombre de jours."
       },
       "collected": {
         "title": "Encaissements · 7 jours",
         "total": "Total de la période",
         "todayShort": "Auj.",
         "unit": "Montants encaissés par jour, remboursements déduits.",
-        "aria": "{day} : {amount}"
+        "aria": "{day} : {amount}",
+        "help": "Argent encaissé chaque jour sur les 7 derniers jours, remboursements déduits. La barre orange est aujourd'hui.",
+        "example": "{day} : {amount} encaissés. Sur les 7 jours, le total est {total}.",
+        "exampleEmpty": "Aucun encaissement sur les 7 derniers jours. Une barre apparaîtrait le jour où un paiement est confirmé."
       }
     }
   },
@@ -1836,6 +2697,18 @@
       "kpiConfirmed": "Confirmés",
       "kpiUnanswered": "Sans réponse",
       "kpiLate": "En retard",
+      "help": {
+        "total": "Rendez-vous dont le début tombe aujourd'hui, tous statuts confondus.",
+        "confirmed": "Le client a confirmé qu'il viendra, par appel, WhatsApp ou le portail.",
+        "unanswered": "Une confirmation a été demandée et le client n'a pas répondu.",
+        "late": "L'heure du rendez-vous est passée et le client n'est pas marqué arrivé."
+      },
+      "example": {
+        "total": "Mme Koné a un créneau à 9 h et M. Traoré un diagnostic à 14 h. Les deux comptent, même si l'un est déjà arrivé.",
+        "confirmed": "Mme Koné a répondu « oui » ce matin. Son rendez-vous est confirmé. Celui de M. Traoré, sans réponse, ne l'est pas.",
+        "unanswered": "Un SMS est parti hier pour le créneau de 14 h. Pas de réponse : il est sans réponse.",
+        "late": "Le créneau de 9 h est passé, le client n'est pas là. Il est en retard jusqu'à son arrivée ou son passage en absent."
+      },
       "openPlanning": "Planning"
     },
     "settings": {
@@ -1919,7 +2792,8 @@
     },
     "errors": {
       "generic": "Action impossible. Réessayez."
-    }
+    },
+    "loadingPlanning": "Chargement du planning…"
   },
   "repairOrders": {
     "title": "Ordres de réparation",
@@ -1945,6 +2819,20 @@
       "waitingParts": "En attente de pièces",
       "ready": "Prêts",
       "late": "En retard"
+    },
+    "kpiHelp": {
+      "active": "Ordres encore ouverts à l'atelier, de la réception jusqu'avant la livraison. Un ordre livré ou annulé n'y est plus.",
+      "awaitingApproval": "Le devis complémentaire attend la réponse du client. Les travaux concernés sont en pause.",
+      "waitingParts": "L'ordre est bloqué faute de pièce. Il reprend dès que la pièce est réservée ou réceptionnée.",
+      "ready": "Travaux terminés, véhicule prêt à être restitué. Il reste ici jusqu'à la livraison.",
+      "late": "L'heure de livraison promise est dépassée et le véhicule n'est pas encore prêt. Ce bouton filtre aussi la liste."
+    },
+    "kpiExample": {
+      "active": "Trois voitures sont en cours : une en diagnostic, une en réparation, une prête. Le chiffre est 3. Celle livrée ce matin n'y est plus.",
+      "awaitingApproval": "Le client n'a pas encore accepté le remplacement des plaquettes à 45 000 FCFA. L'ordre reste ici jusqu'à son accord ou son refus.",
+      "waitingParts": "La Tucson attend un filtre commandé chez le fournisseur. Elle compte ici. Un ordre en réparation avec toutes ses pièces n'y est pas.",
+      "ready": "La Corolla est prête à livrer depuis hier. Elle compte jusqu'à ce que le client vienne la chercher.",
+      "late": "La Corolla était promise hier à 17 h et elle est encore en réparation. Elle compte jusqu'à ce qu'elle passe « prête » ou soit livrée."
     },
     "counters": {
       "active": "{count} à l'atelier",
@@ -2117,7 +3005,8 @@
       "mechanic": "Mécanicien",
       "quantity": "Qté",
       "hours": "Heures",
-      "unitPrice": "PU HT",
+      "unitPrice": "Prix unitaire HT",
+      "unitPriceRequired": "Renseignez le prix unitaire.",
       "discount": "Remise %",
       "vat": "TVA %",
       "total": "Total TTC",
@@ -2204,17 +3093,28 @@
       "comebackToggle": "Retour sur travaux (OR d'origine : {number})",
       "mileage": "Kilométrage",
       "mileageUnit": "km",
+      "mileageHint": "Chiffres affichés au compteur.",
+      "mileageRequired": "Saisissez le kilométrage, ou cochez « Compteur illisible ».",
       "lastKnownMileage": "Dernier relevé connu",
       "mileageDelta": "Écart constaté",
       "odometerRegression": "{delta} km (régression)",
       "quickFuelTitle": "Sélection rapide",
       "scanOdometer": "Scanner le compteur (IA)",
       "odometerUnreadable": "Compteur illisible / en panne",
-      "odometerReason": "Motif",
+      "odometerReason": "Pourquoi le compteur est illisible",
+      "odometerReasonRequired": "Indiquez pourquoi le compteur est illisible.",
       "confirmMileage": "Je confirme ce kilométrage inhabituel",
       "fuel": "Niveau de carburant",
+      "fuelHint": "Touchez un cran, de vide à plein.",
+      "fuelRequired": "Indiquez le niveau de carburant.",
+      "fuelEmpty": "Vide",
+      "fuelQuarter": "1/4",
+      "fuelHalf": "1/2",
+      "fuelThreeQuarters": "3/4",
+      "fuelFull": "Plein",
       "fuelValue": "{level}/8",
       "warningLights": "Voyants allumés",
+      "warningLightsHint": "Ne cochez que ceux qui sont allumés au tableau de bord.",
       "lights": {
         "engine": "Moteur",
         "abs": "ABS",
@@ -2390,6 +3290,8 @@
       "addSuggestion": "Ajouter",
       "suggestionAdded": "Ajouté",
       "initialLines": "Travaux demandés (accord du client à la signature)",
+      "missingUnitPrice": "Renseignez le prix unitaire de la ligne « {description} » (ou sélectionnez-la dans le catalogue).",
+      "lineMissingPrice": "Renseignez le prix unitaire.",
       "ceiling": "Plafond d'autorisation (TTC)",
       "ceilingHint": "Travaux supplémentaires acceptés sans rappeler le client jusqu'à ce montant.",
       "promise": "Promesse de restitution",
@@ -2403,6 +3305,8 @@
       "summaryItems": "Accessoires : {count}",
       "consent": "J'autorise le diagnostic ; aucun travail ne sera réalisé sans mon accord au-delà de {amount}.",
       "signerName": "Nom du signataire",
+      "signerNameRequired": "Indiquez le nom du signataire.",
+      "signatureRequired": "Faites signer le client dans le cadre, ou choisissez une autre option.",
       "signHere": "Signez dans le cadre",
       "clearSignature": "Effacer",
       "signatureMode": "Signature",
@@ -2481,6 +3385,15 @@
     "qc": {
       "title": "Contrôle qualité — {number}",
       "checklist": "Points de contrôle",
+      "progress": "{done} sur {total} points",
+      "markAllOk": "Tout marquer OK",
+      "needAll": "Renseignez chaque point pour valider.",
+      "nokBlocks": "Un point est non conforme : corrigez-le, ou refusez le contrôle.",
+      "ready": "Tous les points sont renseignés.",
+      "roadTestHint": "Kilométrage au départ et à l'arrivée de l'essai.",
+      "kmOrder": "Le kilométrage d'arrivée est inférieur au départ.",
+      "commentPlaceholder": "Remarque pour l'atelier, facultative",
+      "oldPartsHint": "À remettre au client avant la restitution.",
       "results": {
         "OK": "OK",
         "NOK": "Non conforme",
@@ -2544,13 +3457,28 @@
       "noCandidates": "Aucun OR livré pour ce véhicule."
     },
     "documents": {
+      "forClient": "Pour le client",
+      "forClientHint": "À envoyer à {name}. Il ouvre le lien sur son téléphone, sans créer de compte.",
+      "toPrint": "À imprimer",
+      "printHint": "Chaque document a son destinataire. Le prix n'apparaît que sur l'ordre complet.",
+      "audience": {
+        "client": "Pour le client",
+        "workshop": "Pour l'atelier"
+      },
+      "descriptions": {
+        "reception": "État du véhicule à l'arrivée, objets confiés et signature.",
+        "workshop": "Travaux à faire, sans prix. À laisser au mécanicien.",
+        "full": "Travaux et prix estimés, pour le dossier et le client.",
+        "delivery": "Remise du véhicule, compteur de sortie et signature."
+      },
       "reception": "Bon de réception",
       "workshop": "Fiche de travail atelier",
       "full": "OR complet (prix estimés)",
       "delivery": "Bon de restitution",
       "photos": "Photos",
       "invoices": "Factures",
-      "noInvoice": "Aucune facture (M08)."
+      "noInvoice": "Aucune facture pour cet ordre.",
+      "draftInvoice": "Brouillon"
     },
     "history": {
       "transition": "{from} → {to}",
@@ -2631,7 +3559,12 @@
       "archived": "Archivé",
       "edit": "Modifier",
       "pointsCount": "{count} points",
-      "empty": "Aucun modèle d'inspection."
+      "empty": "Aucun modèle d'inspection.",
+      "defaultCategory": "Général",
+      "defaultedLines": "Sans catégorie (« Catégorie ; Libellé »), ces points seront classés dans « {category} » : {labels}.",
+      "archiveDefaultWarning": "« {name} » est le modèle par défaut. Une fois archivé, « {next} » deviendra le modèle par défaut.",
+      "archiveDefaultWarningLast": "« {name} » est le modèle par défaut et le dernier actif : sans modèle actif, aucune inspection ne pourra être lancée.",
+      "archiveConfirm": "Archiver quand même"
     },
     "portal": {
       "title": "Suivi de votre véhicule",
@@ -2662,43 +3595,74 @@
     },
     "loadMore": "Afficher plus"
   },
-  "customers": {
-    "contacts": {
-      "title": "Contacts",
-      "add": "Ajouter un contact",
-      "createTitle": "Nouveau contact",
-      "editTitle": "Modifier le contact",
-      "deleteTitle": "Supprimer le contact",
-      "deleteConfirm": "Supprimer « {name} » ? Les messages déjà envoyés restent dans l'historique.",
-      "loadError": "Impossible de charger les contacts.",
+  "vehicles": {
+    "list": {
+      "title": "Véhicules",
+      "countOne": "{count} véhicule",
+      "countMany": "{count} véhicules",
+      "new": "Nouveau véhicule",
+      "search": "Rechercher une plaque, un VIN, un n° de parc…",
+      "widgetsLabel": "Visite technique du parc",
+      "all": "Véhicules",
+      "dueSoon": "VT bientôt",
+      "expired": "VT expirée",
+      "unknown": "Sans date de VT",
+      "help": {
+        "all": "Véhicules enregistrés au parc, quelle que soit la date de visite technique.",
+        "dueSoon": "La visite technique expire dans les 30 prochains jours. C'est le moment de proposer un rendez-vous.",
+        "expired": "La date de visite technique est dépassée. La voiture n'est plus en règle tant que la visite n'est pas refaite.",
+        "unknown": "Aucune date de visite technique n'est saisie. Aucun rappel ne peut partir tant que la date est inconnue."
+      },
+      "example": {
+        "all": "40 voitures au fichier. Le chiffre est 40, qu'elles soient à jour ou non.",
+        "dueSoon": "La Peugeot de M. Bamba expire dans 18 jours : elle compte. Une échéance dans 45 jours n'y est pas encore.",
+        "expired": "La vignette de la Corolla était valable jusqu'au 12/10. Nous sommes le 30/10 : elle reste ici jusqu'au passage au centre.",
+        "unknown": "La Tucson de Mme Koné est au fichier sans date de vignette. Dès que vous saisissez le 15/03/2027, elle sort de ce chiffre."
+      },
+      "viewList": "Vue liste",
+      "viewGrid": "Vue grille",
+      "clearSearch": "Effacer la recherche",
+      "colVehicle": "Véhicule",
+      "colClient": "Client",
+      "colInspection": "Visite technique",
+      "colMileage": "Km estimé",
+      "call": "Appeler",
+      "openClient": "Fiche client",
+      "loading": "Chargement…",
+      "error": "Impossible de charger les véhicules.",
       "retry": "Réessayer",
-      "empty": {
-        "title": "Aucun contact.",
-        "description": "Sans contact coché, les messages partent au téléphone principal du client."
-      },
-      "badges": {
-        "primary": "Contact principal",
-        "reminders": "Reçoit les relances",
-        "invoices": "Reçoit les factures"
-      },
-      "fields": {
-        "name": "Nom",
-        "role": "Fonction",
-        "rolePlaceholder": "Responsable flotte, Comptabilité…",
-        "phone": "Téléphone",
-        "phone2": "Téléphone 2",
-        "email": "Email",
-        "isPrimary": "Contact principal",
-        "receivesReminders": "Reçoit les relances (visite technique, révision)",
-        "receivesInvoices": "Reçoit les factures et relances de créances"
-      }
+      "empty": "Aucun véhicule",
+      "emptyHint": "Ajoutez le premier véhicule du parc.",
+      "emptySearch": "Aucun résultat pour « {query} »",
+      "emptySearchHint": "Essayez une autre plaque ou un autre VIN.",
+      "loadMore": "Afficher plus",
+      "mileageUnknown": "—"
+    },
+    "detail": {
+      "loading": "Chargement…",
+      "notFound": "Véhicule introuvable.",
+      "owner": "Voir le propriétaire",
+      "inspection": "Visite technique",
+      "expiresOn": "Expire le {date}",
+      "unknownDate": "Date inconnue",
+      "inspectionDoneOn": "VT effectuée le",
+      "inspectionDone": "VT effectuée",
+      "service": "Révision",
+      "serviceDueOn": "Due vers le {date}",
+      "serviceDueKm": " (≈ {km} km)",
+      "unknownHistory": "Historique inconnu",
+      "mileage": "Kilométrage",
+      "mileageValue": "{km} km",
+      "estimatedToday": "estimé du jour",
+      "newReading": "Nouveau relevé",
+      "saveMileage": "Saisir le km"
     }
   },
   "reminders": {
     "types": {
       "INSPECTION": "Visite technique",
       "SERVICE": "Révision",
-      "RECEIVABLE": "Créance",
+      "RECEIVABLE": "Facture impayée",
       "APPOINTMENT": "Rendez-vous",
       "QUOTE_FOLLOWUP": "Suivi de devis",
       "VEHICLE_READY": "Véhicule prêt",
@@ -2711,7 +3675,11 @@
       "SENT": "Envoyée",
       "FAILED": "Échec",
       "CANCELLED": "Annulée",
-      "SKIPPED": "Ignorée"
+      "SKIPPED": "Ignorée",
+      "PLANNED": "Planifiée",
+      "NEEDS_APPROVAL": "Prête — envoi à confirmer",
+      "QUEUED": "En cours d'envoi",
+      "SNOOZED": "Reportée"
     },
     "outcomes": {
       "APPOINTMENT_BOOKED": "RDV pris",
@@ -2727,7 +3695,7 @@
     },
     "results": {
       "title": "Résultats des relances",
-      "description": "Relances envoyées, en échec, annulées ou ignorées sur la période, et ce qu'elles ont produit.",
+      "description": "Chaque relance terminée sur la période : envoyée, en échec, annulée ou ignorée. Pour les envoyées, les coches indiquent si le client l'a reçue (✓✓) ou lue (✓✓ bleues). « Résultats obtenus » compte ce que les relances ont produit.",
       "fromLabel": "Du",
       "toLabel": "Au",
       "statusFilterLabel": "Statut",
@@ -2736,7 +3704,19 @@
       "allTypes": "Tous les types",
       "invalidRange": "La date de début doit précéder la date de fin.",
       "kpiLabel": "{label} : {count}",
-      "outcomesTitle": "Issues constatées",
+      "help": {
+        "SENT": "Messages partis sur la période (WhatsApp, SMS ou e-mail). Un envoi en échec n'est pas ici.",
+        "FAILED": "L'envoi a échoué : numéro invalide ou fournisseur en erreur. Rien n'est arrivé au client.",
+        "CANCELLED": "Relance arrêtée avant l'envoi : facture payée, véhicule déjà revenu, ou vous l'avez annulée.",
+        "SKIPPED": "Au moment d'envoyer, la condition n'était plus là (désinscription, déjà traité). Le message n'est pas parti."
+      },
+      "example": {
+        "SENT": "Trois WhatsApp partis cette semaine. Ils sont envoyés, même si le client n'a pas encore répondu.",
+        "FAILED": "Un SMS vers un numéro mal saisi est revenu en échec. Il compte ici, pas dans les envoyés.",
+        "CANCELLED": "La facture a été payée à 8 h, le rappel de 9 h est annulé. Il n'est pas parti.",
+        "SKIPPED": "Le client s'est désinscrit. Le rappel du jour est ignoré et n'est pas envoyé."
+      },
+      "outcomesTitle": "Résultats obtenus",
       "outcomesEmpty": "Aucune issue enregistrée sur la période.",
       "error": "Impossible de charger les résultats des relances.",
       "retry": "Réessayer",
@@ -2754,7 +3734,481 @@
         "status": "Statut",
         "when": "Date",
         "reason": "Issue / motif"
+      },
+      "filteredOn": "Filtré sur {name}",
+      "filteredOnUnknown": "Filtré sur une fiche",
+      "clearFilter": "Retirer le filtre",
+      "descriptionExample": "Un rappel de visite technique part en SMS lundi, le client prend RDV mardi : la ligne affiche « RDV pris ».",
+      "subtitle": "Ce qui est parti, ce que le client a reçu, et ce que ça a donné.",
+      "openQueue": "Relances à traiter",
+      "periodLabel": "Période",
+      "periods": {
+        "7": "7 jours",
+        "30": "30 jours",
+        "month": "Ce mois",
+        "custom": "Dates…"
+      },
+      "periodRange": "du {from} au {to}",
+      "deliverySummary": "{delivered} reçue(s) · {read} lue(s)",
+      "outcomeRate": "{rate} % des relances envoyées ont donné un résultat",
+      "unconfirmed": "{count} envoi(s) sans accusé de réception",
+      "searchLabel": "Rechercher",
+      "searchPlaceholder": "Client, plaque ou n° de facture",
+      "channelFilterLabel": "Canal",
+      "allChannels": "Tous les canaux",
+      "resetFilters": "Effacer les filtres",
+      "emptyFiltered": {
+        "title": "Aucune relance ne correspond à ces filtres.",
+        "description": "Changez la recherche ou effacez les filtres."
+      },
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "dayCount": "{count} relance(s)",
+      "shown": "{shown} affichée(s) sur {total}",
+      "loadingMore": "Chargement…",
+      "noChannel": "Non envoyée",
+      "waiting": "En attente de réponse"
+    },
+    "due": {
+      "title": "Échéances",
+      "subtitle": "Visite technique, révision et assurance : le client est prévenu, l'atelier prépare le passage.",
+      "rhythm": "Visite technique : le client reçoit WhatsApp et SMS 30 jours avant, puis 7 jours avant, le jour J et 7 jours après. Entre 2 mois et 1 mois, c'est l'atelier qui appelle, prépare les documents et propose un rendez-vous.",
+      "openQueue": "File du jour",
+      "openReceivables": "Factures impayées",
+      "kpiWorkshop": "À préparer",
+      "kpiWorkshopHint": "Dans 1 à 2 mois",
+      "kpiClient": "Relance client",
+      "kpiClientHint": "Dans les 30 jours",
+      "kpiExpired": "Expirées",
+      "kpiMissing": "Sans date",
+      "help": {
+        "workshop": "Visite technique dans 1 à 2 mois. L'atelier appelle, prépare les documents et propose un rendez-vous. Le client n'est pas encore relancé automatiquement.",
+        "client": "Échéance dans les 30 jours, le jour J, ou jusqu'à 7 jours après. Le client reçoit WhatsApp et SMS.",
+        "expired": "La date est dépassée de plus de 7 jours et la visite n'est toujours pas faite.",
+        "missing": "Pas de date de visite technique au dossier. Aucun rappel ne peut partir."
+      },
+      "example": {
+        "workshop": "La vignette de la Peugeot expire dans 50 jours. Elle est à préparer. Dans 30 jours, elle passera en relance client.",
+        "client": "La Corolla expire dans 12 jours. Le message part selon le rythme : 30 jours avant, 7 jours avant, le jour J, puis 7 jours après.",
+        "expired": "La Tucson devait passer le 1er octobre. Nous sommes le 30 : elle est expirée, au-delà du dernier rappel automatique.",
+        "missing": "La plaque n'a pas de date de vignette. Elle reste ici jusqu'à ce que vous la saisissiez."
+      },
+      "tabs": {
+        "INSPECTION": "Visite technique",
+        "SERVICE": "Révision",
+        "INSURANCE": "Assurance"
+      },
+      "filters": {
+        "ALL": "Toutes les dates",
+        "WORKSHOP": "À préparer (1 à 2 mois)",
+        "CLIENT": "Relance client (30 jours)",
+        "EXPIRED": "Expirées",
+        "MISSING_DATA": "Sans date"
+      },
+      "empty": "Aucune échéance pour cette sélection.",
+      "error": "Impossible de charger les échéances.",
+      "retry": "Réessayer",
+      "loadMore": "Charger plus",
+      "colVehicle": "Véhicule",
+      "colCustomer": "Client",
+      "colDue": "Échéance",
+      "colDays": "Délai",
+      "expiresOn": "Expire le {date}",
+      "dueOn": "Due le {date}",
+      "mileage": "≈ {km} km",
+      "daysLeft": "{count} j",
+      "daysOver": "{count} j de retard",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "book": "Programmer un RDV",
+      "bookMonday": "Lundi {date} · 08:00",
+      "bookTuesday": "Mardi {date} · 08:00",
+      "booked": "Rendez-vous enregistré. Le client est prévenu et les relances de cette échéance s'arrêtent.",
+      "prepComplaint": "Pré-visite technique : documents et contrôles avant le centre.",
+      "alreadyBooked": "Déjà pris ailleurs",
+      "appointmentDate": "Date du rendez-vous",
+      "confirm": "Confirmer",
+      "cancel": "Annuler",
+      "markDone": "VT effectuée",
+      "newExpiry": "Nouvelle expiration",
+      "doneOn": "Effectuée le",
+      "center": "Centre",
+      "optional": "facultatif",
+      "saveDate": "Enregistrer la date",
+      "expiry": "Date d'expiration",
+      "calendar": {
+        "title": "Calendrier des échéances",
+        "viewList": "Liste",
+        "viewCalendar": "Calendrier",
+        "viewLabel": "Affichage",
+        "previous": "Mois précédent",
+        "next": "Mois suivant",
+        "today": "Aujourd'hui",
+        "totalOne": "{count} échéance ce mois-ci",
+        "totalMany": "{count} échéances ce mois-ci",
+        "error": "Impossible de charger le calendrier.",
+        "legend": "Légende",
+        "dayWithCount": "{day} : {count} échéance(s), {tone}",
+        "selectedDay": "Échéances du {day}",
+        "pickDay": "Touchez un jour marqué pour voir ses véhicules.",
+        "emptyDay": "Aucune échéance ce jour-là.",
+        "tones": {
+          "EXPIRED": "Expirée",
+          "CLIENT": "Relance client (30 jours)",
+          "WORKSHOP": "À préparer (1 à 2 mois)",
+          "LATER": "Plus tard"
+        },
+        "weekdays": {
+          "mon": "Lundi",
+          "tue": "Mardi",
+          "wed": "Mercredi",
+          "thu": "Jeudi",
+          "fri": "Vendredi",
+          "sat": "Samedi",
+          "sun": "Dimanche"
+        },
+        "weekdaysShort": {
+          "mon": "Lun",
+          "tue": "Mar",
+          "wed": "Mer",
+          "thu": "Jeu",
+          "fri": "Ven",
+          "sat": "Sam",
+          "sun": "Dim"
+        }
+      },
+      "rhythmExample": "La VT de la Corolla de M. Bamba expire le 15/12. Mi-octobre (2 mois avant), l'atelier l'appelle pour proposer un rendez-vous. Le 15/11 (30 jours avant), il reçoit un WhatsApp, puis un rappel le 08/12 et le 15/12.",
+      "kindLabel": "Type d'échéance",
+      "colActions": "Actions",
+      "noDate": "Date inconnue",
+      "bookShort": "RDV",
+      "bookPrompt": "Proposer un créneau de préparation :",
+      "more": "Plus d'actions",
+      "openVehicle": "Ouvrir la fiche véhicule",
+      "waText": {
+        "INSPECTION": "Bonjour {name}, la visite technique de votre {vehicle} expire le {date}. Souhaitez-vous un rendez-vous au garage pour la préparer ?",
+        "SERVICE": "Bonjour {name}, la révision de votre {vehicle} est prévue vers le {date}. Souhaitez-vous prendre rendez-vous ?",
+        "INSURANCE": "Bonjour {name}, l'assurance de votre {vehicle} expire le {date}. Pensez à la renouveler ; nous restons à votre disposition."
+      },
+      "remind": {
+        "title": "Relancer — {kind}",
+        "subtitle": "Chaque véhicule a son propre message, avec sa date d'échéance.",
+        "whoTitle": "Véhicules à relancer",
+        "channelsTitle": "Envoyer par",
+        "channels": {
+          "WHATSAPP": "WhatsApp",
+          "SMS": "SMS",
+          "EMAIL": "Email"
+        },
+        "mode": {
+          "auto": "Envoi automatique",
+          "test": "Mode test : le message est simulé",
+          "manual_only": "Lien manuel seulement (pas d'envoi groupé)",
+          "off": "Non configuré"
+        },
+        "modeError": "En erreur : {error}",
+        "channelsHelp": "Un canal grisé ne peut pas partir automatiquement.",
+        "channelsLink": "Configurer les canaux",
+        "reachable": "joignable",
+        "unreachable": "pas de contact",
+        "dueOn": "Échéance le {date}",
+        "sameCustomer": "Même client",
+        "grouped": "{count} véhicules : un message pour chacun.",
+        "safety": "Juste avant l'envoi, AtelierOS revérifie que l'échéance n'a pas changé et que le client accepte toujours les relances.",
+        "summary": "{customers} client(s), {vehicles} véhicule(s) → {messages} message(s)",
+        "submit": "Envoyer {count} message(s)",
+        "sending": "Envoi…",
+        "cancel": "Annuler",
+        "close": "Fermer",
+        "doneTitle": "{messages} message(s) en cours d'envoi à {customers} client(s) pour {vehicles} véhicule(s).",
+        "doneHint": "Ils partent dans les 5 minutes. Suivez la remise dans Relances › Résultats.",
+        "skippedTitle": "Non relancés",
+        "seeQueue": "Voir les relances",
+        "all": "Relancer la liste ({count})",
+        "selectAll": "Tout sélectionner",
+        "selectRow": "Sélectionner {plate}",
+        "selected": "{count} véhicule(s) sélectionné(s)",
+        "selection": "Relancer ({count})",
+        "clear": "Désélectionner",
+        "row": "Relancer",
+        "multi": "{count} véhicules",
+        "multiHint": "Ce client a plusieurs véhicules dans cette liste : chacun recevra son propre message.",
+        "whatsappPhone": "WhatsApp depuis mon téléphone"
       }
+    },
+    "mini": {
+      "title": "Relances",
+      "seeAll": "Voir tout",
+      "loading": "Chargement…",
+      "empty": "Aucune relance pour l'instant.",
+      "error": "Impossible de charger les relances.",
+      "retry": "Réessayer",
+      "toApprove": "À envoyer",
+      "plannedToday": "Planifiées aujourd'hui",
+      "recent": "Dernières relances",
+      "pendingLine": "{type} · palier {step} — {date}"
+    },
+    "queue": {
+      "title": "Relances",
+      "allTypes": "Tous les types",
+      "allChannels": "Tous les canaux",
+      "typeFilter": "Filtrer par type",
+      "channelFilter": "Filtrer par canal",
+      "loadError": "Impossible de charger les relances.",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucune relance dans cet onglet.",
+      "emptyHint": "Revenez plus tard ou changez de filtre.",
+      "selectedCount": "{count} sélectionnée(s)",
+      "sendSelection": "Envoyer la sélection",
+      "select": "Sélectionner cette relance",
+      "company": "Entreprise",
+      "individual": "Particulier",
+      "typeStep": "{type} · palier {step}",
+      "noChannel": "Sans canal",
+      "hidePreview": "Masquer l'aperçu",
+      "showPreview": "Aperçu",
+      "previewLoading": "Chargement de l'aperçu…",
+      "previewError": "Aperçu indisponible.",
+      "smsStats": "{chars} car. · {segments} SMS · {encoding}",
+      "send": "Envoyer",
+      "edit": "Modifier",
+      "snooze": "Reporter",
+      "skip": "Ignorer",
+      "call": "Appeler",
+      "callUnknown": "Appeler (numéro inconnu)",
+      "openWhatsapp": "Ouvrir dans WhatsApp",
+      "waConfirm": "Message envoyé dans WhatsApp ?",
+      "waYes": "Oui, envoyé",
+      "waNo": "Non",
+      "waOpenError": "Impossible de préparer le message WhatsApp. Réessayez ou envoyez-le autrement.",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "confirm": "Confirmer",
+      "snoozeUntil": "Reporter au",
+      "skipReason": "Motif",
+      "stopSequence": "Arrêter la séquence",
+      "messageBody": "Texte du message",
+      "tabs": {
+        "TO_APPROVE": "À envoyer (votre accord)",
+        "PLANNED_TODAY": "Planifiées aujourd'hui",
+        "SENT_TODAY": "Envoyées aujourd'hui",
+        "FAILED": "Échecs",
+        "TO_CALL": "À appeler",
+        "EXPIRED": "Expirées"
+      },
+      "notSentReason": "Pas encore partie : {reason} Cliquez sur Envoyer pour réessayer."
+    },
+    "stopEvents": {
+      "appointment.created": "RDV créé",
+      "appointment.cancelled": "RDV annulé",
+      "appointment.updated": "RDV modifié",
+      "repair_order.created": "OR créé",
+      "vehicle.inspection_updated": "VT mise à jour",
+      "vehicle.service_recorded": "Révision enregistrée",
+      "vehicle.owner_changed": "Changement de propriétaire",
+      "vehicle.insurance_updated": "Assurance mise à jour",
+      "payment.received": "Paiement reçu",
+      "collection.promised": "Promesse de paiement",
+      "collection.disputed": "Créance contestée",
+      "collection.paused": "Relance de créance en pause",
+      "quote.accepted": "Devis accepté",
+      "quote.declined": "Devis refusé",
+      "quote.expired": "Devis expiré",
+      "repair_order.status_changed": "Statut de l'OR changé",
+      "message.inbound_received": "Message reçu du client",
+      "customer.updated": "Client mis à jour"
+    },
+    "dueFilterLabels": {
+      "ALL": "Tout",
+      "UPCOMING": "À venir",
+      "EXPIRED": "Expirées",
+      "MISSING_DATA": "Données manquantes"
+    },
+    "rules": {
+      "title": "Règles de relance",
+      "new": "Nouvelle règle",
+      "newTitle": "Nouvelle règle de relance",
+      "editTitle": "Modifier « {name} »",
+      "loadError": "Impossible de charger les règles.",
+      "notFound": "Règle introuvable.",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucune règle de relance.",
+      "emptyHint": "Créez votre première règle pour démarrer les relances automatiques.",
+      "summary": "{type} · {count} palier(s)",
+      "active": "Active",
+      "edit": "Modifier",
+      "simulate": "Simuler",
+      "simulating": "Calcul en cours…",
+      "simulateError": "Impossible de simuler cette règle.",
+      "simulateTotal": "Sur les 30 prochains jours : {total} relance(s).",
+      "stepCount": "{step} : {count}",
+      "noChannel": "{count} candidat(s) sans canal.",
+      "sample": "Échantillon :",
+      "sampleLine": "{entity} — palier {step}",
+      "sampleUnknown": "Client sans nom",
+      "readOnly": "Lecture seule : seul le gérant peut modifier, activer ou simuler les règles de relance.",
+      "toggleError": "Changement impossible : {message}",
+      "invalidRule": "Cette règle enregistrée est incomplète ou invalide ({message}) : simulation impossible.",
+      "invalidRuleEdit": "Cette règle enregistrée est incomplète ou invalide ({message}). Elle ne peut pas être modifiée ici."
+    },
+    "ruleForm": {
+      "days": {
+        "0": "Dimanche",
+        "1": "Lundi",
+        "2": "Mardi",
+        "3": "Mercredi",
+        "4": "Jeudi",
+        "5": "Vendredi",
+        "6": "Samedi"
+      },
+      "anchors": {
+        "default": "Par défaut",
+        "sentAt": "Date d'envoi du palier précédent",
+        "validUntil": "Date de validité"
+      },
+      "general": "Général",
+      "name": "Nom de la règle",
+      "type": "Type",
+      "typeLocked": "Le type ne peut pas être modifié après sa création.",
+      "active": "Règle active",
+      "sendWindow": "Fenêtre d'envoi",
+      "from": "De",
+      "to": "À",
+      "preferredTime": "Heure préférée",
+      "conditions": "Conditions",
+      "individuals": "Particuliers",
+      "companies": "Entreprises",
+      "minAmount": "Montant minimum (FCFA)",
+      "stopTitle": "Arrêt de la séquence",
+      "stopHint": "La séquence s'arrête automatiquement si l'un de ces événements survient.",
+      "steps": "Paliers",
+      "addStep": "+ Ajouter un palier",
+      "stepsHint": "Les décalages (jours par rapport à l'échéance) doivent être strictement croissants d'un palier à l'autre.",
+      "stepN": "Palier {n}",
+      "remove": "Supprimer",
+      "key": "Clé",
+      "label": "Libellé",
+      "offsetDays": "Décalage (jours)",
+      "offsetHours": "Décalage (heures, facultatif)",
+      "anchor": "Ancre",
+      "templateKey": "Modèle de message",
+      "templatePlaceholder": "Choisir un modèle…",
+      "templateMissing": "{key} (modèle introuvable)",
+      "templatesLoading": "Chargement des modèles…",
+      "permission": "Permission requise (facultatif)",
+      "permissionNone": "Aucune (validation normale)",
+      "defaultStepLabel": "Rappel",
+      "catchUp": "Rattrapage (jours, facultatif)",
+      "sendAt": "Heure d'envoi imposée (HH:mm, facultatif)",
+      "autoSend": "Envoi automatique",
+      "internalOnly": "Interne uniquement (alerte, pas d'envoi client)",
+      "save": "Enregistrer"
+    },
+    "inbox": {
+      "intro": "Les rappels (factures impayées, visites techniques, révisions, rendez-vous…) partent tout seuls par WhatsApp, SMS ou email. Ici, vous voyez ce qui attend votre clic, ce qui n'a pas pu partir, et ce qui part ou est parti aujourd'hui.",
+      "tabsLabel": "Situation des relances",
+      "views": {
+        "TO_APPROVE": {
+          "title": "À envoyer",
+          "hint": "Message prêt : il attend votre clic.",
+          "todo": "Ces messages sont prêts mais ne partent pas sans vous. Lisez-les si besoin (« Voir le message »), puis cliquez « Envoyer ». Vous pouvez en cocher plusieurs.",
+          "emptyTitle": "Rien à envoyer",
+          "emptyHint": "Aucun message n'attend votre accord. Les relances automatiques partent toutes seules."
+        },
+        "BLOCKED": {
+          "title": "Bloquées",
+          "hint": "N'ont pas pu partir : à régler.",
+          "todo": "Ces relances ne sont pas parties. La raison est écrite sur chaque ligne. Cliquez « Renvoyer par… » et choisissez WhatsApp, SMS ou email : l'écran indique pour chaque canal s'il peut partir. Sinon, appelez le client.",
+          "emptyTitle": "Aucune relance bloquée",
+          "emptyHint": "Tout est parti normalement."
+        },
+        "PLANNED_TODAY": {
+          "title": "Partent aujourd'hui",
+          "hint": "Automatiques : rien à faire.",
+          "todo": "Ces messages partiront tout seuls à l'heure indiquée. Vous n'avez rien à faire, sauf si vous voulez les envoyer tout de suite, les modifier ou les annuler.",
+          "emptyTitle": "Rien de prévu aujourd'hui",
+          "emptyHint": "Aucune relance automatique n'est programmée pour aujourd'hui."
+        },
+        "SENT_TODAY": {
+          "title": "Envoyées aujourd'hui",
+          "hint": "Déjà parties chez le client.",
+          "todo": "Ces messages sont partis aujourd'hui. Vous pouvez relire ce que le client a reçu.",
+          "emptyTitle": "Aucun envoi aujourd'hui",
+          "emptyHint": "Aucune relance n'est encore partie aujourd'hui."
+        },
+        "EXPIRED": {
+          "title": "Trop tard",
+          "hint": "Non traitées à temps.",
+          "todo": "Ces relances n'ont pas été envoyées à temps et ont été abandonnées. Si besoin, relancez le client depuis Créances ou Échéances.",
+          "emptyTitle": "Aucune relance abandonnée",
+          "emptyHint": "Tout a été traité à temps."
+        },
+        "UNCONFIRMED": {
+          "title": "Pas reçues",
+          "hint": "Envoyées, sans accusé de réception.",
+          "todo": "Ces messages sont partis mais le téléphone ou la boîte email du client ne les a pas confirmés depuis plus de 2 h (téléphone éteint, numéro inactif, email en indésirables…). Appelez le client, ou renvoyez par un autre canal.",
+          "emptyTitle": "Tout a été reçu",
+          "emptyHint": "Les relances envoyées ces 7 derniers jours ont toutes été remises au client (ou sont en mode test)."
+        }
+      },
+      "step": {
+        "before": "{days} jours avant l'échéance",
+        "after": "{days} jours après l'échéance",
+        "on": "Le jour de l'échéance",
+        "manual": "Relance envoyée à la main",
+        "promise": "Promesse de paiement non tenue"
+      },
+      "status": {
+        "ready": "Message prêt — partira par {channel} quand vous cliquerez « Envoyer ».",
+        "blocked": "Pas partie : {reason}",
+        "noChannelReason": "aucun moyen de joindre le client (pas de numéro mobile ni d'email, ou canal non configuré).",
+        "plannedToday": "Partira automatiquement aujourd'hui à {time} par {channel}.",
+        "plannedOn": "Partira automatiquement le {date} à {time} par {channel}.",
+        "sending": "En cours d'envoi par {channel}…",
+        "sentToday": "Envoyée aujourd'hui à {time} par {channel}.",
+        "sentOn": "Envoyée le {date} à {time} par {channel}.",
+        "snoozed": "Reportée au {date} à {time}.",
+        "legacyRenderError": "le message n'a pas pu être préparé (problème corrigé depuis). Cliquez « Renvoyer par… » et choisissez le canal."
+      },
+      "bestChannel": "le meilleur canal disponible",
+      "invoice": "Facture {number} · {amount} restant dû",
+      "actions": {
+        "send": "Envoyer",
+        "sendNow": "Envoyer maintenant",
+        "retrySend": "Réessayer l'envoi",
+        "showMessage": "Voir le message",
+        "hideMessage": "Masquer le message",
+        "more": "Plus d'actions",
+        "editText": "Modifier le texte",
+        "snooze": "Reporter à plus tard",
+        "dontSend": "Ne pas envoyer",
+        "sendBy": "Envoyer par {channel}",
+        "otherChannel": "Autre canal…",
+        "resendBy": "Renvoyer par…"
+      },
+      "messageBy": "Message envoyé par {channel}",
+      "dontSendWhy": "Pourquoi ne pas envoyer ?",
+      "stopNext": "Ne plus relancer ce client pour ce dossier",
+      "selectAll": "Tout cocher ({count})",
+      "unselectAll": "Tout décocher",
+      "sendSelection": "Envoyer les {count} messages",
+      "seeExpired": "Voir les {count} relance(s) abandonnée(s) faute de traitement",
+      "goReceivables": "Relancer des factures impayées",
+      "goDueDates": "Voir les échéances",
+      "picker": {
+        "title": "Par quel canal envoyer ce message ?",
+        "noMobile": "Pas de numéro mobile",
+        "noEmail": "Pas d'email",
+        "error": "En erreur ({error})",
+        "mode": {
+          "auto": "Envoi réel, tout de suite",
+          "test": "Mode test : simulé, rien ne part",
+          "manual_only": "Ouvre WhatsApp : vous envoyez vous-même",
+          "off": "Canal non configuré"
+        },
+        "hint": "Le message part dans les 5 minutes, uniquement par le canal choisi. Pour ajouter un numéro ou un email, modifiez la fiche du client ; pour configurer un canal, allez dans Paramètres › Canaux."
+      },
+      "unconfirmedLink": "{count} relance(s) envoyée(s) mais pas encore reçue(s) par le client depuis plus de 2 h — voir"
     }
   },
   "search": {
@@ -2789,7 +4243,8 @@
       "valuation": "Valorisation",
       "purchases": "Bons de commande",
       "suggestions": "Suggestions",
-      "suppliers": "Fournisseurs"
+      "suppliers": "Fournisseurs",
+      "guide": "Guide"
     },
     "common": {
       "loadError": "Impossible de charger les données du stock.",
@@ -2848,7 +4303,7 @@
     },
     "catalog": {
       "title": "Stock",
-      "description": "Catalogue des pièces, disponible par site et alertes.",
+      "description": "Ce que le garage a en stock, ce qui manque, et ce qu'il faut commander.",
       "searchPlaceholder": "SKU, référence OEM, nom, marque, code-barres…",
       "newProduct": "Nouveau produit",
       "filterCategory": "Catégorie",
@@ -2879,9 +4334,94 @@
       "archived": "Archivé",
       "compatible": "Compatible"
     },
+    "pulse": {
+      "products": "Références",
+      "productsSub": "pièces actives au catalogue",
+      "belowMin": "Sous le minimum",
+      "belowMinSub": "à réapprovisionner",
+      "outOfStock": "Ruptures",
+      "outOfStockSub": "plus rien de disponible",
+      "negative": "Stocks négatifs",
+      "negativeSub": "à régulariser",
+      "partRequests": "Demandes atelier",
+      "partRequestsSub": "en attente au magasin",
+      "value": "Valeur du stock",
+      "valueSub": "au coût moyen, stock positif",
+      "drafts": "Brouillons",
+      "draftsSub": "bons pas encore envoyés",
+      "toReceive": "À réceptionner",
+      "toReceiveSub": "envoyés ou reçus en partie",
+      "late": "En retard",
+      "lateSub": "livraison dépassée",
+      "reorder": "À commander",
+      "reorderSub": "pièces sous le minimum",
+      "backorders": "Pièces manquantes",
+      "backordersSub": "réservées pour un ordre, pas en stock",
+      "help": {
+        "products": "Références actives au catalogue. Une pièce archivée n'est pas comptée.",
+        "belowMin": "Le disponible (stock − réservé + commandes en cours) est sous le minimum. Il faut réapprovisionner.",
+        "outOfStock": "Plus rien de disponible à la vente, sans être passé en négatif.",
+        "negative": "Le stock est sous zéro : on a sorti plus que le disponible. À régulariser par une entrée ou un inventaire.",
+        "partRequests": "Demandes de pièces de l'atelier pas encore servies par le magasin.",
+        "value": "Valeur du stock positif au coût moyen. Une ligne négative n'est pas ajoutée.",
+        "drafts": "Bons de commande encore en brouillon, pas envoyés au fournisseur.",
+        "toReceive": "Bons envoyés ou reçus en partie, avec encore des pièces à réceptionner.",
+        "late": "La date de livraison prévue est dépassée et le bon n'est pas soldé.",
+        "reorder": "Pièces sous le minimum, à commander depuis les suggestions.",
+        "backorders": "Quantité réservée pour un ordre alors que le stock ne la couvre pas."
+      },
+      "example": {
+        "products": "240 filtres, huiles et plaquettes actifs. Le chiffre est 240.",
+        "belowMin": "Le filtre à huile a un mini de 4 et il en reste 1. Il compte. Une pièce à 6 pour un mini de 4 n'y est pas.",
+        "outOfStock": "Les plaquettes avant sont à 0. Elles sont en rupture. Une pièce à −1 est dans « stocks négatifs », pas ici.",
+        "negative": "2 batteries ont été posées alors qu'il n'en restait qu'une. Le stock est −1 : il est ici.",
+        "partRequests": "L'ordre de la Corolla attend 1 filtre. La demande est ouverte : elle compte jusqu'à la sortie de stock.",
+        "value": "10 filtres à 3 500 FCFA de coût moyen. La valeur est 35 000 FCFA.",
+        "drafts": "Un bon de 85 000 FCFA de filtres est saisi mais pas envoyé. Il compte ici.",
+        "toReceive": "8 plaquettes commandées, 3 déjà reçues. Le bon est encore à réceptionner.",
+        "late": "Le fournisseur devait livrer les batteries lundi. Nous sommes jeudi et il en manque 2 : le bon est en retard.",
+        "reorder": "L'huile 5W30 est sous son mini de 12 litres. Elle est à commander.",
+        "backorders": "La Tucson a réservé 1 filtre et le disponible est 0. C'est une pièce manquante."
+      }
+    },
+    "starter": {
+      "title": "Le magasin n'a pas encore de catalogue.",
+      "body": "Chargez les pièces courantes d'un garage — filtres, huiles, freinage, batterie, bougies — avec un stock minimum. Ajustez les prix, puis commandez avant la rupture.",
+      "action": "Charger le catalogue du garage",
+      "done": "{created} références ajoutées. Les prix sont indicatifs : ajustez-les, puis commandez depuis Achats → Suggestions.",
+      "doneNone": "Le catalogue du garage est déjà en place.",
+      "noPermission": "Le catalogue est vide. Une personne autorisée à gérer les produits peut charger les pièces courantes du garage.",
+      "goToStock": "Pas encore de bon. Le stock se commande depuis les suggestions, une fois le catalogue en place.",
+      "openStock": "Ouvrir le stock"
+    },
     "product": {
       "titleNew": "Nouveau produit",
       "titleEdit": "Modifier le produit",
+      "intro": "Le SKU et la désignation suffisent pour enregistrer. Le reste se complète ensuite.",
+      "sectionPiece": "Identification",
+      "sectionPieceHint": "Obligatoire",
+      "skuPlaceholder": "FLT-HUILE",
+      "skuHint": "Référence interne unique.",
+      "namePlaceholder": "Filtre à huile",
+      "nameHint": "Au moins 2 caractères.",
+      "categoryPlaceholder": "Filtres",
+      "categoryHint": "Catégorie existante ou nouvelle.",
+      "sectionPrice": "Prix de vente",
+      "sectionPriceHint": "Hors taxes, en FCFA",
+      "salePriceHint": "Laisser vide pour le saisir au devis.",
+      "minSalePriceHint": "En dessous, le devis est bloqué.",
+      "vatHint": "18 % sauf exception.",
+      "sectionStock": "Réapprovisionnement",
+      "sectionStockHint": "Facultatif",
+      "defaultSupplierHint": "Les suggestions regroupent les pièces par ce fournisseur.",
+      "minStockHint": "Seuil d'alerte. À 0, pas d'alerte tant que le stock n'est pas négatif.",
+      "reorderQtyHint": "Quantité proposée à la commande. Facultatif.",
+      "packSizeHint": "Multiple d'achat. Mettez 6 si le fournisseur vend par boîte de 6.",
+      "sectionRefs": "Références et compatibilités",
+      "sectionRefsHint": "Facultatif",
+      "needIdentity": "Indiquez le SKU et une désignation d'au moins 2 caractères.",
+      "needSku": "Indiquez le SKU.",
+      "needName": "La désignation doit faire au moins 2 caractères.",
       "sku": "SKU",
       "name": "Désignation",
       "brand": "Marque",
@@ -2889,8 +4429,8 @@
       "barcode": "Code-barres",
       "category": "Catégorie",
       "unit": "Unité",
-      "salePrice": "Prix de vente HT conseillé",
-      "minSalePrice": "Prix de vente minimum HT",
+      "salePrice": "Prix conseillé HT",
+      "minSalePrice": "Prix minimum HT",
       "vatRate": "TVA (%)",
       "minStock": "Stock mini",
       "reorderQty": "Quantité de réapprovisionnement",
@@ -2911,6 +4451,18 @@
       "references": "Références",
       "prices": "Prix et marge",
       "averageCost": "Coût moyen pondéré (CMP)",
+      "levelHelp": {
+        "onHand": "Quantité physique au magasin, tous sites, y compris ce qui est déjà réservé pour un ordre.",
+        "available": "En stock moins le réservé. C'est ce que vous pouvez encore vendre ou poser.",
+        "price": "Prix de vente hors taxes, celui proposé au devis et à la facture.",
+        "averageCost": "Coût moyen pondéré : chaque entrée de stock recalcule le coût unitaire."
+      },
+      "levelExample": {
+        "onHand": "6 filtres en rayon, dont 2 réservés pour la Tucson. En stock affiche 6.",
+        "available": "6 en stock, 2 réservés. Le disponible est 4.",
+        "price": "Le filtre est vendu 8 500 FCFA HT. C'est le prix proposé au client, avant TVA.",
+        "averageCost": "4 filtres achetés à 3 000, puis 4 à 5 000. Le coût moyen est (12 000 + 20 000) ÷ 8 = 4 000 FCFA."
+      },
       "purchasePrice": "Dernier prix d'achat",
       "margin": "Marge",
       "levels": "Stock par site",
@@ -2949,7 +4501,10 @@
     },
     "adjust": {
       "title": "Ajuster le stock",
+      "onHand": "En stock : {qty}",
       "quantityHint": "Positif pour une entrée, négatif pour une sortie (ex. −1).",
+      "needQuantity": "Indiquez une quantité différente de zéro.",
+      "needReason": "Précisez le motif (au moins 3 caractères).",
       "reasonCode": "Type de motif",
       "codes": {
         "casse": "Casse",
@@ -3113,6 +4668,12 @@
       "at": "À la date du",
       "today": "Aujourd'hui",
       "total": "Valeur totale du stock",
+      "help": "Valeur du stock positif au coût moyen, à la date choisie. Un stock négatif compte pour 0 et apparaît dans l'onglet Négatifs.",
+      "example": "10 filtres à 3 500 FCFA et 4 batteries à 25 000. La valeur est 35 000 + 100 000 = 135 000 FCFA. Une ligne à −1 n'est pas soustraite.",
+      "groupHelp": "Part de cette valeur pour la catégorie ou le site affiché.",
+      "groupExample": "Les filtres valent 35 000 FCFA et les batteries 100 000. La carte Filtres affiche 35 000, pas le total du magasin.",
+      "dormantHelp": "Valeur des pièces sans sortie depuis le délai choisi. Cet argent est immobilisé en rayon.",
+      "dormantExample": "8 batteries à 25 000 FCFA n'ont pas bougé depuis 200 jours. La valeur immobilisée est 200 000 FCFA.",
       "items": "{count} référence(s)",
       "export": "Exporter (CSV)",
       "noCategory": "Sans catégorie",
@@ -3133,7 +4694,8 @@
     },
     "purchases": {
       "title": "Achats",
-      "description": "Bons de commande fournisseurs, réceptions et retards.",
+      "description": "Bons de commande : à envoyer, à réceptionner, en retard.",
+      "emptyHint": "Créez un bon, ou partez des pièces sous le minimum.",
       "new": "Nouveau bon de commande",
       "empty": "Aucun bon de commande.",
       "late": "En retard",
@@ -3156,9 +4718,20 @@
         "status": "Statut"
       },
       "supplier": "Fournisseur",
+      "supplierHint": "Obligatoire. Un bon concerne un seul fournisseur.",
+      "supplierPlaceholder": "Choisir un fournisseur",
+      "intro": "Brouillon pour un fournisseur et un site. Vous l'envoyez au fournisseur ensuite.",
+      "orderSection": "La commande",
       "expectedAt": "Livraison souhaitée",
-      "lines": "Lignes",
-      "addLine": "Ajouter une ligne",
+      "lines": "Pièces",
+      "linesHint": "Tapez au moins 2 caractères, ou scannez le code, puis cliquez la pièce pour l'ajouter.",
+      "linesEmpty": "Aucune pièce pour l'instant. La recherche ci-dessus ajoute une ligne.",
+      "alreadyAdded": "Cette pièce est déjà sur le bon.",
+      "needSupplier": "Choisissez le fournisseur pour créer le bon.",
+      "needSite": "Choisissez le site qui réceptionnera la livraison.",
+      "needLines": "Ajoutez au moins une pièce.",
+      "needAmounts": "Chaque pièce doit avoir une quantité supérieure à 0 et un coût unitaire.",
+      "addLine": "Ajouter une pièce",
       "create": "Créer le bon",
       "ordered": "Commandé",
       "received": "Reçu",
@@ -3297,14 +4870,67 @@
     },
     "empty": {
       "title": "Aucun devis en attente.",
-      "description": "Les inspections terminées apparaîtront ici. Créez un devis depuis un OR ou un devis libre."
+      "description": "Les inspections terminées apparaîtront ici. Créez un devis depuis un OR ou un devis libre.",
+      "todo": {
+        "title": "Rien à traiter.",
+        "description": "Les brouillons et les remises à valider apparaîtront ici."
+      },
+      "waiting": {
+        "title": "Aucun devis en attente de réponse.",
+        "description": "Les devis envoyés au client, pas encore acceptés ni refusés, apparaîtront ici."
+      },
+      "decided": {
+        "title": "Aucune décision enregistrée.",
+        "description": "Les devis acceptés, refusés ou convertis en ordre apparaîtront ici."
+      },
+      "expired": {
+        "title": "Aucun devis expiré.",
+        "description": "Les devis dont la validité est dépassée sans réponse apparaîtront ici."
+      },
+      "filtered": {
+        "title": "Aucun devis ne correspond.",
+        "description": "Élargissez la recherche ou changez l'origine."
+      }
+    },
+    "widgets": {
+      "todo": {
+        "help": "Brouillons à envoyer, plus les devis dont la remise dépasse votre plafond : ils attendent l'accord du chef d'atelier. Le montant est le total TTC des brouillons seulement.",
+        "example": "Un brouillon de 85 000 FCFA n'est pas encore envoyé, et une remise de 15 % attend le chef d'atelier. Les deux comptent ; le montant n'additionne que le brouillon."
+      },
+      "waiting": {
+        "help": "Devis envoyés ou déjà ouverts par le client, sans décision. La liste est triée du plus ancien au plus récent. Le montant est le total TTC encore en jeu.",
+        "example": "Le devis DEV-2026-014 de 185 000 FCFA est parti lundi. Le client l'a ouvert et n'a pas décidé. Il est ici, du plus ancien au plus récent."
+      },
+      "decided": {
+        "help": "Devis acceptés, partiellement acceptés, refusés ou déjà convertis en ordre ou en facture. Le montant est la somme TTC acceptée : un refus compte pour zéro.",
+        "example": "Un devis de 120 000 accepté et un de 40 000 refusé. Le montant affiché est 120 000 FCFA : le refus compte pour zéro."
+      },
+      "expired": {
+        "help": "Validité dépassée sans décision. Le client ne peut plus accepter en ligne. Réactivez le devis pour ouvrir une nouvelle version.",
+        "example": "Un devis de 90 000 FCFA était valable jusqu'au 20. Nous sommes le 30, sans réponse. Le client ne peut plus accepter en ligne tant que vous ne le réactivez pas."
+      },
+      "pending": "{count} remise(s) à valider"
     },
     "list": {
       "accepted": "Accepté : {amount}",
       "viewed": "Vu",
       "notViewed": "Non vu",
       "followups": "{count} relance(s)",
-      "expiresIn": "Expire dans {days} j"
+      "expiresIn": "Expire dans {days} j",
+      "more": "Afficher la suite",
+      "count": "{count} devis",
+      "noVehicle": "Sans véhicule",
+      "columns": {
+        "number": "N°",
+        "customer": "Client",
+        "origin": "Origine",
+        "date": "Date",
+        "status": "Statut",
+        "advisor": "Conseiller",
+        "total": "Total TTC",
+        "accepted": "Accepté",
+        "lastAction": "Dernière action"
+      }
     },
     "fields": {
       "origin": "Origine",
@@ -3329,14 +4955,38 @@
       "reason": "Motif"
     },
     "create": {
+      "subtitle": "Devis au comptoir ou par message, sans ordre de réparation. Les travaux et les prix s'ajoutent juste après.",
       "searchCustomer": "Client",
-      "searchPlaceholder": "Nom ou téléphone (2 caractères minimum)",
+      "searchPlaceholder": "Nom ou téléphone",
+      "searchHint": "Saisissez au moins 2 caractères.",
+      "searching": "Recherche…",
+      "noResult": "Aucun client pour « {query} ».",
+      "useAsProspect": "Créer ce nom comme nouveau client",
       "change": "Changer",
+      "required": "Requis",
+      "optional": "Facultatif",
+      "modeExisting": "Client du garage",
+      "modeExistingHint": "Déjà enregistré",
+      "modeProspect": "Nouveau client",
+      "modeProspectHint": "Nom et téléphone",
+      "noPermission": "Vous ne pouvez pas créer de client.",
+      "vehiclesCount": "{count} véhicule(s)",
       "noVehicle": "Sans véhicule (vente de pièces)",
+      "vehicleTitle": "Véhicule",
+      "vehicleHint": "Le véhicule du devis. Laissez vide pour une vente de pièces, sans véhicule.",
+      "vehicleWait": "Choisissez d'abord un client du garage.",
+      "vehicleProspect": "Le véhicule s'ajoute après la création du devis, sur la fiche client.",
+      "vehicleLoading": "Chargement des véhicules…",
+      "vehicleEmpty": "Ce client n'a pas encore de véhicule. Le devis part sans véhicule.",
       "prospect": "Nouveau client (nom + téléphone)",
       "prospectName": "Nom du client",
       "prospectPhone": "Téléphone",
+      "prospectPhoneHint": "Numéro ivoirien à 10 chiffres. Un client est créé, source « devis ».",
       "existing": "Choisir un client existant",
+      "stepsTitle": "Ensuite",
+      "stepDraft": "Le devis est enregistré en brouillon.",
+      "stepLines": "Vous ajoutez les travaux depuis le catalogue, avec les prix.",
+      "stepSend": "Vous l'envoyez au client par WhatsApp, SMS ou lien.",
       "submit": "Créer le devis"
     },
     "banner": {
@@ -3364,6 +5014,8 @@
     },
     "actions": {
       "send": "Envoyer",
+      "sendToCustomer": "Envoyer au client",
+      "previewPdf": "Aperçu PDF",
       "recordDecision": "Enregistrer la décision",
       "resend": "Renvoyer",
       "followUpNow": "Relancer maintenant",
@@ -3376,6 +5028,7 @@
       "requestDeposit": "Demander l'acompte ({amount})",
       "insurerPdf": "PDF expertise",
       "delete": "Supprimer le brouillon",
+      "deleteShort": "Supprimer",
       "confirmDelete": "Supprimer"
     },
     "flash": {
@@ -3389,7 +5042,36 @@
     },
     "lines": {
       "title": "Travaux et pièces",
-      "empty": "Aucune ligne : ajoutez une opération, une pièce ou un kit.",
+      "count": "{count} ligne",
+      "countPlural": "{count} lignes",
+      "addPlaceholder": "Ajouter une ligne : vidange, plaquettes, kit distribution…",
+      "groupShort": "Regrouper MO + pièces",
+      "explainAi": "Explication client (IA)",
+      "explain": "Explication client",
+      "columns": {
+        "description": "Désignation",
+        "category": "Catégorie",
+        "qty": "Qté / h",
+        "unit": "PU HT",
+        "discount": "Rem. %",
+        "payer": "Payeur",
+        "total": "Total HT"
+      },
+      "empty": "Aucune ligne pour l'instant.",
+      "howTo": "Ajoutez chaque travail depuis le catalogue, ou saisissez une ligne qui n'y figure pas. L'envoi reste bloqué tant qu'il n'y a pas au moins une ligne.",
+      "modeCatalog": "Depuis le catalogue",
+      "modeCatalogHint": "Main-d'œuvre, pièce ou kit déjà enregistrés",
+      "modeFree": "Ligne libre",
+      "modeFreeHint": "Main-d'œuvre en heures, ou une pièce absente du catalogue",
+      "searchHint": "Au moins 2 lettres : « vidange » pour la main-d'œuvre, « plaquettes » pour une pièce, puis Ajouter.",
+      "searching": "Recherche dans le catalogue…",
+      "noCatalog": "Rien dans le catalogue pour « {query} ».",
+      "useAsFree": "Saisir cette ligne à la main",
+      "groupToggle": "Regrouper main-d'œuvre et pièces (facultatif)",
+      "groupHint": "Exemple : « Plaquettes avant » réunit le temps de pose et les pièces. Laissez vide pour une ligne seule.",
+      "freeHint": "La désignation et le prix HT sont obligatoires. La TVA est ajoutée au total.",
+      "discountTitle": "Remise et validité",
+      "discountHint": "Facultatif. La remise globale s'applique à tout le devis. La date est celle jusqu'à laquelle le client peut accepter.",
       "optional": "optionnel",
       "accepted": "Accepté",
       "declined": "Refusé",
@@ -3400,7 +5082,7 @@
       "remove": "Retirer « {label} »",
       "removeShort": "Retirer",
       "search": "Catalogue (MO, pièces, kits)",
-      "searchPlaceholder": "Tapez « distrib », « plaquettes »…",
+      "searchPlaceholder": "Vidange, distribution, plaquettes…",
       "add": "Ajouter",
       "addKit": "Ajouter le kit",
       "fixed": "forfait",
@@ -3429,7 +5111,18 @@
       "customer": "Part client",
       "accepted": "Total accepté TTC",
       "margin": "Marge prévisionnelle",
-      "deposit": "Acompte suggéré"
+      "marginPrivate": "Interne — non visible client",
+      "deposit": "Acompte suggéré",
+      "recap": "Récapitulatif",
+      "conditions": "Conditions",
+      "labor": "Main-d'œuvre",
+      "parts": "Pièces",
+      "globalDiscount": "Remise globale",
+      "net": "Total HT",
+      "vatRate": "TVA {rate} %",
+      "share": "Part client / assurance",
+      "shareValue": "{customer} % / {insurance} %",
+      "validUntil": "Valable jusqu'au"
     },
     "discountReasons": {
       "loyal": "Client fidèle",
@@ -3467,6 +5160,13 @@
       "address": "Téléphone ou email",
       "message": "Message",
       "messagePlaceholder": "Laisser vide pour le message pré-rédigé (le lien est ajouté automatiquement)",
+      "hints": {
+        "WHATSAPP": "Envoyé sur le WhatsApp du destinataire.",
+        "WA_LINK": "Ouvre WhatsApp ici. Vous envoyez le message vous-même.",
+        "SMS": "SMS sur le numéro du destinataire.",
+        "EMAIL": "Email avec le devis en PDF.",
+        "LINK_ONLY": "Crée le lien, sans envoi. Vous le copiez."
+      },
       "submit": "Envoyer",
       "openWhatsapp": "Ouvrir dans WhatsApp",
       "copyLink": "Créer le lien",
@@ -3507,7 +5207,7 @@
       "none": "Aucune relance planifiée pour ce devis.",
       "status": {
         "PLANNED": "Planifiée",
-        "NEEDS_APPROVAL": "À valider",
+        "NEEDS_APPROVAL": "Prête — envoi à confirmer",
         "QUEUED": "En file",
         "SENT": "Envoyée",
         "FAILED": "Échec",
@@ -3547,6 +5247,26 @@
       "proposed": "Montant proposé",
       "acceptedAmount": "Montant accepté",
       "recovered": "Récupéré grâce aux relances",
+      "help": {
+        "sent": "Devis passés au statut envoyé entre les deux dates.",
+        "rateCount": "Devis acceptés divisés par les devis clos (acceptés, refusés ou expirés), en nombre.",
+        "rateValue": "Même ratio en francs : montant accepté divisé par le montant des devis clos.",
+        "median": "Délai médian entre l'envoi et la décision du client. La valeur du milieu, pas la moyenne.",
+        "proposed": "Somme TTC des devis envoyés sur la période.",
+        "acceptedAmount": "Somme TTC que le client a acceptée.",
+        "recovered": "Montant accepté après une relance de devis. Un devis accepté sans rappel n'y est pas.",
+        "closed": "Devis qui ont une issue : acceptés, refusés ou expirés. Un devis encore sans réponse n'y est pas."
+      },
+      "example": {
+        "sent": "Trois devis partis entre le 1er et le 30. Le chiffre est 3, qu'ils soient ensuite acceptés ou non.",
+        "rateCount": "7 acceptés et 3 refusés ou expirés. Le taux est 7 ÷ 10 = 70 %.",
+        "rateValue": "700 000 FCFA acceptés sur 1 000 000 proposés puis clos. Le taux en valeur est 70 %.",
+        "median": "Les décisions sont arrivées en 4 h, 8 h et 30 h. Le délai médian est 8 h, la valeur du milieu.",
+        "proposed": "120 000, 80 000 et 200 000 FCFA envoyés. Le montant proposé est 400 000 FCFA.",
+        "acceptedAmount": "Sur 400 000 proposés, le client a dit oui pour 250 000. Le montant accepté est 250 000 FCFA.",
+        "recovered": "Un devis de 90 000 resté sans réponse, puis accepté après le rappel WhatsApp. Ces 90 000 sont ici.",
+        "closed": "7 acceptés et 3 refusés. 10 devis sont clos. Un devis encore sans réponse n'y est pas."
+      },
       "byAdvisor": "Par conseiller",
       "byPriority": "Par priorité (lignes acceptées / proposées)",
       "declineReasons": "Motifs de refus"
@@ -3556,6 +5276,7 @@
       "description": "Validité, signature, plafonds de remise, acompte et conditions imprimées.",
       "validityDays": "Validité (jours)",
       "validityDaysCompany": "Validité entreprises et sinistres (jours)",
+      "validityRange": "Indiquez une durée entre 1 et 365 jours.",
       "requireSignature": "Signature obligatoire pour valider en ligne",
       "showLinePrices": "Afficher le prix de chaque ligne au client",
       "caps": "Plafonds de remise par rôle (%)",
@@ -3608,7 +5329,10 @@
       "import": "Importer (CSV)",
       "importHint": "Colonnes : code ; nom ; catégorie ; heures ; type de taux ; forfait",
       "importSubmit": "Importer",
-      "importResult": "{created} créée(s), {updated} mise(s) à jour, {errors} erreur(s)."
+      "importResult": "{created} créée(s), {updated} mise(s) à jour, {errors} erreur(s).",
+      "importErrorLine": "Ligne {line} : {message}",
+      "hoursRate": "{hours} h · {rate}",
+      "archiveError": "Archivage impossible : {message}"
     },
     "portal": {
       "title": "Devis {number}",
@@ -3659,6 +5383,8 @@
   "billing": {
     "title": "Factures",
     "new": "Vente comptoir",
+    "listSubtitle": "Brouillons, factures à encaisser et avoirs.",
+    "exportsAction": "Exports",
     "exports": {
       "title": "Exports comptables",
       "from": "Du",
@@ -3684,6 +5410,27 @@
     "retry": "Réessayer",
     "search": "N° de facture, client ou plaque",
     "draft": "Brouillon",
+    "sheet": {
+      "header": "En-tête",
+      "lines": "Lignes de facture",
+      "currency": "Devise",
+      "currencyValue": "XOF (FCFA)",
+      "conditions": "Conditions",
+      "linkedOrder": "Ordre lié",
+      "origin": "Facture d'origine",
+      "emptyDate": "—",
+      "dueHint": "Laissez vide pour la calculer à l'émission."
+    },
+    "terms": {
+      "cash": "Paiement comptant à réception.",
+      "days": "Paiement à {days} jours.",
+      "credit": "Avoir à valoir sur les prochaines factures, ou remboursable."
+    },
+    "draftBanner": "Ce brouillon n'a pas de numéro. Émettre la facture la fige : toute correction se fera ensuite par un avoir.",
+    "deleteDraftConfirm": {
+      "title": "Supprimer ce brouillon ?",
+      "body": "Les lignes seront effacées. Cette action est définitive."
+    },
     "views": {
       "all": "Toutes",
       "drafts": "Brouillons",
@@ -3724,6 +5471,7 @@
     "fields": {
       "number": "N°",
       "date": "Date",
+      "status": "Statut",
       "customer": "Client",
       "vehicle": "Véhicule",
       "total": "Total TTC",
@@ -3743,6 +5491,11 @@
       "discount": "Remise %",
       "vat": "TVA %",
       "total": "Total HT",
+      "ht": "HT",
+      "ttc": "TTC",
+      "index": "#",
+      "unitPriceShort": "Prix unit.",
+      "groupSubtotal": "Sous-total",
       "add": "Ajouter une ligne",
       "remove": "Retirer",
       "type": "Type",
@@ -3754,7 +5507,7 @@
       "PART": "Pièce",
       "SUBCONTRACT": "Sous-traitance",
       "FEE": "Frais",
-      "CONSUMABLE": "Ingrédient"
+      "CONSUMABLE": "Consommable"
     },
     "totals": {
       "gross": "Total HT brut",
@@ -3813,7 +5566,8 @@
       "receipt": "Imprimer le reçu",
       "overpaid": "Trop-perçu de {amount} : il reste au crédit du client (remboursable depuis Caisse > Paiements).",
       "cashClosed": "Ouvrez la caisse pour encaisser en espèces.",
-      "openCash": "Ouvrir la caisse"
+      "openCash": "Ouvrir la caisse",
+      "createAccount": "Créer le compte"
     },
     "method": {
       "CASH": "Espèces",
@@ -3837,12 +5591,22 @@
     },
     "editor": {
       "title": "Nouvelle vente comptoir",
+      "subtitle": "Brouillon. Le numéro, la date et l'échéance sont fixés à l'émission.",
       "customer": "Client",
-      "searchCustomer": "Rechercher un client (nom ou téléphone)",
+      "searchCustomer": "Rechercher un client…",
       "change": "Changer",
       "noVehicle": "Sans véhicule",
       "walkIn": "Client comptoir",
-      "priceReason": "Motif (prix sous le minimum / vente à perte)"
+      "issuedBy": "Établi par",
+      "invoiceDate": "Date de facture",
+      "dateValue": "À l'émission",
+      "dueValue": "Selon les conditions du client",
+      "notesLabel": "Conditions",
+      "notesPlaceholder": "Mentions pour le client, facultatif",
+      "priceReason": "Motif (prix sous le minimum / vente à perte)",
+      "draftHint": "Modifiez les lignes, l'échéance ou les conditions. Ajoutez une ligne si besoin, puis enregistrez.",
+      "mention": "Mention sur la facture",
+      "incomplete": "Complétez ou retirez les lignes incomplètes avant d'enregistrer."
     },
     "ro": {
       "invoiced": "Facture {number}",
@@ -3965,6 +5729,8 @@
       "submit": "Enregistrer",
       "approvalHint": "Au-delà de {amount}, la dépense doit être validée par le gérant.",
       "pendingHint": "Au-delà de {amount}, la dépense part en validation chez le gérant et ne sort de la caisse qu'une fois validée.",
+      "underHint": "Sous {amount}, la dépense sort de la caisse tout de suite, sans validation.",
+      "selfApproveHint": "Vous validez les dépenses : celle-ci est enregistrée tout de suite. Retrouvez-la dans Dépenses, onglet Validées.",
       "receipt": "Justificatif (photo ou PDF, facultatif)",
       "receiptTake": "Photographier le reçu",
       "receiptChange": "Changer",
@@ -4031,6 +5797,18 @@
         "net": "Écart cumulé",
         "toReview": "À valider"
       },
+      "kpiHelp": {
+        "sessions": "Nombre de sessions de caisse dans la sélection, ouvertes ou déjà clôturées.",
+        "withVariance": "Sessions clôturées où le comptage des espèces ne correspond pas au montant attendu.",
+        "net": "Somme des écarts (compté − attendu). Un manque est négatif, un surplus est positif.",
+        "toReview": "Écarts pas encore commentés et validés par un responsable."
+      },
+      "kpiExample": {
+        "sessions": "Trois ouvertures cette semaine, dont une encore ouverte. Le chiffre est 3.",
+        "withVariance": "Sur 3 clôtures, une a 2 000 FCFA de moins que prévu. « Avec écart » vaut 1.",
+        "net": "Un manque de 2 000 et un surplus de 500. L'écart cumulé est −1 500 FCFA.",
+        "toReview": "Le manque de 2 000 n'a pas encore de motif validé. Il reste ici jusqu'à la décision du gérant."
+      },
       "byCashier": "Écarts par caissier",
       "byCashierHint": "Sessions clôturées de la sélection, triées par écart absolu.",
       "cashierCols": {
@@ -4053,7 +5831,39 @@
     },
     "paymentsList": {
       "title": "Paiements",
-      "empty": "Aucun paiement.",
+      "subtitle": "Reçus, factures affectées et annulations.",
+      "empty": "Aucun paiement pour cette sélection.",
+      "search": "N° de reçu, client ou facture",
+      "status": "Statut",
+      "allStatuses": "Tous les statuts",
+      "statusConfirmed": "Encaissés",
+      "statusPending": "En attente",
+      "statusVoided": "Annulés",
+      "statusFailed": "Rejetés",
+      "statusRefunded": "Remboursés",
+      "confirmed": "Encaissé",
+      "refunded": "Remboursé",
+      "confirmedTotal": "Encaissé",
+      "unallocatedTotal": "Non affecté",
+      "voidedTotal": "Annulé",
+      "help": {
+        "confirmed": "Somme des paiements confirmés pour le mode choisi. Cliquez pour n'afficher que ceux-là.",
+        "unallocated": "Part pas encore rattachée à une facture. Cliquez pour n'afficher que ces paiements.",
+        "voided": "Paiements annulés : ils ne comptent plus dans l'encaissé. Cliquez pour n'afficher que ceux-là."
+      },
+      "example": {
+        "confirmed": "Deux reçus : 45 000 en espèces et 100 000 par Wave. L'encaissé affiché est 145 000 FCFA.",
+        "unallocated": "Les 45 000 sont sur la facture FAC-2026-000003. Les 100 000 Wave n'ont pas de facture : le non affecté est 100 000 FCFA.",
+        "voided": "Un reçu de 10 000 FCFA a été annulé pour erreur de saisie. Il apparaît ici, et il n'est plus dans l'encaissé."
+      },
+      "countOne": "{count} paiement",
+      "countMany": "{count} paiements",
+      "colReceipt": "Reçu",
+      "colCustomer": "Client",
+      "colInvoice": "Facture",
+      "colStatus": "Statut",
+      "colAmount": "Montant",
+      "noInvoice": "—",
       "unallocatedOnly": "Non affectés seulement",
       "void": "Annuler",
       "voidReason": "Motif de l'annulation",
@@ -4074,6 +5884,18 @@
       "received": "Total encaissé",
       "expenses": "Dépenses",
       "drops": "Versements"
+    },
+    "kpiHelp": {
+      "expected": "Espèces qui devraient être dans le tiroir : fond de départ + encaissements espèces − dépenses validées − remboursements espèces − versements au coffre.",
+      "received": "Tout l'argent encaissé sur la session, tous modes : espèces, Orange Money, Wave, MTN, chèque, virement.",
+      "expenses": "Dépenses de caisse déjà validées. Celles en attente sont signalées à part et ne sont pas encore sorties du tiroir.",
+      "drops": "Espèces sorties du tiroir pour être déposées au coffre ou à la banque."
+    },
+    "kpiExample": {
+      "expected": "Fond 50 000, plus 80 000 encaissés en espèces, moins 15 000 de dépenses et 40 000 versés au coffre. Les espèces attendues sont 75 000 FCFA.",
+      "received": "80 000 en espèces et 100 000 par Orange Money. Le total encaissé est 180 000 FCFA, même si une partie n'est pas dans le tiroir.",
+      "expenses": "Un bidon d'huile à 8 000 FCFA est validé : il compte. Une course de 3 000 encore à valider est affichée à côté, mais ne réduit pas encore ce total.",
+      "drops": "Le caissier a remis 40 000 FCFA au coffre à 16 h. Les versements affichent 40 000, et le tiroir attendu baisse d'autant."
     },
     "pendingBanner": "{count} dépense(s) en attente de validation ({amount}). Elles ne sortiront de la caisse qu'une fois validées ; la clôture est bloquée d'ici là.",
     "pendingReview": "Examiner",
@@ -4119,11 +5941,15 @@
       "to": "Au",
       "reset": "Effacer les filtres",
       "total": "Total des dépenses validées",
+      "totalHelp": "Somme des dépenses de l'onglet affiché : validées, en attente ou refusées, après les filtres de catégorie et de dates.",
+      "totalExample": "Deux dépenses validées, 8 000 d'huile et 15 000 de courses. Le total est 23 000 FCFA. Une dépense encore en attente n'entre pas dans l'onglet Validées.",
       "totalPending": "Total en attente",
       "totalRejected": "Total refusé",
       "byCategory": "Par catégorie",
       "empty": "Aucune dépense sur cette sélection.",
       "emptyPending": "Aucune dépense en attente de validation.",
+      "emptyPendingHint": "Une dépense que vous enregistrez vous-même est validée tout de suite. Elle est dans l'onglet Validées. Ici n'arrivent que les dépenses saisies par quelqu'un sans droit de validation, au-dessus du seuil.",
+      "seeApproved": "Voir les dépenses validées",
       "approve": "Valider",
       "reject": "Refuser",
       "rejectTitle": "Refuser la dépense",
@@ -4173,7 +5999,17 @@
       "readOnly": "Seul le propriétaire peut modifier ces réglages."
     },
     "cancel": "Annuler",
-    "newExpense": "Nouvelle dépense"
+    "newExpense": "Nouvelle dépense",
+    "receiptSend": {
+      "send": "Envoyer au client",
+      "resend": "Renvoyer",
+      "cancel": "Annuler",
+      "channels": {
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email (PDF)"
+      }
+    }
   },
   "workshop": {
     "title": "Atelier",
@@ -4215,7 +6051,10 @@
       "mechanic": "Mécanicien",
       "allMechanics": "Tous les mécaniciens",
       "empty": "Aucun OR dans cette colonne",
+      "emptyShort": "Vide",
       "emptyAll": "Aucun OR ouvert à l'atelier",
+      "readyHintOne": "1 véhicule prêt à restituer",
+      "readyHintMany": "{count} véhicules prêts à restituer",
       "progress": "{done}/{total} tâches",
       "promised": "Promis {date}",
       "noPromise": "Pas de date promise",
@@ -4223,7 +6062,7 @@
       "atRisk": "À risque",
       "missingParts": "Pièces manquantes",
       "subcontract": "Sous-traitance",
-      "moveTo": "Déplacer vers…",
+      "moveTo": "Déplacer…",
       "moveLabel": "Déplacer {number}",
       "moved": "OR déplacé",
       "dropRefused": "Dépôt impossible",
@@ -4288,7 +6127,24 @@
       "hours": "{hours} h barème"
     },
     "time": {
-      "description": "Pointages des mécaniciens. Corrigez un pointage avec un motif ; les entrées signalées sont à vérifier.",
+      "description": "Qui est présent, qui travaille sur un ordre, et les temps à corriger. L'arrivée se pointe sur la tablette ; ici vous rattrapez un oubli.",
+      "present": "Présents",
+      "left": "Partis",
+      "absent": "Absents",
+      "pointed": "Temps sur les ordres",
+      "teamTitle": "Équipe du jour",
+      "teamHint": "La présence est le temps dans l'atelier. L'écart, c'est ce temps moins le temps passé sur les ordres.",
+      "teamEmpty": "Aucun mécanicien actif.",
+      "filterEmpty": "Personne dans cette sélection.",
+      "statusPresent": "Présent",
+      "statusLeft": "Parti",
+      "statusAbsent": "Absent",
+      "record": "Saisir la présence",
+      "correctAttendance": "Corriger la présence",
+      "recordTitle": "Présence — {name}",
+      "break": "Pause repas (min)",
+      "breakHint": "Souvent 60 minutes. Laissez 0 tant que la personne est encore là.",
+      "tasksTitle": "Temps sur les ordres",
       "date": "Jour",
       "needsReviewOnly": "À vérifier seulement",
       "mechanic": "Mécanicien",
@@ -4307,7 +6163,19 @@
       "editTitle": "Corriger le pointage",
       "reason": "Motif de la correction",
       "reasonHint": "Obligatoire, conservé dans le journal d'audit.",
-      "empty": "Aucun pointage ce jour.",
+      "empty": "Aucun temps sur un ordre pour cette sélection. Il est pointé sur la tablette, au démarrage d'une tâche.",
+      "liveTitle": "En cours maintenant",
+      "gap": "Écart",
+      "currentTask": "Tâche en cours",
+      "searchOrder": "N° d'ordre",
+      "noMatch": "Aucun pointage ne correspond à ce numéro.",
+      "noArrival": "Temps sans arrivée",
+      "carriedOver": "Commencé avant ce jour",
+      "recordArrival": "Pointer l'arrivée",
+      "recordDeparture": "Pointer le départ",
+      "reasonForgot": "Oubli de la tablette",
+      "reasonArrival": "Arrivée corrigée",
+      "reasonDeparture": "Départ corrigé",
       "attendanceTitle": "Présences",
       "attendanceEmpty": "Aucune présence pointée ce jour.",
       "arrival": "Arrivée",
@@ -4575,8 +6443,111 @@
     "title": "Assurances",
     "dashboardDesc": "Encours par compagnie, délai moyen de paiement, dossiers bloqués et relances du jour.",
     "claimsTitle": "Sinistres",
+    "back": "Retour aux sinistres",
     "insurersTitle": "Compagnies d'assurance",
     "followUpsTitle": "Relances assureurs",
+    "guideNav": "Guide",
+    "guideTitle": "Guide du sinistre",
+    "guideIntro": "De la réception du véhicule au virement de la compagnie. L'exemple est le dossier de Mme Koné, Hyundai Tucson 8812 HK 01.",
+    "guideSourcesTitle": "D'où viennent les chiffres",
+    "guideSourcesNote": "La franchise n'est jamais une ligne du devis. La part client, c'est la franchise, plus la vétusté, plus les travaux que le client demande en plus.",
+    "guideColInfo": "Information",
+    "guideColWho": "Qui la donne",
+    "guideColExample": "Exemple",
+    "guideSource1Info": "Franchise",
+    "guideSource1Who": "L'assuré, puis la lettre d'accord la confirme",
+    "guideSource1Example": "100 000 FCFA",
+    "guideSource2Info": "Devis, pièces et main-d'œuvre",
+    "guideSource2Who": "Le garage",
+    "guideSource2Example": "653 720 FCFA TTC",
+    "guideSource3Info": "Montant accordé et vétusté",
+    "guideSource3Who": "La compagnie, après l'expert",
+    "guideSource3Example": "653 720 FCFA, vétusté vide",
+    "guideSource4Info": "Part compagnie et part client",
+    "guideSource4Who": "Calculées ici",
+    "guideSource4Example": "553 720 FCFA et 100 000 FCFA",
+    "guideS1Title": "Recevoir le véhicule",
+    "guideS1Body": "À la réception, notez le kilométrage, le carburant, les photos, les dégâts et les objets laissés dans la voiture. Ne chifrez pas encore les pièces.",
+    "guideS2Title": "Ouvrir le dossier",
+    "guideS2Body": "Sur l'ordre, cliquez Ouvrir un dossier sinistre. Le dossier reçoit un numéro, par exemple SIN-CODE001-2026-00001. Dans Documents, ajoutez le constat, les photos des dégâts, la carte grise et l'attestation. La lettre d'accord viendra plus tard.",
+    "guideS2R1l": "Compagnie",
+    "guideS2R1v": "Compagnie A",
+    "guideS2R2l": "N° de sinistre assureur",
+    "guideS2R2v": "CA-2026-00418",
+    "guideS2R3l": "Franchise",
+    "guideS2R3v": "100 000",
+    "guideS2R4l": "TVA payée par",
+    "guideS2R4v": "Assurance",
+    "guideS3Title": "Planifier l'expert",
+    "guideS3Body": "Cliquez Planifier l'expert. Quand il est passé, cliquez Visite effectuée et indiquez la date réelle.",
+    "guideS3R1l": "Expert",
+    "guideS3R1v": "Yao Kouamé, Expertise CI",
+    "guideS3R2l": "Téléphone",
+    "guideS3R2v": "07 00 11 22 33",
+    "guideS3R3l": "Visite prévue",
+    "guideS3R3v": "31/10/2026 10:00",
+    "guideS4Title": "Faire le devis",
+    "guideS4Body": "Cliquez Créer le devis assurance. Le prix saisi est hors taxes et le payeur est Assurance. MO signifie main-d'œuvre. La TVA est 18 % de chaque ligne, puis additionnée. Le total de l'exemple est 554 000 FCFA HT, TVA 99 720 FCFA, 653 720 FCFA TTC.",
+    "guideS4R1l": "Pare-choc AV",
+    "guideS4R1v": "1 × 185 000 HT",
+    "guideS4R2l": "Phare AV gauche",
+    "guideS4R2v": "1 × 142 000 HT",
+    "guideS4R3l": "Peinture et ingrédients",
+    "guideS4R3v": "1 × 95 000 HT",
+    "guideS4R4l": "MO tôlerie",
+    "guideS4R4v": "6 h × 12 000 HT",
+    "guideS4R5l": "MO peinture",
+    "guideS4R5v": "5 h × 12 000 HT",
+    "guideS5Title": "Dire à l'assureur que le devis est parti",
+    "guideS5Body": "Sur le dossier, cliquez Marquer le devis envoyé. Le dossier passe à Devis envoyé. Ce bouton ne prévient pas le client. Le bouton Envoyer au client, sur le devis, sert à un devis particulier. Le badge du devis peut rester Brouillon.",
+    "guideS6Title": "Saisir l'accord",
+    "guideS6Body": "Quand la lettre arrive, cliquez Saisir l'accord. Le dossier passe à Accord et la répartition s'affiche : total 653 720 FCFA, compagnie 553 720 FCFA, client 100 000 FCFA. Ajoutez la lettre d'accord dans Documents. Sans elle, ou sans le PV d'expertise, la facturation est refusée. Si le montant accordé est inférieur au devis, indiquez si l'écart est revu, mis à la charge du client, ou absorbé par le garage.",
+    "guideS6R1l": "Montant accordé",
+    "guideS6R1v": "653 720",
+    "guideS6R2l": "Franchise",
+    "guideS6R2v": "100 000",
+    "guideS6R3l": "Vétusté",
+    "guideS6R3v": "vide, sauf si l'expert en retient",
+    "guideS6R4l": "Référence de l'accord",
+    "guideS6R4v": "ACC-2026-00418",
+    "guideS7Title": "Mettre les travaux sur l'ordre",
+    "guideS7Body": "Ouvrez le devis et cliquez Enregistrer la décision. Les lignes arrivent sur l'ordre, approuvées. L'ordre passe à Prêt à démarrer.",
+    "guideS7R1l": "Canal",
+    "guideS7R1v": "Assureur",
+    "guideS7R2l": "Lignes",
+    "guideS7R2v": "Accepter chacune",
+    "guideS7R3l": "Montant approuvé",
+    "guideS7R3v": "653 720",
+    "guideS8Title": "Réparer",
+    "guideS8Body": "Sur l'ordre, cliquez Démarrer les travaux. Le dossier passe à Réparation. Chaque ligne reste À faire. Cliquez Terminer sur chaque carte, puis Terminer les travaux en haut.",
+    "guideS9Title": "Contrôler",
+    "guideS9Body": "Cliquez Contrôle qualité, puis Tout marquer OK. Notez le kilométrage de l'essai, par exemple 26 puis 32. Cliquez Valider (véhicule prêt). L'ordre passe à Prêt.",
+    "guideS10Title": "Facturer",
+    "guideS10Body": "Sur le sinistre, cliquez Facturer le sinistre. Deux brouillons sont créés. Ouvrez chacun et cliquez Émettre, puis Émettre la facture. Le dossier passe à Facturé. La compagnie reçoit une fiche pour sa facture. Mme Koné reste la cliente du véhicule. Les relances de la compagnie se font dans Assurances, pas dans les relances clients.",
+    "guideS10R1l": "Facture compagnie",
+    "guideS10R1v": "553 720 FCFA",
+    "guideS10R2l": "Facture client, la franchise",
+    "guideS10R2v": "100 000 FCFA",
+    "guideS11Title": "Encaisser la franchise et rendre la voiture",
+    "guideS11Body": "Sur la facture du client, cliquez Encaisser. La facture client est soldée et le dossier passe à Partiellement réglé. La facture compagnie reste ouverte. Sur l'ordre, cliquez Restituer, cochez les objets vérifiés, indiquez le kilométrage de sortie, faites signer, puis Restituer le véhicule. La voiture sort sans attendre le virement.",
+    "guideS11R1l": "Mode",
+    "guideS11R1v": "Orange Money",
+    "guideS11R2l": "Montant reçu",
+    "guideS11R2v": "100 000",
+    "guideS12Title": "Attendre et relancer la compagnie",
+    "guideS12Body": "Le virement arrive souvent 60 à 120 jours plus tard. Les relances se préparent dans Relances assureurs : le jour de l'échéance, 15 jours après, 30 jours après, puis tous les 30 jours. Cliquez Valider et envoyer, Reporter de 3 jours, ou Appel fait. L'e-mail part si le canal est actif dans Paramètres, Canaux. Quand le virement arrive, encaissez la facture compagnie. Le dossier passe à Réglé.",
+    "guideS12R1l": "Mode",
+    "guideS12R1v": "Virement",
+    "guideS12R2l": "Montant reçu",
+    "guideS12R2v": "553 720",
+    "guideStagesTitle": "Où en est le dossier",
+    "guideStage1": "Ouverture — dossier créé",
+    "guideStage2": "Expertise — visite prévue, puis notée",
+    "guideStage3": "Devis envoyé — devis transmis à la compagnie",
+    "guideStage4": "Accord — lettre saisie, répartition affichée",
+    "guideStage5": "Réparation — travaux démarrés",
+    "guideStage6": "Facturation — les deux factures sont émises",
+    "guideStage7": "Réglé — franchise et compagnie sont payées",
     "new": "Nouveau sinistre",
     "newInsurer": "Nouvelle compagnie",
     "search": "Rechercher (plaque, n° SIN, n° assureur, client)",
@@ -4589,6 +6560,21 @@
     "allStatuses": "Tous les statuts",
     "allInsurers": "Toutes les compagnies",
     "blockedOnly": "Dossiers bloqués seulement",
+    "inactive": "Inactive",
+    "claimsIntro": "Dossiers ouverts auprès des compagnies : accord, franchise et règlement.",
+    "insurersIntro": "Chaque compagnie reçoit le devis et règle sa part. La franchise reste au client.",
+    "insurerSearch": "Rechercher une compagnie, un contact, un email…",
+    "listCount": "{count} compagnie",
+    "listCountPlural": "{count} compagnies",
+    "active": "Active",
+    "searchEmpty": "Aucune compagnie ne correspond à cette recherche.",
+    "columns": {
+      "contact": "Contact",
+      "terms": "Délai",
+      "claims": "Dossiers",
+      "outstanding": "Encours",
+      "status": "Statut"
+    },
     "noInsurer": "Ajoutez d'abord une compagnie d'assurance.",
     "addInsurer": "Ajouter une compagnie",
     "empty": {
@@ -4596,12 +6582,28 @@
       "description": "Ouvrez un dossier depuis un ordre de réparation ou ici."
     },
     "emptyFollowUps": {
-      "title": "Aucune relance à valider",
+      "title": "Aucune relance à envoyer",
       "description": "Les relances dues de l'assureur apparaîtront ici chaque matin."
     },
     "emptyInsurers": {
       "title": "Aucune compagnie",
       "description": "Ajoutez les compagnies avec lesquelles vous travaillez."
+    },
+    "sections": {
+      "identity": "Identité",
+      "identityHint": "Le nom apparaît sur les devis et les factures.",
+      "contact": "Contact sinistres",
+      "contactHint": "La personne qui reçoit le dossier et les relances.",
+      "terms": "Conditions",
+      "termsHint": "Délai de règlement convenu, taux horaire et remise sur les pièces.",
+      "documents": "Pièces exigées",
+      "documentsHint": "Ce que la compagnie demande avant d'accorder le sinistre.",
+      "followUp": "Relances",
+      "followUpHint": "Jours séparés par des virgules. Exemple : 7, 14, 21.",
+      "vehicle": "Véhicule",
+      "accident": "Accident et police",
+      "accidentHint": "Ces informations figurent sur le constat et le certificat d'assurance.",
+      "amounts": "Franchise et TVA"
     },
     "status": {
       "OPENED": "Ouvert",
@@ -4627,6 +6629,10 @@
       "customer": "Assuré",
       "vehicle": "Véhicule",
       "insurer": "Compagnie",
+      "insurerPlaceholder": "Choisir la compagnie",
+      "insurerHint": "C'est elle qui recevra le devis et la facture. La franchise reste à la charge du client.",
+      "insurerTerms": "Règlement habituel sous {days} jours.",
+      "insurerNoContact": "Aucun contact sinistres pour l'instant.",
       "policyNumber": "N° de police",
       "accidentDate": "Date de l'accident",
       "accidentPlace": "Lieu de l'accident",
@@ -4662,23 +6668,52 @@
       "oldest": "Dossier le plus ancien",
       "days": "{days} j",
       "name": "Nom",
+      "namePlaceholder": "NSIA, Allianz, SUNU…",
+      "nameHint": "Obligatoire. C'est ce nom qui s'imprime sur le devis et la facture.",
       "legalName": "Raison sociale",
+      "legalNamePlaceholder": "NSIA Assurances Côte d'Ivoire",
+      "legalNameHint": "Facultatif. Nom officiel de la société.",
       "ncc": "NCC",
+      "nccPlaceholder": "1912345A",
+      "nccHint": "7 chiffres suivis d'une lettre, ex. 1912345A.",
+      "nccInvalid": "Le NCC doit contenir 7 chiffres suivis d'une lettre (ex. 1912345A).",
       "rccm": "RCCM",
+      "rccmPlaceholder": "CI-ABJ-2019-B-12345",
+      "rccmHint": "Format attendu : CI-ABJ-2019-B-12345.",
+      "rccmWarning": "Ce RCCM ne suit pas le format CI-ABJ-2019-B-12345. Vous pouvez tout de même enregistrer.",
       "address": "Adresse",
+      "addressPlaceholder": "Cocody, Abidjan",
       "phone": "Téléphone",
+      "phonePlaceholder": "07 00 00 00 00",
       "email": "Email",
-      "claimsContactName": "Contact sinistres",
-      "claimsPhone": "Téléphone sinistres",
+      "emailPlaceholder": "contact@compagnie.ci",
+      "emailInvalid": "L'adresse email n'est pas valide (ex. sinistres@compagnie.ci).",
+      "claimsContactName": "Nom du contact",
+      "claimsContactPlaceholder": "Aya Koné",
+      "claimsPhone": "Téléphone",
       "claimsEmail": "Email sinistres",
+      "claimsEmailPlaceholder": "sinistres@compagnie.ci",
       "accountingEmail": "Email comptabilité",
-      "paymentTermsDays": "Délai de paiement (jours)",
-      "laborRate": "Taux horaire MO convenu",
-      "partsDiscountRate": "Remise pièces (%)",
+      "accountingEmailPlaceholder": "comptabilite@compagnie.ci",
+      "accountingEmailHint": "Facultatif, s'il est différent de l'email sinistres.",
+      "paymentTermsDays": "Délai de paiement",
+      "paymentTermsHint": "Jours avant la première relance de règlement. 60 par défaut.",
+      "daysUnit": "jours",
+      "laborRate": "Taux horaire main-d'œuvre",
+      "laborRatePlaceholder": "18 000",
+      "laborRateHint": "Tarif horaire convenu avec la compagnie, en FCFA.",
+      "partsDiscountRate": "Remise sur les pièces",
+      "discountHint": "De 0 à 100. Laissez vide s'il n'y a pas de remise.",
+      "percentUnit": "%",
       "requiredDocuments": "Pièces exigées",
-      "approvalSteps": "Relances accord (jours après envoi du devis)",
-      "paymentSteps": "Relances paiement (jours après échéance)",
+      "approvalSteps": "Relances d'accord",
+      "approvalStepsHint": "Jours après l'envoi du devis, séparés par des virgules.",
+      "approvalStepsPlaceholder": "7, 14, 21",
+      "paymentSteps": "Relances de paiement",
+      "paymentStepsHint": "Jours après l'échéance, séparés par des virgules.",
+      "paymentStepsPlaceholder": "0, 15, 30",
       "isActive": "Compagnie active",
+      "isActiveHint": "Une compagnie inactive ne se propose plus à l'ouverture d'un sinistre.",
       "vehicleSearch": "Plaque du véhicule",
       "dueFor": "Prévue le",
       "step": "Palier",
@@ -4746,7 +6781,7 @@
     },
     "followUpStatus": {
       "PLANNED": "Planifiée",
-      "NEEDS_APPROVAL": "À valider",
+      "NEEDS_APPROVAL": "Prête — envoi à confirmer",
       "SNOOZED": "Reportée",
       "QUEUED": "Envoyée",
       "SENT": "Envoyée",
@@ -4852,8 +6887,22 @@
       "openClaims": "Dossiers en cours",
       "overdue": "Échu depuis plus de 60 j",
       "blocked": "Dossiers bloqués",
-      "followUps": "Relances à valider",
+      "followUps": "Relances prêtes à envoyer",
       "avgDaysToPay": "Délai moyen de paiement"
+    },
+    "kpiHelp": {
+      "outstanding": "Somme que les assureurs doivent encore sur les dossiers facturés et pas soldés.",
+      "openClaims": "Dossiers pas encore soldés, refusés ou annulés.",
+      "overdue": "Part de l'encours assureur échue depuis plus de 60 jours.",
+      "blocked": "Dossiers qui ont un blocage (expert, accord, pièce) et qui n'avancent pas.",
+      "followUps": "Relances assureur rédigées, qui attendent votre accord avant l'envoi."
+    },
+    "kpiExample": {
+      "outstanding": "Deux dossiers facturés, il reste 400 000 et 153 720 FCFA à recevoir de l'assureur. L'encours est 553 720 FCFA.",
+      "openClaims": "Un dossier en réparation et un autre facturé, en attente du virement. Le chiffre est 2. Un dossier payé n'y est plus.",
+      "overdue": "L'assureur devait 200 000 FCFA depuis 70 jours. Ces 200 000 sont ici. Une facture envoyée il y a 20 jours n'y est pas.",
+      "blocked": "L'expert n'est pas encore passé sur le dossier de la Tucson. Il est bloqué. Dès que la visite est saisie, il peut sortir de ce chiffre.",
+      "followUps": "Un message à la compagnie est prêt pour le dossier de 553 720 FCFA. Il reste ici jusqu'à votre validation, puis il part."
     },
     "agingTitle": "Ancienneté de l'encours",
     "insurerCount": "{count} compagnie(s)",
@@ -4918,7 +6967,8 @@
     "simulatorHint": "Environnement de test : aucun argent réel n'est débité.",
     "simulatorPay": "Payer {amount}",
     "simulatorFail": "Simuler un échec",
-    "simulatorGone": "Ce paiement simulé est introuvable ou déjà traité."
+    "simulatorGone": "Ce paiement simulé est introuvable ou déjà traité.",
+    "fneQrLabel": "QR code FNE"
   },
   "paymentSettings": {
     "title": "Paiements en ligne",
@@ -5048,6 +7098,8 @@
     "no": "Non",
     "undecided": "—",
     "saved": "Réglages enregistrés.",
+    "saveError": "Réglage non enregistré : {message}",
+    "journalError": "Impossible de charger le journal des appels IA.",
     "loadError": "Impossible de charger les réglages IA.",
     "retry": "Réessayer"
   },
@@ -5274,7 +7326,8 @@
       "payment.amount": "Montant du paiement",
       "payment.method": "Moyen de paiement",
       "site.code": "Code du site",
-      "event.to": "Nouveau statut (événement)"
+      "event.to": "Nouveau statut (événement)",
+      "event.rating": "Note de l'avis (événement)"
     },
     "actions": {
       "send_template": "Envoyer un modèle de message",
@@ -5326,7 +7379,33 @@
       "saved": "Règle enregistrée.",
       "warning": "Attention : la règle « {names} » envoie déjà un message pour ce déclencheur (le client ne recevra qu'un message par modèle).",
       "selectTemplate": "Choisir un modèle",
-      "saveError": "Enregistrement impossible : vérifiez les champs."
+      "saveError": "Enregistrement impossible : vérifiez les champs.",
+      "listPlaceholder": "ex. READY, DELIVERED",
+      "unavailableHint": "Action pas encore disponible en v1 : choisissez une autre action ou retirez-la.",
+      "assignee": "Membre à qui confier la conversation",
+      "selectAssignee": "Choisir un membre",
+      "assigneesLoading": "Chargement des membres…",
+      "unknownAssignee": "Membre introuvable (à remplacer)",
+      "assigneesError": "Impossible de charger les membres. Rechargez la page.",
+      "errors": {
+        "name": "Donnez un nom à la règle.",
+        "conditionValue": "Renseignez la valeur de chaque condition (ou retirez la condition).",
+        "conditionNumber": "Pour « supérieur » ou « inférieur », la valeur doit être un nombre.",
+        "noAction": "Ajoutez au moins une action.",
+        "templateKey": "Choisissez le modèle de message à envoyer.",
+        "title": "Donnez un titre à la notification ou à la tâche.",
+        "roles": "Cochez au moins un destinataire pour la notification.",
+        "tag": "Saisissez le tag à ajouter au client.",
+        "membership": "Choisissez le membre à qui confier la conversation.",
+        "unavailableAction": "Une action n'est pas disponible en v1 : remplacez-la ou retirez-la."
+      }
+    },
+    "errors": {
+      "activate": "Activation impossible. Réessayez.",
+      "toggle": "Changement d'état impossible. Réessayez.",
+      "delete": "Suppression impossible. Réessayez.",
+      "load": "Impossible d'ouvrir la règle. Réessayez.",
+      "decide": "Décision non enregistrée. Réessayez."
     },
     "test": {
       "title": "Tester sur un exemple",
@@ -5459,7 +7538,7 @@
         "description": "Reçus et remboursements par mode de paiement, caissier et factures allouées."
       },
       "balance-agee": {
-        "title": "Balance âgée",
+        "title": "Impayés par ancienneté (balance âgée)",
         "description": "Factures ouvertes par tranche de retard à une date donnée, synthèse par client."
       },
       "rentabilite-or": {
@@ -5793,6 +7872,14 @@
         "VEHICLE": "Historique du véhicule",
         "SURVEY": "Avis client"
       },
+      "hints": {
+        "QUOTE": "Le client lit le devis, choisit les travaux et signe.",
+        "INVOICE": "Le client consulte la facture et peut la payer.",
+        "REPAIR_ORDER": "Le client suit l'avancement de sa réparation.",
+        "APPOINTMENT": "Le client confirme, déplace ou annule son rendez-vous.",
+        "VEHICLE": "Le client consulte les passages et les échéances de ce véhicule.",
+        "SURVEY": "Le client donne son avis après la restitution."
+      },
       "error": "Impossible de charger les liens."
     },
     "reviews": {
@@ -5851,6 +7938,7 @@
     "messageLabel": "Message pour l'équipe commerciale",
     "submit": "Envoyer la demande",
     "applied": "Votre offre est maintenant {plan}.",
+    "requested": "Demande de passage à l'offre {plan} envoyée. L'équipe AtelierOS vous recontacte.",
     "pending": "Demande de passage à l'offre {plan} envoyée le {date}. L'équipe AtelierOS vous recontacte.",
     "impact": "{label} : {used} pour {limit} inclus ({excess} en lecture seule)",
     "smsCostNote": "Le coût des SMS et messages WhatsApp facturés par vos fournisseurs reste à votre charge (vos propres comptes)."
@@ -5911,7 +7999,11 @@
     "deletionSubmit": "Programmer la suppression",
     "deletionScheduled": "Suppression programmée le {date}. Le garage est en lecture seule.",
     "deletionCancel": "Annuler la suppression",
-    "deletionCancelled": "Suppression annulée : le garage est de nouveau actif."
+    "deletionCancelled": "Suppression annulée : le garage est de nouveau actif.",
+    "deletionRequested": "Suppression programmée : le garage passe en lecture seule pendant 30 jours.",
+    "supportGranted": "Accès du support autorisé pour 24 h.",
+    "supportRevoked": "Accès du support retiré.",
+    "modeNoPermission": "Seul un utilisateur autorisé à modifier les paramètres du garage peut changer le mode de fonctionnement."
   },
   "lifecycleBanner": {
     "DELETION_SCHEDULED": "Suppression du compte programmée le {date} : le garage est en lecture seule.",
@@ -5925,6 +8017,12 @@
     "retry": "Réessayer",
     "readOnly": "Lecture seule : vous n'avez pas la permission de modifier ces paramètres. Demandez au gérant.",
     "identityTitle": "Identité légale",
+    "logo": "Logo",
+    "logoHint": "PNG ou JPEG, 1 Mo maximum. Il s'imprime en tête des factures et des reçus.",
+    "logoInvalid": "Ce fichier n'est pas une image PNG ou JPEG.",
+    "logoTooLarge": "Cette image dépasse 1 Mo. Choisissez un fichier plus léger.",
+    "logoRemove": "Retirer le logo",
+    "logoEmpty": "Aucun logo : les initiales du garage s'impriment en tête.",
     "legalName": "Raison sociale",
     "legalNameHint": "Ex. Garage Excellence Auto SARL",
     "name": "Nom commercial",
@@ -5981,7 +8079,13 @@
     "previewRegime": "Régime :",
     "previewVat": "TVA {rate} %",
     "previewNoVat": "TVA non applicable",
-    "previewNoFooter": "Aucune mention de pied de facture."
+    "previewNoFooter": "Aucune mention de pied de facture.",
+    "logoPick": "Choisir un logo",
+    "logoChange": "Changer le logo",
+    "phoneInvalid": "Numéro invalide : 10 chiffres, ex. 07 00 00 00 00.",
+    "phoneHint": "Imprimé sur les factures. Enregistré au format +225.",
+    "unsaved": "Modifications non enregistrées",
+    "upToDate": "Tout est enregistré."
   },
   "holidaySettings": {
     "title": "Jours fériés",
@@ -6101,7 +8205,11 @@
       "neverUsed": "Jamais utilisée",
       "requests": "{count} requête(s) sur 24 h",
       "logs": "Journal d'accès",
-      "noLogs": "Aucune requête enregistrée."
+      "noLogs": "Aucune requête enregistrée.",
+      "logsError": "Impossible de charger le journal d'accès.",
+      "done": "J'ai copié la clé",
+      "revokeConfirmTitle": "Révoquer la clé « {name} » ?",
+      "revokeConfirmBody": "Les logiciels qui utilisent cette clé perdront immédiatement l'accès à l'API. Cette action est définitive."
     },
     "webhooks": {
       "title": "Webhooks",
@@ -6132,12 +8240,55 @@
         "succeeded": "Livré",
         "failed": "Échec"
       },
-      "testResult": "Test : {status}"
+      "testResult": "Test : {status}",
+      "deliveriesError": "Impossible de charger les livraisons.",
+      "done": "J'ai copié le secret",
+      "deleteConfirmTitle": "Supprimer ce webhook ?",
+      "deleteConfirmBody": "{url} ne recevra plus aucune notification et son historique de livraisons sera effacé. Cette action est définitive."
+    },
+    "scopes": {
+      "customers:read": "Clients : lecture",
+      "customers:write": "Clients : écriture",
+      "vehicles:read": "Véhicules : lecture",
+      "vehicles:write": "Véhicules : écriture",
+      "invoices:read": "Factures : lecture",
+      "invoices:write": "Factures : écriture",
+      "payments:read": "Paiements : lecture",
+      "payments:write": "Paiements : écriture",
+      "products:read": "Articles et stock : lecture",
+      "products:write": "Articles et stock : écriture",
+      "repair_orders:read": "Ordres de réparation : lecture",
+      "repair_orders:write": "Ordres de réparation : écriture",
+      "appointments:read": "Rendez-vous : lecture",
+      "appointments:write": "Rendez-vous : écriture",
+      "quotes:read": "Devis : lecture",
+      "reminders:read": "Relances : lecture",
+      "reports:read": "Rapports : lecture",
+      "webhooks:manage": "Webhooks : gestion",
+      "sync:push": "Synchronisation : envoi de données"
+    },
+    "events": {
+      "customer.created": "Client créé",
+      "customer.updated": "Client modifié",
+      "vehicle.created": "Véhicule créé",
+      "vehicle.updated": "Véhicule modifié",
+      "invoice.issued": "Facture émise",
+      "invoice.voided": "Facture annulée par avoir",
+      "invoice.paid": "Facture soldée",
+      "payment.received": "Paiement reçu",
+      "repair_order.status_changed": "Ordre de réparation : changement de statut",
+      "quote.accepted": "Devis accepté",
+      "quote.declined": "Devis refusé",
+      "appointment.created": "Rendez-vous créé",
+      "appointment.cancelled": "Rendez-vous annulé",
+      "reminder.sent": "Relance envoyée",
+      "import.completed": "Import terminé"
     }
   },
   "treasury": {
-    "title": "Trésorerie",
-    "subtitle": "Tout l'argent du garage : caisses, coffre, banques et mobile money.",
+    "title": "Comptes",
+    "crumb": "Trésorerie",
+    "subtitle": "Gestion des comptes de trésorerie.",
     "loadError": "Impossible de charger la trésorerie.",
     "cancel": "Annuler",
     "save": "Enregistrer",
@@ -6145,8 +8296,89 @@
     "monthIn": "Entrées du mois",
     "monthOut": "Sorties du mois",
     "monthNet": "Solde du mois",
+    "kpiHelp": {
+      "total": "Somme des soldes des comptes actifs : banques, mobile money, caisses, coffre. Un compte archivé n'entre pas.",
+      "monthIn": "Entrées du mois en cours. Un virement interne, d'une caisse vers la banque par exemple, ne gonfle pas ce total.",
+      "monthOut": "Sorties du mois : dépenses, remboursements et virements vers l'extérieur.",
+      "monthNet": "Entrées moins sorties du mois. Négatif, le mois a sorti plus d'argent qu'il n'en est entré."
+    },
+    "kpiExample": {
+      "total": "Banque 1 200 000, Wave 350 000, coffre 80 000. La trésorerie totale est 1 630 000 FCFA.",
+      "monthIn": "200 000 FCFA encaissés par Orange Money ce mois. Les entrées affichent 200 000. Un virement de la caisse vers la banque ne compte pas deux fois.",
+      "monthOut": "45 000 de loyer payés depuis la banque. Les sorties affichent 45 000 FCFA.",
+      "monthNet": "200 000 d'entrées et 45 000 de sorties. Le solde du mois est +155 000 FCFA."
+    },
+    "familyHelp": {
+      "BANK": "Somme des soldes des comptes bancaires actifs. Cliquer filtre la liste sur cette famille.",
+      "MOBILE_MONEY": "Somme des soldes Orange Money, Wave et MTN MoMo. Cliquer filtre la liste.",
+      "CASH_REGISTER": "Espèces des caisses. Cliquer filtre la liste sur les comptes de type caisse.",
+      "SAFE": "Espèces au coffre, après les versements de caisse. Cliquer filtre la liste."
+    },
+    "familyExample": {
+      "BANK": "SGBCI 800 000 et NSIA 400 000. La famille Banques affiche 1 200 000 FCFA.",
+      "MOBILE_MONEY": "Le compte Wave a 350 000 FCFA. C'est le solde affiché pour Mobile money.",
+      "CASH_REGISTER": "La caisse du jour a 75 000 FCFA d'espèces attendues. C'est ce que montre la famille Caisses.",
+      "SAFE": "40 000 versés hier, plus 40 000 déjà au coffre. Le coffre affiche 80 000 FCFA."
+    },
     "journalLink": "Journal",
     "reportsLink": "Rapports",
+    "print": "Imprimer",
+    "register": {
+      "search": "Rechercher un compte",
+      "searchPlaceholder": "Nom, banque, numéro…",
+      "type": "Type de compte",
+      "status": "Statut",
+      "allTypes": "Tous les types",
+      "allStatuses": "Tous les statuts",
+      "statusActive": "Actifs",
+      "statusArchived": "Archivés",
+      "statusOverdraft": "À découvert",
+      "colAccount": "Compte",
+      "colType": "Type",
+      "colRef": "N° de compte",
+      "colOpening": "Solde d'ouverture",
+      "colBalance": "Solde actuel",
+      "colStatus": "Statut",
+      "active": "Actif",
+      "archived": "Archivé",
+      "overdraft": "Découvert",
+      "activeLabel": "Comptes actifs",
+      "activeCount": "{active} sur {total}",
+      "accountOne": "{count} compte",
+      "accountMany": "{count} comptes",
+      "shownOne": "{count} affiché",
+      "shownMany": "{count} affichés",
+      "empty": "Aucun compte ne correspond à ces filtres.",
+      "clear": "Tout afficher",
+      "noRef": "—",
+      "monthIn": "Entrées du mois",
+      "monthOut": "Sorties du mois",
+      "families": {
+        "BANK": "Banques",
+        "MOBILE_MONEY": "Mobile money",
+        "CASH_REGISTER": "Caisses",
+        "SAFE": "Coffre",
+        "OTHER": "Autres"
+      },
+      "chips": {
+        "BANK": {
+          "one": "{count} banque",
+          "many": "{count} banques"
+        },
+        "MOBILE_MONEY": {
+          "one": "{count} mobile",
+          "many": "{count} mobile"
+        },
+        "CASH_REGISTER": {
+          "one": "{count} caisse",
+          "many": "{count} caisses"
+        },
+        "SAFE": {
+          "one": "{count} coffre",
+          "many": "{count} coffres"
+        }
+      }
+    },
     "actions": {
       "transfer": "Virement",
       "expense": "Dépense",
@@ -6263,6 +8495,8 @@
       "notes": "Note",
       "available": "Disponible : {amount}",
       "overdraft": "Ce virement met la banque à découvert.",
+      "needAccounts": "Choisissez deux comptes différents.",
+      "needAmount": "Indiquez le montant.",
       "done": "Virement enregistré."
     },
     "expenseForm": {
@@ -6277,6 +8511,11 @@
       "receiptTake": "Ajouter le justificatif",
       "receiptChange": "Changer",
       "pendingHint": "Au-delà de {amount}, la dépense attend la validation d'un gérant avant de sortir du compte.",
+      "underHint": "Sous {amount}, la dépense est enregistrée tout de suite.",
+      "selfApproveHint": "Vous validez les dépenses : celle-ci est enregistrée tout de suite. Retrouvez-la dans Dépenses, onglet Validées.",
+      "needAccount": "Choisissez le compte débité.",
+      "needAmount": "Indiquez le montant.",
+      "needDescription": "Précisez la description.",
       "done": "Dépense enregistrée.",
       "pendingDone": "Dépense envoyée en validation au gérant."
     },
@@ -6293,6 +8532,9 @@
       "labelPlaceholder": "Ex. apport du gérant pour la paie",
       "date": "Date",
       "reference": "Référence",
+      "needAccount": "Choisissez un compte.",
+      "needAmount": "Indiquez le montant.",
+      "needLabel": "Précisez le motif (au moins 3 caractères).",
       "done": "Mouvement enregistré."
     },
     "reverseForm": {
@@ -6347,6 +8589,18 @@
       "inflow": "Entrées",
       "outflow": "Sorties",
       "closing": "Solde de clôture",
+      "help": {
+        "opening": "Solde au début de la période, avant les mouvements. Tous les comptes, ou seulement celui choisi dans le filtre.",
+        "inflow": "Argent entré pendant la période. Les virements internes entre vos comptes sont exclus.",
+        "outflow": "Argent sorti pendant la période. Les virements internes sont exclus.",
+        "closing": "Solde d'ouverture + entrées − sorties. C'est le solde à la fin de la période."
+      },
+      "example": {
+        "opening": "Au 1er octobre, la banque avait 1 000 000 FCFA. C'est le solde d'ouverture.",
+        "inflow": "180 000 d'encaissements clients et 20 000 d'un remboursement fournisseur. Les entrées sont 200 000 FCFA.",
+        "outflow": "60 000 de pièces payées au fournisseur. Les sorties sont 60 000 FCFA.",
+        "closing": "1 000 000 + 200 000 − 60 000 = 1 140 000 FCFA à la fin de la période."
+      },
       "chart": "Entrées et sorties",
       "chartEmpty": "Aucun mouvement sur la période.",
       "table": "Détail par période",
@@ -6360,5 +8614,369 @@
       "total": "Total"
     },
     "close": "Fermer"
+  },
+  "guides": {
+    "nav": "Guide",
+    "modules": {
+      "appointments": {
+        "title": "Guide — Rendez-vous",
+        "intro": "Le planning réserve un créneau. L'accueil du jour dit qui arrive, qui est en retard, et ouvre la réception.",
+        "home": "/rendez-vous",
+        "back": "Retour au planning",
+        "steps": [
+          {
+            "title": "Prendre le rendez-vous",
+            "body": "Sur le planning, cliquez Nouveau RDV, ou RDV téléphone si le client appelle. Choisissez le client, le véhicule, le motif et le créneau. Le pas de la grille respecte les horaires du garage."
+          },
+          {
+            "title": "Confirmer",
+            "body": "Le client confirme par message ou par téléphone. Sans réponse, le rendez-vous reste à relancer. L'accueil du jour regroupe ceux de demain qui n'ont pas répondu."
+          },
+          {
+            "title": "Le jour J",
+            "body": "Ouvrez Accueil du jour. Les rendez-vous sont classés : à venir, en retard, arrivés, absents. Quand le client est là, marquez-le arrivé : la réception de l'ordre peut commencer."
+          },
+          {
+            "title": "Déplacer ou annuler",
+            "body": "Un déplacement garde le même dossier et change l'heure. Une annulation demande qui annule et le motif. Le client peut recevoir un lien pour reprendre un créneau."
+          }
+        ]
+      },
+      "repairOrders": {
+        "title": "Guide — Ordres de réparation",
+        "intro": "Un ordre suit la voiture de l'arrivée à la restitution. Les prix vivent sur le devis, pas sur la réception.",
+        "home": "/ordres",
+        "back": "Retour aux ordres",
+        "steps": [
+          {
+            "title": "Recevoir le véhicule",
+            "body": "Cliquez Nouvelle réception. Notez le client, la plaque, le kilométrage, le carburant, la plainte, les photos et les objets laissés dans la voiture. N'ajoutez une pièce à la réception que si le client l'a déjà acceptée sur place."
+          },
+          {
+            "title": "Diagnostiquer",
+            "body": "L'ordre passe à diagnostiquer. Les travaux chiffrés se saisissent sur le devis. Quand le client accepte, les lignes arrivent sur l'ordre, approuvées, et la carte passe à Prêt à démarrer."
+          },
+          {
+            "title": "Travailler",
+            "body": "Cliquez Démarrer les travaux. Chaque ligne reste À faire jusqu'à Terminer. Quand toutes sont terminées, cliquez Terminer les travaux."
+          },
+          {
+            "title": "Contrôler",
+            "body": "Le contrôle qualité demande chaque point : OK, non conforme, ou sans objet. Tout marquer OK, puis Valider (véhicule prêt). L'ordre passe à Prêt."
+          },
+          {
+            "title": "Restituer",
+            "body": "La restitution vérifie les objets, le kilométrage de sortie et la signature. Elle est possible quand la part du client est payée, ou dans la limite de son crédit. La part d'une assurance n'empêche pas de rendre la voiture."
+          }
+        ]
+      },
+      "workshop": {
+        "title": "Guide — Suivi atelier",
+        "intro": "Le tableau montre où en est chaque voiture. On déplace une carte seulement si l'ordre le permet.",
+        "home": "/atelier",
+        "back": "Retour au suivi atelier",
+        "steps": [
+          {
+            "title": "Lire les colonnes",
+            "body": "À diagnostiquer, Attente accord, Prêt à démarrer, En cours, Attente pièces, Contrôle qualité, Prêt. Une carte en retard est signalée en haut du tableau."
+          },
+          {
+            "title": "Déplacer une carte",
+            "body": "Glissez la carte, ou choisissez Déplacer sur la carte. Si le passage est interdit, le motif s'affiche : par exemple des lignes encore à faire, ou un accord manquant."
+          },
+          {
+            "title": "Pièces et mécaniciens",
+            "body": "Le drapeau Pièces manquantes veut dire qu'une pièce de l'ordre n'est pas disponible. Le filtre mécanicien et la priorité réduisent le tableau. Les pointages se font surtout depuis la tablette."
+          },
+          {
+            "title": "Voiture prête",
+            "body": "La colonne Prêt, c'est le véhicule contrôlé, en attente du client. La restitution se fait depuis l'ordre, pas depuis le tableau."
+          }
+        ]
+      },
+      "quotes": {
+        "title": "Guide — Devis",
+        "intro": "Le devis propose les travaux et leurs prix hors taxes. Le client, ou l'assureur, dit oui ou non. Les lignes acceptées passent sur l'ordre.",
+        "home": "/devis",
+        "back": "Retour aux devis",
+        "steps": [
+          {
+            "title": "Créer le devis",
+            "body": "Depuis un ordre, ou avec Nouveau devis pour un comptoir. Ajoutez les lignes en bas du tableau : désignation, quantité ou heures, prix unitaire HT, payeur. Le total HT du tableau est le total HT du récapitulatif."
+          },
+          {
+            "title": "Envoyer au client",
+            "body": "Envoyer au client transmet le devis (lien, message). Le client accepte ou refuse en ligne. Pour un sinistre, utilisez plutôt Marquer le devis envoyé sur le dossier assurance : cela ne prévient pas l'assuré."
+          },
+          {
+            "title": "Enregistrer la décision",
+            "body": "Si la réponse arrive par téléphone, en personne, WhatsApp ou par l'assureur, cliquez Enregistrer la décision et acceptez ou refusez chaque groupe. Les lignes acceptées sont copiées sur l'ordre ouvert du même véhicule."
+          },
+          {
+            "title": "Après le oui",
+            "body": "Le devis passe à Accepté. L'ordre, s'il était en diagnostic ou en attente, peut passer à Prêt à démarrer. Une facture d'acompte peut être demandée selon le réglage du garage."
+          }
+        ]
+      },
+      "invoices": {
+        "title": "Guide — Factures",
+        "intro": "Une facture émise ne se modifie plus. Une erreur se corrige par un avoir. Les montants sont en FCFA, sans virgule.",
+        "home": "/factures",
+        "back": "Retour aux factures",
+        "steps": [
+          {
+            "title": "Créer le brouillon",
+            "body": "La facture naît depuis l'ordre terminé, depuis un devis, ou avec Nouvelle facture. Tant qu'elle est brouillon, les lignes peuvent changer. Elle n'a pas encore de numéro."
+          },
+          {
+            "title": "Émettre",
+            "body": "Cliquez Émettre, puis Émettre la facture. Elle reçoit un numéro FAC, sans trou. Ensuite, toute correction passe par Créer un avoir."
+          },
+          {
+            "title": "Encaisser",
+            "body": "Cliquez Encaisser. Le montant proposé est le solde. Espèces, mobile money, carte, virement ou chèque. Le mobile money et le virement demandent une référence. Les espèces exigent une caisse ouverte."
+          },
+          {
+            "title": "FNE",
+            "body": "Une facture émise part en certification FNE. L'onglet Non certifiées liste celles qui attendent un numéro. Le badge indique l'état, en plus du texte."
+          }
+        ]
+      },
+      "receivables": {
+        "title": "Guide — Créances",
+        "intro": "Ici, ce que les clients doivent encore. La part d'une compagnie d'assurance se suit dans Assurances, pas dans cette liste.",
+        "home": "/creances",
+        "back": "Retour aux créances",
+        "steps": [
+          {
+            "title": "Voir qui doit",
+            "body": "Le tableau classe les soldes par ancienneté. Cliquez une tranche pour filtrer. L'onglet par client regroupe les factures d'une même personne."
+          },
+          {
+            "title": "Traiter un dossier",
+            "body": "À traiter, promesses, litiges, passés en perte. Une promesse de paiement se note avec une date. Un litige explique pourquoi le client conteste."
+          },
+          {
+            "title": "Relancer",
+            "body": "Les relances de facture impayée partent par la file Relances, après vérification que la facture est toujours due. Encaisser se fait sur la facture, ou à la caisse."
+          }
+        ]
+      },
+      "cash": {
+        "title": "Guide — Caisse",
+        "intro": "La caisse du jour compte les espèces et les dépenses du site. Un paiement en espèces n'est possible que si la session est ouverte.",
+        "home": "/caisse",
+        "back": "Retour à la caisse",
+        "steps": [
+          {
+            "title": "Ouvrir",
+            "body": "En début de journée, ouvrez la session et comptez le fond de caisse. Une seule session ouverte à la fois sur le site."
+          },
+          {
+            "title": "Encaisser et dépenser",
+            "body": "Les encaissements en espèces de la journée s'ajoutent ici. Une dépense (pièce payée comptant, course) se saisit avec son montant et son justificatif. Au-delà du seuil, le gérant valide."
+          },
+          {
+            "title": "Verser à la banque",
+            "body": "Un versement sort les espèces de la caisse et les envoie vers un compte de trésorerie. Le journal de la session garde l'heure et l'auteur."
+          },
+          {
+            "title": "Clôturer",
+            "body": "Comptez les coupures. L'écart avec le solde attendu est affiché. Commentez-le, puis clôturez. Une dépense encore en attente bloque la clôture."
+          }
+        ]
+      },
+      "treasury": {
+        "title": "Guide — Trésorerie",
+        "intro": "Les comptes (caisse, banque, mobile money) et leurs mouvements. La caisse du jour alimente ces comptes, elle ne les remplace pas.",
+        "home": "/tresorerie",
+        "back": "Retour à la trésorerie",
+        "steps": [
+          {
+            "title": "Lire les soldes",
+            "body": "Chaque compte a un solde d'ouverture et un solde actuel. Le total en haut est la somme des comptes actifs. Un compte peut être masqué sans être effacé."
+          },
+          {
+            "title": "Bouger de l'argent",
+            "body": "Un virement interne déplace d'un compte à l'autre : le total du garage ne change pas. Une dépense hors caisse ou un autre mouvement change le solde d'un compte."
+          },
+          {
+            "title": "Journal et rapports",
+            "body": "Le journal liste les mouvements. Les rapports montrent entrées, sorties et solde sur le mois, le trimestre ou l'année. Les virements internes n'y comptent pas comme de l'argent gagné ou perdu."
+          }
+        ]
+      },
+      "reminders": {
+        "title": "Guide — Relances",
+        "intro": "Visite technique, révision, facture impayée. Rien ne part sans un contrôle : la condition est revérifiée juste avant l'envoi.",
+        "home": "/relances",
+        "back": "Retour aux relances",
+        "steps": [
+          {
+            "title": "La file du jour",
+            "body": "Relances à traiter montre ce qui est dû. Validez l'envoi, reportez, ou annulez avec un motif. Un client qui a dit stop, ou une facture déjà payée, ne doit pas être relancé."
+          },
+          {
+            "title": "Les factures impayées",
+            "body": "Factures impayées montre ce que les clients doivent encore. La relance part depuis la file, seulement si la facture est toujours due. Un paiement enregistré arrête les rappels."
+          },
+          {
+            "title": "Les échéances",
+            "body": "Échéances liste les visites techniques et les révisions à venir. La date vient de la fiche véhicule. Le message part sur le canal choisi : WhatsApp, SMS ou e-mail."
+          },
+          {
+            "title": "Les résultats",
+            "body": "Résultats des relances dit ce qui est parti, ce qui a échoué, et ce à quoi le client a répondu. Les relances d'une compagnie d'assurance sont ailleurs : Assurances, Relances assureurs."
+          }
+        ]
+      },
+      "customers": {
+        "title": "Guide — Clients et véhicules",
+        "intro": "Un client possède des véhicules. La plaque, le téléphone et le kilométrage servent aux rendez-vous, aux ordres et aux relances.",
+        "home": "/clients",
+        "back": "Retour aux clients",
+        "steps": [
+          {
+            "title": "Créer le client",
+            "body": "Nouveau client : nom, téléphone, e-mail. Le téléphone est mis au format +225. Un même numéro ou un même nom proche est signalé avant d'enregistrer un doublon."
+          },
+          {
+            "title": "Ajouter le véhicule",
+            "body": "Depuis la fiche, ou dans Véhicules. Plaque, marque, modèle, année. La visite technique et la prochaine révision se notent ici : ce sont elles qui déclenchent les relances."
+          },
+          {
+            "title": "Doublons et avis",
+            "body": "Doublons propose de fusionner deux fiches qui sont la même personne. Avis clients recueille la note après la restitution, via le lien envoyé au client."
+          },
+          {
+            "title": "Compagnie d'assurance",
+            "body": "Une compagnie facturée reçoit une fiche entreprise, pour la facture et la FNE. Ce n'est pas un automobiliste : elle n'a pas de véhicule, et elle n'est pas relancée comme un client. Son suivi est dans Assurances."
+          }
+        ]
+      },
+      "stock": {
+        "title": "Guide — Stock",
+        "intro": "Le catalogue dit ce que le garage a, à quel coût, et sur quel site. Une pièce posée sur un ordre réserve la quantité, puis la sort.",
+        "home": "/stock",
+        "back": "Retour au stock",
+        "steps": [
+          {
+            "title": "Le catalogue",
+            "body": "Chaque article a une référence, un prix de vente et un stock minimum. Sous le minimum, il apparaît dans les suggestions d'achat. Le scan (caméra ou douchette) retrouve l'article."
+          },
+          {
+            "title": "Réserver et sortir",
+            "body": "Une ligne pièce approuvée sur un ordre réserve le stock. Sorties liste ce qui doit quitter le rayon pour l'atelier. Le disponible, c'est le physique moins le réservé."
+          },
+          {
+            "title": "Compter et transférer",
+            "body": "Un inventaire ajuste le stock après comptage. Un transfert envoie des pièces d'un site à un autre. La valorisation montre la valeur du stock au coût moyen."
+          }
+        ]
+      },
+      "purchases": {
+        "title": "Guide — Achats",
+        "intro": "On commande chez le fournisseur ce qui manque, puis on réceptionne. La réception augmente le stock et le coût moyen.",
+        "home": "/achats",
+        "back": "Retour aux achats",
+        "steps": [
+          {
+            "title": "Voir ce qui manque",
+            "body": "Suggestions reprend les articles sous le minimum, et les pièces réservées sur des ordres alors que le rayon est vide."
+          },
+          {
+            "title": "Commander",
+            "body": "Créez un bon de commande : fournisseur, lignes, prix d'achat. Envoyez-le. Le bon passe à Envoyé. Un retard se voit quand la date prévue est dépassée."
+          },
+          {
+            "title": "Réceptionner",
+            "body": "À l'arrivée du colis, réceptionnez les quantités reçues. Le stock du site augmente. Une réception partielle laisse le reste à venir. Les fournisseurs se gèrent dans Fournisseurs."
+          }
+        ]
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellUnread": "Notifications : {count} non lue(s)",
+    "unread": "Non lue",
+    "unreadOne": "{count} notification non lue",
+    "unreadMany": "{count} notifications non lues",
+    "allRead": "Tout est lu.",
+    "markAllRead": "Tout marquer comme lu",
+    "seeAll": "Voir toutes les notifications",
+    "loadError": "Impossible de charger les notifications.",
+    "retry": "Réessayer",
+    "emptyTitle": "Aucune notification",
+    "emptyUnread": "Aucune notification non lue",
+    "emptyHint": "Les alertes de relances, de créances, de devis et de l'atelier apparaîtront ici.",
+    "filterLabel": "Filtrer les notifications",
+    "filters": {
+      "all": "Toutes",
+      "unread": "Non lues"
+    },
+    "loadMore": "Afficher plus"
+  },
+  "pwa": {
+    "push": {
+      "title": "Notifications sur cet appareil",
+      "description": "Recevez les alertes importantes (créance à reprendre en main, devis accepté, caisse non clôturée…) même quand AtelierOS est fermé.",
+      "statusOn": "Activées sur cet appareil",
+      "statusOff": "Désactivées sur cet appareil",
+      "devicesOne": "{count} appareil enregistré",
+      "devicesMany": "{count} appareils enregistrés",
+      "offHint": "Votre navigateur vous demandera votre accord.",
+      "enable": "Activer les notifications",
+      "enabling": "Activation…",
+      "disable": "Désactiver sur cet appareil",
+      "test": "Envoyer une notification de test",
+      "testSent": "Notification de test envoyée. Elle doit s'afficher dans quelques secondes.",
+      "unsupported": "Ce navigateur ne gère pas les notifications push. Essayez Chrome, Edge, Firefox ou Safari récent.",
+      "iosInstall": "Sur iPhone et iPad, installez d'abord AtelierOS sur l'écran d'accueil (voir ci-dessous), puis ouvrez l'application installée pour activer les notifications.",
+      "serverOff": "Les notifications push ne sont pas encore configurées sur ce serveur. Les alertes restent visibles dans la cloche.",
+      "denied": "Les notifications sont bloquées pour ce site. Autorisez-les dans les réglages du navigateur (icône du cadenas à côté de l'adresse), puis réessayez.",
+      "failed": "L'activation a échoué. Vérifiez votre connexion et réessayez."
+    },
+    "install": {
+      "title": "Installer l'application",
+      "hint": "Ajoutez AtelierOS à l'écran d'accueil : il s'ouvre en plein écran, comme une application.",
+      "button": "Installer AtelierOS",
+      "installed": "AtelierOS est installé sur cet appareil.",
+      "iosStep1": "Touchez le bouton Partager de Safari",
+      "iosStep2": "Choisissez « Sur l'écran d'accueil »",
+      "iosStep3": "Touchez « Ajouter » : l'icône AtelierOS apparaît sur votre écran.",
+      "shareIcon": "Partager",
+      "browserMenu": "Ouvrez le menu du navigateur et choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil »."
+    }
+  },
+  "delivery": {
+    "pending": "En cours d'envoi",
+    "sent": "Envoyé",
+    "delivered": "Reçu",
+    "read": "Lu",
+    "failed": "Échec",
+    "manual": "Envoyé à la main",
+    "simulated": "Mode test",
+    "hint": {
+      "pending": "Le message part dans quelques minutes.",
+      "sent": "Parti chez le fournisseur ; la remise sur le téléphone (ou dans la boîte email) n'est pas encore confirmée.",
+      "delivered": "Le message est arrivé sur le téléphone ou dans la boîte email du client.",
+      "read": "Le client a ouvert le message (WhatsApp : lu ; email : ouvert).",
+      "failed": "Le message n'a pas pu être remis.",
+      "manual": "Envoyé par vous via WhatsApp : pas d'accusé de réception possible.",
+      "simulated": "Mode test : le message n'a pas réellement quitté AtelierOS."
+    }
+  },
+  "settingsNav": {
+    "groups": {
+      "garage": "Garage",
+      "team": "Équipe et accès",
+      "workshop": "Atelier",
+      "billing": "Facturation",
+      "messaging": "Messages et relances",
+      "advanced": "IA et intégrations",
+      "account": "Compte"
+    }
   }
 }

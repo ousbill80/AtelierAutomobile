@@ -8,6 +8,7 @@ import { formatFCFA } from "@atelieros/core/money";
 import {
   Button,
   CheckboxRow,
+  Field,
   Input,
   Modal,
   MoneyInput,
@@ -21,6 +22,8 @@ import { t } from "@/components/quotes/i18n";
 import type { QuoteDetail } from "./quote-view";
 
 type SendChannel = "WHATSAPP" | "SMS" | "EMAIL" | "WA_LINK" | "LINK_ONLY";
+
+const SEND_CHANNELS = ["WHATSAPP", "WA_LINK", "SMS", "EMAIL", "LINK_ONLY"] as const;
 
 export function SendModal({
   open,
@@ -70,17 +73,7 @@ export function SendModal({
             {t("send.done")}
           </Button>
         ) : (
-          <Button
-            loading={send.isPending}
-            onClick={() =>
-              send.mutate({
-                id: quote.id,
-                channel,
-                recipient: recipientInput,
-                message: message.trim() || undefined,
-              })
-            }
-          >
+          <Button type="submit" form="send-quote" loading={send.isPending}>
             {channel === "WA_LINK"
               ? t("send.openWhatsapp")
               : channel === "LINK_ONLY"
@@ -117,41 +110,67 @@ export function SendModal({
           )}
         </div>
       ) : (
-        <div className="flex flex-col gap-3 text-sm">
-          <fieldset className="flex flex-col gap-1">
+        <form
+          id="send-quote"
+          className="form-dense flex flex-col gap-4 text-sm"
+          onSubmit={(e) => {
+            e.preventDefault();
+            send.mutate({
+              id: quote.id,
+              channel,
+              recipient: recipientInput,
+              message: message.trim() || undefined,
+            });
+          }}
+        >
+          <fieldset className="flex flex-col gap-2">
             <legend className="font-semibold">{t("send.channel")}</legend>
-            {(["WHATSAPP", "WA_LINK", "SMS", "EMAIL", "LINK_ONLY"] as const).map((c) => (
-              <label key={c} className="flex min-h-11 items-center gap-2">
-                <input
-                  type="radio"
-                  name="channel"
-                  checked={channel === c}
-                  onChange={() => setChannel(c)}
-                />
-                {t(`sendChannels.${c}`)}
-              </label>
-            ))}
+            <div className="grid gap-2">
+              {SEND_CHANNELS.map((c) => {
+                const selected = channel === c;
+                return (
+                  <label
+                    key={c}
+                    className={`grid min-h-11 cursor-pointer grid-cols-[auto_1fr] items-start gap-x-3 gap-y-0.5 rounded-lg border px-3 py-2.5 ${
+                      selected ? "border-accent bg-surface-2" : "border-border bg-surface"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="channel"
+                      className="mt-1"
+                      checked={selected}
+                      onChange={() => setChannel(c)}
+                    />
+                    <span className="font-medium">{t(`sendChannels.${c}`)}</span>
+                    <span className="col-start-2 text-xs leading-snug text-muted">
+                      {t(`send.hints.${c}`)}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </fieldset>
-          <label className="flex flex-col gap-1">
-            {t("send.recipient")}
+          <Field label={t("send.recipient")}>
             <Select
               value={recipient}
               className="min-h-11"
               onChange={(e) => setRecipient(e.target.value)}
             >
               <option value="CUSTOMER">
-                {quote.customer.displayName}{" "}
-                {quote.customer.phone ? `· ${quote.customer.phone}` : ""}
+                {quote.customer.displayName}
+                {quote.customer.phone ? ` · ${quote.customer.phone}` : ""}
               </option>
               {quote.contacts.map((c) => (
                 <option key={c.id} value={`contact:${c.id}`}>
-                  {c.name} {c.role ? `(${c.role})` : ""}
+                  {c.name}
+                  {c.role ? ` (${c.role})` : ""}
                 </option>
               ))}
               {quote.insuranceClaimId && <option value="INSURER">{t("send.insurer")}</option>}
               <option value="CUSTOM">{t("send.custom")}</option>
             </Select>
-          </label>
+          </Field>
           {(recipient === "CUSTOM" || recipient === "INSURER") && (
             <Input
               label={t("send.address")}
@@ -159,19 +178,15 @@ export function SendModal({
               onChange={(e) => setAddress(e.target.value)}
             />
           )}
-          <Textarea
-            aria-label={t("send.message")}
-            placeholder={t("send.messagePlaceholder")}
-            rows={3}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-          />
+          <Field label={t("send.message")} hint={t("send.messagePlaceholder")}>
+            <Textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
+          </Field>
           {send.error && (
-            <p role="alert" className="text-status-bad">
-              ⚠ {send.error.message}
+            <p role="alert" className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-status-bad">
+              {send.error.message}
             </p>
           )}
-        </div>
+        </form>
       )}
     </Modal>
   );

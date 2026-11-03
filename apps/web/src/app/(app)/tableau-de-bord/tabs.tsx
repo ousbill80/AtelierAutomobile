@@ -59,13 +59,20 @@ const APPOINTMENT_TONE: Record<string, StatusTone> = {
   CANCELLED: "bad",
 };
 
-export function ReceivablesCard({ receivables }: { receivables: Receivables }) {
+export function ReceivablesCard({
+  receivables,
+  label = L.cards.receivables,
+}: {
+  receivables: Receivables;
+  label?: string;
+}) {
   return (
     <KpiCard
-      label={L.cards.receivables}
+      label={label}
       value={formatAmount(receivables.total)}
       sub={fmt(L.cards.receivablesOver30, { amount: formatAmount(receivables.over30) })}
       help={L.help.receivables}
+      example={L.help.receivablesExample}
       href="/creances?filtre=en-retard"
     />
   );
@@ -86,6 +93,7 @@ export function SummaryFull({ data }: { data: Overview }) {
           value={formatAmount(s.revenueHt.value)}
           variation={s.revenueHt.variation}
           help={L.help.revenueHt}
+          example={L.help.revenueHtExample}
           href="/rapports/ventes"
         />
         <KpiCard
@@ -93,6 +101,7 @@ export function SummaryFull({ data }: { data: Overview }) {
           value={formatAmount(s.collected.value)}
           variation={s.collected.variation}
           help={L.help.collected}
+          example={L.help.collectedExample}
           href="/rapports/encaissements"
         />
         <ReceivablesCard receivables={data.receivables} />
@@ -101,6 +110,7 @@ export function SummaryFull({ data }: { data: Overview }) {
           value={formatAmount(data.recovered.value)}
           variation={data.recovered.variation}
           help={L.help.recovered}
+          example={L.help.recoveredExample}
         />
       </div>
       {empty ? (
@@ -114,6 +124,7 @@ export function SummaryFull({ data }: { data: Overview }) {
                 value={formatPct(s.margins.grossRate)}
                 sub={formatAmount(s.margins.grossMargin)}
                 help={L.help.grossMargin}
+                example={L.help.grossMarginExample}
                 badge={s.margins.estimated ? L.cards.estimatedCost : undefined}
               />
             )}
@@ -121,22 +132,32 @@ export function SummaryFull({ data }: { data: Overview }) {
               label={L.cards.avgTicket}
               value={s.avgTicket === null ? L.dash : formatAmount(s.avgTicket)}
               help={L.help.avgTicket}
+              example={L.help.avgTicketExample}
             />
             <KpiCard
               label={L.cards.acceptance}
               value={formatPct(s.acceptance.countRate)}
               sub={fmt(L.cards.acceptanceValue, { pct: formatPct(s.acceptance.valueRate) })}
               help={L.help.acceptance}
+              example={L.help.acceptanceExample}
               href="/devis"
             />
           </div>
           <div className="grid min-w-0 gap-4 lg:grid-cols-3">
             <div className="min-w-0 lg:col-span-2">
-              <Section title={L.summary.dailyRevenue} help={L.help.revenueHt}>
+              <Section
+                title={L.summary.dailyRevenue}
+                help={L.help.revenueHt}
+                example={L.help.revenueHtExample}
+              >
                 <DailyChart points={s.daily} />
               </Section>
             </div>
-            <Section title={L.summary.byNature}>
+            <Section
+              title={L.summary.byNature}
+              help={L.help.byNature}
+              example={L.help.byNatureExample}
+            >
               <BarList
                 items={natures.map((n) => ({
                   key: n,
@@ -182,7 +203,11 @@ export function WorkshopTab({ input, timeZone }: { input: TabInput; timeZone: st
     );
   return (
     <div className="flex flex-col gap-4">
-      <Section title={W.statusCounts}>
+      <Section
+        title={W.statusCounts}
+        help={L.help.statusCounts}
+        example={L.help.statusCountsExample}
+      >
         {statuses.length === 0 ? (
           <EmptyLine>{W.none}</EmptyLine>
         ) : (
@@ -208,17 +233,26 @@ export function WorkshopTab({ input, timeZone }: { input: TabInput; timeZone: st
           label={W.late}
           value={String(d.late.count)}
           badge={d.late.count > 0 ? `⚠ ${d.late.count}` : undefined}
+          help={L.help.late}
+          example={L.help.lateExample}
         />
-        <KpiCard label={W.waitingParts} value={String(d.waitingParts.count)} />
+        <KpiCard
+          label={W.waitingParts}
+          value={String(d.waitingParts.count)}
+          help={L.help.waitingParts}
+          example={L.help.waitingPartsExample}
+        />
         <KpiCard
           label={`${W.occupancy} — ${W.real}`}
           value={formatPct(d.occupancy.capped.real)}
           help={L.help.occupancy}
+          example={L.help.occupancyExampleReal}
         />
         <KpiCard
           label={`${W.occupancy} — ${W.planned}`}
           value={formatPct(d.occupancy.capped.planned)}
           help={L.help.occupancy}
+          example={L.help.occupancyExamplePlanned}
         />
       </div>
       {d.sitesWithoutHours.length > 0 && (
@@ -230,19 +264,23 @@ export function WorkshopTab({ input, timeZone }: { input: TabInput; timeZone: st
         </p>
       )}
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <Section title={W.late}>
+        <Section title={W.late} help={L.help.late} example={L.help.lateExample}>
           {orderList(d.late.orders, (o) =>
             fmt(W.promisedAt, { date: formatDateTime(o.promisedAt, timeZone) }),
           )}
         </Section>
-        <Section title={W.waitingParts}>
+        <Section
+          title={W.waitingParts}
+          help={L.help.waitingParts}
+          example={L.help.waitingPartsExample}
+        >
           {orderList(d.waitingParts.orders, (o) =>
             fmt(W.since, { date: formatDateTime(o.waitingPartsSince, timeZone) }),
           )}
         </Section>
       </div>
       {d.mechanics && (
-        <Section title={W.mechanics} help={L.help.efficiency}>
+        <Section title={W.mechanics} help={L.help.efficiency} example={L.help.efficiencyExample}>
           {d.mechanics.length === 0 ? (
             <EmptyLine>{W.none}</EmptyLine>
           ) : (
@@ -298,21 +336,55 @@ export function FrontDeskTab({ input }: { input: TabInput }) {
           <KpiCard
             label={F.kpiAppointments}
             value={String(appointments.length)}
+            help={L.help.appointments}
+            example={L.help.appointmentsExample}
             href="/rendez-vous/aujourdhui"
           />
         )}
         {d.reminders && (
-          <KpiCard label={F.kpiReminders} value={String(d.reminders.count)} href="/relances" />
+          <KpiCard
+            label={F.kpiReminders}
+            value={String(d.reminders.count)}
+            help={L.help.toApprove}
+            example={L.help.toApproveExample}
+            href="/relances"
+          />
         )}
-        {d.quotes && <KpiCard label={F.kpiQuotes} value={String(d.quotes.count)} href="/devis" />}
-        {d.ready && <KpiCard label={F.kpiReady} value={String(d.ready.length)} href="/ordres" />}
+        {d.quotes && (
+          <KpiCard
+            label={F.kpiQuotes}
+            value={String(d.quotes.count)}
+            help={L.help.quotesWaiting}
+            example={L.help.quotesWaitingExample}
+            href="/devis"
+          />
+        )}
+        {d.ready && (
+          <KpiCard
+            label={F.kpiReady}
+            value={String(d.ready.length)}
+            help={L.help.readyVehicles}
+            example={L.help.readyVehiclesExample}
+            href="/ordres"
+          />
+        )}
         {d.unreadConversations !== null && (
-          <KpiCard label={F.unread} value={String(d.unreadConversations)} href="/messages" />
+          <KpiCard
+            label={F.unread}
+            value={String(d.unreadConversations)}
+            help={L.help.unread}
+            example={L.help.unreadExample}
+            href="/messages"
+          />
         )}
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         {appointments && (
-          <Section title={F.appointments}>
+          <Section
+            title={F.appointments}
+            help={L.help.appointments}
+            example={L.help.appointmentsExample}
+          >
             {appointments.length === 0 ? (
               <EmptyLine>{F.noAppointments}</EmptyLine>
             ) : (
@@ -337,6 +409,8 @@ export function FrontDeskTab({ input }: { input: TabInput }) {
         {d.reminders && (
           <Section
             title={F.reminders}
+            help={L.help.toApprove}
+            example={L.help.toApproveExample}
             action={
               <Link href="/relances" className="text-sm font-medium text-accent hover:underline">
                 {fmt(F.seeAll, { count: d.reminders.count })} →
@@ -361,7 +435,11 @@ export function FrontDeskTab({ input }: { input: TabInput }) {
           </Section>
         )}
         {d.quotes && (
-          <Section title={F.quotes}>
+          <Section
+            title={F.quotes}
+            help={L.help.quotesWaiting}
+            example={L.help.quotesWaitingExample}
+          >
             {d.quotes.items.length === 0 ? (
               <EmptyLine>{F.none}</EmptyLine>
             ) : (
@@ -380,7 +458,11 @@ export function FrontDeskTab({ input }: { input: TabInput }) {
           </Section>
         )}
         {d.ready && (
-          <Section title={F.ready}>
+          <Section
+            title={F.ready}
+            help={L.help.readyVehicles}
+            example={L.help.readyVehiclesExample}
+          >
             {d.ready.length === 0 ? (
               <EmptyLine>{F.none}</EmptyLine>
             ) : (
@@ -416,12 +498,31 @@ export function CustomersTab({ input }: { input: TabInput }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard label={C.active} value={String(d.counts.active)} href="/rapports/clients" />
-        <KpiCard label={C.new} value={String(d.counts.new)} />
-        <KpiCard label={C.lost} value={String(d.counts.lost)} href="/rapports/clients" />
+        <KpiCard
+          label={C.active}
+          value={String(d.counts.active)}
+          help={L.help.activeCustomers}
+          example={L.help.activeCustomersExample}
+          href="/rapports/clients"
+        />
+        <KpiCard
+          label={C.new}
+          value={String(d.counts.new)}
+          help={L.help.newCustomers}
+          example={L.help.newCustomersExample}
+        />
+        <KpiCard
+          label={C.lost}
+          value={String(d.counts.lost)}
+          help={L.help.lostCustomers}
+          example={L.help.lostCustomersExample}
+          href="/rapports/clients"
+        />
       </div>
       <Section
         title={C.topParts}
+        help={L.help.topParts}
+        example={L.help.topPartsExample}
         action={
           <Link
             href="/rapports/top-pieces"
@@ -471,6 +572,8 @@ export function CashierCard({ timeZone }: { timeZone: string }) {
   return (
     <Section
       title={L.cashier.title}
+      help={L.help.cashier}
+      example={L.help.cashierExample}
       action={
         <Link href="/caisse" className="text-sm font-medium text-accent hover:underline">
           {L.cashier.goToCash} →

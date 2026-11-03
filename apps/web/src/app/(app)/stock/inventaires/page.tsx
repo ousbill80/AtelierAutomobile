@@ -144,37 +144,47 @@ function CreateCountModal({
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <SiteSelect value={siteId} onChange={setSiteId} />
-        <Field label={t("counts.scope")}>
-          <Select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)}>
-            <option value="all">{t("counts.scopeAll")}</option>
-            <option value="categories">{t("counts.scopeCategories")}</option>
-            <option value="bins">{t("counts.scopeBins")}</option>
-          </Select>
-        </Field>
-        {scope === "categories" ? (
-          <fieldset className="flex flex-col gap-1">
-            <legend className="text-sm font-medium">{t("counts.categories")}</legend>
-            {(allCategories.data ?? []).map((c) => (
-              <CheckboxRow
-                key={c}
-                label={c}
-                checked={categories.includes(c)}
-                onChange={(e) =>
-                  setCategories((list) =>
-                    e.target.checked ? [...list, c] : list.filter((x) => x !== c),
-                  )
-                }
+      <div className="form-dense">
+        <section className="form-card">
+          <div className="form-card-body">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <SiteSelect value={siteId} onChange={setSiteId} />
+              <Field label={t("counts.scope")}>
+                <Select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)}>
+                  <option value="all">{t("counts.scopeAll")}</option>
+                  <option value="categories">{t("counts.scopeCategories")}</option>
+                  <option value="bins">{t("counts.scopeBins")}</option>
+                </Select>
+              </Field>
+            </div>
+            {scope === "categories" ? (
+              <fieldset className="flex flex-col gap-1">
+                <legend className="text-sm font-medium">{t("counts.categories")}</legend>
+                {(allCategories.data ?? []).map((c) => (
+                  <CheckboxRow
+                    key={c}
+                    label={c}
+                    checked={categories.includes(c)}
+                    onChange={(e) =>
+                      setCategories((list) =>
+                        e.target.checked ? [...list, c] : list.filter((x) => x !== c),
+                      )
+                    }
+                  />
+                ))}
+              </fieldset>
+            ) : null}
+            {scope === "bins" ? (
+              <Input
+                label={t("counts.bins")}
+                value={bins}
+                onChange={(e) => setBins(e.target.value)}
               />
-            ))}
-          </fieldset>
-        ) : null}
-        {scope === "bins" ? (
-          <Input label={t("counts.bins")} value={bins} onChange={(e) => setBins(e.target.value)} />
-        ) : null}
-        <p className="text-sm text-muted">{t("counts.draftHint")}</p>
-        <InlineError message={create.error ? errorMessage(create.error) : null} />
+            ) : null}
+            <p className="text-sm text-muted">{t("counts.draftHint")}</p>
+            <InlineError message={create.error ? errorMessage(create.error) : null} />
+          </div>
+        </section>
       </div>
     </Modal>
   );

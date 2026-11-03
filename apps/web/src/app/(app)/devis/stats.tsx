@@ -7,6 +7,7 @@ import { formatFCFA } from "@atelieros/core/money";
 import { Input } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
+import { EduTip } from "@/components/edu-tip";
 import { t } from "@/components/quotes/i18n";
 
 function iso(d: Date) {
@@ -48,24 +49,37 @@ export function QuoteStats() {
       ) : (
         <>
           <dl className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            {[
-              [t("stats.sent"), String(stats.data.sent)],
-              [t("stats.rateCount"), pct(stats.data.rateCount)],
-              [t("stats.rateValue"), pct(stats.data.rateValue)],
+            {(
               [
-                t("stats.median"),
-                stats.data.medianDecisionHours == null
-                  ? "—"
-                  : t("stats.hours", { hours: Math.round(stats.data.medianDecisionHours) }),
-              ],
-              [t("stats.proposed"), formatFCFA(stats.data.proposedAmount)],
-              [t("stats.acceptedAmount"), formatFCFA(stats.data.acceptedAmount)],
-              [t("stats.recovered"), formatFCFA(stats.data.recoveredByFollowups)],
-              [t("stats.closed"), String(stats.data.closed)],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-border bg-surface p-3">
+                ["sent", t("stats.sent"), String(stats.data.sent)],
+                ["rateCount", t("stats.rateCount"), pct(stats.data.rateCount)],
+                ["rateValue", t("stats.rateValue"), pct(stats.data.rateValue)],
+                [
+                  "median",
+                  t("stats.median"),
+                  stats.data.medianDecisionHours == null
+                    ? "—"
+                    : t("stats.hours", { hours: Math.round(stats.data.medianDecisionHours) }),
+                ],
+                ["proposed", t("stats.proposed"), formatFCFA(stats.data.proposedAmount)],
+                [
+                  "acceptedAmount",
+                  t("stats.acceptedAmount"),
+                  formatFCFA(stats.data.acceptedAmount),
+                ],
+                ["recovered", t("stats.recovered"), formatFCFA(stats.data.recoveredByFollowups)],
+                ["closed", t("stats.closed"), String(stats.data.closed)],
+              ] as const
+            ).map(([key, label, value]) => (
+              <div
+                key={key}
+                className="relative rounded-lg border border-border bg-surface p-3 pr-12"
+              >
                 <dt className="text-xs text-muted">{label}</dt>
                 <dd className="text-lg font-semibold">{value}</dd>
+                <span className="absolute right-0.5 top-0.5">
+                  <EduTip text={t(`stats.help.${key}`)} example={t(`stats.example.${key}`)} />
+                </span>
               </div>
             ))}
           </dl>

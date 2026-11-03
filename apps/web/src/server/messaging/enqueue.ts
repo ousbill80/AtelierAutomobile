@@ -31,6 +31,8 @@ export interface EnqueueRequest {
   /** Ordre de préférence (repli), RG-M10-12 côté appelant. */
   channels: Channel[];
   templateKey?: string;
+  /** Nom Meta réellement utilisé (RG-M11-12), persisté sur le message. */
+  whatsappTemplateName?: string;
   context?: Record<string, unknown>;
   bodyOverride?: string;
   subjectOverride?: string;
@@ -201,6 +203,7 @@ export async function messagingEnqueue(
     kind: req.kind.toUpperCase() as
       "REMINDER" | "TRANSACTIONAL" | "CONVERSATION" | "DIGEST" | "SYSTEM",
     templateKey: req.templateKey,
+    whatsappTemplateName: req.whatsappTemplateName,
     idempotencyKey: req.idempotencyKey,
     sentById: req.sentById ?? null,
   };

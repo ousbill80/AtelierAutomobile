@@ -67,7 +67,7 @@ describe("reminders.history — page Résultats des relances (M10)", () => {
   let ownerB: { userId: string; token: string };
   let callerA: ReturnType<typeof callerFactory>;
   let callerB: ReturnType<typeof callerFactory>;
-  let ids: Record<string, string> = {};
+  const ids: Record<string, string> = {};
 
   const now = new Date();
   const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
@@ -83,6 +83,10 @@ describe("reminders.history — page Résultats des relances (M10)", () => {
     const customer = await adminDb.customer.create({
       data: { organizationId: orgA.id, displayName: "Client Résultats", type: "INDIVIDUAL" },
     });
+    const otherCustomer = await adminDb.customer.create({
+      data: { organizationId: orgA.id, displayName: "Autre client", type: "INDIVIDUAL" },
+    });
+    ids.customer = customer.id;
     const rule = await adminDb.reminderRule.create({
       data: {
         organizationId: orgA.id,
@@ -104,6 +108,7 @@ describe("reminders.history — page Résultats des relances (M10)", () => {
         updatedAt?: Date;
         outcome?: "APPOINTMENT_BOOKED" | "NO_RESPONSE";
         skippedReason?: string;
+        customerId?: string;
       },
     ) => {
       const reminder = await adminDb.reminder.create({
@@ -112,7 +117,7 @@ describe("reminders.history — page Résultats des relances (M10)", () => {
           ruleId: rule.id,
           type: data.type ?? "INSPECTION",
           stepKey: "J-30",
-          customerId: customer.id,
+          customerId: data.customerId ?? customer.id,
           dueDate: now,
           scheduledFor: now,
           status: data.status,
@@ -130,7 +135,6 @@ describe("reminders.history — page Résultats des relances (M10)", () => {
       }
       ids[name] = reminder.id;
     };
-    ids = {};
     await make("sentBooked", { status: "SENT", sentAt: daysAgo(2), outcome: "APPOINTMENT_BOOKED" });
     await make("sentService", { status: "SENT", type: "SERVICE", sentAt: daysAgo(3) });
     await make("failed", { status: "FAILED", updatedAt: daysAgo(1) });
@@ -138,6 +142,11 @@ describe("reminders.history — page Résultats des relances (M10)", () => {
     await make("cancelled", { status: "CANCELLED" });
     await make("planned", { status: "PLANNED" });
     await make("oldSent", { status: "SENT", sentAt: daysAgo(90), updatedAt: daysAgo(1) });
+    await make("otherCustomer", {
+      status: "SENT",
+      sentAt: daysAgo(1),
+      customerId: otherCustomer.id,
+    });
   });
 
   afterAll(async () => {
@@ -167,18 +176,26 @@ describe("reminders.history — page Résultats des relances (M10)", () => {
 
   it("synthèse par statut et par issue sur la période", async () => {
     const result = await callerA.reminders.history(range());
-    expect(result.summary?.byStatus).toEqual({ SENT: 2, FAILED: 1, CANCELLED: 1, SKIPPED: 1 });
+    expect(result.summary?.byStatus).toEqual({ SENT: 3, FAILED: 1, CANCELLED: 1, SKIPPED: 1 });
     expect(result.summary?.byOutcome).toEqual([{ outcome: "APPOINTMENT_BOOKED", count: 1 }]);
   });
 
   it("filtre par statut (liste seulement) et par type (liste et synthèse)", async () => {
     const failed = await callerA.reminders.history({ ...range(), status: "FAILED" });
     expect(failed.items.map((r) => r.id)).toEqual([ids.failed]);
-    expect(failed.summary?.byStatus.SENT).toBe(2);
+    expect(failed.summary?.byStatus.SENT).toBe(3);
 
     const service = await callerA.reminders.history({ ...range(), type: "SERVICE" });
     expect(service.items.map((r) => r.id)).toEqual([ids.sentService]);
     expect(service.summary?.byStatus).toEqual({ SENT: 1, FAILED: 0, CANCELLED: 0, SKIPPED: 0 });
+  });
+
+  it("filtre sur un client (fiche client) : liste et synthèse", async () => {
+    const result = await callerA.reminders.history({ ...range(), customerId: ids.customer! });
+    const listed = result.items.map((r) => r.id);
+    expect(listed).not.toContain(ids.otherCustomer);
+    expect(listed).toContain(ids.sentBooked);
+    expect(result.summary?.byStatus).toEqual({ SENT: 2, FAILED: 1, CANCELLED: 1, SKIPPED: 1 });
   });
 
   it("pagine par curseur sans répéter de relance", async () => {

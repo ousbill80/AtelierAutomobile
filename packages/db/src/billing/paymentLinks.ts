@@ -197,6 +197,8 @@ export async function confirmLinkPayment(
 
   const org = await loadOrgPaymentContext(organizationId);
   const today = businessDate(now, org.timeZone);
+  // Même verrou que l'encaissement au comptoir : le solde lu est celui déjà diminué.
+  await tx.invoice.update({ where: { id: link.invoiceId }, data: { updatedAt: now } });
   const invoice = await tx.invoice.findFirstOrThrow({ where: { id: link.invoiceId } });
   const allocatableBalance = ALLOCATABLE.includes(invoice.status) ? invoice.balance : 0;
   const plan = linkPaymentAllocation({ amount: check.amount, invoiceBalance: allocatableBalance });

@@ -1,11 +1,13 @@
 "use client";
 
 // Briques d'affichage du tableau de bord (M12 §7) : cartes KPI (valeur, variation avec flèche
-// et texte, info-bulle « Comment est-ce calculé ? »), sections, graphiques accessibles (texte
-// et valeurs toujours affichés, jamais la couleur seule), états chargement / erreur.
+// et texte, info-bulle pédagogique « Comment est-ce calculé ? » avec un exemple), sections,
+// graphiques accessibles (texte et valeurs toujours affichés, jamais la couleur seule),
+// états chargement / erreur.
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button, EmptyState, StatusBadge, type StatusTone } from "@atelieros/ui";
+import { EduTip } from "@/components/edu-tip";
 import { fmt, formatAmount, formatDay, L } from "./labels";
 
 export type Variation = { kind: "pct"; pct: number } | { kind: "new" } | { kind: "none" };
@@ -31,14 +33,9 @@ export function VariationText({ variation }: { variation: Variation }) {
   );
 }
 
-/** Info-bulle « Comment est-ce calculé ? » : survol (title) et texte lu par les lecteurs d'écran. */
-export function HelpTip({ text }: { text: string }) {
-  return (
-    <span title={text} className="cursor-help">
-      <span aria-hidden="true">ⓘ</span>
-      <span className="sr-only">{text}</span>
-    </span>
-  );
+/** Info-bulle pédagogique, hors du lien de la carte. */
+export function HelpTip(props: { text: string; example?: string }) {
+  return <EduTip {...props} />;
 }
 
 export function KpiCard({
@@ -47,6 +44,7 @@ export function KpiCard({
   sub,
   variation,
   help,
+  example,
   href,
   badge,
 }: {
@@ -54,16 +52,16 @@ export function KpiCard({
   value: string;
   sub?: string;
   variation?: Variation;
+  /** Ce que le chiffre mesure, en langage simple. */
   help?: string;
+  /** Exemple concret, idéalement tiré des données affichées. */
+  example?: string;
   href?: string;
   badge?: string;
 }) {
   const content = (
     <>
-      <span className="flex items-start justify-between gap-1 text-xs font-medium text-muted">
-        {label}
-        {help && <HelpTip text={help} />}
-      </span>
+      <span className={`text-xs font-medium text-muted ${help ? "pr-8" : ""}`}>{label}</span>
       <KpiValue value={value} />
       {sub && <span className="text-xs text-muted">{sub}</span>}
       {variation && <VariationText variation={variation} />}
@@ -75,18 +73,26 @@ export function KpiCard({
     </>
   );
   const className =
-    "flex min-h-28 min-w-0 flex-col gap-1.5 break-words rounded-xl border border-border bg-surface p-4 shadow-sm";
-  return href ? (
-    <Link
-      href={href}
-      className={`${className} transition-colors hover:border-accent/40 hover:bg-surface-2`}
+    "relative flex min-h-28 min-w-0 flex-col break-words rounded-xl border border-border bg-surface shadow-sm";
+  const inner = "flex min-h-28 min-w-0 flex-1 flex-col gap-1.5 p-4";
+  const tip = help ? (
+    <span className="absolute right-0.5 top-0.5 z-10">
+      <HelpTip text={help} example={example} />
+    </span>
+  ) : null;
+  return (
+    <div
+      className={`${className}${href ? " transition-colors hover:border-accent/40 hover:bg-surface-2" : ""}`}
       data-testid="kpi-card"
     >
-      {content}
-    </Link>
-  ) : (
-    <div className={className} data-testid="kpi-card">
-      {content}
+      {href ? (
+        <Link href={href} className={`${inner} rounded-xl`}>
+          {content}
+        </Link>
+      ) : (
+        <div className={inner}>{content}</div>
+      )}
+      {tip}
     </div>
   );
 }
@@ -122,24 +128,22 @@ export function Stat({ label, value, tone }: { label: string; value: number; ton
 export function Section({
   title,
   help,
+  example,
   action,
   children,
 }: {
   title: string;
   help?: string;
+  example?: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-1 text-base font-semibold">
+        <h2 className="flex items-center gap-0.5 text-base font-semibold">
           {title}
-          {help && (
-            <span className="text-xs text-muted">
-              <HelpTip text={help} />
-            </span>
-          )}
+          {help && <HelpTip text={help} example={example} />}
         </h2>
         {action}
       </div>

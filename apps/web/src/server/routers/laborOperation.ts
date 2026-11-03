@@ -109,6 +109,16 @@ export const laborOperationRouter = router({
       const op = await tenantDb.laborOperation.findFirst({ where: { id: input.id } });
       if (!op) throw new TRPCError({ code: "NOT_FOUND", message: "Opération introuvable." });
       const { defaultParts, vehicleOverrides, ...rest } = input.patch;
+      if (rest.code !== undefined && rest.code !== op.code) {
+        const clash = await tenantDb.laborOperation.findFirst({
+          where: { code: rest.code, id: { not: op.id } },
+        });
+        if (clash)
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Le code « ${rest.code} » est déjà utilisé par « ${clash.name} ». Choisissez un autre code.`,
+          });
+      }
       return tenantDb.laborOperation.update({
         where: { id: op.id },
         data: {

@@ -79,6 +79,16 @@ describe("collections / payment routers (M09)", () => {
     const site = await adminDb.site.create({
       data: { organizationId: orgA.id, name: "Yopougon", code: "YOP" },
     });
+    await adminDb.treasuryAccount.create({
+      data: {
+        organizationId: orgA.id,
+        type: "MOBILE_MONEY",
+        name: "Wave",
+        paymentMethods: ["WAVE"],
+        ledgerAccount: "585",
+        openingDate: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
     kone = await adminDb.customer.create({
       data: { organizationId: orgA.id, displayName: "Koné Ibrahim", phone: "+2250152770943" },
     });
@@ -119,10 +129,15 @@ describe("collections / payment routers (M09)", () => {
     await adminDb.paymentAllocation.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.payment.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.invoice.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await adminDb.collectionNote.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await adminDb.reminder.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await adminDb.reminderRule.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await adminDb.channelConfig.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.collectionCase.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.documentSequence.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.domainEvent.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.customer.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await adminDb.treasuryAccount.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.site.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.session.deleteMany({ where: { userId: { in: users } } });
     await adminDb.membership.deleteMany({ where: { organizationId: { in: orgIds } } });
@@ -147,6 +162,179 @@ describe("collections / payment routers (M09)", () => {
     // idempotent : pas de second dossier
     expect((await sync(kone.id)).caseId).toBe(kase.id);
     expect(await adminDb.collectionCase.count({ where: { customerId: kone.id } })).toBe(1);
+  });
+
+  it("« Relancer maintenant » : relance approuvée tout de suite, anti-harcèlement 20 h", async () => {
+    const kase = await adminDb.collectionCase.findFirstOrThrow({ where: { customerId: kone.id } });
+
+    // Autre garage : dossier introuvable ; caissier : pas la permission.
+    await expect(callerB.collections.remindNow({ caseId: kase.id })).rejects.toThrow();
+    await expect(cashierA.collections.remindNow({ caseId: kase.id })).rejects.toThrow();
+
+    // Sans règle « Créances » active : message actionnable.
+    await expect(callerA.collections.remindNow({ caseId: kase.id })).rejects.toThrow(
+      /Paramètres › Relances/,
+    );
+    await adminDb.reminderRule.create({
+      data: {
+        organizationId: orgA.id,
+        type: "RECEIVABLE",
+        name: "Créances",
+        isActive: true,
+        steps: [
+          {
+            key: "J+3",
+            label: "Rappel",
+            offsetDays: 3,
+            templateKey: "cr_jp3",
+            autoSend: true,
+            channels: ["WHATSAPP", "SMS"],
+          },
+        ],
+        sendWindow: {
+          days: [1, 2, 3, 4, 5, 6],
+          from: "08:00",
+          to: "19:00",
+          preferredTime: "09:00",
+        },
+        conditions: {},
+        stopOn: [],
+      },
+    });
+
+    // Aucun canal configuré : message actionnable.
+    await expect(callerA.collections.remindNow({ caseId: kase.id })).rejects.toThrow(
+      /Paramètres › Canaux/,
+    );
+    await adminDb.channelConfig.createMany({
+      data: [
+        {
+          organizationId: orgA.id,
+          channel: "SMS",
+          provider: "console",
+          isActive: true,
+          priority: 1,
+          credentials: "",
+        },
+        {
+          organizationId: orgA.id,
+          channel: "WHATSAPP",
+          provider: "wa_link",
+          isActive: true,
+          priority: 1,
+          credentials: "",
+        },
+      ],
+    });
+
+    // Aperçu : modes des canaux (WhatsApp en lien manuel = pas d'envoi automatique).
+    const preview = await callerA.collections.remindPreview({ caseIds: [kase.id] });
+    expect(preview.ruleActive).toBe(true);
+    expect(preview.channels).toEqual([
+      { channel: "WHATSAPP", mode: "manual_only", error: null },
+      { channel: "SMS", mode: "test", error: null },
+      { channel: "EMAIL", mode: "off", error: null },
+    ]);
+    expect(preview.candidates[0]).toMatchObject({ eligible: true, reachable: ["WHATSAPP", "SMS"] });
+
+    // Canaux choisis WhatsApp + SMS : seul le SMS peut partir automatiquement.
+    const result = await callerA.collections.remindNow({
+      caseId: kase.id,
+      channels: ["WHATSAPP", "SMS"],
+    });
+    expect(result).toEqual({ messages: 1, channels: ["SMS"] });
+    const reminder = await adminDb.reminder.findFirstOrThrow({
+      where: { customerId: kone.id, stepKey: "MANUAL" },
+    });
+    expect(reminder).toMatchObject({
+      type: "RECEIVABLE",
+      status: "PLANNED",
+      channel: "SMS",
+    });
+    expect(reminder.approvedById).not.toBeNull();
+    expect(reminder.scheduledFor.getTime()).toBeLessThanOrEqual(NOW.getTime());
+    const note = await adminDb.collectionNote.findFirst({ where: { collectionCaseId: kase.id } });
+    expect(note?.body).toMatch(/Relance envoyée manuellement par SMS/);
+
+    // Déjà en partance : pas de doublon ; l'envoi groupé le signale sans bloquer les autres.
+    await expect(callerA.collections.remindNow({ caseId: kase.id })).rejects.toThrow(
+      /déjà en cours d'envoi/,
+    );
+    const bulk = await callerA.collections.remindBulk({ caseIds: [kase.id], channels: ["SMS"] });
+    expect(bulk).toMatchObject({ customers: 0, messages: 0 });
+    expect(bulk.skipped[0]).toMatchObject({ customerName: "Koné Ibrahim" });
+    await expect(
+      callerB.collections.remindBulk({ caseIds: [kase.id], channels: ["SMS"] }),
+    ).rejects.toThrow();
+
+    // Envoyée il y a 1 h : refus jusqu'à 20 h après l'envoi.
+    await adminDb.reminder.update({
+      where: { id: reminder.id },
+      data: { status: "SENT", sentAt: new Date(NOW.getTime() - 3_600_000) },
+    });
+    await expect(callerA.collections.remindNow({ caseId: kase.id })).rejects.toThrow(
+      /moins de 20 h/,
+    );
+
+    // Nettoyage : les tests suivants comptent les paiements « spontanés » (sans relance).
+    await adminDb.reminder.deleteMany({ where: { organizationId: orgA.id } });
+  });
+
+  it("onglets : chaque dossier dans le bon onglet, compteurs ; un dossier clos jamais « À traiter »", async () => {
+    const mk = async (name: string, data: Record<string, unknown>) => {
+      const customer = await adminDb.customer.create({
+        data: { organizationId: orgA.id, displayName: name },
+      });
+      return adminDb.collectionCase.create({
+        data: {
+          organizationId: orgA.id,
+          customerId: customer.id,
+          overdueDue: 10_000,
+          totalDue: 10_000,
+          ...data,
+        },
+      });
+    };
+    const escalated = await mk("Tab Escaladé", { status: "ESCALATED" });
+    const unreachable = await mk("Tab Injoignable", { status: "OPEN", unreachableCount: 3 });
+    const broken = await mk("Tab Promesse rompue", { status: "OPEN", brokenPromiseCount: 1 });
+    const promised = await mk("Tab Promesse", { status: "PROMISED" });
+    const disputed = await mk("Tab Litige", { status: "DISPUTED" });
+    const lost = await mk("Tab Perte", { status: "CLOSED_WRITTEN_OFF", unreachableCount: 5 });
+    const paidOff = await mk("Tab Soldé injoignable", {
+      status: "CLOSED_PAID",
+      unreachableCount: 4,
+    });
+
+    const ids = async (tab: "ALL" | "TO_HANDLE" | "PROMISES" | "DISPUTES" | "WRITTEN_OFF") =>
+      (await callerA.collections.listCases({ tab, search: "Tab ", limit: 50 })).items.map(
+        (c) => c.id,
+      );
+
+    expect((await ids("TO_HANDLE")).sort()).toEqual(
+      [escalated.id, unreachable.id, broken.id].sort(),
+    );
+    expect(await ids("PROMISES")).toEqual([promised.id]);
+    expect(await ids("DISPUTES")).toEqual([disputed.id]);
+    expect(await ids("WRITTEN_OFF")).toEqual([lost.id]);
+    const all = await ids("ALL");
+    expect(all).not.toContain(lost.id);
+    expect(all).not.toContain(paidOff.id);
+    expect(all).toHaveLength(5);
+
+    const { counts } = await callerA.collections.listCases({
+      tab: "ALL",
+      search: "Tab ",
+      limit: 50,
+    });
+    expect(counts).toEqual({ ALL: 5, TO_HANDLE: 3, PROMISES: 1, DISPUTES: 1, WRITTEN_OFF: 1 });
+
+    // Nettoyage : les tests suivants comptent les clients de l'organisation.
+    const created = [escalated, unreachable, broken, promised, disputed, lost, paidOff];
+    await adminDb.collectionCase.deleteMany({ where: { id: { in: created.map((c) => c.id) } } });
+    await adminDb.customer.deleteMany({
+      where: { id: { in: created.map((c) => c.customerId) } },
+    });
   });
 
   it("balance âgée : somme des tranches = total ; isolation multi-locataire", async () => {
@@ -250,6 +438,31 @@ describe("collections / payment routers (M09)", () => {
       where: { organizationId: orgA.id, type: "payment.received" },
     });
     expect(event).toBeTruthy();
+  });
+
+  it("reçu au comptoir envoyé au client par le canal choisi, avec son accusé de réception", async () => {
+    const payment = await adminDb.payment.findFirstOrThrow({
+      where: { organizationId: orgA.id, customerId: kone.id },
+    });
+    // Pas d'email : refus clair.
+    await expect(
+      cashierA.payment.sendReceipt({ paymentId: payment.id, channel: "EMAIL" }),
+    ).rejects.toThrow(/pas d'email/);
+    // Autre garage : introuvable.
+    await expect(
+      callerB.payment.sendReceipt({ paymentId: payment.id, channel: "SMS" }),
+    ).rejects.toThrow();
+
+    const sent = await cashierA.payment.sendReceipt({ paymentId: payment.id, channel: "SMS" });
+    expect(sent.to).toBe("+2250152770943");
+    const message = await adminDb.message.findUniqueOrThrow({ where: { id: sent.messageId } });
+    expect(message.idempotencyKey).toMatch(new RegExp(`^rcpt:${payment.id}:SMS:`));
+    expect(message.body).toContain(payment.number);
+
+    const list = await cashierA.payment.list({ limit: 20 });
+    const row = list.items.find((p) => p.id === payment.id)!;
+    expect(row.receiptSent).toMatchObject({ channel: "SMS" });
+    await adminDb.message.deleteMany({ where: { id: sent.messageId } });
   });
 
   it("litige : facture DISPUTED, dossier DISPUTED ; perte interdite au caissier", async () => {

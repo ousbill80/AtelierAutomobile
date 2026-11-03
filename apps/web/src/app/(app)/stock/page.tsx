@@ -31,6 +31,7 @@ import {
 } from "./_lib/components";
 import { errorMessage, qtyText, t } from "./_lib/i18n";
 import { emptyProduct, ProductFormModal } from "./_lib/product-form";
+import { GaragePulse, StarterCatalogAction } from "./_lib/pulse";
 
 type Filter = "all" | "belowMin" | "negative" | "inactive";
 const FILTERS: Filter[] = ["all", "belowMin", "negative", "inactive"];
@@ -46,6 +47,7 @@ export default function StockCatalogPage() {
   const [scanOpen, setScanOpen] = useState(false);
   const [unknownCode, setUnknownCode] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState<{ barcode?: string } | null>(null);
+  const [starterNote, setStarterNote] = useState<string | null>(null);
   const utils = trpc.useUtils();
 
   const categories = trpc.product.categories.useQuery();
@@ -99,45 +101,67 @@ export default function StockCatalogPage() {
         }
       />
 
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-0 flex-1 basis-64">
-          <Field label={t("common.search")}>
-            <Input
-              type="search"
-              value={q}
-              placeholder={t("catalog.searchPlaceholder")}
-              onChange={(e) => {
-                setQ(e.target.value);
-              }}
-            />
-          </Field>
+      <GaragePulse
+        focus="stock"
+        siteId={siteId || undefined}
+        activeStockFilter={filter === "belowMin" || filter === "negative" ? filter : undefined}
+        onStockFilter={(next) => {
+          setFilter((current) => (current === next ? "all" : next));
+          setQ("");
+          setCategory("");
+        }}
+      />
+      {starterNote ? (
+        <p role="status" className="rounded-md bg-surface-2 p-3 text-sm">
+          {starterNote}
+        </p>
+      ) : null}
+
+      <section className="form-card product-toolbar">
+        <div className="form-card-body form-dense">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-end gap-3">
+              <div className="min-w-0 flex-1">
+                <Field label={t("common.search")}>
+                  <Input
+                    type="search"
+                    value={q}
+                    placeholder={t("catalog.searchPlaceholder")}
+                    onChange={(e) => {
+                      setQ(e.target.value);
+                    }}
+                  />
+                </Field>
+              </div>
+              <Button variant="secondary" onClick={() => setScanOpen(true)}>
+                {t("common.scan")}
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Field label={t("catalog.filterCategory")}>
+                <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  <option value="">{t("catalog.allCategories")}</option>
+                  {(categories.data ?? []).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t("catalog.filter")}>
+                <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
+                  {FILTERS.map((f) => (
+                    <option key={f} value={f}>
+                      {t(`catalog.filters.${f}`)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <SiteSelect value={siteId} onChange={setSiteId} allowAll />
+            </div>
+          </div>
         </div>
-        <Button variant="secondary" onClick={() => setScanOpen(true)}>
-          {t("common.scan")}
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <Field label={t("catalog.filterCategory")}>
-          <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">{t("catalog.allCategories")}</option>
-            {(categories.data ?? []).map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("catalog.filter")}>
-          <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
-            {FILTERS.map((f) => (
-              <option key={f} value={f}>
-                {t(`catalog.filters.${f}`)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <SiteSelect value={siteId} onChange={setSiteId} allowAll />
-      </div>
+      </section>
 
       {list.isLoading ? <ListSkeleton rows={6} /> : null}
       {list.isError ? <ErrorBox onRetry={() => list.refetch()} /> : null}
@@ -147,7 +171,25 @@ export default function StockCatalogPage() {
             rows={items}
             rowKey={(p) => p.id}
             onRowClick={(p) => router.push(`/stock/${p.id}`)}
-            empty={<EmptyState title={t("catalog.empty")} description={t("catalog.emptyHint")} />}
+            empty={
+              !q.trim() && !category && filter === "all" ? (
+                <EmptyState
+                  title={t("starter.title")}
+                  description={t("starter.body")}
+                  action={
+                    <StarterCatalogAction
+                      onDone={(created) =>
+                        setStarterNote(
+                          created > 0 ? t("starter.done", { created }) : t("starter.doneNone"),
+                        )
+                      }
+                    />
+                  }
+                />
+              ) : (
+                <EmptyState title={t("catalog.empty")} description={t("catalog.emptyHint")} />
+              )
+            }
             columns={[
               {
                 key: "name",

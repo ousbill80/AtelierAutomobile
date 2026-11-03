@@ -22,18 +22,28 @@ async function simulateCandidates(
   tenantDb: TenantDb,
   type: string,
   today: Date,
-): Promise<{ entityId: string; anchor: Date }[]> {
+): Promise<{ entityId: string; anchor: Date; plate: string | null; customer: string | null }[]> {
   if (type === "INSPECTION") {
     const vehicles = await tenantDb.vehicle.findMany({
       where: {
         deletedAt: null,
         inspectionExpiryDate: { gte: addDays(today, -60), lte: addDays(today, 45) },
       },
-      select: { id: true, inspectionExpiryDate: true },
+      select: {
+        id: true,
+        plate: true,
+        inspectionExpiryDate: true,
+        customer: { select: { displayName: true } },
+      },
     });
     return vehicles
       .filter((v) => v.inspectionExpiryDate)
-      .map((v) => ({ entityId: v.id, anchor: v.inspectionExpiryDate! }));
+      .map((v) => ({
+        entityId: v.id,
+        anchor: v.inspectionExpiryDate!,
+        plate: v.plate,
+        customer: v.customer.displayName,
+      }));
   }
   if (type === "SERVICE") {
     const vehicles = await tenantDb.vehicle.findMany({
@@ -41,20 +51,35 @@ async function simulateCandidates(
         deletedAt: null,
         nextServiceDueDate: { gte: addDays(today, -90), lte: addDays(today, 30) },
       },
-      select: { id: true, nextServiceDueDate: true },
+      select: {
+        id: true,
+        plate: true,
+        nextServiceDueDate: true,
+        customer: { select: { displayName: true } },
+      },
     });
     return vehicles
       .filter((v) => v.nextServiceDueDate)
-      .map((v) => ({ entityId: v.id, anchor: v.nextServiceDueDate! }));
+      .map((v) => ({
+        entityId: v.id,
+        anchor: v.nextServiceDueDate!,
+        plate: v.plate,
+        customer: v.customer.displayName,
+      }));
   }
   if (type === "RECEIVABLE") {
     const cases = await tenantDb.collectionCase.findMany({
       where: { status: { in: ["OPEN", "ESCALATED"] } },
-      select: { id: true, oldestDueDate: true },
+      select: { id: true, oldestDueDate: true, customer: { select: { displayName: true } } },
     });
     return cases
       .filter((c) => c.oldestDueDate)
-      .map((c) => ({ entityId: c.id, anchor: c.oldestDueDate! }));
+      .map((c) => ({
+        entityId: c.id,
+        anchor: c.oldestDueDate!,
+        plate: null,
+        customer: c.customer.displayName,
+      }));
   }
   return [];
 }
@@ -116,7 +141,12 @@ export const reminderRulesRouter = router({
       }));
 
       const byStep: Record<string, number> = {};
-      const sample: { entityId: string; stepKey: string }[] = [];
+      const sample: {
+        entityId: string;
+        stepKey: string;
+        plate: string | null;
+        customer: string | null;
+      }[] = [];
       let noChannel = 0;
 
       for (const candidate of candidates) {
@@ -133,7 +163,12 @@ export const reminderRulesRouter = router({
         const step = input.rule.steps.find((s) => s.key === pick.step.key);
         if (step && step.channels.length === 0 && !step.internalOnly) noChannel += 1;
         if (sample.length < 10)
-          sample.push({ entityId: candidate.entityId, stepKey: pick.step.key });
+          sample.push({
+            entityId: candidate.entityId,
+            stepKey: pick.step.key,
+            plate: candidate.plate,
+            customer: candidate.customer,
+          });
       }
 
       const total = Object.values(byStep).reduce((sum, n) => sum + n, 0);

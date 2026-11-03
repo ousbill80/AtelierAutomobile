@@ -7,7 +7,7 @@ import { serverCaller } from "@/trpc/server";
 // M06 §7 — layout plein écran de la tablette (PWA), sans menu latéral.
 export const metadata: Metadata = {
   title: "AtelierOS — Tablette",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest-tablette.webmanifest",
 };
 
 export const viewport: Viewport = { themeColor: "#0f172a" };

@@ -63,10 +63,17 @@ export const createDepositInputSchema = z.object({
   amountTtc: positive,
 });
 
+/** Ligne de brouillon. `id` présent = ligne déjà enregistrée (lien OR conservé). */
+export const updateInvoiceLineSchema = invoiceLineInputSchema.extend({
+  id: id.optional(),
+});
+
 export const updateInvoiceInputSchema = z.object({
   id,
-  lines: z.array(invoiceLineInputSchema).min(1, "Ajoutez au moins une ligne.").max(200).optional(),
+  lines: z.array(updateInvoiceLineSchema).min(1, "Ajoutez au moins une ligne.").max(200).optional(),
   notes: z.string().trim().max(1000).nullable().optional(),
+  /** Brouillon seulement. Null efface le choix : l'émission reprend le délai du client. */
+  dueDate: isoDate.nullable().optional(),
   priceReason: z.string().trim().max(300).optional(),
 });
 

@@ -46,11 +46,6 @@ export const upsertPaymentProviderInputSchema = z.object({
 
 export const paymentProviderInputSchema = z.object({ provider: paymentProviderNameSchema });
 
-export const setPaymentProviderActiveInputSchema = z.object({
-  provider: paymentProviderNameSchema,
-  isActive: z.boolean(),
-});
-
 const merchantNumber = z.string().trim().max(30).nullable();
 export const merchantNumbersInputSchema = z.object({
   wave: merchantNumber,

@@ -58,9 +58,12 @@ export function PortalLinksPanel({
       className="flex flex-col gap-2 rounded-lg border border-border p-3 text-sm"
       data-testid={`portal-links-${scope}`}
     >
-      <h3 className="font-semibold">
-        {t("portal.links.title")} — {t(`portal.links.scopes.${scope}`)}
-      </h3>
+      <div>
+        <h3 className="font-semibold">
+          {t("portal.links.title")} — {t(`portal.links.scopes.${scope}`)}
+        </h3>
+        <p className="mt-0.5 text-muted">{t(`portal.links.hints.${scope}`)}</p>
+      </div>
       {canWrite && (
         <div className="flex flex-wrap gap-2">
           <Button

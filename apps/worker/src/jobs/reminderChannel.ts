@@ -126,7 +126,12 @@ export async function resolveChannelCandidates(
       !!address &&
       phoneLineType(normalizePhoneCI(address).e164 ?? address) === "FIXED";
     const activeConfig = configs
-      .filter((c) => c.channel === channel && c.isActive && c.status !== "ERROR")
+      // `wa_link` : envoi humain uniquement (bouton « Ouvrir dans WhatsApp ») — jamais choisi
+      // pour un envoi automatique, qui passe alors au canal suivant (SMS, email).
+      .filter(
+        (c) =>
+          c.channel === channel && c.isActive && c.status !== "ERROR" && c.provider !== "wa_link",
+      )
       .sort((a, b) => a.priority - b.priority)[0];
     providerByChannel.set(channel, activeConfig?.provider ?? "console");
     return {

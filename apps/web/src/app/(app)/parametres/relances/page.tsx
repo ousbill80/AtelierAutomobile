@@ -7,22 +7,34 @@ import { Button, EmptyState } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { LinkButton } from "@/components/link-button";
 import { REMINDER_TYPE_LABELS } from "../../relances/reminder-labels";
+import type { ReminderRuleUpsertInput } from "@atelieros/validators";
 import { stepCount, toRuleInput } from "./rule-shape";
+import { t } from "@/i18n/t";
 
 export default function ReminderRulesPage() {
   const utils = trpc.useUtils();
   const { data: rules, isLoading, isError, refetch } = trpc.reminderRules.list.useQuery();
+  const me = trpc.me.get.useQuery(undefined, { staleTime: 60_000 });
+  const canManage = (me.data?.permissions ?? []).includes("reminder:rules_manage");
   const toggle = trpc.reminderRules.toggle.useMutation({
-    onSuccess: () => utils.reminderRules.list.invalidate(),
+    onSettled: () => utils.reminderRules.list.invalidate(),
   });
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Règles de relance</h1>
-        <LinkButton href="/parametres/relances/nouveau">Nouvelle règle</LinkButton>
+        <h1 className="text-2xl font-semibold">{t("reminders.rules.title")}</h1>
+        {canManage && (
+          <LinkButton href="/parametres/relances/nouveau">{t("reminders.rules.new")}</LinkButton>
+        )}
       </div>
+
+      {me.data && !canManage && (
+        <p className="rounded-md bg-surface-2 p-3 text-sm text-muted">
+          {t("reminders.rules.readOnly")}
+        </p>
+      )}
 
       {isLoading && (
         <div className="flex flex-col gap-3">
@@ -37,18 +49,24 @@ export default function ReminderRulesPage() {
 
       {isError && (
         <div className="flex flex-col items-start gap-2 rounded-lg border border-status-bad bg-status-bad-bg p-4">
-          <p className="text-sm text-status-bad">Impossible de charger les règles.</p>
+          <p className="text-sm text-status-bad">{t("reminders.rules.loadError")}</p>
           <Button variant="secondary" onClick={() => refetch()}>
-            Réessayer
+            {t("reminders.rules.retry")}
           </Button>
         </div>
       )}
 
       {rules && rules.length === 0 && (
         <EmptyState
-          title="Aucune règle de relance."
-          description="Créez votre première règle pour démarrer les relances automatiques."
-          action={<LinkButton href="/parametres/relances/nouveau">Nouvelle règle</LinkButton>}
+          title={t("reminders.rules.emptyTitle")}
+          description={t("reminders.rules.emptyHint")}
+          action={
+            canManage ? (
+              <LinkButton href="/parametres/relances/nouveau">
+                {t("reminders.rules.new")}
+              </LinkButton>
+            ) : undefined
+          }
         />
       )}
 
@@ -62,7 +80,10 @@ export default function ReminderRulesPage() {
               <div>
                 <p className="font-medium">{rule.name}</p>
                 <p className="text-sm text-muted">
-                  {REMINDER_TYPE_LABELS[rule.type] ?? rule.type} · {stepCount(rule)} palier(s)
+                  {t("reminders.rules.summary", {
+                    type: REMINDER_TYPE_LABELS[rule.type] ?? rule.type,
+                    count: stepCount(rule),
+                  })}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -71,23 +92,32 @@ export default function ReminderRulesPage() {
                     type="checkbox"
                     className="h-5 w-5"
                     checked={rule.isActive}
+                    disabled={!canManage || (toggle.isPending && toggle.variables?.id === rule.id)}
                     onChange={(e) => toggle.mutate({ id: rule.id, isActive: e.target.checked })}
                   />
-                  Active
+                  {t("reminders.rules.active")}
                 </label>
                 <LinkButton href={`/parametres/relances/${rule.id}`} variant="secondary">
-                  Modifier
+                  {t("reminders.rules.edit")}
                 </LinkButton>
-                <Button
-                  variant="ghost"
-                  onClick={() => setSimulatingId((v) => (v === rule.id ? null : rule.id))}
-                >
-                  Simuler
-                </Button>
+                {canManage && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setSimulatingId((v) => (v === rule.id ? null : rule.id))}
+                  >
+                    {t("reminders.rules.simulate")}
+                  </Button>
+                )}
               </div>
             </div>
 
-            {simulatingId === rule.id && <SimulatePanel rule={rule} />}
+            {toggle.error && toggle.variables?.id === rule.id && (
+              <p role="alert" className="text-sm text-status-bad">
+                {t("reminders.rules.toggleError", { message: toggle.error.message })}
+              </p>
+            )}
+
+            {canManage && simulatingId === rule.id && <SimulatePanel rule={rule} />}
           </div>
         ))}
       </div>
@@ -96,39 +126,56 @@ export default function ReminderRulesPage() {
 }
 
 function SimulatePanel({ rule }: { rule: Parameters<typeof toRuleInput>[0] }) {
-  const input = toRuleInput(rule);
-  const { data, isLoading, isError } = trpc.reminderRules.simulate.useQuery({
-    rule: input,
-    days: 30,
-  });
+  const parsed = toRuleInput(rule);
+  if (!parsed.ok) {
+    return (
+      <p role="alert" className="rounded-md bg-status-bad-bg p-3 text-sm text-status-bad">
+        {t("reminders.rules.invalidRule", { message: parsed.message })}
+      </p>
+    );
+  }
+  return <SimulateResult input={parsed.input} />;
+}
+
+function SimulateResult({ input }: { input: ReminderRuleUpsertInput }) {
+  const { data, isLoading, isError, error } = trpc.reminderRules.simulate.useQuery(
+    { rule: input, days: 30 },
+    { retry: false },
+  );
 
   return (
     <div className="rounded-md bg-surface-2 p-3 text-sm">
-      {isLoading && <p className="text-muted">Calcul en cours…</p>}
-      {isError && <p className="text-status-bad">Impossible de simuler cette règle.</p>}
+      {isLoading && <p className="text-muted">{t("reminders.rules.simulating")}</p>}
+      {isError && (
+        <p role="alert" className="text-status-bad">
+          {t("reminders.rules.simulateError")} {error.message}
+        </p>
+      )}
       {data && (
         <div className="flex flex-col gap-2">
-          <p>
-            Sur les 30 prochains jours : <span className="font-semibold">{data.total}</span>{" "}
-            relance(s).
-          </p>
+          <p className="font-medium">{t("reminders.rules.simulateTotal", { total: data.total })}</p>
           <ul className="flex flex-wrap gap-3">
             {Object.entries(data.byStep).map(([step, count]) => (
-              <li key={step}>
-                {step} : {count}
-              </li>
+              <li key={step}>{t("reminders.rules.stepCount", { step, count })}</li>
             ))}
           </ul>
           {data.noChannel > 0 && (
-            <p className="text-status-warn">{data.noChannel} candidat(s) sans canal.</p>
+            <p className="text-status-warn">
+              {t("reminders.rules.noChannel", { count: data.noChannel })}
+            </p>
           )}
           {data.sample.length > 0 && (
             <div>
-              <p className="mb-1 text-muted">Échantillon :</p>
+              <p className="mb-1 text-muted">{t("reminders.rules.sample")}</p>
               <ul className="flex flex-col gap-1">
                 {data.sample.map((s, i) => (
-                  <li key={i} className="font-mono text-xs">
-                    {s.entityId} — palier {s.stepKey}
+                  <li key={i} className="text-xs">
+                    {t("reminders.rules.sampleLine", {
+                      entity:
+                        [s.plate, s.customer].filter(Boolean).join(" · ") ||
+                        t("reminders.rules.sampleUnknown"),
+                      step: s.stepKey,
+                    })}
                   </li>
                 ))}
               </ul>

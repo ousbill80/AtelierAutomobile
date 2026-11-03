@@ -260,7 +260,7 @@ function Assistant() {
 
       <form
         onSubmit={onSubmit}
-        className="sticky bottom-0 flex gap-2 border-t border-border bg-background py-2"
+        className="sticky bottom-[var(--bottom-nav-offset)] flex gap-2 border-t border-border bg-background py-2"
       >
         <label className="sr-only" htmlFor="assistant-question">
           {t("assistant.placeholder")}

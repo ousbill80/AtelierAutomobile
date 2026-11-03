@@ -211,8 +211,8 @@ test("parcours OR : réception → inspection → accord → travaux → QC → 
   await page.getByRole("button", { name: "Main-d'œuvre" }).first().click();
   await page.getByLabel("Désignation").fill("Remplacement plaquettes AV");
   await page.getByLabel("Heures").fill("1");
-  await page.getByLabel("PU HT").fill("15000");
-  await page.getByLabel("PU HT").blur();
+  await page.getByLabel("Prix unitaire HT").fill("15000");
+  await page.getByLabel("Prix unitaire HT").blur();
   await page.getByRole("button", { name: "Ajouter une ligne" }).click();
   await expect(page.getByText("En attente d'accord").first()).toBeVisible();
   await page.getByRole("button", { name: /Accord par téléphone/ }).click();

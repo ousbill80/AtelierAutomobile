@@ -44,7 +44,7 @@ const roleSchema = z.enum([
 export const automationActionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("send_template"),
-    templateKey: z.string().trim().min(1).max(100),
+    templateKey: z.string().trim().min(1, "Choisissez le modèle de message à envoyer.").max(100),
     channel: z.enum(["WHATSAPP", "SMS", "EMAIL"]),
     withPaymentLink: z.boolean().optional(),
   }),
@@ -53,15 +53,21 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     type: z.literal("notify_members"),
     roles: z.array(roleSchema).max(7).optional(),
     membershipIds: z.array(z.string()).max(50).optional(),
-    title: z.string().trim().min(1).max(200),
+    title: z.string().trim().min(1, "Donnez un titre à la notification.").max(200),
     body: z.string().max(1000).optional(),
   }),
-  z.object({ type: z.literal("assign_conversation"), membershipId: z.string().min(1) }),
-  z.object({ type: z.literal("add_customer_tag"), tag: z.string().trim().min(1).max(50) }),
+  z.object({
+    type: z.literal("assign_conversation"),
+    membershipId: z.string().min(1, "Choisissez le membre à qui confier la conversation."),
+  }),
+  z.object({
+    type: z.literal("add_customer_tag"),
+    tag: z.string().trim().min(1, "Saisissez le tag à ajouter.").max(50),
+  }),
   z.object({
     type: z.literal("create_task"),
     roles: z.array(roleSchema).max(7).optional(),
-    title: z.string().trim().min(1).max(200),
+    title: z.string().trim().min(1, "Donnez un titre à la tâche.").max(200),
     body: z.string().max(1000).optional(),
   }),
   z.object({

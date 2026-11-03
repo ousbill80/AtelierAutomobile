@@ -13,6 +13,7 @@ import {
   columnForStatus,
   computeDurationMinutes,
   DomainError,
+  pauseEntry,
   isSubcontractLoss,
   isSubcontractOverdue,
   presenceMinutes,
@@ -31,6 +32,7 @@ import {
   assignBayInputSchema,
   editTimeEntryInputSchema,
   productivityInputSchema,
+  recordAttendanceInputSchema,
   reviewTimeEntryInputSchema,
   subcontractListInputSchema,
   subcontractUpdateStatusInputSchema,
@@ -81,6 +83,14 @@ const MECHANICS_WHERE: Prisma.MembershipWhereInput = { isActive: true, role: "ME
 function onSite<T extends { siteIds: string[] | null }>(members: T[], siteId?: string): T[] {
   if (!siteId) return members;
   return members.filter((m) => !m.siteIds?.length || m.siteIds.includes(siteId));
+}
+
+/** Site de la présence : site actif de la session, sinon le premier site du mécanicien. */
+function attendanceSiteId(ctx: OrgCtx, memberSiteIds: string[]): string | null {
+  const active = ctx.session.activeSiteId ?? null;
+  if (!memberSiteIds.length) return active;
+  if (active && memberSiteIds.includes(active)) return active;
+  return memberSiteIds[0] ?? null;
 }
 
 const CARD_INCLUDE = {
@@ -526,54 +536,85 @@ export const workshopRouter = router({
       const org = await loadOrgRoContext(ctx.organizationId);
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const now = roNow();
-      const rows = await tenantDb.timeEntry.findMany({
-        where: {
-          startedAt: { gte: input.from, lt: input.to },
-          ...(input.membershipId ? { membershipId: input.membershipId } : {}),
-          ...(input.repairOrderId ? { repairOrderId: input.repairOrderId } : {}),
-          ...(input.needsReview !== undefined ? { needsReview: input.needsReview } : {}),
-          repairOrder: siteWhere(ctx, input.siteId),
-        },
-        include: {
-          membership: { select: { user: { select: { name: true } } } },
-          repairOrder: { select: { id: true, number: true } },
-          repairOrderLine: { select: { description: true } },
-        },
-        orderBy: [{ startedAt: "desc" }, { id: "desc" }],
-        take: input.limit + 1,
-        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-      });
+      const entryInclude = {
+        membership: { select: { user: { select: { name: true } } } },
+        repairOrder: { select: { id: true, number: true } },
+        repairOrderLine: { select: { description: true } },
+      } as const;
+      const entryWhere = {
+        ...(input.membershipId ? { membershipId: input.membershipId } : {}),
+        ...(input.repairOrderId ? { repairOrderId: input.repairOrderId } : {}),
+        ...(input.needsReview !== undefined ? { needsReview: input.needsReview } : {}),
+        repairOrder: siteWhere(ctx, input.siteId),
+      };
+      const [startedInRange, stillOpen] = await Promise.all([
+        tenantDb.timeEntry.findMany({
+          where: { ...entryWhere, startedAt: { gte: input.from, lt: input.to } },
+          include: entryInclude,
+          orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+          take: input.limit + 1,
+          ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        }),
+        tenantDb.timeEntry.findMany({
+          where: { ...entryWhere, endedAt: null, startedAt: { lt: input.from } },
+          include: entryInclude,
+          orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+          take: 50,
+        }),
+      ]);
+      const seen = new Set(stillOpen.map((e) => e.id));
+      const rows = [
+        ...stillOpen,
+        ...startedInRange.filter((e) => !seen.has(e.id)).slice(0, input.limit),
+      ];
+      const dayFrom = businessDate(input.from, org.timeZone);
+      const dayTo = businessDate(new Date(input.to.getTime() - 1), org.timeZone);
       const attendances = await tenantDb.attendance.findMany({
         where: {
-          date: {
-            gte: businessDate(input.from, org.timeZone),
-            lte: businessDate(new Date(input.to.getTime() - 1), org.timeZone),
-          },
+          date: { gte: dayFrom, lte: dayTo },
           ...(input.membershipId ? { membershipId: input.membershipId } : {}),
         },
         include: { membership: { select: { user: { select: { name: true } } } } },
         orderBy: [{ date: "desc" }],
       });
+      const mechanics = onSite(
+        await tenantDb.membership.findMany({
+          where: MECHANICS_WHERE,
+          select: { id: true, siteIds: true, user: { select: { name: true } } },
+          orderBy: { user: { name: "asc" } },
+        }),
+        input.siteId,
+      ).filter((m) => !input.membershipId || m.id === input.membershipId);
+      const attendanceByMember = new Map(attendances.map((a) => [a.membershipId, a]));
+      const items = rows.map((e) => ({
+        id: e.id,
+        mechanicName: e.membership.user.name,
+        membershipId: e.membershipId,
+        repairOrder: e.repairOrder,
+        lineDescription: e.repairOrderLine?.description ?? null,
+        startedAt: e.startedAt,
+        endedAt: e.endedAt,
+        pausedAt: e.pausedAt,
+        pauseMinutes: e.pauseMinutes,
+        minutes: computeDurationMinutes(e, now),
+        state: timeEntryState(e),
+        kind: e.kind,
+        source: e.source,
+        needsReview: e.needsReview,
+        reviewReason: e.reviewReason,
+        carriedOver: e.startedAt.getTime() < input.from.getTime(),
+      }));
+      const byMember = new Map<string, typeof items>();
+      for (const item of items) {
+        const list = byMember.get(item.membershipId) ?? [];
+        list.push(item);
+        byMember.set(item.membershipId, list);
+      }
       return {
         timeZone: org.timeZone,
-        items: rows.slice(0, input.limit).map((e) => ({
-          id: e.id,
-          mechanicName: e.membership.user.name,
-          membershipId: e.membershipId,
-          repairOrder: e.repairOrder,
-          lineDescription: e.repairOrderLine?.description ?? null,
-          startedAt: e.startedAt,
-          endedAt: e.endedAt,
-          pausedAt: e.pausedAt,
-          pauseMinutes: e.pauseMinutes,
-          minutes: computeDurationMinutes(e, now),
-          state: timeEntryState(e),
-          kind: e.kind,
-          source: e.source,
-          needsReview: e.needsReview,
-          reviewReason: e.reviewReason,
-        })),
-        nextCursor: rows.length > input.limit ? rows[input.limit - 1]!.id : null,
+        items,
+        nextCursor:
+          startedInRange.length > input.limit ? startedInRange[input.limit - 1]!.id : null,
         attendances: attendances.map((a) => ({
           id: a.id,
           mechanicName: a.membership.user.name,
@@ -584,6 +625,32 @@ export const workshopRouter = router({
           autoClosed: a.autoClosed,
           presenceMinutes: presenceMinutes(a, now),
         })),
+        team: mechanics.map((m) => {
+          const attendance = attendanceByMember.get(m.id) ?? null;
+          const status = !attendance?.clockIn ? "absent" : attendance.clockOut ? "left" : "present";
+          const mine = byMember.get(m.id) ?? [];
+          const active = mine.find((entry) => entry.state !== "STOPPED") ?? null;
+          return {
+            membershipId: m.id,
+            name: m.user.name,
+            attendanceId: attendance?.id ?? null,
+            clockIn: attendance?.clockIn ?? null,
+            clockOut: attendance?.clockOut ?? null,
+            breakMinutes: attendance?.breakMinutes ?? 0,
+            autoClosed: attendance?.autoClosed ?? false,
+            presenceMinutes: attendance ? presenceMinutes(attendance, now) : 0,
+            pointedMinutes: mine.reduce((sum, entry) => sum + entry.minutes, 0),
+            status,
+            active: active
+              ? {
+                  state: active.state,
+                  minutes: active.minutes,
+                  repairOrder: active.repairOrder,
+                  lineDescription: active.lineDescription,
+                }
+              : null,
+          };
+        }),
       };
     }),
 
@@ -669,6 +736,106 @@ export const workshopRouter = router({
           userAgent: ctx.userAgent,
         });
         return tx.timeEntry.update({ where: { id: entry.id }, data: { needsReview: false } });
+      });
+    }),
+
+  /**
+   * Présence saisie ou corrigée depuis le bureau (oubli de tablette).
+   * Un départ met en pause la tâche en cours, comme le pointage tablette.
+   */
+  recordAttendance: requirePermission("time:edit")
+    .input(recordAttendanceInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgRoContext(ctx.organizationId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const now = roNow();
+      if (
+        input.clockIn.getTime() > now.getTime() ||
+        (input.clockOut && input.clockOut.getTime() > now.getTime())
+      ) {
+        badRequest("Une présence ne peut pas être dans le futur.");
+      }
+      const day = businessDate(input.clockIn, org.timeZone);
+      if (
+        input.clockOut &&
+        businessDate(input.clockOut, org.timeZone).getTime() !== day.getTime()
+      ) {
+        badRequest("L'arrivée et le départ doivent être le même jour.");
+      }
+      return tenantDb.transaction(async (tx) => {
+        const member = await tx.membership.findFirst({
+          where: { id: input.membershipId, isActive: true, role: "MECHANIC" },
+          select: { id: true, siteIds: true },
+        });
+        if (!member) notFound("Mécanicien introuvable.");
+        const siteId = attendanceSiteId(ctx, member.siteIds);
+        requireSite(ctx, siteId);
+        const existing = await tx.attendance.findFirst({
+          where: { membershipId: member.id, date: day },
+        });
+        if (existing) requireSite(ctx, existing.siteId);
+        if (input.clockOut) {
+          const running = await tx.timeEntry.findMany({
+            where: { membershipId: member.id, endedAt: null, pausedAt: null },
+          });
+          for (const entry of running) {
+            const patch = pauseEntry(entry, input.clockOut, "other");
+            if (patch) await tx.timeEntry.update({ where: { id: entry.id }, data: patch });
+          }
+        }
+        const data = {
+          clockIn: input.clockIn,
+          clockOut: input.clockOut,
+          breakMinutes: input.breakMinutes,
+          autoClosed: false,
+          siteId: existing?.siteId ?? siteId,
+        };
+        const saved = existing
+          ? await tx.attendance.update({ where: { id: existing.id }, data })
+          : await tx.attendance.create({
+              data: {
+                ...data,
+                organizationId: ctx.organizationId,
+                membershipId: member.id,
+                date: day,
+              },
+            });
+        await writeAuditLog({
+          organizationId: ctx.organizationId,
+          userId: ctx.user.id,
+          membershipId: ctx.membership.id,
+          siteId: saved.siteId,
+          action: "attendance.edit",
+          entity: "Attendance",
+          entityId: saved.id,
+          before: existing
+            ? {
+                clockIn: existing.clockIn,
+                clockOut: existing.clockOut,
+                breakMinutes: existing.breakMinutes,
+                autoClosed: existing.autoClosed,
+              }
+            : null,
+          after: {
+            clockIn: saved.clockIn,
+            clockOut: saved.clockOut,
+            breakMinutes: saved.breakMinutes,
+            autoClosed: saved.autoClosed,
+          },
+          reason: input.reason,
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+        });
+        return {
+          attendance: {
+            id: saved.id,
+            clockIn: saved.clockIn,
+            clockOut: saved.clockOut,
+            breakMinutes: saved.breakMinutes,
+            autoClosed: saved.autoClosed,
+            presenceMinutes: presenceMinutes(saved, now),
+          },
+        };
       });
     }),
 

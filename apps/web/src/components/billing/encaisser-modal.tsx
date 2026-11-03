@@ -8,6 +8,7 @@ import { formatFCFA } from "@atelieros/core/money";
 import { Button, Input, Modal, MoneyInput } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { PAYMENT_METHODS, REFERENCE_REQUIRED, t, type PaymentMethod } from "./i18n";
+import { PaymentAccountNotice, usePaymentAccountBlock } from "./payment-account";
 
 export function EncaisserModal({
   open,
@@ -43,6 +44,8 @@ export function EncaisserModal({
     },
   });
   const needsRef = REFERENCE_REQUIRED.has(method);
+  const account = usePaymentAccountBlock(method, "");
+  const blocked = Boolean(account.message) || account.pending;
   const close = () => {
     setDone(null);
     create.reset();
@@ -118,7 +121,8 @@ export function EncaisserModal({
               required
             />
           )}
-          {create.error && (
+          <PaymentAccountNotice message={account.message} />
+          {create.error && !account.message && (
             <div role="alert" className="flex flex-col gap-2 text-sm text-status-bad">
               <p>⚠ {create.error.message}</p>
               {method === "CASH" && /caisse/.test(create.error.message) && (
@@ -126,12 +130,17 @@ export function EncaisserModal({
                   {t("encaisser.openCash")}
                 </Link>
               )}
+              {/Trésorerie/.test(create.error.message) && (
+                <Link href="/tresorerie" className="btn btn-secondary min-h-11">
+                  {t("encaisser.createAccount")}
+                </Link>
+              )}
             </div>
           )}
           <Button
             type="submit"
             loading={create.isPending}
-            disabled={!amount || (needsRef && !reference.trim())}
+            disabled={!amount || (needsRef && !reference.trim()) || blocked}
           >
             {t("encaisser.submit")}
           </Button>

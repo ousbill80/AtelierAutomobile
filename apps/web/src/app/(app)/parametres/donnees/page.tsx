@@ -119,16 +119,24 @@ export default function DataSettingsPage() {
     },
   });
   const grant = trpc.support.grantAccess.useMutation({
-    onSuccess: () => void utils.support.get.invalidate(),
+    onSuccess: () => {
+      setNotice(t("dataSettings.supportGranted"));
+      void utils.support.get.invalidate();
+    },
   });
   const revoke = trpc.support.revokeAccess.useMutation({
-    onSuccess: () => void utils.support.get.invalidate(),
+    onSuccess: () => {
+      setNotice(t("dataSettings.supportRevoked"));
+      void utils.support.get.invalidate();
+    },
   });
   const requestDeletion = trpc.org.requestDeletion.useMutation({
     onSuccess: () => {
       setDeletionOpen(false);
       setDeletionCode("");
       setConfirmName("");
+      setDeletionReason("");
+      setNotice(t("dataSettings.deletionRequested"));
       refreshOrg();
     },
   });
@@ -163,6 +171,8 @@ export default function DataSettingsPage() {
   const scheduled = org.lifecycleStatus === "DELETION_SCHEDULED";
   const readOnly = org.lifecycleStatus !== "ACTIVE";
   const otherMode = org.operatingMode === "FULL" ? "REMINDERS_ONLY" : "FULL";
+  // `org.setOperatingMode` exige `settings:update`, la page seulement `settings:billing`.
+  const canSwitchMode = me.data?.permissions.includes("settings:update") ?? false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -178,28 +188,37 @@ export default function DataSettingsPage() {
         <p className="text-sm">
           {t("dataSettings.modeCurrent", { mode: t(`dataSettings.modes.${org.operatingMode}`) })}
         </p>
-        <Field label={t("dataSettings.modeReasonLabel")}>
-          <Input
-            value={modeReason}
-            disabled={readOnly}
-            maxLength={500}
-            onChange={(e) => setModeReason(e.target.value)}
-          />
-        </Field>
-        <Button
-          variant="secondary"
-          className="min-h-11 self-start"
-          disabled={readOnly || modeReason.trim().length === 0}
-          loading={setMode.isPending}
-          onClick={() => setMode.mutate({ mode: otherMode, reason: modeReason.trim() })}
-        >
-          {t("dataSettings.modeSwitch", { mode: t(`dataSettings.modes.${otherMode}`) })}
-        </Button>
-        {setMode.error ? (
-          <p role="alert" className="error">
-            {setMode.error.message}
-          </p>
-        ) : null}
+        {canSwitchMode ? (
+          <>
+            <Field label={t("dataSettings.modeReasonLabel")}>
+              <Input
+                value={modeReason}
+                disabled={readOnly}
+                maxLength={500}
+                onChange={(e) => setModeReason(e.target.value)}
+              />
+            </Field>
+            <Button
+              variant="secondary"
+              className="min-h-11 self-start"
+              disabled={readOnly || modeReason.trim().length === 0}
+              loading={setMode.isPending}
+              onClick={() => {
+                setNotice(null);
+                setMode.mutate({ mode: otherMode, reason: modeReason.trim() });
+              }}
+            >
+              {t("dataSettings.modeSwitch", { mode: t(`dataSettings.modes.${otherMode}`) })}
+            </Button>
+            {setMode.error ? (
+              <p role="alert" className="error">
+                {setMode.error.message}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-sm text-muted">{t("dataSettings.modeNoPermission")}</p>
+        )}
       </section>
 
       <section className="flex flex-col gap-2 rounded-lg border p-4">
@@ -215,6 +234,7 @@ export default function DataSettingsPage() {
             className="min-h-11 self-start"
             onClick={() => {
               requestExport.reset();
+              setNotice(null);
               setExportOpen(true);
             }}
           >
@@ -303,7 +323,11 @@ export default function DataSettingsPage() {
             className="min-h-11 self-start"
             disabled={readOnly}
             loading={revoke.isPending}
-            onClick={() => revoke.mutate()}
+            onClick={() => {
+              setNotice(null);
+              grant.reset();
+              revoke.mutate();
+            }}
           >
             {t("dataSettings.supportRevoke")}
           </Button>
@@ -313,11 +337,20 @@ export default function DataSettingsPage() {
             className="min-h-11 self-start"
             disabled={readOnly}
             loading={grant.isPending}
-            onClick={() => grant.mutate({ hours: 24 })}
+            onClick={() => {
+              setNotice(null);
+              revoke.reset();
+              grant.mutate({ hours: 24 });
+            }}
           >
             {t("dataSettings.supportGrant")}
           </Button>
         )}
+        {grant.error || revoke.error ? (
+          <p role="alert" className="error">
+            {(grant.error ?? revoke.error)?.message}
+          </p>
+        ) : null}
       </section>
 
       <section
@@ -341,7 +374,10 @@ export default function DataSettingsPage() {
             <Button
               className="min-h-11 self-start"
               loading={cancelDeletion.isPending}
-              onClick={() => cancelDeletion.mutate()}
+              onClick={() => {
+                setNotice(null);
+                cancelDeletion.mutate();
+              }}
             >
               {t("dataSettings.deletionCancel")}
             </Button>
@@ -358,6 +394,7 @@ export default function DataSettingsPage() {
             disabled={readOnly}
             onClick={() => {
               requestDeletion.reset();
+              setNotice(null);
               setDeletionOpen(true);
             }}
           >

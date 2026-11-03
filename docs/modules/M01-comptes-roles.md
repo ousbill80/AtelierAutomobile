@@ -80,7 +80,7 @@ Permettre à un garage de créer son espace AtelierOS en moins de 10 minutes, d'
 
 **US-M01-11 — En tant que mécanicien sur une tablette partagée, je veux me connecter avec mon code PIN afin de ne pas retaper un mot de passe 10 fois par jour.**
 
-- Étant donné une tablette déclarée « appareil partagé d'atelier » par un `MANAGER`, quand je touche ma photo et tape mon PIN à 4 chiffres, alors une session courte (12 h, limitée au layout `(tech)`) s'ouvre à mon nom.
+- Étant donné une tablette déclarée « appareil partagé d'atelier » par un `MANAGER`, quand je touche ma photo et tape mon PIN à 6 chiffres, alors une session courte (12 h, limitée au layout `(tech)`) s'ouvre à mon nom.
 - Étant donné 5 PIN faux, alors mon PIN est bloqué et je dois me connecter par mot de passe.
 
 **US-M01-12 — En tant que gérant, je veux consulter le journal d'audit afin de savoir qui a annulé une facture ou modifié un prix.**
@@ -138,7 +138,7 @@ Fonction pure `core/auth/permissions.ts#resolvePermissions`. Une permission inco
 
 **RG-M01-13 — Limites de plan** (valeurs par défaut, configurables dans M15) : `STARTER` 5 utilisateurs actifs, 1 site ; `PRO` 15 utilisateurs, 3 sites ; `NETWORK` illimité. Les `Membership` désactivées ne comptent pas.
 
-**RG-M01-14 — PIN atelier.** 4 chiffres, haché (argon2id), refus des suites triviales (0000, 1234, 1111…). Utilisable uniquement sur un appareil enregistré comme partagé (`TrustedDevice.isSharedWorkshopDevice = true`) et uniquement pour les rôles `MECHANIC`, `STOREKEEPER`, `MANAGER`.
+**RG-M01-14 — PIN atelier.** 6 chiffres, haché (argon2id), refus des suites triviales (000000, 123456, 111111…). Utilisable uniquement sur un appareil enregistré comme partagé (`TrustedDevice.isSharedWorkshopDevice = true`) et uniquement pour les rôles `MECHANIC`, `STOREKEEPER`, `MANAGER`.
 
 **RG-M01-15 — Audit.** Toute écriture sensible appelle `audit.log({ action, entity, entityId, before, after, reason })`. M01 journalise : `auth.login.success`, `auth.login.failed`, `auth.locked`, `auth.password_reset`, `auth.otp_new_device`, `member.invited`, `member.joined`, `member.role_changed`, `member.permissions_changed`, `member.sites_changed`, `member.deactivated`, `member.reactivated`, `role.permissions_changed`, `site.created`, `site.updated`, `site.deactivated`, `org.updated`, `session.revoked`, `org.switched`. Les champs secrets (hash, jetons) ne sont jamais copiés dans `before/after`. La table `AuditLog` est en ajout seul : RLS + `REVOKE UPDATE, DELETE` pour le rôle applicatif. Rétention : 5 ans minimum (alignée sur la conservation des pièces comptables).
 

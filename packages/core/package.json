@@ -29,7 +29,14 @@
     "./api": "./src/api/index.ts",
     "./calendar": "./src/calendar.ts",
     "./security/headers": "./src/security/headers.ts",
-    "./observability": "./src/observability/sentryScrub.ts"
+    "./observability": "./src/observability/sentryScrub.ts",
+    "./dueCalendar": "./src/reminders/dueCalendar.ts",
+    "./notifications": "./src/notifications/index.ts",
+    "./auth/pin": "./src/auth/pin.ts",
+    "./reminders/stepLabel": "./src/reminders/stepLabel.ts",
+    "./reminders/dueRemind": "./src/reminders/dueRemind.ts",
+    "./messaging/delivery": "./src/messaging/delivery.ts",
+    "./receivables/formalNotice": "./src/receivables/formalNotice.ts"
   },
   "scripts": {
     "lint": "eslint .",

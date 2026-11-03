@@ -138,6 +138,7 @@ model Organization {
   auditLogs               AuditLog[]
   domainEvents            DomainEvent[]
   notifications           Notification[]
+  pushSubscriptions       PushSubscription[]
   aiInteractions          AiInteraction[]
   aiSuggestions           AiSuggestion[]
   aiAssistantThreads      AiAssistantThread[]
@@ -353,6 +354,7 @@ model Membership {
   importJobsCreated           ImportJob[]           @relation("ImportJobCreatedBy")
   attachmentsCreated          Attachment[]          @relation("AttachmentCreatedBy")
   notifications               Notification[]
+  pushSubscriptions           PushSubscription[]
   aiInteractionsCreated       AiInteraction[]       @relation("AiInteractionCreatedBy")
   aiSuggestionsDecided        AiSuggestion[]        @relation("AiSuggestionDecidedBy")
   aiAssistantThreads          AiAssistantThread[]
@@ -2645,6 +2647,9 @@ model Reminder {
   // M10 §14 — regroupement, priorisation et traçabilité d'envoi (repris dès la Phase 0, cf. 04 §3)
   sequenceKey          String? // "INSPECTION:veh_123:2026-11-02" (sans le palier)
   groupKey             String? // regroupement d'envoi (RG-M10-15)
+  // Canal imposé par l'utilisateur (« Renvoyer par… », « Relancer » sur Créances) : le dispatch
+  // n'utilise que ce canal, sans repli automatique sur un autre.
+  channelLocked        Boolean          @default(false)
   messageId            String? // message M11 portant cette relance (partagé dans un groupe)
   priority             Int              @default(5) // RG-M10-16
   renderedSubject      String?
@@ -3625,12 +3630,35 @@ model Notification {
   // M12 §14 — alertes (RG-M12-27/28)
   severity       String? // info | warning | critical
   dedupeKey      String? // "alert.channel_error:cc_123:2026-10-18" (une fois par objet et par jour)
+  // PWA — notification poussée sur les appareils abonnés (job notifications.push) ; null = à pousser
+  pushedAt       DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id])
   membership   Membership   @relation(fields: [membershipId], references: [id])
 
   @@unique([organizationId, membershipId, dedupeKey])
   @@index([organizationId, membershipId, readAt])
+  @@index([pushedAt, createdAt])
+}
+
+model PushSubscription {
+  // PWA — abonnement Web Push d'un appareil (navigateur / appli installée) pour un membre
+  id             String    @id @default(cuid(2))
+  organizationId String
+  membershipId   String
+  endpoint       String // URL du service de push du navigateur
+  p256dh         String // clé publique de l'appareil (chiffrement du contenu)
+  auth           String // secret d'authentification de l'appareil
+  userAgent      String?
+  createdAt      DateTime  @default(now())
+  lastSuccessAt  DateTime?
+  failureCount   Int       @default(0) // supprimé au 410/404 ou après 5 échecs
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  membership   Membership   @relation(fields: [membershipId], references: [id])
+
+  @@unique([organizationId, endpoint])
+  @@index([organizationId, membershipId])
 }
 
 model AiInteraction {

@@ -17,6 +17,7 @@ import { formatFCFA } from "@atelieros/core/money";
 import { EmptyState } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
+import { EduTip } from "@/components/edu-tip";
 import { t } from "@/components/claims/i18n";
 import { ClaimsNav } from "./nav";
 
@@ -38,12 +39,16 @@ function Tile({
   value,
   href,
   tone,
+  help,
+  example,
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
   value: string;
   href?: string;
   tone?: "accent" | "warn" | "bad";
+  help: string;
+  example: string;
 }) {
   const iconClass =
     tone === "bad"
@@ -53,7 +58,7 @@ function Tile({
         : "bg-accent/10 text-accent";
   const body = (
     <>
-      <span className="flex items-center gap-2 text-xs font-medium text-muted">
+      <span className="flex items-center gap-2 pr-8 text-xs font-medium text-muted">
         <span
           aria-hidden
           className={`flex size-7 items-center justify-center rounded-md ${iconClass}`}
@@ -67,7 +72,7 @@ function Tile({
   );
   const className =
     "flex min-h-24 min-w-0 flex-col justify-between gap-2 rounded-xl border border-border bg-surface p-3 shadow-brand-sm";
-  return href ? (
+  const card = href ? (
     <Link
       href={href}
       className={`${className} transition-colors hover:border-accent/40 hover:bg-surface-2`}
@@ -76,6 +81,14 @@ function Tile({
     </Link>
   ) : (
     <div className={className}>{body}</div>
+  );
+  return (
+    <div className="relative min-w-0">
+      {card}
+      <span className="absolute right-0.5 top-0.5 z-10">
+        <EduTip text={help} example={example} />
+      </span>
+    </div>
   );
 }
 
@@ -153,13 +166,23 @@ export default function InsuranceDashboardPage() {
             label={t("kpi.outstanding")}
             value={formatFCFA(totals.outstanding)}
             tone="accent"
+            help={t("kpiHelp.outstanding")}
+            example={t("kpiExample.outstanding")}
           />
-          <Tile icon={FolderOpen} label={t("kpi.openClaims")} value={String(totals.openClaims)} />
+          <Tile
+            icon={FolderOpen}
+            label={t("kpi.openClaims")}
+            value={String(totals.openClaims)}
+            help={t("kpiHelp.openClaims")}
+            example={t("kpiExample.openClaims")}
+          />
           <Tile
             icon={AlertTriangle}
             label={t("kpi.overdue")}
             value={formatFCFA(totals.over60)}
             tone={totals.over60 > 0 ? "bad" : undefined}
+            help={t("kpiHelp.overdue")}
+            example={t("kpiExample.overdue")}
           />
           <Tile
             icon={Ban}
@@ -167,6 +190,8 @@ export default function InsuranceDashboardPage() {
             value={blocked.data ? String(blocked.data.items.length) : "…"}
             href="/assurances/sinistres?bloques=1"
             tone={blocked.data?.items.length ? "warn" : undefined}
+            help={t("kpiHelp.blocked")}
+            example={t("kpiExample.blocked")}
           />
           {perms.has("claim:followup") && (
             <Tile
@@ -175,6 +200,8 @@ export default function InsuranceDashboardPage() {
               value={followUps.data ? String(followUps.data.length) : "…"}
               href="/assurances/relances"
               tone={followUps.data?.length ? "warn" : undefined}
+              help={t("kpiHelp.followUps")}
+              example={t("kpiExample.followUps")}
             />
           )}
         </section>

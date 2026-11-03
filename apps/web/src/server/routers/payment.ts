@@ -2,13 +2,20 @@
 // paiement, affectation aux factures (plus ancienne d'abord par défaut), recalcul du solde,
 // puis recalcul M09 (dossier, promesses, attribution) et événement `payment.received` (M10).
 import { TRPCError } from "@trpc/server";
-import { allocatePayment, applyAllocation, nextDocumentNumber } from "@atelieros/core";
+import {
+  allocatePayment,
+  applyAllocation,
+  assertPaymentAccount,
+  deliveryState,
+  nextDocumentNumber,
+} from "@atelieros/core";
 import {
   attributeAllocations,
   db,
   evaluateCasePromises,
   syncCustomerReceivables,
   tenantSequenceStore,
+  toAccountLike,
   type InvoiceStatus,
 } from "@atelieros/db";
 import {
@@ -22,12 +29,14 @@ import {
 } from "@atelieros/validators";
 import { z } from "zod";
 import { actorOf, resolveSiteId } from "../billing/context";
+import { RECEIPT_KEY_PREFIX, sendCounterReceipt } from "../billing/receiptSend";
 import {
   allocateLater,
   confirmCheque,
   failCheque,
   planAllocation,
   receiptUrl,
+  lockCustomerInvoices,
   recordCounterPayment,
   voidPayment,
 } from "../billing/payments";
@@ -42,6 +51,20 @@ import {
 import { requirePermission, requireSite, router } from "../trpc";
 
 export const paymentRouter = router({
+  /**
+   * Comptes actifs qui peuvent recevoir un encaissement. Accessible au caissier (`payment:create`)
+   * pour afficher « créez le compte d'abord » avant d'enregistrer.
+   */
+  collectionAccounts: requirePermission("payment:create").query(async ({ ctx }) => {
+    const org = await loadOrgBillingContext(ctx.organizationId);
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    const accounts = await tenantDb.treasuryAccount.findMany({ where: { archivedAt: null } });
+    return {
+      today: org.today.toISOString().slice(0, 10),
+      accounts: accounts.map(toAccountLike),
+    };
+  }),
+
   /** M08 §8 `payment.create` — encaissement au comptoir (caisse, référence, affectation, reçu). */
   create: requirePermission("payment:create")
     .input(createPaymentInputSchema)
@@ -150,11 +173,58 @@ export const paymentRouter = router({
       });
       const hasMore = rows.length > input.limit;
       const items = hasMore ? rows.slice(0, input.limit) : rows;
+      // Dernier envoi du reçu au client et son accusé de réception (✓ envoyé, ✓✓ reçu, lu).
+      const receiptMessages = items.length
+        ? await tenantDb.message.findMany({
+            where: {
+              OR: items.map((p) => ({
+                idempotencyKey: { startsWith: `${RECEIPT_KEY_PREFIX}${p.id}` },
+              })),
+            },
+            orderBy: { createdAt: "desc" },
+            select: {
+              idempotencyKey: true,
+              channel: true,
+              status: true,
+              provider: true,
+              sentAt: true,
+              deliveredAt: true,
+              readAt: true,
+            },
+          })
+        : [];
+      const lastReceipt = new Map<
+        string,
+        { channel: string; state: ReturnType<typeof deliveryState> }
+      >();
+      for (const m of receiptMessages) {
+        const paymentId = m.idempotencyKey?.slice(RECEIPT_KEY_PREFIX.length).split(":")[0];
+        if (paymentId && !lastReceipt.has(paymentId)) {
+          lastReceipt.set(paymentId, { channel: m.channel, state: deliveryState(m) });
+        }
+      }
       return {
-        items: items.map((p) => ({ ...p, receiptUrl: receiptUrl(p.id) })),
+        items: items.map((p) => ({
+          ...p,
+          receiptUrl: receiptUrl(p.id),
+          receiptSent: lastReceipt.get(p.id) ?? null,
+        })),
         nextCursor: hasMore ? items[items.length - 1]!.id : null,
         timeZone: org.timeZone,
       };
+    }),
+
+  /** Envoie le reçu au client (WhatsApp, SMS, ou email avec le PDF) ; accusé ✓✓ ensuite. */
+  sendReceipt: requirePermission("payment:create")
+    .input(
+      z.object({
+        paymentId: z.string().trim().min(1),
+        channel: z.enum(["WHATSAPP", "SMS", "EMAIL"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const org = await loadOrgBillingContext(ctx.organizationId);
+      return sendCounterReceipt(org, { ...input, sentById: ctx.membership.id });
     }),
 
   get: requirePermission("payment:read")
@@ -198,6 +268,7 @@ export const paymentRouter = router({
       const result = await tenantDb.transaction(async (tx) => {
         const customer = await tx.customer.findFirst({ where: { id: input.customerId } });
         if (!customer) notFound("Client introuvable.");
+        await lockCustomerInvoices(tx, customer.id, null, org.now);
         const invoices = await tx.invoice.findMany({
           where: {
             customerId: customer.id,
@@ -228,6 +299,19 @@ export const paymentRouter = router({
           invoices.find((i) => i.id === plan.allocations[0]?.invoiceId)?.siteId ??
           (await defaultSiteId(tx));
         requireSite(ctx, siteId);
+        if (input.method !== "CASH") {
+          const accounts = await tx.treasuryAccount.findMany();
+          try {
+            assertPaymentAccount({
+              method: input.method,
+              siteId,
+              paidOn: input.receivedAt,
+              accounts: accounts.map(toAccountLike),
+            });
+          } catch (error) {
+            rethrowDomain(error);
+          }
+        }
         const number = await nextDocumentNumber(tenantSequenceStore(tx), {
           organizationId: ctx.organizationId,
           docType: "REC",

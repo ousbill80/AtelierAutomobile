@@ -19,26 +19,32 @@ import {
   REMINDER_STOP_EVENT_LABELS,
   REMINDER_TYPE_LABELS,
 } from "../../relances/reminder-labels";
-import { EMPTY_RULE_INPUT } from "./rule-shape";
+import { EMPTY_RULE_INPUT, stepKeyFromOffset } from "./rule-shape";
+import { t } from "@/i18n/t";
 
 type StopEvent = z.infer<typeof reminderStopEventSchema>;
 type CustomerType = "INDIVIDUAL" | "COMPANY";
 type ChannelInput = "WHATSAPP" | "SMS" | "EMAIL";
 
-const DAY_LABELS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const DAY_LABELS = [0, 1, 2, 3, 4, 5, 6].map((day) => t(`reminders.ruleForm.days.${day}`));
 const ANCHOR_LABELS: Record<ReminderStepInput["anchor"], string> = {
-  default: "Par défaut",
-  sentAt: "Date d'envoi du palier précédent",
-  validUntil: "Date de validité",
+  default: t("reminders.ruleForm.anchors.default"),
+  sentAt: t("reminders.ruleForm.anchors.sentAt"),
+  validUntil: t("reminders.ruleForm.anchors.validUntil"),
 };
 const STOP_EVENTS = reminderStopEventSchema.options;
 const CHANNELS: ChannelInput[] = ["WHATSAPP", "SMS", "EMAIL"];
+// Permissions utiles pour soumettre un palier à une validation renforcée (US-M10 :
+// mise en demeure). Simple liste de choix plutôt qu'une saisie libre.
+const STEP_PERMISSIONS = ["reminder:approve", "receivable:formal_notice"] as const;
 
-function newStep(): ReminderStepInput {
+function newStep(previous?: ReminderStepInput): ReminderStepInput {
+  // Les décalages doivent être strictement croissants : on propose « précédent + 7 jours ».
+  const offsetDays = previous ? Math.min(previous.offsetDays + 7, 365) : 0;
   return {
-    key: "",
-    label: "",
-    offsetDays: 0,
+    key: stepKeyFromOffset(offsetDays),
+    label: t("reminders.ruleForm.defaultStepLabel"),
+    offsetDays,
     anchor: "default",
     templateKey: "",
     autoSend: false,
@@ -51,6 +57,9 @@ function newStep(): ReminderStepInput {
 export function RuleForm({ initial }: { initial?: ReminderRuleUpsertInput }) {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const me = trpc.me.get.useQuery(undefined, { staleTime: 60_000 });
+  const canManage = (me.data?.permissions ?? []).includes("reminder:rules_manage");
+  const templates = trpc.template.list.useQuery({}, { staleTime: 60_000 });
   const [rule, setRule] = useState<ReminderRuleUpsertInput>(initial ?? EMPTY_RULE_INPUT);
   const isEditing = Boolean(initial?.id);
 
@@ -78,7 +87,32 @@ export function RuleForm({ initial }: { initial?: ReminderRuleUpsertInput }) {
   }
 
   function addStep() {
-    setRule((r) => ({ ...r, steps: [...r.steps, newStep()] }));
+    setRule((r) => ({ ...r, steps: [...r.steps, newStep(r.steps[r.steps.length - 1])] }));
+  }
+
+  /** La clé suit le décalage tant qu'elle n'a pas été personnalisée. */
+  function updateOffset(index: number, offsetDays: number) {
+    const step = rule.steps[index];
+    if (!step) return;
+    const autoKey = !step.key || step.key === stepKeyFromOffset(step.offsetDays);
+    updateStep(index, {
+      offsetDays,
+      ...(autoKey && Number.isFinite(offsetDays) ? { key: stepKeyFromOffset(offsetDays) } : {}),
+    });
+  }
+
+  /** Modèles proposés pour un palier : ceux de ses canaux (tous si aucun canal), clé unique. */
+  function templateOptions(step: ReminderStepInput): { key: string; name: string }[] {
+    const byKey = new Map<string, string>();
+    for (const tpl of templates.data ?? []) {
+      if (step.channels.length > 0 && !step.channels.includes(tpl.channel as ChannelInput)) {
+        continue;
+      }
+      if (!byKey.has(tpl.key)) byKey.set(tpl.key, tpl.name);
+    }
+    return [...byKey.entries()]
+      .map(([key, name]) => ({ key, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }
 
   function toggleDay(day: number) {
@@ -128,315 +162,358 @@ export function RuleForm({ initial }: { initial?: ReminderRuleUpsertInput }) {
         upsert.mutate(rule);
       }}
     >
+      {me.data && !canManage && (
+        <p className="rounded-md bg-surface-2 p-3 text-sm text-muted">
+          {t("reminders.rules.readOnly")}
+        </p>
+      )}
       {upsert.error && (
-        <p className="rounded-md bg-status-bad-bg p-3 text-sm text-status-bad">
+        <p role="alert" className="rounded-md bg-status-bad-bg p-3 text-sm text-status-bad">
           {upsert.error.message}
         </p>
       )}
 
-      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-        <h2 className="font-semibold">Général</h2>
-        <Input
-          label="Nom de la règle"
-          value={rule.name}
-          onChange={(e) => setRule((r) => ({ ...r, name: e.target.value }))}
-          required
-        />
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Type
-          <select
-            className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm disabled:opacity-60"
-            value={rule.type}
-            disabled={isEditing}
-            onChange={(e) =>
-              setRule((r) => ({ ...r, type: e.target.value as ReminderRuleUpsertInput["type"] }))
-            }
-          >
-            {Object.entries(REMINDER_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          {isEditing && (
-            <span className="text-xs text-muted">
-              Le type ne peut pas être modifié après création.
-            </span>
-          )}
-        </label>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="h-5 w-5"
-            checked={rule.isActive}
-            onChange={(e) => setRule((r) => ({ ...r, isActive: e.target.checked }))}
+      <fieldset disabled={!canManage} className="flex flex-col gap-6">
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          <h2 className="font-semibold">{t("reminders.ruleForm.general")}</h2>
+          <Input
+            label={t("reminders.ruleForm.name")}
+            value={rule.name}
+            onChange={(e) => setRule((r) => ({ ...r, name: e.target.value }))}
+            required
           />
-          Règle active
-        </label>
-      </section>
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            {t("reminders.ruleForm.type")}
+            <select
+              className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm disabled:opacity-60"
+              value={rule.type}
+              disabled={isEditing}
+              onChange={(e) =>
+                setRule((r) => ({ ...r, type: e.target.value as ReminderRuleUpsertInput["type"] }))
+              }
+            >
+              {Object.entries(REMINDER_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {isEditing && (
+              <span className="text-xs text-muted">{t("reminders.ruleForm.typeLocked")}</span>
+            )}
+          </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-5 w-5"
+              checked={rule.isActive}
+              onChange={(e) => setRule((r) => ({ ...r, isActive: e.target.checked }))}
+            />
+            {t("reminders.ruleForm.active")}
+          </label>
+        </section>
 
-      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-        <h2 className="font-semibold">Fenêtre d&apos;envoi</h2>
-        <div className="flex flex-wrap gap-3">
-          {DAY_LABELS.map((label, day) => (
-            <label key={day} className="flex min-h-11 items-center gap-1.5 text-sm">
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          <h2 className="font-semibold">{t("reminders.ruleForm.sendWindow")}</h2>
+          <div className="flex flex-wrap gap-3">
+            {DAY_LABELS.map((label, day) => (
+              <label key={day} className="flex min-h-11 items-center gap-1.5 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5"
+                  checked={rule.sendWindow.days.includes(day)}
+                  onChange={() => toggleDay(day)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              {t("reminders.ruleForm.from")}
               <input
-                type="checkbox"
-                className="h-5 w-5"
-                checked={rule.sendWindow.days.includes(day)}
-                onChange={() => toggleDay(day)}
+                type="time"
+                required
+                className="min-h-11 w-32 rounded-md border border-border bg-surface px-3 text-sm"
+                value={rule.sendWindow.from}
+                onChange={(e) =>
+                  setRule((r) => ({ ...r, sendWindow: { ...r.sendWindow, from: e.target.value } }))
+                }
               />
-              {label}
             </label>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            De
+            <label className="flex flex-col gap-1 text-sm">
+              {t("reminders.ruleForm.to")}
+              <input
+                type="time"
+                required
+                className="min-h-11 w-32 rounded-md border border-border bg-surface px-3 text-sm"
+                value={rule.sendWindow.to}
+                onChange={(e) =>
+                  setRule((r) => ({ ...r, sendWindow: { ...r.sendWindow, to: e.target.value } }))
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              {t("reminders.ruleForm.preferredTime")}
+              <input
+                type="time"
+                required
+                className="min-h-11 w-32 rounded-md border border-border bg-surface px-3 text-sm"
+                value={rule.sendWindow.preferredTime}
+                onChange={(e) =>
+                  setRule((r) => ({
+                    ...r,
+                    sendWindow: { ...r.sendWindow, preferredTime: e.target.value },
+                  }))
+                }
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          <h2 className="font-semibold">{t("reminders.ruleForm.conditions")}</h2>
+          <div className="flex flex-wrap gap-3">
+            {(["INDIVIDUAL", "COMPANY"] as const).map((type) => (
+              <label key={type} className="flex min-h-11 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5"
+                  checked={rule.conditions.customerTypes?.includes(type) ?? false}
+                  onChange={() => toggleCustomerType(type)}
+                />
+                {type === "INDIVIDUAL"
+                  ? t("reminders.ruleForm.individuals")
+                  : t("reminders.ruleForm.companies")}
+              </label>
+            ))}
+          </div>
+          <label className="flex max-w-xs flex-col gap-1 text-sm font-medium">
+            {t("reminders.ruleForm.minAmount")}
             <input
-              type="text"
-              placeholder="08:00"
-              className="min-h-11 w-24 rounded-md border border-border bg-surface px-3 text-sm"
-              value={rule.sendWindow.from}
-              onChange={(e) =>
-                setRule((r) => ({ ...r, sendWindow: { ...r.sendWindow, from: e.target.value } }))
-              }
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            À
-            <input
-              type="text"
-              placeholder="19:00"
-              className="min-h-11 w-24 rounded-md border border-border bg-surface px-3 text-sm"
-              value={rule.sendWindow.to}
-              onChange={(e) =>
-                setRule((r) => ({ ...r, sendWindow: { ...r.sendWindow, to: e.target.value } }))
-              }
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Heure préférée
-            <input
-              type="text"
-              placeholder="09:00"
-              className="min-h-11 w-24 rounded-md border border-border bg-surface px-3 text-sm"
-              value={rule.sendWindow.preferredTime}
+              type="number"
+              min={0}
+              className="min-h-11 rounded-md border border-border bg-surface px-3 text-sm"
+              value={rule.conditions.minAmount ?? ""}
               onChange={(e) =>
                 setRule((r) => ({
                   ...r,
-                  sendWindow: { ...r.sendWindow, preferredTime: e.target.value },
+                  conditions: {
+                    ...r.conditions,
+                    minAmount: e.target.value ? Number(e.target.value) : undefined,
+                  },
                 }))
               }
             />
           </label>
-        </div>
-      </section>
+        </section>
 
-      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-        <h2 className="font-semibold">Conditions</h2>
-        <div className="flex flex-wrap gap-3">
-          {(["INDIVIDUAL", "COMPANY"] as const).map((type) => (
-            <label key={type} className="flex min-h-11 items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="h-5 w-5"
-                checked={rule.conditions.customerTypes?.includes(type) ?? false}
-                onChange={() => toggleCustomerType(type)}
-              />
-              {type === "INDIVIDUAL" ? "Particuliers" : "Entreprises"}
-            </label>
-          ))}
-        </div>
-        <label className="flex max-w-xs flex-col gap-1 text-sm font-medium">
-          Montant minimum (FCFA)
-          <input
-            type="number"
-            min={0}
-            className="min-h-11 rounded-md border border-border bg-surface px-3 text-sm"
-            value={rule.conditions.minAmount ?? ""}
-            onChange={(e) =>
-              setRule((r) => ({
-                ...r,
-                conditions: {
-                  ...r.conditions,
-                  minAmount: e.target.value ? Number(e.target.value) : undefined,
-                },
-              }))
-            }
-          />
-        </label>
-      </section>
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          <h2 className="font-semibold">{t("reminders.ruleForm.stopTitle")}</h2>
+          <p className="text-sm text-muted">{t("reminders.ruleForm.stopHint")}</p>
+          <div className="flex flex-wrap gap-3">
+            {STOP_EVENTS.map((event) => (
+              <label key={event} className="flex min-h-11 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5"
+                  checked={rule.stopOn.includes(event)}
+                  onChange={() => toggleStopEvent(event)}
+                />
+                {REMINDER_STOP_EVENT_LABELS[event] ?? event}
+              </label>
+            ))}
+          </div>
+        </section>
 
-      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-        <h2 className="font-semibold">Arrêt de la séquence</h2>
-        <p className="text-sm text-muted">
-          La séquence s&apos;arrête automatiquement si l&apos;un de ces événements survient.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          {STOP_EVENTS.map((event) => (
-            <label key={event} className="flex min-h-11 items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="h-5 w-5"
-                checked={rule.stopOn.includes(event)}
-                onChange={() => toggleStopEvent(event)}
-              />
-              {REMINDER_STOP_EVENT_LABELS[event] ?? event}
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">Paliers</h2>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={addStep}
-            disabled={rule.steps.length >= 8}
-          >
-            + Ajouter un palier
-          </Button>
-        </div>
-        <p className="text-sm text-muted">
-          Les décalages (jours par rapport à l&apos;échéance) doivent être strictement croissants
-          d&apos;un palier à l&apos;autre.
-        </p>
-        <div className="flex flex-col gap-4">
-          {rule.steps.map((step, index) => (
-            <div key={index} className="flex flex-col gap-3 rounded-md border border-border p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Palier {index + 1}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => removeStep(index)}
-                  disabled={rule.steps.length <= 1}
-                >
-                  Supprimer
-                </Button>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Input
-                  label="Clé"
-                  value={step.key}
-                  onChange={(e) => updateStep(index, { key: e.target.value.toUpperCase() })}
-                />
-                <Input
-                  label="Libellé"
-                  value={step.label}
-                  onChange={(e) => updateStep(index, { label: e.target.value })}
-                />
-                <Input
-                  label="Décalage (jours)"
-                  type="number"
-                  value={step.offsetDays}
-                  onChange={(e) => updateStep(index, { offsetDays: Number(e.target.value) })}
-                />
-                <Input
-                  label="Décalage (heures, facultatif)"
-                  type="number"
-                  value={step.offsetHours ?? ""}
-                  onChange={(e) =>
-                    updateStep(index, {
-                      offsetHours: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                />
-                <label className="flex flex-col gap-1 text-sm font-medium">
-                  Ancre
-                  <select
-                    className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm"
-                    value={step.anchor}
+        <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">{t("reminders.ruleForm.steps")}</h2>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addStep}
+              disabled={rule.steps.length >= 8}
+            >
+              {t("reminders.ruleForm.addStep")}
+            </Button>
+          </div>
+          <p className="text-sm text-muted">{t("reminders.ruleForm.stepsHint")}</p>
+          <div className="flex flex-col gap-4">
+            {rule.steps.map((step, index) => (
+              <div key={index} className="flex flex-col gap-3 rounded-md border border-border p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">
+                    {t("reminders.ruleForm.stepN", { n: index + 1 })}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => removeStep(index)}
+                    disabled={rule.steps.length <= 1}
+                  >
+                    {t("reminders.ruleForm.remove")}
+                  </Button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Input
+                    label={t("reminders.ruleForm.key")}
+                    value={step.key}
+                    onChange={(e) => updateStep(index, { key: e.target.value.toUpperCase() })}
+                  />
+                  <Input
+                    label={t("reminders.ruleForm.label")}
+                    value={step.label}
+                    onChange={(e) => updateStep(index, { label: e.target.value })}
+                  />
+                  <Input
+                    label={t("reminders.ruleForm.offsetDays")}
+                    type="number"
+                    value={step.offsetDays}
+                    onChange={(e) => updateOffset(index, Number(e.target.value))}
+                  />
+                  <Input
+                    label={t("reminders.ruleForm.offsetHours")}
+                    type="number"
+                    value={step.offsetHours ?? ""}
                     onChange={(e) =>
-                      updateStep(index, { anchor: e.target.value as ReminderStepInput["anchor"] })
+                      updateStep(index, {
+                        offsetHours: e.target.value ? Number(e.target.value) : undefined,
+                      })
                     }
-                  >
-                    {Object.entries(ANCHOR_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
+                  />
+                  <label className="flex flex-col gap-1 text-sm font-medium">
+                    {t("reminders.ruleForm.anchor")}
+                    <select
+                      className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm"
+                      value={step.anchor}
+                      onChange={(e) =>
+                        updateStep(index, { anchor: e.target.value as ReminderStepInput["anchor"] })
+                      }
+                    >
+                      {Object.entries(ANCHOR_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm font-medium">
+                    {t("reminders.ruleForm.templateKey")}
+                    <select
+                      className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm"
+                      value={step.templateKey}
+                      required
+                      onChange={(e) => updateStep(index, { templateKey: e.target.value })}
+                    >
+                      <option value="">
+                        {templates.isLoading
+                          ? t("reminders.ruleForm.templatesLoading")
+                          : t("reminders.ruleForm.templatePlaceholder")}
                       </option>
-                    ))}
-                  </select>
-                </label>
-                <Input
-                  label="Modèle (templateKey)"
-                  value={step.templateKey}
-                  onChange={(e) => updateStep(index, { templateKey: e.target.value })}
-                />
-                <Input
-                  label="Permission requise (facultatif)"
-                  value={step.requiresPermission ?? ""}
-                  onChange={(e) =>
-                    updateStep(index, { requiresPermission: e.target.value || undefined })
-                  }
-                />
-                <Input
-                  label="Rattrapage (jours, facultatif)"
-                  type="number"
-                  value={step.catchUpDays ?? ""}
-                  onChange={(e) =>
-                    updateStep(index, {
-                      catchUpDays: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                />
-                <Input
-                  label="Heure d'envoi imposée (HH:mm, facultatif)"
-                  placeholder="09:00"
-                  value={step.sendAt ?? ""}
-                  onChange={(e) => updateStep(index, { sendAt: e.target.value || undefined })}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5"
-                    checked={step.autoSend}
-                    onChange={(e) => updateStep(index, { autoSend: e.target.checked })}
+                      {step.templateKey &&
+                        !templateOptions(step).some((o) => o.key === step.templateKey) && (
+                          <option value={step.templateKey}>
+                            {t("reminders.ruleForm.templateMissing", { key: step.templateKey })}
+                          </option>
+                        )}
+                      {templateOptions(step).map((option) => (
+                        <option key={option.key} value={option.key}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm font-medium">
+                    {t("reminders.ruleForm.permission")}
+                    <select
+                      className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm"
+                      value={step.requiresPermission ?? ""}
+                      onChange={(e) =>
+                        updateStep(index, { requiresPermission: e.target.value || undefined })
+                      }
+                    >
+                      <option value="">{t("reminders.ruleForm.permissionNone")}</option>
+                      {step.requiresPermission &&
+                        !(STEP_PERMISSIONS as readonly string[]).includes(
+                          step.requiresPermission,
+                        ) && (
+                          <option value={step.requiresPermission}>{step.requiresPermission}</option>
+                        )}
+                      {STEP_PERMISSIONS.map((permission) => (
+                        <option key={permission} value={permission}>
+                          {t(`permissions.${permission}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Input
+                    label={t("reminders.ruleForm.catchUp")}
+                    type="number"
+                    value={step.catchUpDays ?? ""}
+                    onChange={(e) =>
+                      updateStep(index, {
+                        catchUpDays: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
                   />
-                  Envoi automatique
-                </label>
-                <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5"
-                    checked={step.internalOnly}
-                    onChange={(e) => updateStep(index, { internalOnly: e.target.checked })}
+                  <Input
+                    label={t("reminders.ruleForm.sendAt")}
+                    type="time"
+                    value={step.sendAt ?? ""}
+                    onChange={(e) => updateStep(index, { sendAt: e.target.value || undefined })}
                   />
-                  Interne uniquement (alerte, pas d&apos;envoi client)
-                </label>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                {CHANNELS.map((channel) => (
-                  <label
-                    key={channel}
-                    className={`flex min-h-11 items-center gap-2 text-sm ${step.internalOnly ? "opacity-50" : ""}`}
-                  >
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
                     <input
                       type="checkbox"
                       className="h-5 w-5"
-                      checked={step.channels.includes(channel)}
-                      disabled={step.internalOnly}
-                      onChange={() => toggleStepChannel(index, channel)}
+                      checked={step.autoSend}
+                      onChange={(e) => updateStep(index, { autoSend: e.target.checked })}
                     />
-                    {REMINDER_CHANNEL_LABELS[channel]}
+                    {t("reminders.ruleForm.autoSend")}
                   </label>
-                ))}
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5"
+                      checked={step.internalOnly}
+                      onChange={(e) => updateStep(index, { internalOnly: e.target.checked })}
+                    />
+                    {t("reminders.ruleForm.internalOnly")}
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  {CHANNELS.map((channel) => (
+                    <label
+                      key={channel}
+                      className={`flex min-h-11 items-center gap-2 text-sm ${step.internalOnly ? "opacity-50" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5"
+                        checked={step.channels.includes(channel)}
+                        disabled={step.internalOnly}
+                        onChange={() => toggleStepChannel(index, channel)}
+                      />
+                      {REMINDER_CHANNEL_LABELS[channel]}
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      </fieldset>
 
-      <div className="flex gap-3">
-        <Button type="submit" disabled={upsert.isPending}>
-          Enregistrer
-        </Button>
-      </div>
+      {canManage && (
+        <div className="flex gap-3">
+          <Button type="submit" disabled={upsert.isPending}>
+            {t("reminders.ruleForm.save")}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

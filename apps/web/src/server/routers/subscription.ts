@@ -26,6 +26,9 @@ import { writeAuditLog } from "../audit";
 import { enqueueOrgExportJob } from "../plan/exportQueue";
 import { requirePermission, router } from "../trpc";
 
+/** Libellés français des offres pour les messages d'erreur (cf. `subscription.plans` côté web). */
+const PLAN_LABELS: Record<PlanTier, string> = { STARTER: "Starter", PRO: "Pro", NETWORK: "Réseau" };
+
 // M15 §8 — `plan.*` (US-M15-07, RG-M15-19/20), `dataExport.*` (US-M15-08, RG-M15-21) et
 // `support.*` (RG-M15-27). Toutes réservées à `settings:billing` (OWNER).
 
@@ -91,7 +94,7 @@ export const planRouter = router({
       if (input.targetPlan === current) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Vous êtes déjà sur l'offre ${current}.`,
+          message: `Vous êtes déjà sur l'offre ${PLAN_LABELS[current]}.`,
         });
       }
 

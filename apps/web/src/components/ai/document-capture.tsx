@@ -22,9 +22,13 @@ export type ExtractedFields = ExtractionResult["fields"];
 interface DocumentCaptureProps {
   kinds: DocumentKind[];
   onExtracted: (result: ExtractionResult, kind: DocumentKind) => void;
+  /** Remplace « Photographier un document » quand le contexte est précis (compteur, etc.). */
+  label?: string;
+  /** Bouton seul, sans le cadre en pointillés. */
+  compact?: boolean;
 }
 
-export function DocumentCapture({ kinds, onExtracted }: DocumentCaptureProps) {
+export function DocumentCapture({ kinds, onExtracted, label, compact }: DocumentCaptureProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<DocumentKind>(kinds[0]!);
   const [message, setMessage] = useState<{ tone: "warn" | "bad" | "ok"; text: string } | null>(
@@ -71,7 +75,13 @@ export function DocumentCapture({ kinds, onExtracted }: DocumentCaptureProps) {
   const disabled = extract.isPending || Boolean(unavailableReason) || status.isLoading;
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border p-4 sm:p-5">
+    <div
+      className={
+        compact
+          ? "flex flex-col gap-2"
+          : "flex flex-col gap-3 rounded-lg border border-dashed border-border p-4 sm:p-5"
+      }
+    >
       <div className="flex flex-wrap items-center gap-3">
         {kinds.length > 1 && (
           <select
@@ -96,7 +106,7 @@ export function DocumentCapture({ kinds, onExtracted }: DocumentCaptureProps) {
           data-testid="document-capture"
         >
           <Sparkles className="size-4" aria-hidden />
-          {extract.isPending ? t("aiExtraction.reading") : t("aiExtraction.take")}
+          {extract.isPending ? t("aiExtraction.reading") : (label ?? t("aiExtraction.take"))}
         </button>
         <input
           ref={inputRef}

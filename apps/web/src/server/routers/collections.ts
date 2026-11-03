@@ -11,6 +11,8 @@ import {
   customerExposure,
   daysOverdue,
   diffDays,
+  formalNoticeDeliveryError,
+  formatFCFA,
   isUnreachable,
   MAX_PAUSE_DAYS,
   OPEN_INVOICE_STATUSES,
@@ -27,6 +29,11 @@ import {
   assignCaseInputSchema,
   cancelPromiseInputSchema,
   caseIdInputSchema,
+  formalNoticeDeliveredInputSchema,
+  formalNoticeSendInputSchema,
+  remindBulkInputSchema,
+  remindNowInputSchema,
+  remindPreviewInputSchema,
   creditCheckInputSchema,
   escalateCaseInputSchema,
   listCasesInputSchema,
@@ -42,6 +49,23 @@ import {
 } from "@atelieros/validators";
 import { z } from "zod";
 import { writeAuditLog } from "../audit";
+import { deliveriesFor } from "../messaging/delivery";
+import { messagingEnqueue } from "../messaging/enqueue";
+import { enqueueMessageSendJob } from "../messaging/queue";
+import { getAttachmentStorage } from "../storage";
+import {
+  FORMAL_NOTICE_KEY_PREFIX,
+  buildFormalNotice,
+  formalNoticeSendings,
+  renderFormalNotice,
+} from "../receivables/formalNotice";
+import {
+  channelsToSend,
+  createCaseReminders,
+  loadCandidates,
+  loadChannelModes,
+  requireReceivableRule,
+} from "../receivables/remind";
 import { emitDomainEvent } from "../events/emit";
 import {
   isoToDate,
@@ -69,13 +93,58 @@ async function cancelPendingReceivableReminders(tx: Scoped, customerId: string, 
   });
 }
 
+/**
+ * Le job de nuit ouvre les dossiers. S'il n'a pas tourné, la balance âgée
+ * montre déjà l'argent dû alors que la liste (qui ne lit que les dossiers) reste vide.
+ * On rattrape ici les clients dont une facture est échue sans dossier actif.
+ */
+async function ensureOverdueCases(
+  tenantDb: ReturnType<typeof db.forTenant>,
+  organizationId: string,
+  org: Awaited<ReturnType<typeof loadOrgCollectionContext>>,
+) {
+  const overdue = await tenantDb.invoice.findMany({
+    where: {
+      billTo: "CUSTOMER",
+      type: { in: ["INVOICE", "DEPOSIT"] },
+      status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] },
+      balance: { gt: 0 },
+      dueDate: { lt: org.today },
+    },
+    select: { customerId: true },
+    distinct: ["customerId"],
+  });
+  if (overdue.length === 0) return;
+  const customerIds = overdue.map((invoice) => invoice.customerId);
+  const existing = await tenantDb.collectionCase.findMany({
+    where: { customerId: { in: customerIds }, status: { in: [...ACTIVE_STATUSES] } },
+    select: { customerId: true },
+  });
+  const covered = new Set(existing.map((row) => row.customerId));
+  const missing = customerIds.filter((id) => !covered.has(id));
+  if (missing.length === 0) return;
+  await tenantDb.transaction(async (tx) => {
+    for (const customerId of missing) {
+      await syncCustomerReceivables(tx, {
+        organizationId,
+        customerId,
+        today: org.today,
+        now: org.now,
+        settings: org.settings,
+      });
+    }
+  });
+}
+
 function tabWhere(tab: string): Prisma.CollectionCaseWhereInput {
   switch (tab) {
+    // « À traiter » : il faut une action humaine (appel, visite, décision). Toujours un dossier
+    // actif : un dossier soldé ou passé en perte n'y figure jamais.
     case "TO_HANDLE":
       return {
         OR: [
           { status: "ESCALATED" },
-          { unreachableCount: { gte: 3 } },
+          { status: { in: ["OPEN", "PROMISED"] }, unreachableCount: { gte: 3 } },
           { status: "OPEN", brokenPromiseCount: { gt: 0 } },
         ],
       };
@@ -148,6 +217,7 @@ export const collectionsRouter = router({
     .query(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const org = await loadOrgCollectionContext(ctx.organizationId);
+      await ensureOverdueCases(tenantDb, ctx.organizationId, org);
       const where: Prisma.CollectionCaseWhereInput = {
         AND: [
           tabWhere(input.tab),
@@ -177,8 +247,71 @@ export const collectionsRouter = router({
         },
       });
       const hasMore = rows.length > input.limit;
-      const items = rows.slice(0, input.limit).map((c) => ({
+      const page = rows.slice(0, input.limit);
+      // Nombre de dossiers par onglet (affiché sur les onglets), même recherche et même tranche.
+      const counts: Record<string, number> = {};
+      for (const tabKey of ["ALL", "TO_HANDLE", "PROMISES", "DISPUTES", "WRITTEN_OFF"]) {
+        counts[tabKey] = await tenantDb.collectionCase.count({
+          where: {
+            AND: [
+              tabWhere(tabKey),
+              input.search
+                ? { customer: { displayName: { contains: input.search, mode: "insensitive" } } }
+                : {},
+              input.bucket ? bucketCaseWhere(input.bucket) : {},
+            ],
+          },
+        });
+      }
+      // Dernière relance de créance par client (envoyée, en cours ou programmée) : l'écran
+      // montre « Relancé le … » et évite de relancer deux fois sans le savoir.
+      const recentReminders = await tenantDb.reminder.findMany({
+        where: {
+          type: "RECEIVABLE",
+          customerId: { in: page.map((c) => c.customerId) },
+          status: { in: ["SENT", "QUEUED", "PLANNED", "NEEDS_APPROVAL"] },
+        },
+        orderBy: { scheduledFor: "desc" },
+        select: {
+          customerId: true,
+          status: true,
+          sentAt: true,
+          scheduledFor: true,
+          channel: true,
+          messageId: true,
+        },
+      });
+      const lastReminderByCustomer = new Map<string, (typeof recentReminders)[number]>();
+      for (const reminder of recentReminders) {
+        if (!lastReminderByCustomer.has(reminder.customerId)) {
+          lastReminderByCustomer.set(reminder.customerId, reminder);
+        }
+      }
+      const deliveries = await deliveriesFor(
+        tenantDb,
+        [...lastReminderByCustomer.values()]
+          .map((r) => r.messageId)
+          .filter((id): id is string => !!id),
+      );
+      const items = page.map((c) => ({
         id: c.id,
+        lastReminder: (() => {
+          const r = lastReminderByCustomer.get(c.customerId);
+          return r
+            ? {
+                state:
+                  r.status === "SENT"
+                    ? ("sent" as const)
+                    : r.status === "NEEDS_APPROVAL"
+                      ? ("toApprove" as const)
+                      : ("pending" as const),
+                pending: r.status === "PLANNED" || r.status === "QUEUED",
+                at: r.sentAt ?? r.scheduledFor,
+                channel: r.channel,
+                delivery: r.messageId ? (deliveries.get(r.messageId)?.state ?? null) : null,
+              }
+            : null;
+        })(),
         status: c.status,
         stage: c.stage,
         customer: c.customer,
@@ -193,7 +326,7 @@ export const collectionsRouter = router({
         unreachable: isUnreachable(c.unreachableCount),
         brokenPromiseCount: c.brokenPromiseCount,
       }));
-      return { items, nextCursor: hasMore ? items[items.length - 1]!.id : null };
+      return { items, counts, nextCursor: hasMore ? items[items.length - 1]!.id : null };
     }),
 
   listInvoices: requirePermission("receivable:read")
@@ -219,6 +352,7 @@ export const collectionsRouter = router({
           id: i.id,
           number: i.number,
           customer: i.customer,
+          caseId: i.collectionCaseId,
           issuedAt: i.issuedAt,
           dueDate: i.dueDate,
           total: i.total,
@@ -289,9 +423,15 @@ export const collectionsRouter = router({
             sentAt: true,
             dueDate: true,
             skippedReason: true,
+            channel: true,
+            messageId: true,
           },
         }),
       ]);
+      const reminderDeliveries = await deliveriesFor(
+        tenantDb,
+        reminders.map((r) => r.messageId).filter((id): id is string => !!id),
+      );
       const exposure = customerExposure(invoices as unknown as AgingInvoice[], org.today);
       const credit = creditCheck({
         totalDue: exposure.totalDue,
@@ -310,11 +450,167 @@ export const collectionsRouter = router({
           bucket: ageBucket(daysOverdue(i.dueDate, org.today)),
         })),
         payments,
-        reminders,
+        reminders: reminders.map((r) => ({
+          ...r,
+          delivery: r.messageId ? (reminderDeliveries.get(r.messageId)?.state ?? null) : null,
+        })),
         exposure,
         credit,
+        formalNotice: {
+          issuedAt: kase.formalNoticeAt,
+          deliveredAt: kase.formalNoticeDeliveredAt,
+          method: kase.formalNoticeMethod,
+          sendings: await formalNoticeSendings(tenantDb, kase.id),
+        },
         today: org.today.toISOString().slice(0, 10),
       };
+    }),
+
+  /** M09 RG-M09-16 — envoie la mise en demeure par email (PDF joint, accusé de réception). */
+  formalNoticeSend: requirePermission("receivable:formal_notice")
+    .input(formalNoticeSendInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const org = await loadOrgCollectionContext(ctx.organizationId);
+      const kase = await tenantDb.collectionCase.findFirst({ where: { id: input.caseId } });
+      if (!kase) notFound();
+      if (!["OPEN", "PROMISED", "ESCALATED"].includes(kase.status)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Ce dossier n'est pas en cours (litige, pause ou clos) : pas de mise en demeure.",
+        });
+      }
+      const customer = await tenantDb.customer.findFirstOrThrow({
+        where: { id: kase.customerId },
+        select: {
+          id: true,
+          displayName: true,
+          email: true,
+          contacts: {
+            where: { deletedAt: null, receivesInvoices: true, email: { not: null } },
+            select: { email: true },
+          },
+        },
+      });
+      const email = customer.contacts[0]?.email ?? customer.email;
+      if (!email) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Ce client n'a pas d'email : téléchargez le PDF, imprimez-le et remettez-le en main propre ou par huissier, puis « Marquer comme remise ».",
+        });
+      }
+      const notice = await buildFormalNotice(tenantDb, ctx.organizationId, kase.id, org.today);
+      const pdf = await renderFormalNotice(notice.data);
+      const key = `${ctx.organizationId}/formal-notices/${kase.id}/${notice.fileName}`;
+      await getAttachmentStorage().upload({
+        key,
+        body: pdf,
+        contentType: "application/pdf",
+        maxBytes: 5_000_000,
+      });
+      const deadline = notice.data.deadline.split("-").reverse().join("/");
+      const result = await tenantDb.transaction(async (tx) => {
+        const sent = await messagingEnqueue(tx, ctx.organizationId, {
+          idempotencyKey: `${FORMAL_NOTICE_KEY_PREFIX}${kase.id}:EMAIL:${org.now.getTime()}`,
+          kind: "transactional",
+          customerId: customer.id,
+          to: { email, name: customer.displayName },
+          channels: ["EMAIL"],
+          subjectOverride: `Mise en demeure de payer — ${notice.data.garage.legalName || notice.data.garage.name}`,
+          bodyOverride: `Bonjour,\n\nVeuillez trouver ci-joint une mise en demeure de régler la somme de ${formatFCFA(notice.data.totalDue)} au plus tard le ${deadline}.\n\nSi vous avez déjà réglé, merci de ne pas tenir compte de ce message.\n\n${notice.data.signerName}\n${notice.data.garage.legalName || notice.data.garage.name}`,
+          attachments: [{ kind: "pdf", storageKey: key, filename: notice.fileName }],
+          sentById: ctx.membership.id,
+        });
+        if (!("message" in sent)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "L'email n'est pas configuré (Paramètres › Canaux) : téléchargez le PDF et remettez-le en main propre.",
+          });
+        }
+        await tx.collectionCase.update({
+          where: { id: kase.id },
+          data: { formalNoticeAt: kase.formalNoticeAt ?? org.now },
+        });
+        await tx.collectionNote.create({
+          data: {
+            organizationId: ctx.organizationId,
+            collectionCaseId: kase.id,
+            type: "note",
+            body: `Mise en demeure envoyée par email à ${email} (paiement attendu avant le ${deadline}).`,
+            createdById: ctx.membership.id,
+          },
+        });
+        return sent.message;
+      });
+      await enqueueMessageSendJob(result.id);
+      await writeAuditLog({
+        organizationId: ctx.organizationId,
+        userId: ctx.user.id,
+        membershipId: ctx.membership.id,
+        action: "receivable.formal_notice_sent",
+        entity: "CollectionCase",
+        entityId: kase.id,
+        reason: `Mise en demeure envoyée par email (${formatFCFA(notice.data.totalDue)}).`,
+        after: { channel: "EMAIL", to: email, messageId: result.id },
+        ip: ctx.ip,
+      });
+      return { messageId: result.id, to: email };
+    }),
+
+  /** « Marquer comme remise » : accusé de réception (date et mode de remise). */
+  formalNoticeDelivered: requirePermission("receivable:formal_notice")
+    .input(formalNoticeDeliveredInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const org = await loadOrgCollectionContext(ctx.organizationId);
+      const kase = await tenantDb.collectionCase.findFirst({ where: { id: input.caseId } });
+      if (!kase) notFound();
+      const deliveredOn = isoToDate(input.deliveredOn);
+      const problem = formalNoticeDeliveryError({
+        deliveredOn,
+        issuedAt: kase.formalNoticeAt,
+        today: org.today,
+      });
+      if (problem) throw new TRPCError({ code: "BAD_REQUEST", message: problem });
+      const METHOD_LABEL: Record<string, string> = {
+        email: "par email",
+        whatsapp: "par WhatsApp",
+        hand: "en main propre",
+        bailiff: "par huissier",
+        registered_mail: "par lettre recommandée",
+      };
+      await tenantDb.collectionCase.update({
+        where: { id: kase.id },
+        data: {
+          formalNoticeAt: kase.formalNoticeAt ?? deliveredOn,
+          formalNoticeDeliveredAt: deliveredOn,
+          formalNoticeMethod: input.method,
+        },
+      });
+      await tenantDb.collectionNote.create({
+        data: {
+          organizationId: ctx.organizationId,
+          collectionCaseId: kase.id,
+          type: "note",
+          body: `Mise en demeure remise ${METHOD_LABEL[input.method]} le ${input.deliveredOn.split("-").reverse().join("/")}.${input.note ? ` ${input.note}` : ""}`,
+          createdById: ctx.membership.id,
+        },
+      });
+      await writeAuditLog({
+        organizationId: ctx.organizationId,
+        userId: ctx.user.id,
+        membershipId: ctx.membership.id,
+        action: "receivable.formal_notice_delivered",
+        entity: "CollectionCase",
+        entityId: kase.id,
+        reason: `Remise ${METHOD_LABEL[input.method]} le ${input.deliveredOn}.`,
+        after: { deliveredOn: input.deliveredOn, method: input.method },
+        ip: ctx.ip,
+      });
+      return { ok: true };
     }),
 
   addPromise: requirePermission("receivable:manage")
@@ -726,6 +1022,156 @@ export const collectionsRouter = router({
           data: { status: "ESCALATED", escalatedAt: org.now },
         });
       });
+    }),
+
+  /**
+   * M09 §7 — « Relancer » un client : une relance par canal choisi (ou les canaux de la règle
+   * « Créances »), envoyée au prochain passage de reminders.dispatch (≤ 5 min). Le dispatch
+   * revérifie juste avant l'envoi que le client doit toujours et n'est pas désinscrit.
+   */
+  remindNow: requirePermission("receivable:manage")
+    .input(remindNowInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const org = await loadOrgCollectionContext(ctx.organizationId);
+      const [candidate] = await loadCandidates(
+        tenantDb,
+        { caseIds: [input.caseId] },
+        org.now,
+        org.timeZone,
+      );
+      if (!candidate) notFound();
+      if (!candidate.eligible) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: candidate.reasonMessage! });
+      }
+      const rule = await requireReceivableRule(tenantDb);
+      const modes = await loadChannelModes(tenantDb);
+      const requested =
+        input.channels ??
+        (input.channel ? [input.channel] : (["WHATSAPP", "SMS", "EMAIL"] as const));
+      let channels = channelsToSend([...requested], candidate.reachable, modes);
+      // Sans choix explicite : un seul canal, le premier envoyable (WhatsApp, puis SMS, puis email).
+      if (!input.channels && !input.channel) channels = channels.slice(0, 1);
+      if (channels.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Aucun des canaux choisis ne peut partir pour ce client (contact manquant ou canal non configuré dans Paramètres › Canaux).",
+        });
+      }
+      const messages = await createCaseReminders(tenantDb, {
+        organizationId: ctx.organizationId,
+        membershipId: ctx.membership.id,
+        ruleId: rule.id,
+        candidate,
+        channels,
+        now: org.now,
+        today: org.today,
+      });
+      return { messages, channels };
+    }),
+
+  /** Clients à relancer et canaux disponibles (fenêtre « Relancer les clients »). */
+  remindPreview: requirePermission("receivable:manage")
+    .input(remindPreviewInputSchema)
+    .query(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const org = await loadOrgCollectionContext(ctx.organizationId);
+      const [all, modes, rule, configs] = await Promise.all([
+        loadCandidates(tenantDb, { caseIds: input.caseIds }, org.now, org.timeZone),
+        loadChannelModes(tenantDb),
+        tenantDb.reminderRule.findFirst({
+          where: { type: "RECEIVABLE", isActive: true },
+          select: { id: true },
+        }),
+        tenantDb.channelConfig.findMany({
+          select: { channel: true, isActive: true, status: true, lastError: true },
+        }),
+      ]);
+      const candidates = all
+        .map((c) => ({
+          ...c,
+          daysOverdue: c.oldestDueDate ? Math.max(0, daysOverdue(c.oldestDueDate, org.today)) : 0,
+        }))
+        .filter((c) => input.caseIds || c.daysOverdue >= input.minDaysOverdue);
+      return {
+        ruleActive: !!rule,
+        channels: (["WHATSAPP", "SMS", "EMAIL"] as const).map((channel) => ({
+          channel,
+          mode: modes[channel],
+          // Fournisseur activé mais en erreur (clé invalide…) : on le dit plutôt que « non configuré ».
+          error:
+            modes[channel] === "off"
+              ? (configs.find((c) => c.channel === channel && c.isActive && c.status === "ERROR")
+                  ?.lastError ?? null)
+              : null,
+        })),
+        candidates: candidates.map((c) => ({
+          caseId: c.caseId,
+          customerName: c.customerName,
+          overdueDue: c.overdueDue,
+          daysOverdue: c.daysOverdue,
+          lastSentAt: c.lastSentAt,
+          eligible: c.eligible,
+          reachable: c.reachable,
+          reasonMessage: c.reasonMessage,
+        })),
+      };
+    }),
+
+  /** « Relancer les clients sélectionnés » : une relance par client et par canal choisi. */
+  remindBulk: requirePermission("receivable:manage")
+    .input(remindBulkInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const org = await loadOrgCollectionContext(ctx.organizationId);
+      const rule = await requireReceivableRule(tenantDb);
+      const modes = await loadChannelModes(tenantDb);
+      const candidates = await loadCandidates(
+        tenantDb,
+        { caseIds: input.caseIds },
+        org.now,
+        org.timeZone,
+      );
+      let customers = 0;
+      let messages = 0;
+      const skipped: { customerName: string; reason: string }[] = [];
+      for (const candidate of candidates) {
+        if (!candidate.eligible) {
+          skipped.push({ customerName: candidate.customerName, reason: candidate.reasonMessage! });
+          continue;
+        }
+        const channels = channelsToSend(input.channels, candidate.reachable, modes);
+        if (channels.length === 0) {
+          skipped.push({
+            customerName: candidate.customerName,
+            reason: "Aucun contact pour les canaux choisis.",
+          });
+          continue;
+        }
+        messages += await createCaseReminders(tenantDb, {
+          organizationId: ctx.organizationId,
+          membershipId: ctx.membership.id,
+          ruleId: rule.id,
+          candidate,
+          channels,
+          now: org.now,
+          today: org.today,
+        });
+        customers += 1;
+      }
+      await writeAuditLog({
+        organizationId: ctx.organizationId,
+        userId: ctx.user.id,
+        membershipId: ctx.membership.id,
+        action: "receivable.remind_bulk",
+        entity: "CollectionCase",
+        entityId: input.caseIds[0]!,
+        reason: `Relance groupée : ${customers} client(s), ${messages} message(s) (${input.channels.join(", ")}).`,
+        after: { caseIds: input.caseIds, channels: input.channels, customers, messages },
+        ip: ctx.ip,
+      });
+      return { customers, messages, skipped };
     }),
 
   assign: requirePermission("receivable:manage")

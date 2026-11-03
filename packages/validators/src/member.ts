@@ -74,7 +74,10 @@ export type ReactivateMemberInput = z.infer<typeof reactivateMemberInputSchema>;
 
 export const setPinInputSchema = z.object({
   membershipId: z.string().trim().min(1),
-  pin: z.string().trim().length(4),
+  pin: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Le code PIN doit comporter 6 chiffres."),
 });
 export type SetPinInput = z.infer<typeof setPinInputSchema>;
 

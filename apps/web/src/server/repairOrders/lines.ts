@@ -91,7 +91,8 @@ export async function buildLineData(
     }
   }
   if (line.type === "PART" && line.isCustomerSupplied) unitPrice = 0;
-  if (unitPrice === undefined) badRequest("Indiquez le prix unitaire.");
+  if (unitPrice === undefined)
+    badRequest(`Indiquez le prix unitaire de la ligne « ${line.description} ».`);
 
   const payer = line.payer ?? (order.warrantyDecision === "COVERED" ? "WARRANTY" : "CUSTOMER");
   return {
@@ -169,7 +170,8 @@ async function trySystemTransition(
  * Enchaînements automatiques après une modification de ligne (§5) :
  * - première ligne démarrée sur un OR APPROVED → `start_work` ;
  * - toutes les lignes approuvées terminées sur un OR IN_PROGRESS → `complete_work` ;
- * - plus aucune ligne en attente sur un OR AWAITING_APPROVAL → `approve` ou `decline_all`.
+ * - plus aucune ligne en attente sur un OR reçu, en diagnostic ou en attente d'accord → `approve`
+ *   (ou `decline_all` si l'OR était déjà en attente d'accord et plus rien n'est accepté).
  */
 export async function afterLineChange(
   tx: Tx,
@@ -205,9 +207,16 @@ export async function afterLineChange(
       }
     }
   }
-  if (current.status === "AWAITING_APPROVAL" && !live.some((l) => l.approval === "PENDING")) {
+  if (
+    (current.status === "CHECKED_IN" ||
+      current.status === "DIAGNOSING" ||
+      current.status === "AWAITING_APPROVAL") &&
+    !live.some((l) => l.approval === "PENDING")
+  ) {
     const approved = await trySystemTransition(tx, ctx, org, order.id, "approve", now);
-    if (!approved) await trySystemTransition(tx, ctx, org, order.id, "decline_all", now);
+    if (!approved && current.status === "AWAITING_APPROVAL") {
+      await trySystemTransition(tx, ctx, org, order.id, "decline_all", now);
+    }
   }
 }
 

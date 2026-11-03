@@ -143,7 +143,7 @@ export {
   OTP_RESEND_COOLDOWN_SECONDS,
 } from "./auth/otp";
 
-export { isTrivialPin, PIN_ELIGIBLE_ROLES, PIN_MAX_FAILED_ATTEMPTS } from "./auth/pin";
+export { isTrivialPin, PIN_ELIGIBLE_ROLES, PIN_LENGTH, PIN_MAX_FAILED_ATTEMPTS } from "./auth/pin";
 
 export type { SecuritySettingsLike } from "./auth/new-device";
 export {
@@ -225,7 +225,7 @@ export type {
 export { computeAvgKmPerDay, DEFAULT_AVG_KM_PER_DAY, estimateMileage } from "./vehicles/mileage";
 
 export type { InspectionStatus, ServiceDueStatus } from "./vehicles/status";
-export { inspectionStatus, serviceStatus } from "./vehicles/status";
+export { inspectionExpiryBounds, inspectionStatus, serviceStatus } from "./vehicles/status";
 
 export type { ServiceDueInput, ServiceDueResult, ServiceDueTrigger } from "./reminders/serviceDue";
 export { computeNextServiceDue } from "./reminders/serviceDue";
@@ -254,6 +254,18 @@ export { approvalExpiry } from "./reminders/approvalExpiry";
 
 export type { PriorityOfOptions, PriorityStep, ReminderTypeLike } from "./reminders/priority";
 export { priorityOf } from "./reminders/priority";
+export type { DueDayTone, MonthGrid } from "./reminders/dueCalendar";
+export {
+  DUE_CLIENT_DAYS,
+  DUE_WORKSHOP_DAYS,
+  countByDay,
+  dayRange,
+  dueDayTone,
+  monthGrid,
+  monthOfDay,
+  monthRange,
+  shiftMonth,
+} from "./reminders/dueCalendar";
 
 export type { InitialReminderStatus, InitialStatusInput } from "./reminders/initialStatus";
 export { initialStatus } from "./reminders/initialStatus";
@@ -363,3 +375,51 @@ export {
   type HealthCheckResult,
   type HealthReport,
 } from "./observability/health";
+
+export type { PushAttemptStatus, PushableNotification, PushContent } from "./notifications";
+export {
+  buildPushContent,
+  PUSH_MAX_AGE_MINUTES,
+  PUSH_MAX_FAILURES,
+  safeInternalLink,
+  subscriptionAfterAttempt,
+  unreadBadge,
+} from "./notifications";
+export type { ManualReminderCheck } from "./reminders/manual";
+export { checkManualReminder, MANUAL_REMINDER_MIN_GAP_HOURS } from "./reminders/manual";
+export { DEFAULT_MESSAGE_TEMPLATES } from "./onboarding/reminder-defaults";
+export type {
+  ChannelConfigLike,
+  ChannelMode,
+  RemindBlockReason,
+  RemindEligibility,
+  ReminderChannel,
+} from "./reminders/bulk";
+export {
+  canSendAutomatically,
+  channelModes,
+  channelsToSend,
+  REMINDER_CHANNELS,
+  remindEligibility,
+} from "./reminders/bulk";
+export type { StepTiming } from "./reminders/stepLabel";
+export { describeStep } from "./reminders/stepLabel";
+export type { DeliveryInput, DeliveryState } from "./messaging/delivery";
+export { deliveryState, isUnconfirmed } from "./messaging/delivery";
+export type { FormalNoticeMethod } from "./receivables/formalNotice";
+export {
+  DEFAULT_FORMAL_NOTICE_CLOSING,
+  DEFAULT_FORMAL_NOTICE_DELAY_DAYS,
+  FORMAL_NOTICE_METHODS,
+  formalNoticeDeadline,
+  formalNoticeDeliveryError,
+  formalNoticeFileName,
+} from "./receivables/formalNotice";
+export type {
+  DueCustomerGroup,
+  DueRemindBlockReason,
+  DueRemindEligibility,
+  DueRemindEligibilityInput,
+  DueVehicleLike,
+} from "./reminders/dueRemind";
+export { countDueMessages, dueRemindEligibility, groupDueByCustomer } from "./reminders/dueRemind";

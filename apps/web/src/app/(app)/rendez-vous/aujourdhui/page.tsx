@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button, EmptyState } from "@atelieros/ui";
+import { EduTip } from "@/components/edu-tip";
 import { trpc } from "@/trpc/react";
 import { AppointmentPanel } from "../appointment-panel";
 import { AppointmentRow } from "../appointment-row";
@@ -135,24 +136,36 @@ export default function TodayPage() {
               unanswered: d.counts.unanswered,
             })}
           >
-            <Kpi icon={CalendarDays} label={ta("todayPage.kpiTotal")} value={d.counts.total} />
+            <Kpi
+              icon={CalendarDays}
+              label={ta("todayPage.kpiTotal")}
+              value={d.counts.total}
+              help={ta("todayPage.help.total")}
+              example={ta("todayPage.example.total")}
+            />
             <Kpi
               icon={CircleCheck}
               label={ta("todayPage.kpiConfirmed")}
               value={d.counts.confirmed}
               tone="ok"
+              help={ta("todayPage.help.confirmed")}
+              example={ta("todayPage.example.confirmed")}
             />
             <Kpi
               icon={Hourglass}
               label={ta("todayPage.kpiUnanswered")}
               value={d.counts.unanswered}
               tone={d.counts.unanswered > 0 ? "warn" : "neutral"}
+              help={ta("todayPage.help.unanswered")}
+              example={ta("todayPage.example.unanswered")}
             />
             <Kpi
               icon={TriangleAlert}
               label={ta("todayPage.kpiLate")}
               value={d.late.length}
               tone={d.late.length > 0 ? "bad" : "neutral"}
+              help={ta("todayPage.help.late")}
+              example={ta("todayPage.example.late")}
             />
           </div>
 
@@ -224,14 +237,18 @@ function Kpi({
   label,
   value,
   tone = "neutral",
+  help,
+  example,
 }: {
   icon: LucideIcon;
   label: string;
   value: number;
   tone?: Tone;
+  help: string;
+  example: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4">
+    <div className="relative flex items-center gap-3 rounded-lg border border-border bg-surface p-4 pr-12">
       <span
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${TONE_ICON_BG[tone]}`}
       >
@@ -243,6 +260,9 @@ function Kpi({
         </div>
         <div className="mt-1 truncate text-xs font-medium text-muted">{label}</div>
       </div>
+      <span className="absolute right-0.5 top-0.5 z-10">
+        <EduTip text={help} example={example} />
+      </span>
     </div>
   );
 }
@@ -264,25 +284,31 @@ function Actions({
   const pending = a.status === "BOOKED" || a.status === "CONFIRMED";
   const hasAny = !!a.customer.phone || (pending && canUpdate);
   if (!hasAny) return null;
+  const actionClass = "min-h-11 max-w-full flex-1 basis-[9rem] justify-center";
   return (
-    <div className="flex flex-wrap gap-2 px-4 pb-3">
+    <div className="flex min-w-0 flex-wrap gap-2 border-t border-border px-3 py-3">
       {pending && canUpdate && (
-        <Button size="sm" className="min-h-11" onClick={() => onArrived(a.id)}>
+        <Button size="sm" className={actionClass} onClick={() => onArrived(a.id)}>
           <Car size={14} aria-hidden /> {ta("panel.arrived")}
         </Button>
       )}
       {a.status === "BOOKED" && canUpdate && (
-        <Button size="sm" variant="secondary" className="min-h-11" onClick={() => onConfirm(a.id)}>
+        <Button
+          size="sm"
+          variant="secondary"
+          className={actionClass}
+          onClick={() => onConfirm(a.id)}
+        >
           <CircleCheck size={14} aria-hidden /> {ta("statuses.CONFIRMED")}
         </Button>
       )}
       {a.customer.phone && (
-        <a href={`tel:${a.customer.phone}`} className="btn btn-secondary btn-sm min-h-11">
+        <a href={`tel:${a.customer.phone}`} className={`btn btn-secondary btn-sm ${actionClass}`}>
           <Phone size={14} aria-hidden /> {ta("panel.call")}
         </a>
       )}
       {pending && canUpdate && (
-        <Button size="sm" variant="ghost" className="min-h-11" onClick={() => onNoShow(a.id)}>
+        <Button size="sm" variant="ghost" className={actionClass} onClick={() => onNoShow(a.id)}>
           <UserX size={14} aria-hidden /> {ta("panel.noShow")}
         </Button>
       )}
@@ -312,7 +338,7 @@ function Section({
   const highlighted = tone === "bad" && items.length > 0;
   return (
     <section
-      className={`overflow-hidden rounded-lg border bg-surface ${highlighted ? "border-status-bad" : "border-border"}`}
+      className={`min-w-0 overflow-hidden rounded-lg border bg-surface [&_.planning-list-badges]:min-w-0 [&_.planning-list-badges]:flex-wrap [&_.planning-list-item]:flex-wrap ${highlighted ? "border-status-bad" : "border-border"}`}
     >
       <header className="flex flex-col gap-1 border-b border-border bg-bg px-4 py-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
@@ -333,7 +359,10 @@ function Section({
       ) : (
         <ul className="divide-y divide-border">
           {items.map((a) => (
-            <li key={a.id} className="flex flex-col [&>button]:border-b-0">
+            <li
+              key={a.id}
+              className="flex min-w-0 flex-col [&>button]:min-w-0 [&>button]:border-b-0"
+            >
               <AppointmentRow a={a} tz={tz} onSelect={onSelect} />
               <Actions a={a} {...actions} />
             </li>

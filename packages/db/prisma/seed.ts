@@ -52,6 +52,15 @@ function daysFrom(days: number): Date {
   return d;
 }
 
+// L'écran Échéances compare à la date réelle, pas à TODAY. Ces décalages replacent
+// les vignettes dans les fenêtres à chaque `pnpm db:seed`.
+function dueOn(days: number): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 const FIRST_NAMES = [
   "Kouadio",
   "Aya",
@@ -317,6 +326,8 @@ async function main() {
   // Mot de passe de démonstration pour tous les comptes semés, haché en argon2id
   // (RG-M01-03) et stocké dans Account (providerId "credential"), cf. arbitrage A6.
   const demoPasswordHash = await hashPassword("demo1234");
+  // PIN atelier de démonstration (147258) pour les rôles MANAGER, MECHANIC, STOREKEEPER.
+  const demoPinHash = await hashPassword("147258");
 
   const memberships: Record<string, { userId: string; membershipId: string }> = {};
   for (const [i, spec] of teamSpec.entries()) {
@@ -342,6 +353,7 @@ async function main() {
         password: demoPasswordHash,
       },
     });
+    const pinEligible = ["MANAGER", "MECHANIC", "STOREKEEPER"].includes(spec.role);
     const membership = await adminDb.membership.create({
       data: {
         organizationId: organization.id,
@@ -351,6 +363,8 @@ async function main() {
         siteIds: [],
         // M06 RG-M06-10 : coût horaire interne (coût MO, productivité).
         hourlyCost: spec.role === "MECHANIC" ? 2_500 : spec.role === "MANAGER" ? 3_500 : null,
+        // M01 RG-M01-14 : PIN atelier pour connexion tablette (MANAGER, MECHANIC, STOREKEEPER).
+        pinHash: pinEligible ? demoPinHash : null,
       },
     });
     memberships[spec.role] = { userId: user.id, membershipId: membership.id };
@@ -832,6 +846,150 @@ async function main() {
       currentMileage: 46000,
     },
   });
+
+  // Quatre fenêtres de l'écran Échéances : à préparer (31 à 60 j), relance client
+  // (0 à 30 j), expirées, et sans date (Diabaté Awa, plus haut). Révision et assurance
+  // suivent les mêmes fenêtres sur les autres onglets.
+  console.log("Seed — échéances (visite, révision, assurance)...");
+  const dueDemos: Array<{
+    firstName: string;
+    lastName: string;
+    phone: string;
+    commune: string;
+    plate: string;
+    make: string;
+    model: string;
+    year: number;
+    fuel: "PETROL" | "DIESEL";
+    mileage: number;
+    inspectionIn?: number;
+    serviceIn?: number;
+    insuranceIn?: number;
+  }> = [
+    {
+      firstName: "Serge",
+      lastName: "Coulibaly",
+      phone: "+2250701454501",
+      commune: "Cocody",
+      plate: "5521 RS 01",
+      make: "Peugeot",
+      model: "307",
+      year: 2016,
+      fuel: "PETROL",
+      mileage: 112000,
+      inspectionIn: 45,
+      serviceIn: 50,
+    },
+    {
+      firstName: "Fatou",
+      lastName: "Bamba",
+      phone: "+2250501454502",
+      commune: "Yopougon",
+      plate: "2288 JK 01",
+      make: "Toyota",
+      model: "Yaris",
+      year: 2019,
+      fuel: "PETROL",
+      mileage: 64000,
+      inspectionIn: 55,
+      insuranceIn: 48,
+    },
+    {
+      firstName: "Aya",
+      lastName: "Koné",
+      phone: "+2250101454503",
+      commune: "Marcory",
+      plate: "7730 AB 01",
+      make: "Hyundai",
+      model: "Accent",
+      year: 2018,
+      fuel: "PETROL",
+      mileage: 88000,
+      inspectionIn: 12,
+      insuranceIn: 18,
+    },
+    {
+      firstName: "Issa",
+      lastName: "Diallo",
+      phone: "+2250701454504",
+      commune: "Abobo",
+      plate: "6644 CD 01",
+      make: "Kia",
+      model: "Rio",
+      year: 2020,
+      fuel: "PETROL",
+      mileage: 41000,
+      inspectionIn: 6,
+      serviceIn: 8,
+    },
+    {
+      firstName: "Michel",
+      lastName: "Yao",
+      phone: "+2250501454505",
+      commune: "Adjamé",
+      plate: "4412 EF 01",
+      make: "Renault",
+      model: "Logan",
+      year: 2015,
+      fuel: "PETROL",
+      mileage: 156000,
+      inspectionIn: -4,
+      insuranceIn: -5,
+    },
+    {
+      firstName: "Awa",
+      lastName: "Traoré",
+      phone: "+2250101454506",
+      commune: "Treichville",
+      plate: "9901 GH 01",
+      make: "Nissan",
+      model: "Micra",
+      year: 2017,
+      fuel: "PETROL",
+      mileage: 98000,
+      inspectionIn: -18,
+      serviceIn: -12,
+    },
+  ];
+  for (const demo of dueDemos) {
+    const customer = await adminDb.customer.create({
+      data: {
+        organizationId: organization.id,
+        type: "INDIVIDUAL",
+        firstName: demo.firstName,
+        lastName: demo.lastName,
+        displayName: `${demo.lastName} ${demo.firstName}`,
+        phone: demo.phone,
+        hasWhatsapp: true,
+        commune: demo.commune,
+      },
+    });
+    await adminDb.vehicle.create({
+      data: {
+        organizationId: organization.id,
+        customerId: customer.id,
+        plate: demo.plate,
+        plateCompact: plateCompactOf(demo.plate),
+        make: demo.make,
+        model: demo.model,
+        year: demo.year,
+        fuel: demo.fuel,
+        currentMileage: demo.mileage,
+        currentMileageAt: dueOn(-3),
+        inspectionLastDate: demo.inspectionIn == null ? undefined : dueOn(demo.inspectionIn - 365),
+        inspectionExpiryDate: demo.inspectionIn == null ? undefined : dueOn(demo.inspectionIn),
+        lastServiceDate: demo.serviceIn == null ? undefined : dueOn(demo.serviceIn - 180),
+        lastServiceMileage: demo.serviceIn == null ? undefined : demo.mileage - 8000,
+        nextServiceDueDate: demo.serviceIn == null ? undefined : dueOn(demo.serviceIn),
+        nextServiceDueMileage: demo.serviceIn == null ? undefined : demo.mileage + 2000,
+        serviceIntervalKm: demo.serviceIn == null ? undefined : 10000,
+        serviceIntervalMonths: demo.serviceIn == null ? undefined : 6,
+        insuranceExpiryDate: demo.insuranceIn == null ? undefined : dueOn(demo.insuranceIn),
+        insurancePolicyNumber:
+          demo.insuranceIn == null ? undefined : `POL-${demo.plate.slice(0, 4)}`,
+      },
+    });
+  }
 
   console.log("Seed — clients complémentaires (remplissage jusqu'à 40)...");
   const fillerCustomers: { id: string }[] = [];

@@ -167,7 +167,7 @@ describe("plan (US-M15-07, RG-M15-19/20)", () => {
     expect(await adminDb.site.count({ where: { organizationId: org.id, isActive: true } })).toBe(2);
     await expect(
       (await caller(owner.token)).plan.requestChange({ targetPlan: "STARTER" }),
-    ).rejects.toThrow("Vous êtes déjà sur l'offre STARTER.");
+    ).rejects.toThrow("Vous êtes déjà sur l'offre Starter.");
   });
 });
 

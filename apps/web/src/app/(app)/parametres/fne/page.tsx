@@ -33,7 +33,8 @@ function FneForm({ initial, onSaved }: { initial: Config; onSaved: () => void })
   );
   const [establishmentId, setEstablishmentId] = useState(initial.establishmentId ?? "");
   const [pointOfSale, setPointOfSale] = useState(initial.pointOfSale ?? "");
-  const [baseUrl, setBaseUrl] = useState("");
+  // Adresse du service (non secrète) préremplie ; la clé n'est jamais renvoyée par le serveur.
+  const [baseUrl, setBaseUrl] = useState(initial.baseUrl ?? "");
   const [apiKey, setApiKey] = useState("");
   const [reason, setReason] = useState("");
   const [saved, setSaved] = useState(false);
@@ -45,6 +46,8 @@ function FneForm({ initial, onSaved }: { initial: Config; onSaved: () => void })
     },
   });
   const test = trpc.fne.test.useMutation({ onSuccess: onSaved });
+  // Identifiants envoyés seulement s'ils changent ; champ vide = valeur enregistrée conservée.
+  const baseUrlChanged = baseUrl.trim() !== (initial.baseUrl ?? "");
   const providers = initial.simulatorAllowed
     ? (["dgi_api", "fake"] as const)
     : (["dgi_api"] as const);
@@ -95,7 +98,10 @@ function FneForm({ initial, onSaved }: { initial: Config; onSaved: () => void })
                 label={t("fneSettings.baseUrl")}
                 value={baseUrl}
                 placeholder="https://"
-                onChange={(e) => setBaseUrl(e.target.value)}
+                onChange={(e) => {
+                  setSaved(false);
+                  setBaseUrl(e.target.value);
+                }}
                 className="min-h-11"
                 autoComplete="off"
               />
@@ -103,7 +109,10 @@ function FneForm({ initial, onSaved }: { initial: Config; onSaved: () => void })
                 label={t("fneSettings.apiKey")}
                 type="password"
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => {
+                  setSaved(false);
+                  setApiKey(e.target.value);
+                }}
                 className="min-h-11"
                 autoComplete="new-password"
               />
@@ -155,8 +164,8 @@ function FneForm({ initial, onSaved }: { initial: Config; onSaved: () => void })
               establishmentId: establishmentId || null,
               pointOfSale: pointOfSale || null,
               credentials:
-                mode === "api" && provider === "dgi_api" && (baseUrl || apiKey)
-                  ? { baseUrl, apiKey }
+                mode === "api" && provider === "dgi_api" && (baseUrlChanged || apiKey.trim())
+                  ? { baseUrl: baseUrlChanged ? baseUrl.trim() : "", apiKey: apiKey.trim() }
                   : undefined,
               reason: reason || undefined,
             });
@@ -174,6 +183,11 @@ function FneForm({ initial, onSaved }: { initial: Config; onSaved: () => void })
       {save.error && (
         <p role="alert" className="text-sm text-status-bad">
           ⚠ {save.error.message}
+        </p>
+      )}
+      {test.error && (
+        <p role="alert" className="text-sm text-status-bad">
+          ⚠ {test.error.message}
         </p>
       )}
       {test.data && (

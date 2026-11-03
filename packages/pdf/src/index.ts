@@ -43,3 +43,8 @@ export {
   type ReportPdfColumn,
   type ReportPdfData,
 } from "./report";
+export {
+  FormalNoticeDocument,
+  renderFormalNoticePdf,
+  type FormalNoticePdfData,
+} from "./formalNotice";

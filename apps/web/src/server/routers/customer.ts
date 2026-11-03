@@ -1,6 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import {
+  businessDate,
   computeDisplayName,
+  customerExposure,
   duplicateScore,
   duplicateSeverity,
   mergeConsent,
@@ -8,6 +10,7 @@ import {
   normalizePlate,
   resolveDedupeKeyCollisions,
   resolveField,
+  type AgingInvoice,
   type FieldChoice,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
@@ -34,7 +37,51 @@ import { emitDomainEvent } from "../events/emit";
 import { findSimilarCustomerNames } from "../customers/trigram";
 import { normalizePhoneOrThrow } from "../phone";
 
-const UNPAID_INVOICE_STATUSES = ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] as const;
+const UNPAID_INVOICE_STATUSES = ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"] as const;
+
+/** Solde encore dû du client (RG-M09-03) : le restant à payer, pas le total des factures. */
+async function exposureOf(
+  tenantDb: ReturnType<typeof db.forTenant>,
+  organizationId: string,
+  customerId: string,
+) {
+  const [org, invoices] = await Promise.all([
+    adminDb.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+      select: { timezone: true },
+    }),
+    tenantDb.invoice.findMany({
+      where: {
+        customerId,
+        type: { in: ["INVOICE", "DEPOSIT"] },
+        status: { in: [...UNPAID_INVOICE_STATUSES] },
+        balance: { gt: 0 },
+      },
+      select: {
+        id: true,
+        customerId: true,
+        type: true,
+        status: true,
+        billTo: true,
+        balance: true,
+        dueDate: true,
+      },
+    }),
+  ]);
+  return customerExposure(
+    invoices satisfies AgingInvoice[],
+    businessDate(new Date(), org.timezone),
+  );
+}
+
+/**
+ * Fiche de facturation d'une compagnie (`source = "assureur"`). Ce n'est pas un client :
+ * elle reste en base pour les factures et la FNE, et sort des listes, recherches et doublons.
+ * `source` est nullable : un `not` Prisma exclurait aussi les fiches sans source.
+ */
+const NOT_INSURER_BILLING = {
+  OR: [{ source: null }, { source: { not: "assureur" } }],
+};
 
 async function detectDuplicates(
   tenantDb: ReturnType<typeof db.forTenant>,
@@ -62,6 +109,7 @@ async function detectDuplicates(
     ? await tenantDb.customer.findMany({
         where: {
           deletedAt: null,
+          AND: [NOT_INSURER_BILLING],
           OR: orConditions,
           ...(excludeId ? { id: { not: excludeId } } : {}),
         },
@@ -109,7 +157,7 @@ export type CustomerListFilters = Omit<
 export function buildCustomerListWhere(
   filters: Partial<CustomerListFilters>,
 ): Record<string, unknown> {
-  const where: Record<string, unknown> = { deletedAt: null };
+  const where: Record<string, unknown> = { deletedAt: null, AND: [NOT_INSURER_BILLING] };
   if (filters.type) where.type = filters.type;
   if (filters.tags?.length) where.tags = { hasSome: filters.tags };
   if (filters.commune) where.commune = filters.commune;
@@ -170,7 +218,7 @@ export const customerRouter = router({
         tenantDb.customer.count({ where }),
       ]);
 
-      const nextCursor = items.length > effective.limit ? items[effective.limit]!.id : null;
+      const nextCursor = items.length > effective.limit ? items[effective.limit - 1]!.id : null;
       return {
         items: items.slice(0, effective.limit).map((c) => ({
           ...c,
@@ -180,6 +228,22 @@ export const customerRouter = router({
         nextCursor,
       };
     }),
+
+  summary: requirePermission("customer:read").query(async ({ ctx }) => {
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    const alive = { deletedAt: null, AND: [NOT_INSURER_BILLING] };
+    const withBalanceWhere = {
+      ...alive,
+      invoices: { some: { status: { in: [...UNPAID_INVOICE_STATUSES] } } },
+    };
+    const [total, individual, company, withBalance] = await Promise.all([
+      tenantDb.customer.count({ where: alive }),
+      tenantDb.customer.count({ where: { ...alive, type: "INDIVIDUAL" } }),
+      tenantDb.customer.count({ where: { ...alive, type: "COMPANY" } }),
+      tenantDb.customer.count({ where: withBalanceWhere }),
+    ]);
+    return { total, individual, company, withBalance };
+  }),
 
   get: requirePermission("customer:read")
     .input(customerGetInputSchema)
@@ -196,15 +260,9 @@ export const customerRouter = router({
         },
       });
 
-      const unpaidInvoices = await tenantDb.invoice.findMany({
-        where: { customerId: input.id, status: { in: [...UNPAID_INVOICE_STATUSES] } },
-        select: { total: true, dueDate: true },
-      });
-      const now = new Date();
-      const due = unpaidInvoices.reduce((sum, inv) => sum + inv.total, 0);
-      const overdue = unpaidInvoices
-        .filter((inv) => inv.dueDate && inv.dueDate < now)
-        .reduce((sum, inv) => sum + inv.total, 0);
+      const exposure = await exposureOf(tenantDb, ctx.organizationId, input.id);
+      const due = exposure.totalDue;
+      const overdue = exposure.overdueDue;
 
       const reachability = customer.doNotRemind
         ? "DO_NOT_REMIND"
@@ -521,7 +579,12 @@ export const customerRouter = router({
 
       const items = [
         ...notes.map((n) => ({ type: "note" as const, at: n.createdAt, data: n })),
-        ...reminders.map((r) => ({ type: "reminder" as const, at: r.createdAt, data: r })),
+        // Une relance partie se date à son envoi, pas à sa création.
+        ...reminders.map((r) => ({
+          type: "reminder" as const,
+          at: r.sentAt ?? r.createdAt,
+          data: r,
+        })),
         ...mileageReadings.map((m) => ({
           type: "mileage_reading" as const,
           at: m.readAt,
@@ -562,11 +625,16 @@ export const customerRouter = router({
           where: { customerId: input.id, status: { in: ["SENT", "VIEWED"] } },
         }),
         tenantDb.invoice.findMany({
-          where: { customerId: input.id, status: { in: [...UNPAID_INVOICE_STATUSES] } },
-          select: { total: true },
+          where: {
+            customerId: input.id,
+            type: { in: ["INVOICE", "DEPOSIT"] },
+            status: { in: [...UNPAID_INVOICE_STATUSES] },
+            balance: { gt: 0 },
+          },
+          select: { balance: true },
         }),
       ]);
-      const due = unpaidInvoices.reduce((sum, inv) => sum + inv.total, 0);
+      const due = unpaidInvoices.reduce((sum, inv) => sum + inv.balance, 0);
 
       if (openRepairOrders > 0 || openQuotes > 0 || due > 0) {
         throw new TRPCError({
@@ -614,7 +682,7 @@ export const customerRouter = router({
       const dismissedKeys = new Set(dismissed.map((d) => `${d.idA}:${d.idB}`));
 
       const customers = await tenantDb.customer.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, AND: [NOT_INSURER_BILLING] },
         take: 500,
         orderBy: { createdAt: "desc" },
       });

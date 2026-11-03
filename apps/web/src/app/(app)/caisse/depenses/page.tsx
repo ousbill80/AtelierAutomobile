@@ -13,6 +13,7 @@ import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDateTime } from "@/components/repair-orders/i18n";
 import { t, tc } from "@/components/billing/i18n";
+import { EduTip } from "@/components/edu-tip";
 import {
   ExpenseDecisionModal,
   ExpenseStatusBadge,
@@ -179,6 +180,18 @@ function CashExpenses() {
                   title={
                     tab === "PENDING" ? tc("expensesPage.emptyPending") : tc("expensesPage.empty")
                   }
+                  description={tab === "PENDING" ? tc("expensesPage.emptyPendingHint") : undefined}
+                  action={
+                    tab === "PENDING" ? (
+                      <Button
+                        variant="secondary"
+                        className="min-h-11"
+                        onClick={() => selectTab("APPROVED")}
+                      >
+                        {tc("expensesPage.seeApproved")}
+                      </Button>
+                    ) : undefined
+                  }
                 />
               </div>
             ) : (
@@ -271,7 +284,7 @@ function CashExpenses() {
             )}
           </div>
           <Section title={tc("expensesPage.byCategory")}>
-            <div className="flex flex-col gap-1">
+            <div className="relative flex flex-col gap-1 pr-12">
               <span className="text-xs text-muted">
                 {first.totalStatus === "PENDING"
                   ? tc("expensesPage.totalPending")
@@ -281,6 +294,12 @@ function CashExpenses() {
               </span>
               <span className="text-2xl font-semibold tabular-nums" data-testid="expenses-total">
                 {formatFCFA(first.total)}
+              </span>
+              <span className="absolute right-0 top-0">
+                <EduTip
+                  text={tc("expensesPage.totalHelp")}
+                  example={tc("expensesPage.totalExample")}
+                />
               </span>
             </div>
             {first.byCategory.length > 0 && (

@@ -12,7 +12,9 @@ import type {
 export interface TwilioCredentials {
   accountSid: string;
   authToken: string;
-  senderId: string;
+  /** Numéro ou sender ID Twilio. Le formulaire des canaux enregistre `fromNumber`. */
+  senderId?: string;
+  fromNumber?: string;
 }
 
 export type ProviderErrorCategory =
@@ -20,8 +22,11 @@ export type ProviderErrorCategory =
 
 /** RG-M11-07 : classement des codes d'erreur Twilio (https://www.twilio.com/docs/api/errors). */
 export function classifyTwilioError(code: number): ProviderErrorCategory {
-  if (code === 21211 || code === 21614 || code === 21610) return "PERMANENT_RECIPIENT";
-  if (code === 20003 || code === 20404) return "PERMANENT_CONFIG";
+  if (code === 21211 || code === 21614 || code === 21610 || code === 572002) {
+    return "PERMANENT_RECIPIENT";
+  }
+  // 572006 : un compte d'essai n'accepte que les modèles SMS prédéfinis.
+  if (code === 20003 || code === 20404 || code === 572006) return "PERMANENT_CONFIG";
   if (code === 429 || code === 14107) return "RATE_LIMIT";
   return "TEMPORARY";
 }
@@ -49,7 +54,18 @@ export function createTwilioProvider(
     channel: "SMS",
 
     async send(msg: OutboundMessage): Promise<SendResult> {
-      const body = new URLSearchParams({ To: msg.to, From: credentials.senderId, Body: msg.body });
+      const from = (credentials.senderId ?? credentials.fromNumber ?? "").trim();
+      if (!from) {
+        const error = new Error(
+          "Le numéro d'envoi Twilio est absent. Renseignez-le dans Paramètres, Canaux.",
+        );
+        (error as Error & { category: ProviderErrorCategory; providerCode: string }).category =
+          "PERMANENT_CONFIG";
+        (error as Error & { category: ProviderErrorCategory; providerCode: string }).providerCode =
+          "missing_sender";
+        throw error;
+      }
+      const body = new URLSearchParams({ To: msg.to, From: from, Body: msg.body });
       const response = await fetchImpl(
         `https://api.twilio.com/2010-04-01/Accounts/${credentials.accountSid}/Messages.json`,
         {

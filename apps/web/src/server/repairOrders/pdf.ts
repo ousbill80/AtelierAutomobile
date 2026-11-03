@@ -107,6 +107,7 @@ export async function renderOrderPdf(input: {
       phone: org.phone,
       rccm: org.rccm,
       ncc: org.ncc,
+      logo: org.logoUrl,
     },
     number: order.number,
     createdAt: order.createdAt.toISOString(),

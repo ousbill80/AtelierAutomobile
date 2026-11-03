@@ -12,6 +12,12 @@ if (existsSync(envPath)) {
 const nextConfig: NextConfig = {
   /* config options here */
   output: "standalone",
+  // Dev uniquement : tester sur un téléphone du réseau local (http://192.168.x.x:3000).
+  // Liste d'hôtes séparés par des virgules dans DEV_ALLOWED_ORIGINS (.env local).
+  allowedDevOrigins: (process.env.DEV_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   // @react-pdf/renderer (relevé de compte M09) : chargé côté Node, pas bundlé.
   serverExternalPackages: ["@react-pdf/renderer", "@node-rs/argon2", "exceljs"],
   turbopack: {

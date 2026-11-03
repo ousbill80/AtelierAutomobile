@@ -10,7 +10,7 @@ import {
   type FneModeValue,
 } from "@atelieros/core";
 import { certifyInvoiceFne, db } from "@atelieros/db";
-import { encryptSecret, loadEncryptionKey } from "@atelieros/integrations";
+import { decryptSecret, encryptSecret, loadEncryptionKey } from "@atelieros/integrations";
 import {
   fneConfigUpdateInputSchema,
   fneInvoiceInputSchema,
@@ -33,6 +33,24 @@ const UNCERTIFIED = ["PENDING", "FAILED"] as const;
 
 function modeOf(value: string | null | undefined): FneModeValue {
   return value === "api" || value === "disabled" ? value : "manual";
+}
+
+/** Identifiants DGI déchiffrés (usage serveur uniquement) ; `null` si absents ou illisibles. */
+function storedCredentials(
+  envelope: string | null | undefined,
+): { baseUrl?: string; apiKey?: string } | null {
+  if (!envelope) return null;
+  try {
+    const parsed = JSON.parse(decryptSecret(envelope, loadEncryptionKey())) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const { baseUrl, apiKey } = parsed as Record<string, unknown>;
+    return {
+      ...(typeof baseUrl === "string" ? { baseUrl } : {}),
+      ...(typeof apiKey === "string" ? { apiKey } : {}),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export const fneRouter = router({
@@ -69,6 +87,8 @@ export const fneRouter = router({
       establishmentId: config?.establishmentId ?? null,
       pointOfSale: config?.pointOfSale ?? null,
       hasCredentials: !!config?.credentials,
+      // L'adresse du service n'est pas un secret : renvoyée pour préremplir (la clé, jamais).
+      baseUrl: storedCredentials(config?.credentials)?.baseUrl ?? null,
       lastTestedAt: config?.lastTestedAt ?? null,
       lastTestOk: config?.lastTestOk ?? null,
       lastError: config?.lastError ?? null,
@@ -95,17 +115,34 @@ export const fneRouter = router({
             "Le simulateur FNE est interdit en production : renseignez les identifiants DGI.",
         });
       }
+      // Champ vide = valeur enregistrée conservée (rotation de la clé seule, ou de l'adresse).
+      const typedBaseUrl = input.credentials?.baseUrl || "";
+      const typedApiKey = input.credentials?.apiKey || "";
+      let merged: { baseUrl: string; apiKey: string } | null = null;
+      if (typedBaseUrl || typedApiKey) {
+        const previous = storedCredentials(existing?.credentials);
+        const baseUrl = typedBaseUrl || previous?.baseUrl || "";
+        const apiKey = typedApiKey || previous?.apiKey || "";
+        if (!baseUrl || !apiKey) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: !baseUrl
+              ? "Renseignez l'adresse du service DGI (https://…)."
+              : "Renseignez la clé d'accès DGI.",
+          });
+        }
+        merged = { baseUrl, apiKey };
+      }
       guard(() =>
         assertFneConfigChange({
           from,
           to: input.mode,
           reason: input.reason,
-          hasCredentials:
-            input.provider === "fake" || !!input.credentials || !!existing?.credentials,
+          hasCredentials: input.provider === "fake" || !!merged || !!existing?.credentials,
         }),
       );
-      const credentials = input.credentials
-        ? encryptSecret(JSON.stringify(input.credentials), loadEncryptionKey())
+      const credentials = merged
+        ? encryptSecret(JSON.stringify(merged), loadEncryptionKey())
         : undefined;
       const data = {
         mode: input.mode,

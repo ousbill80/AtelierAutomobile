@@ -4,6 +4,15 @@ import { z } from "zod";
 
 const id = z.string().min(1);
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 export const fneModeSchema = z.enum(["api", "manual", "disabled"]);
 export const fneProviderSchema = z.enum(["dgi_api", "fake"]);
 
@@ -12,11 +21,24 @@ export const fneConfigUpdateInputSchema = z.object({
   provider: fneProviderSchema.default("dgi_api"),
   establishmentId: z.string().trim().max(64).nullish(),
   pointOfSale: z.string().trim().max(64).nullish(),
-  /** Absent : les identifiants déjà enregistrés sont conservés (jamais renvoyés au navigateur). */
+  /**
+   * Absent : les identifiants déjà enregistrés sont conservés (jamais renvoyés au navigateur).
+   * Champ vide : la valeur enregistrée est conservée (ex. rotation de la seule clé d'accès).
+   */
   credentials: z
     .object({
-      baseUrl: z.string().trim().url("Adresse du service DGI invalide (https://…)."),
-      apiKey: z.string().trim().min(8, "Clé d'accès DGI trop courte.").max(500),
+      baseUrl: z
+        .string()
+        .trim()
+        .max(500)
+        .refine((v) => v === "" || isHttpUrl(v), "Adresse du service DGI invalide (https://…).")
+        .optional(),
+      apiKey: z
+        .string()
+        .trim()
+        .max(500)
+        .refine((v) => v === "" || v.length >= 8, "Clé d'accès DGI trop courte.")
+        .optional(),
     })
     .optional(),
   reason: z.string().trim().max(500).optional(),

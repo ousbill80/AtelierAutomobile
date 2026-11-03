@@ -110,6 +110,7 @@ describe("reminders.plan / reminders.dispatch — intégration (M10)", () => {
     await adminDb.reminderRule.deleteMany({ where: { organizationId: orgA.id } });
     await adminDb.messageTemplate.deleteMany({ where: { organizationId: orgA.id } });
     await adminDb.channelConfig.deleteMany({ where: { organizationId: orgA.id } });
+    await adminDb.portalToken.deleteMany({ where: { organizationId: orgA.id } });
     await adminDb.vehicle.deleteMany({ where: { organizationId: orgA.id } });
     await adminDb.customer.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await adminDb.organization.deleteMany({ where: { id: { in: [orgA.id, orgB.id] } } });
@@ -160,7 +161,8 @@ describe("reminders.plan / reminders.dispatch — intégration (M10)", () => {
     await processRemindersDispatchJob();
 
     const updated = await adminDb.reminder.findUniqueOrThrow({ where: { id: reminder.id } });
-    expect(updated.status).toBe("QUEUED");
+    // QUEUED, ou déjà SENT si un worker local a envoyé le message entre-temps.
+    expect(["QUEUED", "SENT"]).toContain(updated.status);
     expect(updated.messageId).not.toBeNull();
     expect(updated.channel).toBe("WHATSAPP");
 
@@ -186,6 +188,6 @@ describe("reminders.plan / reminders.dispatch — intégration (M10)", () => {
     const stillSameReminder = await adminDb.reminder.findUniqueOrThrow({
       where: { id: reminder.id },
     });
-    expect(stillSameReminder.status).toBe("QUEUED");
+    expect(["QUEUED", "SENT"]).toContain(stillSameReminder.status);
   });
 });

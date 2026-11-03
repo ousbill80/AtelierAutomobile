@@ -51,60 +51,61 @@ export function FnePanel({
     <section
       aria-label={t("fneBlock.title")}
       data-testid="fne-panel"
-      className={`flex flex-col gap-2 rounded-md border p-3 text-sm ${tone}`}
+      className={`flex flex-col gap-3 rounded-md border p-3 text-sm sm:flex-row sm:items-center sm:justify-between ${tone}`}
     >
-      <h2 className="font-semibold">{t("fneBlock.title")}</h2>
-      {certified ? (
-        <>
-          <p>
-            {t("fneBlock.number")} :{" "}
-            <span className="break-all font-mono font-semibold" data-testid="fne-number">
-              {invoice.fneNumber}
-            </span>
-          </p>
-          <p className="text-muted">
-            {t(`fneBlock.source.${invoice.fneStatus}`)}
-            {invoice.fneCertifiedAt
-              ? ` · ${t("fneBlock.certifiedAt")} ${formatDay(invoice.fneCertifiedAt, timeZone)}`
-              : ""}
-          </p>
-        </>
-      ) : (
-        <>
-          <p role={failed ? "alert" : undefined}>
-            {failed ? "✕" : "⚠"} {failed ? t("fneBlock.failed") : t("fnePending")}
-          </p>
-          {invoice.fneError && <p className="break-words">{invoice.fneError}</p>}
-          {failed && invoice.fneErrorKind === "rejected" && <p>{t("fneBlock.rejected")}</p>}
-          {mode !== "api" && <p className="text-muted">{t("fneBlock.manualHint")}</p>}
-          {mode === "api" && invoice.fneAttempts > 0 && (
+      <div className="min-w-0">
+        <h2 className="font-semibold">{t("fneBlock.title")}</h2>
+        {certified ? (
+          <>
+            <p>
+              {t("fneBlock.number")} :{" "}
+              <span className="break-all font-mono font-semibold" data-testid="fne-number">
+                {invoice.fneNumber}
+              </span>
+            </p>
             <p className="text-muted">
-              {t("fneBlock.attempts", { count: invoice.fneAttempts })}
-              {invoice.fneNextRetryAt && invoice.fneErrorKind !== "rejected"
-                ? ` · ${t("fneBlock.nextRetry", { date: formatDateTime(invoice.fneNextRetryAt, timeZone) })}`
+              {t(`fneBlock.source.${invoice.fneStatus}`)}
+              {invoice.fneCertifiedAt
+                ? ` · ${t("fneBlock.certifiedAt")} ${formatDay(invoice.fneCertifiedAt, timeZone)}`
                 : ""}
             </p>
-          )}
-          {canManage && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setManualOpen(true)}>{t("fneBlock.setManual")}</Button>
-              {mode === "api" && (
-                <Button
-                  variant="secondary"
-                  loading={retry.isPending}
-                  onClick={() => retry.mutate({ invoiceId: invoice.id })}
-                >
-                  {t("fneBlock.retry")}
-                </Button>
-              )}
-            </div>
-          )}
-          {retry.error && (
-            <p role="alert" className="text-status-bad">
-              ⚠ {retry.error.message}
+          </>
+        ) : (
+          <>
+            <p role={failed ? "alert" : undefined}>
+              {failed ? "✕" : "⚠"} {failed ? t("fneBlock.failed") : t("fnePending")}
             </p>
+            {invoice.fneError && <p className="break-words">{invoice.fneError}</p>}
+            {failed && invoice.fneErrorKind === "rejected" && <p>{t("fneBlock.rejected")}</p>}
+            {mode === "api" && invoice.fneAttempts > 0 && (
+              <p className="text-muted">
+                {t("fneBlock.attempts", { count: invoice.fneAttempts })}
+                {invoice.fneNextRetryAt && invoice.fneErrorKind !== "rejected"
+                  ? ` · ${t("fneBlock.nextRetry", { date: formatDateTime(invoice.fneNextRetryAt, timeZone) })}`
+                  : ""}
+              </p>
+            )}
+            {retry.error && (
+              <p role="alert" className="text-status-bad">
+                ⚠ {retry.error.message}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+      {!certified && canManage && (
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button onClick={() => setManualOpen(true)}>{t("fneBlock.setManual")}</Button>
+          {mode === "api" && (
+            <Button
+              variant="secondary"
+              loading={retry.isPending}
+              onClick={() => retry.mutate({ invoiceId: invoice.id })}
+            >
+              {t("fneBlock.retry")}
+            </Button>
           )}
-        </>
+        </div>
       )}
       {manualOpen && (
         <ManualFneModal

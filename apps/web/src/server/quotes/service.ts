@@ -568,8 +568,12 @@ export async function applyDecision(
     },
   });
 
-  if (quote.repairOrderId) {
-    await syncRepairOrder(tx, org, updated, now);
+  let current = updated;
+  if (!current.repairOrderId && current.vehicleId && result.status !== "DECLINED") {
+    current = await linkQuoteToOpenRepairOrder(tx, current);
+  }
+  if (current.repairOrderId) {
+    await syncRepairOrder(tx, org, current, now);
   }
   const eventPayload = {
     quoteId: quote.id,
@@ -588,7 +592,7 @@ export async function applyDecision(
     eventPayload,
   );
   const managers =
-    quote.repairOrderId || totals.acceptedTotal >= 1_000_000
+    current.repairOrderId || totals.acceptedTotal >= 1_000_000
       ? await membersWithRoles(
           tx,
           totals.acceptedTotal >= 1_000_000 ? ["OWNER", "MANAGER"] : ["MANAGER"],
@@ -609,7 +613,7 @@ export async function applyDecision(
     },
   );
   return {
-    quote: updated,
+    quote: current,
     result,
     acceptedTotal: totals.acceptedTotal,
     declinedTotal: totals.declinedTotal,
@@ -629,6 +633,66 @@ async function specialOrderCostOf(
   return lines
     .filter((l) => l.productId && special.has(l.productId))
     .reduce((s, l) => s + Math.round((l.costPrice ?? 0) * l.quantity), 0);
+}
+
+const LINKABLE_ORDER_STATUSES = [
+  "CHECKED_IN",
+  "DIAGNOSING",
+  "AWAITING_APPROVAL",
+  "APPROVED",
+  "IN_PROGRESS",
+  "WAITING_PARTS",
+] as const;
+
+/**
+ * Devis saisi à part, pour un véhicule qui a déjà un OR ouvert : on le rattache
+ * pour que le oui du client fasse avancer l'atelier. Deux OR ouverts → on ne choisit pas.
+ */
+export async function linkQuoteToOpenRepairOrder(tx: Tx, quote: Quote): Promise<Quote> {
+  if (quote.repairOrderId || !quote.vehicleId) return quote;
+  const orders = await tx.repairOrder.findMany({
+    where: {
+      vehicleId: quote.vehicleId,
+      deletedAt: null,
+      status: { in: [...LINKABLE_ORDER_STATUSES] },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 2,
+  });
+  if (orders.length !== 1) return quote;
+  return tx.quote.update({
+    where: { id: quote.id },
+    data: { repairOrderId: orders[0]!.id },
+  });
+}
+
+function sameWork(
+  row: {
+    productId: string | null;
+    laborOperationId: string | null;
+    type: string;
+    description: string;
+  },
+  line: QuoteLine,
+): boolean {
+  if (line.productId && row.productId) return row.productId === line.productId;
+  if (line.laborOperationId && row.laborOperationId) {
+    return row.laborOperationId === line.laborOperationId;
+  }
+  return (
+    row.type === line.type &&
+    row.description.trim().toLowerCase() === line.description.trim().toLowerCase()
+  );
+}
+
+/** Ligne d'OR pas encore reliée à un devis, même pièce ou même libellé. */
+async function claimTwinLine(tx: Tx, repairOrderId: string, line: QuoteLine, taken: Set<string>) {
+  const rows = await tx.repairOrderLine.findMany({
+    where: { repairOrderId, quoteLineId: null, status: { not: "CANCELLED" } },
+  });
+  const twin = rows.find((row) => !taken.has(row.id) && sameWork(row, line));
+  if (twin) taken.add(twin.id);
+  return twin ?? null;
 }
 
 /**
@@ -653,6 +717,7 @@ export async function syncRepairOrder(
   });
   const byQuoteLine = new Map(linked.map((l) => [l.quoteLineId!, l]));
   let sortOrder = await tx.repairOrderLine.count({ where: { repairOrderId: order.id } });
+  const taken = new Set<string>();
   const declinedGroups = new Map<string, QuoteLine[]>();
   for (const l of lines) {
     const roLine = byQuoteLine.get(l.id);
@@ -670,15 +735,29 @@ export async function syncRepairOrder(
           });
         }
       } else {
-        await tx.repairOrderLine.create({
-          data: {
-            ...roLineDataFromQuoteLine(l, order.id),
-            approval:
-              l.payer === "WARRANTY" || l.payer === "INTERNAL" ? "NOT_REQUIRED" : "APPROVED",
-            approvalSource: "QUOTE",
-            sortOrder: sortOrder++,
-          },
-        });
+        const twin = await claimTwinLine(tx, order.id, l, taken);
+        const approval =
+          l.payer === "WARRANTY" || l.payer === "INTERNAL" ? "NOT_REQUIRED" : "APPROVED";
+        if (twin) {
+          await tx.repairOrderLine.update({
+            where: { id: twin.id },
+            data: {
+              quoteLineId: l.id,
+              approval,
+              approvalSource: "QUOTE",
+              cancelReason: null,
+            },
+          });
+        } else {
+          await tx.repairOrderLine.create({
+            data: {
+              ...roLineDataFromQuoteLine(l, order.id),
+              approval,
+              approvalSource: "QUOTE",
+              sortOrder: sortOrder++,
+            },
+          });
+        }
       }
     } else if (l.accepted === false) {
       if (roLine && roLine.approval === "PENDING") {
@@ -772,9 +851,18 @@ export async function mirrorPendingLinesIntoOrder(tx: Tx, quote: Quote): Promise
     ).map((l) => l.quoteLineId),
   );
   let sortOrder = await tx.repairOrderLine.count({ where: { repairOrderId: order.id } });
+  const taken = new Set<string>();
   const created: string[] = [];
   for (const l of lines) {
     if (linked.has(l.id)) continue;
+    const twin = await claimTwinLine(tx, order.id, l, taken);
+    if (twin) {
+      await tx.repairOrderLine.update({
+        where: { id: twin.id },
+        data: { quoteLineId: l.id },
+      });
+      continue;
+    }
     const row = await tx.repairOrderLine.create({
       data: {
         ...roLineDataFromQuoteLine(l, order.id),

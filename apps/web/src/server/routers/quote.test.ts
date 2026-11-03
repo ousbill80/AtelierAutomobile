@@ -74,7 +74,7 @@ describe("quote routers (M05)", () => {
   let previewBot: Caller;
   let customer: { id: string };
   let vehicle: { id: string };
-  let order: { id: string };
+  let order: { id: string; siteId: string; advisorId: string | null };
   let inspection: { id: string };
 
   beforeAll(async () => {
@@ -668,6 +668,71 @@ describe("quote routers (M05)", () => {
     expect(ro.lines[0]).toMatchObject({ approval: "APPROVED", approvalSource: "QUOTE" });
   });
 
+  it("devis libre du même véhicule : le oui fait passer l'OR en diagnostic à prêt à démarrer", async () => {
+    const vehicle3 = await adminDb.vehicle.create({
+      data: {
+        organizationId: orgA.id,
+        customerId: customer.id,
+        plate: "1111 BB 01",
+        plateCompact: "1111BB01",
+        make: "Toyota",
+        model: "Corolla",
+      },
+    });
+    const diagnosing = await adminDb.repairOrder.create({
+      data: {
+        organizationId: orgA.id,
+        siteId: order.siteId,
+        number: "OR-YOP-2026-00099",
+        customerId: customer.id,
+        vehicleId: vehicle3.id,
+        status: "DIAGNOSING",
+        advisorId: order.advisorId,
+      },
+    });
+    await adminDb.repairOrderLine.create({
+      data: {
+        organizationId: orgA.id,
+        repairOrderId: diagnosing.id,
+        type: "PART",
+        description: "Huile moteur",
+        quantity: 1,
+        unitPrice: 4_000,
+        vatRate: 18,
+        approval: "APPROVED",
+        approvalSource: "CHECK_IN",
+      },
+    });
+    const created = await advisor.quote.create({
+      customerId: customer.id,
+      vehicleId: vehicle3.id,
+      origin: "STANDALONE",
+      lines: [
+        { type: "PART", description: "Huile moteur", quantity: 2, unitPrice: 4_000 },
+        { type: "LABOR", description: "Pose amortisseur", quantity: 1, unitPrice: 5_000 },
+      ],
+    });
+    const detail = await advisor.quote.get({ id: created.id });
+    await advisor.quote.recordDecision({
+      id: created.id,
+      channel: "in_person",
+      signature: { dataUrl: SIGNATURE, signerName: "Kouassi Jean-Marc" },
+      decisions: detail.groups.map((g) => ({ groupKey: g.key, accepted: true })),
+    });
+    const fresh = await adminDb.repairOrder.findUniqueOrThrow({
+      where: { id: diagnosing.id },
+      include: { lines: { orderBy: { sortOrder: "asc" } } },
+    });
+    expect(fresh.status).toBe("APPROVED");
+    expect(fresh.lines.map((l) => l.description).sort()).toEqual([
+      "Huile moteur",
+      "Pose amortisseur",
+    ]);
+    expect(
+      (await adminDb.quote.findUniqueOrThrow({ where: { id: created.id } })).repairOrderId,
+    ).toBe(diagnosing.id);
+  });
+
   it("US-M05-10 : expiration par le job puis réactivation (nouvelle version)", async () => {
     const created = await advisor.quote.create({
       customerId: customer.id,
@@ -767,6 +832,10 @@ describe("quote routers (M05)", () => {
         ["ACCEPTED", "PARTIALLY_ACCEPTED", "DECLINED", "CONVERTED"].includes(i.status),
       ),
     ).toBe(true);
+    expect(list.counts.decided).toBeGreaterThanOrEqual(list.items.length);
+    expect(list.amounts.decided).toBeGreaterThanOrEqual(0);
+    expect(list.amounts.waiting).toBeGreaterThanOrEqual(0);
+    expect(list.pendingDiscounts).toBeGreaterThanOrEqual(0);
     await expect(advisor.quote.updateSettings({ validityDays: 20 })).rejects.toThrow(/Permission/);
     const s = await owner.quote.updateSettings({
       validityDays: 20,
@@ -810,6 +879,18 @@ describe("quote routers (M05)", () => {
     });
     expect(imported).toMatchObject({ created: 1, updated: 0 });
     expect(imported.errors).toHaveLength(1);
+    // Modifier le code vers un code déjà pris : message clair, pas d'erreur Prisma brute.
+    const geo = (await manager.laborOperation.list({ q: "GEO" })).find((o) => o.code === "GEO")!;
+    await expect(
+      manager.laborOperation.update({ id: geo.id, patch: { code: "DIST" } }),
+    ).rejects.toThrow(/déjà utilisé/);
+    // Garder son propre code (ou le renvoyer inchangé) reste possible.
+    await expect(
+      manager.laborOperation.update({
+        id: geo.id,
+        patch: { code: "GEO", name: "Géométrie 4 roues" },
+      }),
+    ).resolves.toMatchObject({ code: "GEO", name: "Géométrie 4 roues" });
     await expect(
       advisor.laborOperation.create({
         code: "X",

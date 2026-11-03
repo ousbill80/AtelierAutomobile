@@ -54,6 +54,7 @@ export default function HolidaySettingsPage() {
   const [toDelete, setToDelete] = useState<Holiday | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
   const holidays = trpc.holiday.list.useQuery({ year });
@@ -78,12 +79,14 @@ export default function HolidaySettingsPage() {
   const remove = trpc.holiday.delete.useMutation({
     onSuccess() {
       setToDelete(null);
+      setDeleteError(null);
       setActionError(null);
       setNotice(t("holidaySettings.deleted"));
       void utils.holiday.list.invalidate();
     },
     onError(err) {
-      setActionError(err.message);
+      // Affichée dans la modale de confirmation (sinon masquée derrière elle).
+      setDeleteError(err.message);
     },
   });
 
@@ -205,7 +208,10 @@ export default function HolidaySettingsPage() {
                     variant="danger"
                     size="sm"
                     className="min-h-11"
-                    onClick={() => setToDelete(row)}
+                    onClick={() => {
+                      setDeleteError(null);
+                      setToDelete(row);
+                    }}
                   >
                     {t("holidaySettings.delete")}
                   </Button>
@@ -254,10 +260,20 @@ export default function HolidaySettingsPage() {
       <Modal
         open={toDelete !== null}
         title={t("holidaySettings.deleteTitle")}
-        onClose={() => setToDelete(null)}
+        onClose={() => {
+          setToDelete(null);
+          setDeleteError(null);
+        }}
         footer={
           <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="secondary" className="min-h-11" onClick={() => setToDelete(null)}>
+            <Button
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => {
+                setToDelete(null);
+                setDeleteError(null);
+              }}
+            >
               {t("holidaySettings.cancel")}
             </Button>
             <Button
@@ -277,6 +293,11 @@ export default function HolidaySettingsPage() {
               name: toDelete.name,
               date: formatDate(new Date(toDelete.date), "UTC"),
             })}
+          </p>
+        ) : null}
+        {deleteError ? (
+          <p role="alert" className="mt-2 text-sm text-status-bad">
+            ✕ {deleteError}
           </p>
         ) : null}
       </Modal>

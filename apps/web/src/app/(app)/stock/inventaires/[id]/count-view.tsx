@@ -75,67 +75,73 @@ export function CountView({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-4 pb-10">
       <ModuleNav section="stock" />
-      <Link href="/stock/inventaires" className="min-h-11 text-sm text-muted underline">
+      <Link
+        href="/stock/inventaires"
+        className="inline-flex min-h-11 items-center text-sm text-accent"
+      >
         {t("common.back")}
       </Link>
-      <PageTitle
-        title={count.number}
-        description={count.site.name}
-        actions={
-          <>
-            {count.status === "DRAFT" ? (
-              <Button loading={start.isPending} onClick={() => start.mutate({ id })}>
-                {t("counts.start")}
-              </Button>
+      <section className="form-card">
+        <div className="form-card-body">
+          <PageTitle
+            title={count.number}
+            description={count.site.name}
+            actions={
+              <>
+                {count.status === "DRAFT" ? (
+                  <Button loading={start.isPending} onClick={() => start.mutate({ id })}>
+                    {t("counts.start")}
+                  </Button>
+                ) : null}
+                {count.status === "IN_PROGRESS" ? (
+                  <Button loading={submit.isPending} onClick={() => submit.mutate({ id })}>
+                    {t("counts.submit")}
+                  </Button>
+                ) : null}
+                {count.status === "SUBMITTED" && count.canValidate ? (
+                  <Button onClick={() => setConfirmValidate(true)}>{t("counts.validate")}</Button>
+                ) : null}
+                {["DRAFT", "IN_PROGRESS", "SUBMITTED"].includes(count.status) ? (
+                  <Button
+                    variant="secondary"
+                    loading={cancel.isPending}
+                    onClick={() => cancel.mutate({ id })}
+                  >
+                    {t("counts.cancel")}
+                  </Button>
+                ) : null}
+              </>
+            }
+          />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <StatusBadge
+              tone={COUNT_TONE[count.status] ?? "off"}
+              label={t(`counts.status.${count.status}`)}
+            />
+            <span className="text-sm text-muted">
+              {t("counts.summary", {
+                counted: s.linesCounted,
+                total: s.linesTotal,
+                withVariance: s.linesWithVariance,
+              })}
+            </span>
+            {s.netValue != null ? (
+              <span className="text-sm font-medium" data-testid="count-net-value">
+                {t("counts.netValue", { value: formatFCFA(s.netValue) })}
+              </span>
             ) : null}
-            {count.status === "IN_PROGRESS" ? (
-              <Button loading={submit.isPending} onClick={() => submit.mutate({ id })}>
-                {t("counts.submit")}
-              </Button>
-            ) : null}
-            {count.status === "SUBMITTED" && count.canValidate ? (
-              <Button onClick={() => setConfirmValidate(true)}>{t("counts.validate")}</Button>
-            ) : null}
-            {["DRAFT", "IN_PROGRESS", "SUBMITTED"].includes(count.status) ? (
-              <Button
-                variant="ghost"
-                loading={cancel.isPending}
-                onClick={() => cancel.mutate({ id })}
-              >
-                {t("counts.cancel")}
-              </Button>
-            ) : null}
-          </>
-        }
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge
-          tone={COUNT_TONE[count.status] ?? "off"}
-          label={t(`counts.status.${count.status}`)}
-        />
-        <span className="text-sm text-muted">
-          {t("counts.summary", {
-            counted: s.linesCounted,
-            total: s.linesTotal,
-            withVariance: s.linesWithVariance,
-          })}
-        </span>
-        {s.netValue != null ? (
-          <span className="text-sm font-medium" data-testid="count-net-value">
-            {t("counts.netValue", { value: formatFCFA(s.netValue) })}
-          </span>
-        ) : null}
-      </div>
+          </div>
+          {count.status === "DRAFT" ? (
+            <p className="text-sm text-muted">{t("counts.draftHint")}</p>
+          ) : null}
+        </div>
+      </section>
       {notice ? (
         <p role="status" className="rounded-md bg-surface-2 p-2 text-sm">
           {notice}
         </p>
       ) : null}
       <InlineError message={actionError ? errorMessage(actionError) : null} />
-      {count.status === "DRAFT" ? (
-        <p className="text-sm text-muted">{t("counts.draftHint")}</p>
-      ) : null}
-
       {inProgress ? (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
           <p className="text-sm text-muted">{t("counts.scanHint")}</p>

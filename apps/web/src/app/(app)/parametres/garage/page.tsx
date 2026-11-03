@@ -4,7 +4,9 @@
 // RG-M15-02), mentions de facture (RG-M15-03) et aperçu en direct de l'en-tête de facture.
 // Écriture : `org:update` (identité, TVA, mentions) et `settings:update` (taux secondaires,
 // arrondi) ; sans ces permissions, la page s'affiche en lecture seule.
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ImageUp } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
 import {
   Button,
@@ -92,6 +94,7 @@ function GarageForm({
   canEditTax: boolean;
 }) {
   const utils = trpc.useUtils();
+  const router = useRouter();
   const [name, setName] = useState(org.name);
   const [legalName, setLegalName] = useState(org.legalName ?? "");
   const [rccm, setRccm] = useState(org.rccm ?? "");
@@ -106,9 +109,12 @@ function GarageForm({
   const [rates, setRates] = useState(tax.rates.join(", "));
   const [rounding, setRounding] = useState<Rounding>(tax.rounding as Rounding);
   const [invoiceFooter, setInvoiceFooter] = useState(org.invoiceFooter ?? "");
+  const [logo, setLogo] = useState<string | null>(org.logoUrl);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [saved, setSaved] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const updateOrg = trpc.org.update.useMutation();
   const updateSettings = trpc.settings.update.useMutation();
@@ -125,9 +131,18 @@ function GarageForm({
     emailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)
       ? t("garageSettings.emailInvalid")
       : null;
+  const phoneDigits = phone.replace(/\D/g, "").replace(/^(00)?225(?=\d{10}$)/, "");
+  const phoneError =
+    phone.trim() && phoneDigits.length !== 10 && phoneDigits.length !== 8
+      ? t("garageSettings.phoneInvalid")
+      : null;
   const vatRateNumber = Number(vatRate);
   const vatRateError =
-    !Number.isInteger(vatRateNumber) || vatRateNumber < 0 || vatRateNumber > 100
+    vatEnabled &&
+    (vatRate.trim() === "" ||
+      !Number.isInteger(vatRateNumber) ||
+      vatRateNumber < 0 ||
+      vatRateNumber > 100)
       ? t("garageSettings.vatRateInvalid")
       : null;
   const parsedRates = rates
@@ -145,10 +160,58 @@ function GarageForm({
       ? t("garageSettings.footerTooLong", { max: FOOTER_MAX })
       : null;
 
-  const orgErrors = canEditOrg ? [nameError, nccError, emailError, vatRateError, footerError] : [];
+  const orgErrors = canEditOrg
+    ? [nameError, nccError, emailError, phoneError, vatRateError, footerError, logoError]
+    : [];
   const taxErrors = canEditTax ? [ratesError] : [];
   const hasErrors = [...orgErrors, ...taxErrors].some(Boolean);
   const microRegime = taxRegime === "ENTREPRENANT" || taxRegime === "RMI";
+
+  // Barre d'enregistrement : signale les modifications non enregistrées.
+  const snapshot = JSON.stringify([
+    name,
+    legalName,
+    rccm,
+    ncc,
+    taxRegime,
+    address,
+    city,
+    phone,
+    email,
+    vatEnabled,
+    vatRate,
+    rates,
+    rounding,
+    invoiceFooter,
+    logo,
+  ]);
+  const [baseline, setBaseline] = useState(snapshot);
+  const dirty = snapshot !== baseline;
+
+  function pickLogo(file: File) {
+    const type = file.type.toLowerCase();
+    const fileName = file.name.toLowerCase();
+    const isImage =
+      type === "image/png" ||
+      type === "image/jpeg" ||
+      type === "image/jpg" ||
+      type === "image/pjpeg" ||
+      (type === "" && /\.(png|jpe?g)$/.test(fileName));
+    if (!isImage) {
+      setLogoError(t("garageSettings.logoInvalid"));
+      return;
+    }
+    if (file.size > 1_000_000) {
+      setLogoError(t("garageSettings.logoTooLarge"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogo(typeof reader.result === "string" ? reader.result : null);
+      setLogoError(null);
+    };
+    reader.readAsDataURL(file);
+  }
 
   function proposeVatDisable() {
     setVatEnabled(false);
@@ -177,6 +240,7 @@ function GarageForm({
           vatEnabled,
           vatRate: vatEnabled ? vatRateNumber : 0,
           invoiceFooter: orNull(invoiceFooter),
+          logoUrl: logo,
         });
       }
       if (canEditTax) {
@@ -186,8 +250,10 @@ function GarageForm({
         });
       }
       setSaved(true);
+      setBaseline(snapshot);
       void utils.settings.get.invalidate();
       void utils.org.get.invalidate();
+      router.refresh();
     } catch (err) {
       setServerError(err instanceof Error ? err.message : t("garageSettings.saveError"));
     }
@@ -211,6 +277,73 @@ function GarageForm({
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-6" noValidate>
           <Card title={t("garageSettings.identityTitle")}>
+            <Field
+              label={t("garageSettings.logo")}
+              hint={t("garageSettings.logoHint")}
+              error={logoError}
+            >
+              <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
+                  {logo ? (
+                    // Le logo est une data URL choisie par le gérant, pas une URL distante.
+                    <img
+                      src={logo}
+                      alt=""
+                      className="h-12 max-w-40 rounded-lg border border-border bg-surface object-contain"
+                    />
+                  ) : (
+                    <span
+                      className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-accent-fg"
+                      aria-hidden
+                    >
+                      {displayName
+                        .split(/\s+/)
+                        .filter((word) => word && !/^(sarl|sa|sas)$/i.test(word))
+                        .slice(0, 2)
+                        .map((word) => word[0]?.toUpperCase())
+                        .join("") || "G"}
+                    </span>
+                  )}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) pickLogo(file);
+                    }}
+                  />
+                  {canEditOrg ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      <ImageUp size={16} aria-hidden />
+                      {logo ? t("garageSettings.logoChange") : t("garageSettings.logoPick")}
+                    </Button>
+                  ) : null}
+                  {logo && canEditOrg ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-11"
+                      onClick={() => setLogo(null)}
+                    >
+                      {t("garageSettings.logoRemove")}
+                    </Button>
+                  ) : null}
+                </div>
+                {!logo ? (
+                  <p className="text-xs text-muted">{t("garageSettings.logoEmpty")}</p>
+                ) : null}
+              </div>
+            </Field>
             <div className="grid min-w-0 gap-3 sm:grid-cols-2">
               <Field label={t("garageSettings.legalName")} hint={t("garageSettings.legalNameHint")}>
                 <Input
@@ -301,7 +434,11 @@ function GarageForm({
                   onChange={(e) => setCity(e.target.value)}
                 />
               </Field>
-              <Field label={t("garageSettings.phone")}>
+              <Field
+                label={t("garageSettings.phone")}
+                hint={t("garageSettings.phoneHint")}
+                error={phoneError}
+              >
                 <Input
                   className="min-h-11"
                   type="tel"
@@ -309,6 +446,7 @@ function GarageForm({
                   value={phone}
                   disabled={!canEditOrg}
                   placeholder="+225 07 00 00 00 00"
+                  invalid={Boolean(phoneError)}
                   onChange={(e) => setPhone(e.target.value)}
                 />
               </Field>
@@ -357,7 +495,7 @@ function GarageForm({
                 <Field
                   label={t("garageSettings.vatRate")}
                   hint={t("garageSettings.vatRateHint")}
-                  error={vatEnabled ? vatRateError : null}
+                  error={vatRateError}
                 >
                   <Input
                     className="min-h-11"
@@ -368,7 +506,7 @@ function GarageForm({
                     step={1}
                     value={vatEnabled ? vatRate : "0"}
                     disabled={!canEditOrg || !vatEnabled}
-                    invalid={vatEnabled && Boolean(vatRateError)}
+                    invalid={Boolean(vatRateError)}
                     onChange={(e) => setVatRate(e.target.value)}
                   />
                 </Field>
@@ -425,24 +563,31 @@ function GarageForm({
             </Field>
           </Card>
 
-          {serverError ? (
-            <p role="alert" className="text-sm text-status-bad">
-              ✕ {serverError}
-            </p>
-          ) : null}
-          {submitted && hasErrors ? (
-            <p role="alert" className="text-sm text-status-bad">
-              ✕ {t("garageSettings.fixErrors")}
-            </p>
-          ) : null}
-          {saved ? (
-            <p role="status" className="text-sm text-status-ok">
-              ✓ {t("garageSettings.saved")}
-            </p>
-          ) : null}
           {!readOnly ? (
-            <div className="sticky bottom-0 bg-surface py-2">
-              <Button type="submit" block className="min-h-11" loading={saving}>
+            <div className="sticky bottom-[calc(var(--bottom-nav-offset,0px)+0.5rem)] z-10 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm">
+              <p
+                role={serverError || (submitted && hasErrors) ? "alert" : "status"}
+                className={`min-w-0 flex-1 text-sm ${
+                  serverError || (submitted && hasErrors)
+                    ? "text-status-bad"
+                    : dirty
+                      ? "text-status-warn"
+                      : saved
+                        ? "text-status-ok"
+                        : "text-muted"
+                }`}
+              >
+                {serverError
+                  ? `✕ ${serverError}`
+                  : submitted && hasErrors
+                    ? `✕ ${t("garageSettings.fixErrors")}`
+                    : dirty
+                      ? `● ${t("garageSettings.unsaved")}`
+                      : saved
+                        ? `✓ ${t("garageSettings.saved")}`
+                        : t("garageSettings.upToDate")}
+              </p>
+              <Button type="submit" className="min-h-11" loading={saving} disabled={!dirty}>
                 {t("garageSettings.save")}
               </Button>
             </div>
@@ -452,6 +597,9 @@ function GarageForm({
         <aside className="min-w-0" aria-label={t("garageSettings.previewTitle")}>
           <Card title={t("garageSettings.previewTitle")} className="lg:sticky lg:top-4">
             <div className="flex min-w-0 flex-col gap-1 break-words text-sm">
+              {logo ? (
+                <img src={logo} alt="" className="mb-1 h-12 max-w-40 object-contain" />
+              ) : null}
               <p className="text-base font-semibold">
                 {displayName || t("garageSettings.previewNoName")}
               </p>

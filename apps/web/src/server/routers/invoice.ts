@@ -4,6 +4,7 @@
 import { TRPCError } from "@trpc/server";
 import {
   buildDepositLine,
+  checkSalePrice,
   computeDraftTotals,
   splitRepairOrderLines,
   type RepairOrderLineForInvoice,
@@ -48,6 +49,45 @@ import { sendInvoice } from "../billing/send";
 import { requirePermission, requireSite, router } from "../trpc";
 
 const OPEN = ["ISSUED", "PARTIALLY_PAID", "OVERDUE", "DISPUTED"] as const;
+
+/** Prix catalogue d'une ligne déjà liée (pièce d'OR ou de brouillon). */
+async function assertCatalogPrice(
+  tx: Tx,
+  ctx: OrgCtx,
+  productId: string | null,
+  unitPrice: number,
+  discountRate: number,
+  priceReason: string | undefined,
+  invoiceId: string,
+) {
+  if (!productId) return;
+  const product = await tx.product.findFirst({ where: { id: productId } });
+  if (!product) return;
+  const check = checkSalePrice({
+    unitPrice,
+    discountRate,
+    minSalePrice: product.minSalePrice,
+    averageCost: product.averageCost,
+  });
+  if (check.belowMin && !ctx.permissions.has("invoice:price_below_min")) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Prix inférieur au minimum autorisé pour « ${product.name} ». Demandez au gérant.`,
+    });
+  }
+  if (!check.reasonRequired) return;
+  if (!priceReason?.trim()) {
+    bad(
+      check.belowMin
+        ? "Indiquez le motif du prix sous le minimum."
+        : `Vente à perte sur « ${product.name} » : indiquez un motif.`,
+    );
+  }
+  await audit(actorOf(ctx), "invoice.price_below_min", "Invoice", invoiceId, {
+    after: { productId, unitPrice, discountRate },
+    reason: priceReason,
+  });
+}
 
 async function loadInvoice(tx: Tx, ctx: OrgCtx, id: string) {
   const invoice = await tx.invoice.findFirst({ where: { id } });
@@ -322,29 +362,82 @@ export const invoiceRouter = router({
           bad("Une facture émise n'est plus modifiable : corrigez-la par un avoir.");
         }
         if (input.lines) {
-          if (invoice.repairOrderId) {
-            bad(
-              "Les lignes d'une facture d'OR se modifient sur l'OR : supprimez ce brouillon puis refacturez.",
-            );
-          }
           if (invoice.type === "DEPOSIT") bad("Recréez l'acompte pour en changer le montant.");
-          const lines = await draftLinesFromInput(
-            tx,
-            ctx,
-            org,
-            invoice.id,
-            input.lines,
-            input.priceReason,
-          );
+          if (invoice.type === "CREDIT_NOTE") bad("Un avoir n'est pas modifiable.");
+          const existing = await tx.invoiceLine.findMany({ where: { invoiceId: invoice.id } });
+          const byId = new Map(existing.map((line) => [line.id, line]));
+          const kept = new Set<string>();
+          for (const line of input.lines) {
+            if (!line.id) continue;
+            const current = byId.get(line.id);
+            if (!current || current.depositInvoiceId) bad("Ligne introuvable sur ce brouillon.");
+            kept.add(current.id);
+          }
           await tx.invoiceLine.deleteMany({
-            where: { invoiceId: invoice.id, depositInvoiceId: null },
+            where: {
+              invoiceId: invoice.id,
+              depositInvoiceId: null,
+              ...(kept.size > 0 ? { id: { notIn: [...kept] } } : {}),
+            },
           });
-          for (const data of lineCreateData(ctx.organizationId, lines)) {
-            await tx.invoiceLine.create({ data: { ...data, invoiceId: invoice.id } });
+          let sort = 0;
+          const fresh = input.lines.filter((line) => !line.id);
+          for (const line of input.lines) {
+            if (!line.id) continue;
+            const current = byId.get(line.id)!;
+            const unitPrice = line.unitPrice ?? current.unitPrice;
+            await assertCatalogPrice(
+              tx,
+              ctx,
+              current.productId,
+              unitPrice,
+              line.discountRate ?? 0,
+              input.priceReason,
+              invoice.id,
+            );
+            await tx.invoiceLine.update({
+              where: { id: current.id },
+              data: {
+                type: line.type,
+                description: line.description,
+                quantity: line.quantity,
+                unitPrice,
+                discountRate: line.discountRate ?? 0,
+                sortOrder: sort++,
+              },
+            });
+          }
+          if (fresh.length > 0) {
+            const created = await draftLinesFromInput(
+              tx,
+              ctx,
+              org,
+              invoice.id,
+              fresh,
+              input.priceReason,
+            );
+            for (const data of lineCreateData(ctx.organizationId, created)) {
+              await tx.invoiceLine.create({
+                data: { ...data, invoiceId: invoice.id, sortOrder: sort++ },
+              });
+            }
           }
         }
-        if (input.notes !== undefined) {
-          await tx.invoice.update({ where: { id: invoice.id }, data: { notes: input.notes } });
+        if (input.notes !== undefined || input.dueDate !== undefined) {
+          if (input.dueDate !== undefined && invoice.type === "CREDIT_NOTE") {
+            bad("Un avoir n'a pas d'échéance.");
+          }
+          await tx.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              ...(input.notes !== undefined ? { notes: input.notes } : {}),
+              ...(input.dueDate !== undefined
+                ? {
+                    dueDate: input.dueDate ? new Date(`${input.dueDate}T00:00:00.000Z`) : null,
+                  }
+                : {}),
+            },
+          });
         }
         return persistTotals(tx, org, invoice.id);
       });

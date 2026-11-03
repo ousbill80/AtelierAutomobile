@@ -18,6 +18,7 @@ import {
   Tabs,
   Textarea,
 } from "@atelieros/ui";
+import { EduTip } from "@/components/edu-tip";
 import { trpc } from "@/trpc/react";
 import {
   ErrorBox,
@@ -73,68 +74,85 @@ export function ProductView({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-4 pb-10">
       <ModuleNav section="stock" />
-      <Link href="/stock" className="min-h-11 text-sm text-muted underline">
+      <Link href="/stock" className="inline-flex min-h-11 items-center text-sm text-accent">
         {t("common.back")}
       </Link>
-      <PageTitle
-        title={product.name}
-        description={`${product.sku}${product.brand ? ` · ${product.brand}` : ""}`}
-        actions={
-          <>
-            {can("product:manage") ? (
-              <Button variant="secondary" onClick={() => setDialog("edit")}>
-                {t("common.edit")}
-              </Button>
+      <section className="form-card">
+        <div className="form-card-body">
+          <PageTitle
+            title={product.name}
+            description={`${product.sku}${product.brand ? ` · ${product.brand}` : ""}`}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            {!product.isActive ? <StatusBadge tone="off" label={t("catalog.archived")} /> : null}
+            {product.negative ? (
+              <StatusBadge tone="bad" label={t("catalog.alertNegative")} />
             ) : null}
-            {can("stock:reserve") && product.isActive ? (
-              <Button variant="secondary" onClick={() => setDialog("reserve")}>
-                {t("product.actions.reserve")}
-              </Button>
+            {product.belowMin ? (
+              <StatusBadge tone="warn" label={t("catalog.alertBelowMin")} />
             ) : null}
-            {can("stock:adjust") ? (
-              <Button variant="secondary" onClick={() => setDialog("adjust")}>
-                {t("product.actions.adjust")}
-              </Button>
-            ) : null}
-            <Button variant="ghost" onClick={() => setDialog("label")}>
-              {t("product.actions.label")}
-            </Button>
-            {can("product:manage") ? (
-              product.isActive ? (
-                <Button variant="ghost" onClick={() => setDialog("archive")}>
-                  {t("product.actions.archive")}
+            <div className="ml-auto flex flex-wrap gap-2">
+              {can("product:manage") ? (
+                <Button variant="secondary" onClick={() => setDialog("edit")}>
+                  {t("common.edit")}
                 </Button>
-              ) : (
-                <Button variant="ghost" onClick={() => archive.mutate({ id, archived: false })}>
-                  {t("product.actions.restore")}
+              ) : null}
+              {can("stock:reserve") && product.isActive ? (
+                <Button variant="secondary" onClick={() => setDialog("reserve")}>
+                  {t("product.actions.reserve")}
                 </Button>
-              )
-            ) : null}
-          </>
-        }
-      />
-      <div className="flex flex-wrap gap-2">
-        {!product.isActive ? <StatusBadge tone="off" label={t("catalog.archived")} /> : null}
-        {product.negative ? <StatusBadge tone="bad" label={t("catalog.alertNegative")} /> : null}
-        {product.belowMin ? <StatusBadge tone="warn" label={t("catalog.alertBelowMin")} /> : null}
-      </div>
+              ) : null}
+              {can("stock:adjust") ? (
+                <Button variant="secondary" onClick={() => setDialog("adjust")}>
+                  {t("product.actions.adjust")}
+                </Button>
+              ) : null}
+              <Button variant="secondary" onClick={() => setDialog("label")}>
+                {t("product.actions.label")}
+              </Button>
+              {can("product:manage") ? (
+                product.isActive ? (
+                  <Button variant="ghost" onClick={() => setDialog("archive")}>
+                    {t("product.actions.archive")}
+                  </Button>
+                ) : (
+                  <Button variant="ghost" onClick={() => archive.mutate({ id, archived: false })}>
+                    {t("product.actions.restore")}
+                  </Button>
+                )
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
       <InlineError message={archive.error ? errorMessage(archive.error) : null} />
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={t("product.levels")}>
+      <section className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label={t("product.levels")}>
         <Kpi
           label={t("product.level.onHand")}
           value={qtyText(product.totalOnHand, product.quantityScale, product.unit)}
+          help={t("product.levelHelp.onHand")}
+          example={t("product.levelExample.onHand")}
         />
         <Kpi
           label={t("product.level.available")}
           value={qtyText(product.totalAvailable, product.quantityScale, product.unit)}
+          help={t("product.levelHelp.available")}
+          example={t("product.levelExample.available")}
         />
-        <Kpi label={t("catalog.columns.price")} value={formatFCFA(product.salePrice)} />
+        <Kpi
+          label={t("catalog.columns.price")}
+          value={formatFCFA(product.salePrice)}
+          help={t("product.levelHelp.price")}
+          example={t("product.levelExample.price")}
+        />
         {canSeeCost && product.averageCost != null ? (
           <Kpi
             label={t("product.averageCost")}
             value={formatFCFA(product.averageCost)}
             testId="average-cost"
+            help={t("product.levelHelp.averageCost")}
+            example={t("product.levelExample.averageCost")}
           />
         ) : null}
       </section>
@@ -421,7 +439,20 @@ export function ProductView({ id }: { id: string }) {
         />
       ) : null}
       {dialog === "adjust" ? (
-        <AdjustModal productId={product.id} unit={product.unit} onClose={() => setDialog(null)} />
+        <AdjustModal
+          productId={product.id}
+          name={product.name}
+          sku={product.sku}
+          unit={product.unit}
+          scale={product.quantityScale}
+          levels={product.levels.map((l) => ({
+            siteId: l.siteId,
+            onHand: l.onHand,
+            negative: l.onHand < 0,
+            belowMin: l.belowMin,
+          }))}
+          onClose={() => setDialog(null)}
+        />
       ) : null}
       {dialog === "reserve" ? (
         <ReserveModal
@@ -482,24 +513,51 @@ export function ProductView({ id }: { id: string }) {
   );
 }
 
-function Kpi({ label, value, testId }: { label: string; value: string; testId?: string }) {
+function Kpi({
+  label,
+  value,
+  testId,
+  help,
+  example,
+}: {
+  label: string;
+  value: string;
+  testId?: string;
+  help: string;
+  example: string;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-3">
-      <div className="text-xs text-muted">{label}</div>
-      <div className="text-lg font-semibold" data-testid={testId}>
-        {value}
+    <div className="relative min-w-0">
+      <div className="mini-stat is-static w-full pr-10">
+        <span className="min-w-0">
+          <span className="mini-stat-value whitespace-nowrap" data-testid={testId}>
+            {value}
+          </span>
+          <span className="mini-stat-label">{label}</span>
+        </span>
       </div>
+      <span className="absolute right-0.5 top-0.5 z-10">
+        <EduTip text={help} example={example} />
+      </span>
     </div>
   );
 }
 
 function AdjustModal({
   productId,
+  name,
+  sku,
   unit,
+  scale,
+  levels,
   onClose,
 }: {
   productId: string;
+  name: string;
+  sku: string;
   unit: string;
+  scale: number;
+  levels: { siteId: string; onHand: number; negative: boolean; belowMin: boolean }[];
   onClose: () => void;
 }) {
   const utils = trpc.useUtils();
@@ -515,29 +573,59 @@ function AdjustModal({
     },
   });
   const qty = Number(quantity.replace(",", ".").replace("−", "-"));
+  const level = levels.find((l) => l.siteId === siteId);
+  const onHand = level?.onHand ?? 0;
+  const ready = Boolean(siteId && qty && reason.trim().length >= 3);
+  const blocker = !qty
+    ? t("adjust.needQuantity")
+    : reason.trim().length < 3
+      ? t("adjust.needReason")
+      : null;
   return (
     <Modal
       open
       title={t("adjust.title")}
       onClose={onClose}
       footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            loading={adjust.isPending}
-            disabled={!siteId || !qty || reason.trim().length < 3 || adjust.isPending}
-            onClick={() =>
-              adjust.mutate({ siteId, productId, quantity: qty, reasonCode, reason: reason.trim() })
-            }
-          >
-            {t("adjust.submit")}
-          </Button>
-        </>
+        <div className="flex w-full flex-col gap-3">
+          {blocker ? <p className="text-sm text-muted">{blocker}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              loading={adjust.isPending}
+              disabled={!ready || adjust.isPending}
+              onClick={() =>
+                adjust.mutate({
+                  siteId,
+                  productId,
+                  quantity: qty,
+                  reasonCode,
+                  reason: reason.trim(),
+                })
+              }
+            >
+              {t("adjust.submit")}
+            </Button>
+          </div>
+        </div>
       }
     >
-      <div className="flex flex-col gap-3">
+      <div className="form-dense flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <div className="min-w-0">
+            <p className="font-medium">{name}</p>
+            <p className="text-xs text-muted">{sku}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span>{t("adjust.onHand", { qty: qtyText(onHand, scale, unit) })}</span>
+            {level?.negative ? <StatusBadge tone="bad" label={t("catalog.alertNegative")} /> : null}
+            {level?.belowMin ? (
+              <StatusBadge tone="warn" label={t("catalog.alertBelowMin")} />
+            ) : null}
+          </div>
+        </div>
         <SiteSelect value={siteId} onChange={setSiteId} />
         <Input
           label={`${t("common.quantity")} (${unit})`}
@@ -546,25 +634,27 @@ function AdjustModal({
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
         />
-        <Field label={t("adjust.reasonCode")}>
-          <Select
-            value={reasonCode}
-            onChange={(e) => setReasonCode(e.target.value as typeof reasonCode)}
-          >
-            {REASON_CODES.map((c) => (
-              <option key={c} value={c}>
-                {t(`adjust.codes.${c}`)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("common.reason")}>
-          <Textarea
-            value={reason}
-            placeholder={t("common.reasonPlaceholder")}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </Field>
+        <section className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-surface-2 p-3">
+          <Field label={t("adjust.reasonCode")}>
+            <Select
+              value={reasonCode}
+              onChange={(e) => setReasonCode(e.target.value as typeof reasonCode)}
+            >
+              {REASON_CODES.map((c) => (
+                <option key={c} value={c}>
+                  {t(`adjust.codes.${c}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("common.reason")}>
+            <Textarea
+              value={reason}
+              placeholder={t("common.reasonPlaceholder")}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </Field>
+        </section>
         <InlineError message={adjust.error ? errorMessage(adjust.error) : null} />
       </div>
     </Modal>

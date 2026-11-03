@@ -557,8 +557,32 @@ export const repairOrderRouter = router({
           ctx.permissions.has("product:view_cost") && ctx.permissions.has("report:read");
         const hideForMechanic =
           ctx.membership.role === "MECHANIC" && !ctx.permissions.has("repair_order:update");
+        // Un devis comptoir du même véhicule (version courante, pas rattaché à un autre OR)
+        // reste visible dans l'onglet Devis : sinon la fiche n'affiche que repairOrderId.
+        const linkedQuoteIds = new Set(order.quotes.map((q) => q.id));
+        const vehicleQuotes = order.vehicleId
+          ? await tx.quote.findMany({
+              where: {
+                vehicleId: order.vehicleId,
+                deletedAt: null,
+                supersededAt: null,
+                repairOrderId: null,
+              },
+              orderBy: [{ number: "desc" }, { version: "desc" }],
+              select: {
+                id: true,
+                number: true,
+                version: true,
+                status: true,
+                total: true,
+                sentAt: true,
+              },
+            })
+          : [];
+        const quotes = [...order.quotes, ...vehicleQuotes.filter((q) => !linkedQuoteIds.has(q.id))];
         return {
           ...order,
+          quotes,
           internalNotes: hideForMechanic ? null : order.internalNotes,
           lines: order.lines.map((l) => ({
             ...l,

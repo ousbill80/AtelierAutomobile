@@ -64,8 +64,17 @@ export function createSmtpProvider(
         const info = await transporter.sendMail({
           from: `${credentials.fromName} <${credentials.fromEmail}>`,
           to: msg.to,
-          subject: (msg as OutboundMessage & { subject?: string }).subject ?? "AtelierOS",
+          subject: msg.subject ?? "AtelierOS",
           html: msg.body,
+          ...(msg.attachments?.length
+            ? {
+                attachments: msg.attachments.map((file) => ({
+                  filename: file.filename,
+                  content: Buffer.from(file.content),
+                  contentType: file.contentType,
+                })),
+              }
+            : {}),
         });
         return { providerMessageId: info.messageId };
       } catch (error) {

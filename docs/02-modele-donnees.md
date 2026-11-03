@@ -1528,6 +1528,7 @@ model Reminder {                                  // une occurrence planifiée
   @@index([organizationId, sequenceKey])
   @@index([organizationId, customerId, status])
   @@index([organizationId, groupKey])
+  channelLocked  Boolean @default(false)          // canal imposé par l'utilisateur (« Renvoyer par… ») : pas de repli (migration 20261102110000)
 }
 enum ReminderStatus { PLANNED NEEDS_APPROVAL QUEUED SENT FAILED SKIPPED SNOOZED CANCELLED }
 enum ReminderOutcome {
@@ -2211,7 +2212,24 @@ model Notification {                              // notifications internes de l
   // M12 §14 (étape 2.4) — alertes
   severity       String?                         // info | warning | critical
   dedupeKey      String?                         // "alert.channel_error:cc_123:2026-10-18"
+  // PWA (migration 20261102100000_pwa_push_notifications) — poussée sur les appareils abonnés
+  pushedAt       DateTime?                       // null = à pousser (job notifications.push, ≤ 2 h)
   @@unique([organizationId, membershipId, dedupeKey])
+  @@index([pushedAt, createdAt])
+}
+
+model PushSubscription {                          // PWA — abonnement Web Push d'un appareil
+  id             String @id @default(cuid())
+  organizationId String
+  membershipId   String                          // un appareil = un membre par garage
+  endpoint       String                          // URL du service de push du navigateur
+  p256dh         String                          // clé publique de l'appareil
+  auth           String                          // secret d'authentification de l'appareil
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  lastSuccessAt  DateTime?
+  failureCount   Int @default(0)                 // supprimé au 404/410 ou au 5e échec consécutif
+  @@unique([organizationId, endpoint])
 }
 
 model AiInteraction {                             // trace des appels IA (coût, qualité)

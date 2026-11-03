@@ -4,6 +4,7 @@
 import { TRPCError } from "@trpc/server";
 import {
   allocatePayment,
+  assertPaymentAccount,
   checkPaymentInput,
   checkRefund,
   duplicateReferenceMessage,
@@ -11,7 +12,12 @@ import {
   type AllocationLine,
   type PaymentMethodLike,
 } from "@atelieros/core";
-import { attributeAllocations, evaluateCasePromises, type Payment } from "@atelieros/db";
+import {
+  attributeAllocations,
+  evaluateCasePromises,
+  toAccountLike,
+  type Payment,
+} from "@atelieros/db";
 import { emitDomainEvent } from "../events/emit";
 import {
   audit,
@@ -69,6 +75,31 @@ export async function allocatableInvoices(tx: Tx, customerId: string) {
     ...i,
     balance: Math.max(0, i.balance - (pendingBy.get(i.id) ?? 0)),
   }));
+}
+
+/**
+ * Verrou de ligne sur les factures du client (UPDATE = `SELECT … FOR UPDATE`).
+ * Deux encaissements concurrents se sérialisent : le second relit le solde déjà diminué.
+ */
+export async function lockCustomerInvoices(
+  tx: Tx,
+  customerId: string,
+  currentInvoiceId: string | null | undefined,
+  now: Date,
+) {
+  const rows = await tx.invoice.findMany({
+    where: {
+      customerId,
+      OR: [
+        { type: { in: ["INVOICE", "DEPOSIT"] }, status: { in: [...ALLOCATABLE] } },
+        ...(currentInvoiceId ? [{ id: currentInvoiceId }] : []),
+      ],
+    },
+    select: { id: true },
+  });
+  for (const id of [...new Set(rows.map((row) => row.id))].sort()) {
+    await tx.invoice.update({ where: { id }, data: { updatedAt: now } });
+  }
 }
 
 export async function planAllocation(
@@ -204,6 +235,17 @@ export async function recordCounterPayment(
       hasOpenCashSession: Boolean(session),
     }),
   );
+  if (input.method !== "CASH") {
+    const accounts = await tx.treasuryAccount.findMany();
+    guard(() =>
+      assertPaymentAccount({
+        method: input.method,
+        siteId: input.siteId,
+        paidOn: org.today.toISOString().slice(0, 10),
+        accounts: accounts.map(toAccountLike),
+      }),
+    );
+  }
   if (checked.reference && input.method !== "CASH") {
     // RG-M08-26 : une même référence mobile money / chèque / virement n'est saisie qu'une fois.
     const duplicate = await tx.payment.findFirst({
@@ -222,12 +264,21 @@ export async function recordCounterPayment(
       });
     }
   }
+  await lockCustomerInvoices(tx, customer.id, input.currentInvoiceId, org.now);
   const { plan } = await planAllocation(tx, {
     customerId: customer.id,
     amount: input.amount,
     currentInvoiceId: input.currentInvoiceId,
     explicit: input.allocations,
   });
+  // La facture visée n'a plus de reste dû, et aucune autre facture ouverte n'absorbe le montant.
+  if (
+    input.currentInvoiceId &&
+    plan.unallocated === input.amount &&
+    plan.allocations.every((line) => line.invoiceId !== input.currentInvoiceId)
+  ) {
+    bad("Cette facture est déjà soldée.");
+  }
   const receivedAt = org.now;
   const number = await nextFiscalNumber(
     tx,
@@ -316,6 +367,7 @@ export async function allocateLater(
   if (total > available) {
     bad(`Le montant affecté dépasse le disponible (${formatFCFA(available)}).`);
   }
+  await lockCustomerInvoices(tx, customerId, null, org.now);
   const { plan } = await planAllocation(tx, {
     customerId,
     amount: total,

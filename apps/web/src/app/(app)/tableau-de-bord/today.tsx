@@ -66,6 +66,8 @@ export function TodayTab({ input, timeZone }: { input: TabInput; timeZone: strin
               repair: workshop.stages.repair,
               ready: workshop.stages.ready,
             })}
+            help={T.cards.vehiclesHelp}
+            example={vehicleExample(workshop)}
             href="/ordres"
           />
         )}
@@ -77,6 +79,8 @@ export function TodayTab({ input, timeZone }: { input: TabInput; timeZone: strin
               count: cash.paymentsCount,
               state: cash.sessionOpenedAt ? T.cards.cashOpen : T.cards.cashClosed,
             })}
+            help={T.cards.collectedHelp}
+            example={cashExample(cash)}
             href="/caisse"
           />
         )}
@@ -85,6 +89,8 @@ export function TodayTab({ input, timeZone }: { input: TabInput; timeZone: strin
             label={T.cards.unpaid}
             value={formatAmount(unpaid.total)}
             sub={fmt(T.cards.unpaidSub, { count: unpaid.count, long: unpaid.longOverdueCount })}
+            help={T.cards.unpaidHelp}
+            example={unpaidExample(unpaid)}
             href="/creances?filtre=en-retard"
           />
         )}
@@ -93,6 +99,8 @@ export function TodayTab({ input, timeZone }: { input: TabInput; timeZone: strin
             label={T.cards.inspections}
             value={String(inspections.total)}
             sub={fmt(T.cards.inspectionsSub, inspections.bands)}
+            help={T.cards.inspectionsHelp}
+            example={inspectionExample(inspections)}
             href="/relances/echeances"
           />
         )}
@@ -112,7 +120,11 @@ export function TodayTab({ input, timeZone }: { input: TabInput; timeZone: strin
       ) : (
         input.siteId &&
         data.reminders && (
-          <Section title={T.inspections.title}>
+          <Section
+            title={T.inspections.title}
+            help={T.inspections.help}
+            example={T.inspections.siteFiltered}
+          >
             <p className="text-sm text-muted">{T.inspections.siteFiltered}</p>
           </Section>
         )
@@ -141,6 +153,8 @@ function WorkshopBlock({
   return (
     <Section
       title={T.workshop.title}
+      help={T.workshop.help}
+      example={workshopBlockExample(workshop, timeZone)}
       action={
         <Link href="/ordres" className={linkClass}>
           {T.workshop.all} →
@@ -220,6 +234,8 @@ function CashBlock({ cash, timeZone }: { cash: NonNullable<Today["cash"]>; timeZ
   return (
     <Section
       title={T.cash.title}
+      help={T.cash.help}
+      example={cashBlockExample(cash)}
       action={
         cash.sessionOpenedAt ? (
           <StatusBadge tone="ok">
@@ -271,6 +287,8 @@ function InspectionsBlock({ inspections }: { inspections: NonNullable<Today["ins
   return (
     <Section
       title={T.inspections.title}
+      help={T.inspections.help}
+      example={inspectionBlockExample(inspections)}
       action={
         <Link href="/relances/echeances" className={linkClass}>
           {T.inspections.schedule} →
@@ -353,6 +371,8 @@ function RemindersBlock({ reminders }: { reminders: NonNullable<Today["reminders
   return (
     <Section
       title={T.reminders.title}
+      help={T.reminders.help}
+      example={remindersExample(reminders)}
       action={
         <Link href="/relances" className={linkClass}>
           {T.reminders.manage} →
@@ -398,6 +418,8 @@ function ClaimsBlock({ claims }: { claims: NonNullable<Today["claims"]> }) {
   return (
     <Section
       title={T.claims.title}
+      help={T.claims.help}
+      example={claimsExample(claims)}
       action={
         <Link href="/assurances/sinistres" className={linkClass}>
           {T.claims.all} →
@@ -433,7 +455,7 @@ function ClaimsBlock({ claims }: { claims: NonNullable<Today["claims"]> }) {
 
 function UnpaidBlock({ unpaid }: { unpaid: NonNullable<Today["unpaid"]> }) {
   return (
-    <Section title={T.unpaid.title}>
+    <Section title={T.unpaid.title} help={T.unpaid.help} example={unpaidExample(unpaid)}>
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">{T.unpaid.total}</p>
       <p className="mb-3 text-2xl font-bold">
         {formatAmount(unpaid.total)}{" "}
@@ -492,7 +514,11 @@ function CollectedChart({
   const total = daily.reduce((s, d) => s + d.total, 0);
   const max = Math.max(...daily.map((d) => d.total), 1);
   return (
-    <Section title={T.collected.title}>
+    <Section
+      title={T.collected.title}
+      help={T.collected.help}
+      example={collectedChartExample(daily, today)}
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {T.collected.total}
       </p>
@@ -533,6 +559,174 @@ function CollectedChart({
 }
 
 // ─── Formats ──────────────────────────────────────────────────────────────────
+
+function workshopBlockExample(workshop: NonNullable<Today["workshop"]>, timeZone: string): string {
+  const item = workshop.items.find((r) => r.stage);
+  if (!item?.stage) return T.workshop.exampleEmpty;
+  return fmt(T.workshop.example, {
+    customer: item.customerName,
+    plate: item.plate,
+    vehicle: item.vehicle,
+    stage: T.workshop.stages[item.stage],
+    payer: item.insurerName ?? T.workshop.customerPays,
+    date: item.promisedAt ? formatShortDate(item.promisedAt, timeZone) : T.workshop.noDate,
+  });
+}
+
+function cashBlockExample(cash: NonNullable<Today["cash"]>): string {
+  const top = Object.entries(cash.byMethod).sort((a, b) => b[1] - a[1])[0];
+  if (top && top[1] > 0) {
+    return fmt(T.cash.example, {
+      method: methodLabel(top[0]),
+      amount: formatAmount(top[1]),
+      total: formatAmount(cash.total),
+    });
+  }
+  const recent = [...cash.daily].reverse().find((d) => d.total > 0);
+  if (recent) {
+    return fmt(T.cash.exampleQuiet, {
+      date: formatDay(recent.day),
+      amount: formatAmount(recent.total),
+    });
+  }
+  return T.cash.exampleEmpty;
+}
+
+function inspectionBlockExample(inspections: NonNullable<Today["inspections"]>): string {
+  const item = inspections.items[0];
+  if (!item?.band) return T.inspections.exampleEmpty;
+  const when =
+    item.daysLeft > 0
+      ? fmt(T.cards.whenIn, { days: item.daysLeft })
+      : item.daysLeft === 0
+        ? T.cards.whenToday
+        : fmt(T.cards.whenLate, { days: Math.abs(item.daysLeft) });
+  return fmt(T.inspections.example, {
+    customer: item.customerName,
+    plate: item.plate,
+    vehicle: item.vehicle,
+    date: formatDay(new Date(item.dueDate).toISOString().slice(0, 10)),
+    when,
+    follow: T.inspections.followUps[item.followUp],
+  });
+}
+
+function countPhrase(count: number, one: string, many: string): string {
+  return `${count} ${count > 1 ? many : one}`;
+}
+
+function remindersExample(reminders: NonNullable<Today["reminders"]>): string {
+  const sent = `${countPhrase(reminders.sentThisWeek, "message est déjà parti", "messages sont déjà partis")} cette semaine.`;
+  const approve =
+    reminders.toApprove === 0
+      ? "Aucun n'attend votre accord."
+      : `${countPhrase(reminders.toApprove, "message attend", "messages attendent")} votre accord.`;
+  const next = reminders.upcoming[0];
+  if (!next) return fmt(T.reminders.exampleQuiet, { sent, approve });
+  return fmt(T.reminders.example, {
+    date: formatDay(next.day),
+    detail: next.byType.map((t) => `${t.count} ${reminderTypeLabel(t.type)}`).join(", "),
+    sent,
+    approve,
+  });
+}
+
+function claimsExample(claims: NonNullable<Today["claims"]>): string {
+  const stages = Object.keys(T.claims.stages) as ClaimStage[];
+  const stage = stages.find((s) => claims.stages[s].count > 0);
+  if (!stage) return T.claims.exampleEmpty;
+  const row = claims.stages[stage];
+  return fmt(T.claims.example, {
+    dossiers: countPhrase(row.count, "dossier", "dossiers"),
+    stage: T.claims.stages[stage],
+    amount: formatAmount(row.amount),
+    total: formatAmount(claims.total),
+  });
+}
+
+function collectedChartExample(daily: NonNullable<Today["cash"]>["daily"], today: string): string {
+  const total = daily.reduce((sum, d) => sum + d.total, 0);
+  const highlighted = [...daily].reverse().find((d) => d.total > 0);
+  if (!highlighted) return T.collected.exampleEmpty;
+  return fmt(T.collected.example, {
+    day:
+      highlighted.day === today
+        ? `${formatDay(highlighted.day)} (aujourd'hui)`
+        : formatDay(highlighted.day),
+    amount: formatAmount(highlighted.total),
+    total: formatAmount(total),
+  });
+}
+
+function vehicleExample(workshop: NonNullable<Today["workshop"]>): string {
+  const item = workshop.items.find((r) => r.stage);
+  if (!item?.stage) return T.cards.vehiclesExampleEmpty;
+  return fmt(T.cards.vehiclesExample, {
+    customer: item.customerName,
+    vehicle: item.vehicle,
+    plate: item.plate,
+    stage: T.workshop.stages[item.stage],
+    total: workshop.total,
+  });
+}
+
+function cashExample(cash: NonNullable<Today["cash"]>): string {
+  const top = Object.entries(cash.byMethod).sort((a, b) => b[1] - a[1])[0];
+  if (top && top[1] > 0) {
+    return fmt(T.cards.collectedExample, {
+      method: methodLabel(top[0]),
+      amount: formatAmount(top[1]),
+      total: formatAmount(cash.total),
+      state: cash.sessionOpenedAt ? T.cards.cashOpen : T.cards.cashClosed,
+    });
+  }
+  const recent = [...cash.daily].reverse().find((d) => d.total > 0);
+  if (recent) {
+    return fmt(T.cards.collectedExampleRecent, {
+      date: formatDay(recent.day),
+      amount: formatAmount(recent.total),
+    });
+  }
+  return T.cards.collectedExampleEmpty;
+}
+
+function unpaidExample(unpaid: NonNullable<Today["unpaid"]>): string {
+  const first = unpaid.overdue[0];
+  if (first) {
+    return fmt(T.cards.unpaidExample, {
+      number: first.number ?? T.unpaid.noNumber,
+      customer: first.customerName,
+      amount: formatAmount(first.balance),
+      days: first.daysOverdue > 1 ? `${first.daysOverdue} jours` : `${first.daysOverdue} jour`,
+      total: formatAmount(unpaid.total),
+      count: unpaid.count,
+    });
+  }
+  if (unpaid.count === 0) return T.cards.unpaidExampleEmpty;
+  return fmt(T.cards.unpaidExampleOpen, {
+    count: unpaid.count,
+    total: formatAmount(unpaid.total),
+  });
+}
+
+function inspectionExample(inspections: NonNullable<Today["inspections"]>): string {
+  const item = inspections.items[0];
+  if (!item?.band) return T.cards.inspectionsExampleEmpty;
+  const when =
+    item.daysLeft > 0
+      ? fmt(T.cards.whenIn, { days: item.daysLeft })
+      : item.daysLeft === 0
+        ? T.cards.whenToday
+        : fmt(T.cards.whenLate, { days: Math.abs(item.daysLeft) });
+  return fmt(T.cards.inspectionsExample, {
+    customer: item.customerName,
+    plate: item.plate,
+    vehicle: item.vehicle,
+    date: formatDay(new Date(item.dueDate).toISOString().slice(0, 10)),
+    when,
+    band: T.inspections.bands[item.band],
+  });
+}
 
 /** Instant → `dd/MM/yyyy` dans le fuseau de l'organisation. */
 function formatShortDate(value: Date | string, timeZone: string): string {

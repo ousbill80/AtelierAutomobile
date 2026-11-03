@@ -48,6 +48,8 @@ export const messagingSendInputSchema = z.object({
   templateKey: z.string().trim().min(1).optional(),
   body: z.string().trim().min(1).optional(),
   subject: z.string().trim().min(1).optional(),
+  /** Facture du client, pour remplir {{facture.*}} d'un modèle de relance. */
+  invoiceId: z.string().trim().min(1).optional(),
   context: z.record(z.string(), z.unknown()).optional(),
 });
 export type MessagingSendInput = z.infer<typeof messagingSendInputSchema>;
@@ -121,6 +123,13 @@ export const channelUpsertInputSchema = z.object({
 });
 export type ChannelUpsertInput = z.infer<typeof channelUpsertInputSchema>;
 
+/** Activer/désactiver une configuration sans toucher à ses identifiants chiffrés. */
+export const channelSetActiveInputSchema = z.object({
+  id: z.string().trim().min(1),
+  isActive: z.boolean(),
+});
+export type ChannelSetActiveInput = z.infer<typeof channelSetActiveInputSchema>;
+
 export const channelTestInputSchema = z.object({ id: z.string().trim().min(1) });
 export type ChannelTestInput = z.infer<typeof channelTestInputSchema>;
 
@@ -166,3 +175,16 @@ export const devOutboxSimulateReplyInputSchema = z.object({
   body: z.string().trim().min(1),
 });
 export type DevOutboxSimulateReplyInput = z.infer<typeof devOutboxSimulateReplyInputSchema>;
+
+/** Journal des envois (Messages › Envois) : tous les messages partis vers les clients. */
+export const messageLogInputSchema = z.object({
+  channel: messageChannelSchema.optional(),
+  /** État de remise : en attente, échec, envoyé sans accusé, reçu, lu. */
+  state: z.enum(["PENDING", "FAILED", "UNCONFIRMED", "DELIVERED", "READ"]).optional(),
+  kind: z.enum(["REMINDER", "TRANSACTIONAL", "CONVERSATION"]).optional(),
+  /** Nom du client, numéro, email ou texte du message. */
+  q: z.string().trim().max(80).optional(),
+  cursor: z.string().optional(),
+  limit: z.number().int().min(1).max(100).default(50),
+});
+export type MessageLogInput = z.infer<typeof messageLogInputSchema>;

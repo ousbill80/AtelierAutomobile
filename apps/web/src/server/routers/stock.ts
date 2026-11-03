@@ -4,10 +4,13 @@ import {
   computeValuation,
   daysSince,
   dormantBucket,
+  emptyPulseLevel,
   isStaleReservation,
   formatQty,
+  minStockOfLevel,
   reconstructStockAt,
   stockSettingsFrom,
+  summarizeGaragePulse,
   valueOf,
 } from "@atelieros/core";
 import {
@@ -97,6 +100,61 @@ export const stockRouter = router({
         where: { productId: input.productId, ...siteFilter(ctx) },
         include: { site: { select: { code: true, name: true } } },
       });
+    }),
+
+  /** Pilotage du magasin : ruptures, seuils, valeur et bons ouverts. */
+  pulse: requirePermission("stock:read")
+    .input(z.object({ siteId: z.string().min(1).optional() }))
+    .query(async ({ ctx, input }) => {
+      if (input.siteId) requireSite(ctx, input.siteId);
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const siteWhere = input.siteId ? { siteId: input.siteId } : siteFilter(ctx);
+      const [products, purchases, openPartRequests, backorders] = await Promise.all([
+        tenantDb.product.findMany({
+          where: { isActive: true },
+          select: {
+            id: true,
+            isStocked: true,
+            minStock: true,
+            quantityScale: true,
+            averageCost: true,
+            stockLevels: {
+              where: siteWhere,
+              select: { onHand: true, reserved: true, minStock: true },
+            },
+          },
+        }),
+        tenantDb.purchaseOrder.findMany({
+          where: { status: { in: ["DRAFT", "SENT", "PARTIALLY_RECEIVED"] }, ...siteWhere },
+          select: { status: true, expectedAt: true },
+        }),
+        tenantDb.partRequest.count({
+          where: { status: { in: ["REQUESTED", "PREPARING", "ORDERED"] }, ...siteWhere },
+        }),
+        tenantDb.stockReservation.count({
+          where: { status: "BACKORDERED", ...siteWhere },
+        }),
+      ]);
+      const levels = products.flatMap((product) =>
+        product.stockLevels.length > 0
+          ? product.stockLevels.map((level) => ({
+              productId: product.id,
+              onHand: level.onHand,
+              reserved: level.reserved,
+              minStock: minStockOfLevel(level, product),
+              quantityScale: product.quantityScale,
+              averageCost: product.averageCost,
+              isStocked: product.isStocked,
+            }))
+          : [emptyPulseLevel(product)],
+      );
+      const pulse = summarizeGaragePulse({ levels, purchases, now: stockNow() });
+      return {
+        ...pulse,
+        stockValue: canSeeCost(ctx) ? pulse.stockValue : null,
+        openPartRequests,
+        backorders,
+      };
     }),
 
   /** Paramètres `settings.stock` (lecture pour l'interface : stock négatif, seuils). */

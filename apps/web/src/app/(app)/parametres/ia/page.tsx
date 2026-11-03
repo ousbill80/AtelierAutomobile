@@ -3,8 +3,11 @@
 // M17 §7 `/parametres/ia` — interrupteurs par fonction (RG-M17-10), optimisation horaire,
 // consommation du mois (jauge crédits, top fonctions, taux d'acceptation) et journal des 100
 // derniers appels (fonction, date, statut, crédits, accepté). Réservé à `ai:configure`.
+import { useEffect, useState } from "react";
 import { AI_FEATURES, isFeatureInPlan, type AiFeature } from "@atelieros/core/ai";
 import { Button, PageHead, StatusBadge } from "@atelieros/ui";
+import { ErrorBox } from "@/components/repair-orders/error-box";
+import { formatDateTime } from "@/components/repair-orders/i18n";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/react";
 
@@ -68,12 +71,23 @@ export default function AiSettingsPage() {
   const settings = trpc.ai.settings.get.useQuery();
   const usage = trpc.ai.usage.useQuery();
   const journal = trpc.ai.interactions.list.useQuery({});
+  const me = trpc.me.get.useQuery();
+  const timeZone = me.data?.activeOrganization?.timezone ?? "Africa/Abidjan";
+  const [saved, setSaved] = useState(false);
   const update = trpc.ai.settings.update.useMutation({
+    onMutate: () => setSaved(false),
     onSuccess: () => {
+      setSaved(true);
       void utils.ai.settings.get.invalidate();
       void utils.ai.status.invalidate();
     },
   });
+  // Confirmation passagère : elle disparaît après quelques secondes.
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 3000);
+    return () => clearTimeout(timer);
+  }, [saved]);
 
   if (settings.isError || usage.isError) {
     return (
@@ -108,9 +122,14 @@ export default function AiSettingsPage() {
               : settings.data.provider,
         })}
       </p>
-      {update.isSuccess && (
+      {saved && (
         <p role="status" className="text-sm text-status-ok">
-          {t("aiSettings.saved")}
+          ✓ {t("aiSettings.saved")}
+        </p>
+      )}
+      {update.error && (
+        <p role="alert" className="text-sm text-status-bad">
+          ⚠ {t("aiSettings.saveError", { message: update.error.message })}
         </p>
       )}
 
@@ -119,12 +138,6 @@ export default function AiSettingsPage() {
           label={t("aiSettings.enabled")}
           checked={ai.enabled}
           onChange={(enabled) => update.mutate({ enabled })}
-        />
-        <Toggle
-          label={t("aiSettings.assistantEnabled")}
-          checked={ai.assistantEnabled}
-          disabled={!ai.enabled}
-          onChange={(assistantEnabled) => update.mutate({ assistantEnabled })}
         />
         <Toggle
           label={t("aiSettings.autoTimeOptimization")}
@@ -140,10 +153,22 @@ export default function AiSettingsPage() {
           <Toggle
             key={feature}
             label={featureLabel(feature)}
-            checked={ai.features[feature]}
-            disabled={!ai.enabled || !isFeatureInPlan(plan, feature)}
+            // L'assistant est aussi conditionné par `assistantEnabled` (gateAiCall) : un seul
+            // interrupteur à l'écran, qui garde les deux réglages alignés.
+            checked={
+              feature === "assistant"
+                ? ai.features.assistant && ai.assistantEnabled
+                : ai.features[feature]
+            }
+            disabled={!ai.enabled || !isFeatureInPlan(plan, feature) || update.isPending}
             hint={isFeatureInPlan(plan, feature) ? undefined : t("aiSettings.notInPlan")}
-            onChange={(value) => update.mutate({ features: { [feature]: value } })}
+            onChange={(value) =>
+              update.mutate(
+                feature === "assistant"
+                  ? { features: { assistant: value }, assistantEnabled: value }
+                  : { features: { [feature]: value } },
+              )
+            }
           />
         ))}
       </section>
@@ -195,6 +220,9 @@ export default function AiSettingsPage() {
       <section className="flex flex-col gap-2">
         <h3 className="font-semibold">{t("aiSettings.journalTitle")}</h3>
         {journal.isLoading && <Skeletons />}
+        {journal.isError && (
+          <ErrorBox onRetry={() => void journal.refetch()} message={t("aiSettings.journalError")} />
+        )}
         {journal.data && journal.data.length === 0 && (
           <p className="text-sm text-muted">{t("aiSettings.journalEmpty")}</p>
         )}
@@ -207,10 +235,7 @@ export default function AiSettingsPage() {
               <span className="flex flex-col">
                 <span>{featureLabel(row.feature)}</span>
                 <span className="text-xs text-muted">
-                  {new Intl.DateTimeFormat("fr-FR", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  }).format(new Date(row.createdAt))}
+                  {formatDateTime(row.createdAt, timeZone)}
                 </span>
               </span>
               <span className="flex flex-wrap items-center gap-2">

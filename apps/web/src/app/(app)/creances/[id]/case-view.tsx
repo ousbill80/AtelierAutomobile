@@ -1,20 +1,50 @@
 "use client";
 
-// PRD M09 §7.2 — fiche dossier de recouvrement. Écarts documentés : mise en demeure,
-// « Relancer maintenant », assignation et dérogation de crédit non exposés dans cet écran.
+// PRD M09 §7.2 — fiche dossier de recouvrement. Écarts documentés : assignation et dérogation
+// de crédit non exposées dans cet écran ; mise en demeure sans image de signature (M15).
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
 import { formatFCFA } from "@atelieros/core/money";
+import { EduTip } from "@/components/edu-tip";
+import {
+  AlertTriangle,
+  CalendarCheck,
+  Check,
+  ChevronLeft,
+  Clock,
+  FileText,
+  MessageCircle,
+  MoreHorizontal,
+  Phone,
+  PhoneCall,
+  Send,
+  Wallet,
+  X,
+} from "lucide-react";
+import { describeStep } from "@atelieros/core/reminders/stepLabel";
+import { DeliveryTicks } from "@/components/messaging/delivery-ticks";
 import { Button, StatusBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import type { AppRouter } from "@/server/routers/_app";
+import { PaymentAccountNotice, usePaymentAccountBlock } from "@/components/billing/payment-account";
 import { ErrorBox } from "../error-box";
+import { RemindDialog } from "../remind-dialog";
+import { FormalNoticeSection } from "./formal-notice";
 import { CASE_STATUS_TONE, INVOICE_STATUS_TONE, formatDay, riskLabelOf, t } from "../i18n";
 
 type CaseData = inferRouterOutputs<AppRouter>["collections"]["getCase"];
 type Dialog =
-  "payment" | "promise" | "call" | "note" | "dispute" | "resolve" | "pause" | "writeOff" | null;
+  | "payment"
+  | "promise"
+  | "call"
+  | "note"
+  | "dispute"
+  | "resolve"
+  | "pause"
+  | "writeOff"
+  | "remind"
+  | null;
 
 const PAYMENT_METHODS = [
   "CASH",
@@ -29,6 +59,7 @@ const ACTIVE = ["OPEN", "PROMISED", "PAUSED", "DISPUTED", "ESCALATED"];
 
 export function CaseView({ id }: { id: string }) {
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [remindSent, setRemindSent] = useState(false);
   const utils = trpc.useUtils();
   const query = trpc.collections.getCase.useQuery({ id });
 
@@ -58,113 +89,184 @@ export function CaseView({ id }: { id: string }) {
   const kase = data.case;
   const customer = kase.customer;
   const risk = riskLabelOf(customer.riskScore);
-  const components = customer.riskComponents as Record<string, number> | null;
   const isActive = ACTIVE.includes(kase.status);
+  const canRemind = ["OPEN", "PROMISED", "ESCALATED"].includes(kase.status);
   const phoneDigits = customer.phone?.replace(/\D/g, "");
   const statementFrom = `${data.today.slice(0, 4)}-01-01`;
   const openInvoices = data.invoices.filter((i) => i.balance > 0 && i.status !== "WRITTEN_OFF");
+  const tone = delayTone(data.exposure.maxDaysOverdue);
+
+  // Actions secondaires, regroupées dans « Plus d'actions ».
+  const moreActions: { key: string; label: string; onClick: () => void; danger?: boolean }[] = [];
+  if (isActive) {
+    moreActions.push({
+      key: "note",
+      label: t("actions.addNote"),
+      onClick: () => setDialog("note"),
+    });
+    if (kase.status === "DISPUTED") {
+      moreActions.push({
+        key: "resolve",
+        label: t("actions.resolveDispute"),
+        onClick: () => setDialog("resolve"),
+      });
+    } else {
+      moreActions.push({
+        key: "dispute",
+        label: t("actions.openDispute"),
+        onClick: () => setDialog("dispute"),
+      });
+    }
+    if (kase.status === "PAUSED") {
+      moreActions.push({
+        key: "resume",
+        label: t("actions.resume"),
+        onClick: () => resume.mutate({ caseId: kase.id }),
+      });
+    } else if (canRemind) {
+      moreActions.push({
+        key: "pause",
+        label: t("actions.pause"),
+        onClick: () => setDialog("pause"),
+      });
+    }
+    if (["OPEN", "PROMISED"].includes(kase.status)) {
+      moreActions.push({
+        key: "escalate",
+        label: t("actions.escalate"),
+        onClick: () => escalate.mutate({ caseId: kase.id }),
+      });
+    }
+    moreActions.push({
+      key: "writeOff",
+      label: t("actions.writeOff"),
+      onClick: () => setDialog("writeOff"),
+      danger: true,
+    });
+  }
 
   return (
     <div className="flex flex-col gap-5 pb-10">
-      <Link href="/creances" className="min-h-11 text-sm text-muted underline">
-        {t("case.back")}
+      <Link
+        href="/creances"
+        className="inline-flex min-h-11 items-center gap-1 self-start text-sm text-muted hover:text-foreground"
+      >
+        <ChevronLeft size={16} aria-hidden /> {t("case.back")}
       </Link>
 
-      <header className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold">{customer.displayName}</h1>
-          <StatusBadge tone={CASE_STATUS_TONE[kase.status] ?? "off"}>
-            {t(`caseStatus.${kase.status}`)}
-          </StatusBadge>
-          <span
-            title={
-              components
-                ? t("risk.components", {
-                    A: components.A ?? 0,
-                    B: components.B ?? 0,
-                    C: components.C ?? 0,
-                    D: components.D ?? 0,
-                    E: components.E ?? 0,
-                  })
-                : undefined
-            }
-          >
-            <StatusBadge tone={risk.tone}>
-              {t("risk.label")} : {t(risk.key)}
-              {customer.riskScore !== null ? ` (${customer.riskScore})` : ""}
-            </StatusBadge>
-          </span>
-          {customer.creditHold && <StatusBadge tone="bad">{t("creditHold")}</StatusBadge>}
-          {kase.unreachable && <StatusBadge tone="bad">{t("unreachable")}</StatusBadge>}
-        </div>
-        {components && (
-          <p className="text-xs text-muted">
-            {t("risk.components", {
-              A: components.A ?? 0,
-              B: components.B ?? 0,
-              C: components.C ?? 0,
-              D: components.D ?? 0,
-              E: components.E ?? 0,
-            })}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {customer.phone && (
-            <a
-              href={`tel:${customer.phone}`}
-              onClick={() => setDialog("call")}
-              className="inline-flex min-h-11 items-center rounded-md bg-surface-2 px-4 text-sm font-medium"
+      {/* En-tête : qui, combien, depuis quand. */}
+      <header className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 md:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              aria-hidden
+              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-2 text-base font-bold"
             >
-              {t("case.call")} {customer.phone}
-            </a>
-          )}
-          {phoneDigits && (
+              {initialsOf(customer.displayName)}
+            </span>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-semibold">{customer.displayName}</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <StatusBadge tone={CASE_STATUS_TONE[kase.status] ?? "off"}>
+                  {t(`caseStatus.${kase.status}`)}
+                </StatusBadge>
+                <StatusBadge tone={risk.tone}>
+                  {t(risk.key)}
+                  {customer.riskScore !== null ? ` · ${customer.riskScore}/100` : ""}
+                </StatusBadge>
+                <EduTip text={t("case.riskHelp")} example={t("case.riskExample")} />
+                {customer.creditHold && <StatusBadge tone="bad">{t("creditHold")}</StatusBadge>}
+                {kase.unreachable && <StatusBadge tone="bad">{t("unreachable")}</StatusBadge>}
+              </div>
+              {customer.contacts.length > 0 && (
+                <p className="mt-1 text-sm text-muted">
+                  {t("case.accountingContacts")} :{" "}
+                  <span className="text-foreground">
+                    {customer.contacts
+                      .map((c) => [c.name, c.phone].filter(Boolean).join(" "))
+                      .join(" · ")}
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {customer.phone && (
+              <a
+                href={`tel:${customer.phone}`}
+                onClick={() => setDialog("call")}
+                className="btn btn-secondary min-h-11"
+              >
+                <Phone size={16} aria-hidden /> {t("case.callShort")}
+              </a>
+            )}
+            {phoneDigits && (
+              <a
+                href={`https://wa.me/${phoneDigits}?text=${encodeURIComponent(
+                  t("case.whatsappText", {
+                    name: customer.displayName,
+                    amount: formatFCFA(data.exposure.overdueDue || data.exposure.totalDue),
+                  }),
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-secondary min-h-11"
+              >
+                <MessageCircle size={16} aria-hidden /> {t("case.whatsapp")}
+              </a>
+            )}
             <a
-              href={`https://wa.me/${phoneDigits}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-11 items-center rounded-md bg-surface-2 px-4 text-sm font-medium"
+              href={`/api/creances/releve/${customer.id}?from=${statementFrom}&to=${data.today}`}
+              className="btn btn-secondary min-h-11"
             >
-              {t("case.whatsapp")}
+              <FileText size={16} aria-hidden /> {t("case.statementShort")}
             </a>
-          )}
-          <a
-            href={`/api/creances/releve/${customer.id}?from=${statementFrom}&to=${data.today}`}
-            className="inline-flex min-h-11 items-center rounded-md bg-surface-2 px-4 text-sm font-medium"
+          </div>
+        </div>
+
+        <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Figure
+            label={t("columns.totalDue")}
+            help={t("kpiHelp.totalDue")}
+            example={t("kpiExample.totalDue")}
           >
-            {t("case.statement")}
-          </a>
-        </div>
-        {customer.contacts.length > 0 && (
-          <p className="text-sm">
-            <span className="text-muted">{t("case.accountingContacts")} : </span>
-            {customer.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(" ")).join(" · ")}
-          </p>
-        )}
-        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-          <Info label={t("columns.totalDue")} value={formatFCFA(data.exposure.totalDue)} />
-          <Info label={t("columns.overdue")} value={formatFCFA(data.exposure.overdueDue)} />
-          <Info
-            label={t("columns.maxDays")}
-            value={t("days", { count: data.exposure.maxDaysOverdue })}
-          />
-          <Info
-            label={t("credit." + data.credit.level)}
-            value={
-              customer.creditLimit !== null
-                ? t("case.creditLimit", {
-                    limit: formatFCFA(customer.creditLimit),
-                    exposure: formatFCFA(data.credit.exposure),
-                  })
-                : t("case.noCreditLimit", { exposure: formatFCFA(data.credit.exposure) })
-            }
-          />
-        </div>
+            {formatFCFA(data.exposure.totalDue)}
+          </Figure>
+          <Figure
+            label={t("columns.overdue")}
+            help={t("kpiHelp.overdue")}
+            example={t("kpiExample.overdue")}
+            danger={data.exposure.overdueDue > 0}
+          >
+            {formatFCFA(data.exposure.overdueDue)}
+          </Figure>
+          <Figure
+            label={t("case.oldestDelay")}
+            help={t("kpiHelp.maxDays")}
+            example={t("kpiExample.maxDays")}
+          >
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-base ${DELAY_PILL[tone]}`}>
+              {t("days", { count: data.exposure.maxDaysOverdue })}
+            </span>
+          </Figure>
+          <Figure
+            label={t("case.creditTitle")}
+            help={t("kpiHelp.credit")}
+            example={t("kpiExample.credit")}
+          >
+            <span className="text-base">
+              {customer.creditLimit !== null
+                ? t("case.creditLimitShort", { limit: formatFCFA(customer.creditLimit) })
+                : t("case.noCreditLimitShort")}
+            </span>
+          </Figure>
+        </dl>
+
         {data.credit.message && (
           <p
-            className={`rounded-md p-3 text-sm ${data.credit.level === "BLOCK" ? "bg-status-bad-bg text-status-bad" : "bg-status-warn-bg text-status-warn"}`}
+            className={`flex items-start gap-2 rounded-lg p-3 text-sm ${data.credit.level === "BLOCK" ? "bg-status-bad-bg text-status-bad" : "bg-status-warn-bg text-status-warn"}`}
           >
-            {data.credit.level === "BLOCK" ? "■ " : "▲ "}
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
             {data.credit.message}
           </p>
         )}
@@ -175,56 +277,26 @@ export function CaseView({ id }: { id: string }) {
         )}
       </header>
 
+      {/* Actions : les 4 plus fréquentes visibles, le reste dans « Plus d'actions ». */}
       {isActive && (
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setDialog("payment")}>{t("actions.recordPayment")}</Button>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Button className="col-span-2 sm:col-span-1" onClick={() => setDialog("payment")}>
+            <Wallet size={16} aria-hidden /> {t("actions.recordPayment")}
+          </Button>
+          {canRemind && (
+            <Button variant="secondary" onClick={() => setDialog("remind")}>
+              <Send size={16} aria-hidden /> {t("actions.remindShort")}
+            </Button>
+          )}
           {kase.status !== "DISPUTED" && (
             <Button variant="secondary" onClick={() => setDialog("promise")}>
-              {t("actions.addPromise")}
+              <CalendarCheck size={16} aria-hidden /> {t("actions.addPromise")}
             </Button>
           )}
           <Button variant="secondary" onClick={() => setDialog("call")}>
-            {t("actions.logCall")}
+            <PhoneCall size={16} aria-hidden /> {t("actions.logCall")}
           </Button>
-          <Button variant="secondary" onClick={() => setDialog("note")}>
-            {t("actions.addNote")}
-          </Button>
-          {kase.status === "DISPUTED" ? (
-            <Button variant="secondary" onClick={() => setDialog("resolve")}>
-              {t("actions.resolveDispute")}
-            </Button>
-          ) : (
-            <Button variant="secondary" onClick={() => setDialog("dispute")}>
-              {t("actions.openDispute")}
-            </Button>
-          )}
-          {kase.status === "PAUSED" ? (
-            <Button
-              variant="secondary"
-              onClick={() => resume.mutate({ caseId: kase.id })}
-              disabled={resume.isPending}
-            >
-              {t("actions.resume")}
-            </Button>
-          ) : (
-            ["OPEN", "PROMISED", "ESCALATED"].includes(kase.status) && (
-              <Button variant="secondary" onClick={() => setDialog("pause")}>
-                {t("actions.pause")}
-              </Button>
-            )
-          )}
-          {["OPEN", "PROMISED"].includes(kase.status) && (
-            <Button
-              variant="secondary"
-              onClick={() => escalate.mutate({ caseId: kase.id })}
-              disabled={escalate.isPending}
-            >
-              {t("actions.escalate")}
-            </Button>
-          )}
-          <Button variant="danger" onClick={() => setDialog("writeOff")}>
-            {t("actions.writeOff")}
-          </Button>
+          <MoreActions actions={moreActions} />
         </div>
       )}
       {(resume.error || escalate.error || cancelPromise.error) && (
@@ -232,7 +304,23 @@ export function CaseView({ id }: { id: string }) {
           {(resume.error ?? escalate.error ?? cancelPromise.error)?.message}
         </p>
       )}
+      {remindSent && (
+        <p role="status" className="rounded-md bg-status-ok-bg p-3 text-sm text-status-ok">
+          ✓ {t("remind.sent")}
+        </p>
+      )}
 
+      {dialog === "remind" && (
+        <RemindDialog
+          caseIds={[kase.id]}
+          title={t("remind.title", { name: customer.displayName })}
+          onClose={() => setDialog(null)}
+          onDone={() => {
+            setRemindSent(true);
+            void utils.collections.invalidate();
+          }}
+        />
+      )}
       {dialog === "payment" && (
         <PaymentDialog
           customerId={customer.id}
@@ -279,121 +367,271 @@ export function CaseView({ id }: { id: string }) {
         />
       )}
 
-      <Section title={t("case.sequence")}>
-        {data.reminders.length === 0 ? (
-          <p className="text-sm text-muted">{t("case.noReminders")}</p>
-        ) : (
-          <ol className="flex flex-wrap gap-2">
-            {data.reminders.map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-col gap-1 rounded-md border border-border p-2 text-sm"
-              >
-                <span className="font-medium">{r.stepKey}</span>
-                <StatusBadge
-                  tone={
-                    r.status === "SENT"
-                      ? "ok"
-                      : r.status === "CANCELLED" || r.status === "SKIPPED"
-                        ? "off"
-                        : "warn"
-                  }
-                >
-                  {t(`reminderStatus.${r.status}`)}
-                </StatusBadge>
-                <span className="text-xs text-muted">{formatDay(r.sentAt ?? r.scheduledFor)}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Section>
-
-      <Section title={t("case.invoices")}>
-        {data.invoices.length === 0 ? (
-          <p className="text-sm text-muted">{t("case.noInvoices")}</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {data.invoices.map((i) => (
-              <li
-                key={i.id}
-                className="flex flex-col gap-1 rounded-md border border-border p-3 text-sm md:flex-row md:justify-between"
-              >
-                <span className="flex flex-col">
-                  <span className="font-medium">
-                    {i.number ?? "—"}
-                    {i.fneNumber ? ` · ${t("case.fne", { number: i.fneNumber })}` : ""}
-                  </span>
-                  <span className="text-xs text-muted">
-                    {t("columns.dueDate")} : {formatDay(i.dueDate)} ·{" "}
-                    {t("days", { count: i.daysOverdue })}
-                  </span>
-                </span>
-                <span className="flex items-center gap-3">
-                  <StatusBadge tone={INVOICE_STATUS_TONE[i.status] ?? "off"}>
-                    {t(`invoiceStatus.${i.status}`)}
-                  </StatusBadge>
-                  <span>
-                    {formatFCFA(i.balance)} / {formatFCFA(i.total)}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title={t("case.promises")}>
-        {kase.promises.length === 0 ? (
-          <p className="text-sm text-muted">{t("case.noPromises")}</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {kase.promises.map((p) => (
-              <li
-                key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-sm"
-              >
-                <span>
-                  {formatFCFA(p.amount)} · {formatDay(p.promisedDate)}
-                  {p.channel ? ` · ${t(`promiseChannels.${p.channel}`)}` : ""}
-                </span>
-                <span className="flex items-center gap-2">
-                  <StatusBadge
-                    tone={
-                      p.status === "KEPT"
-                        ? "ok"
-                        : p.status === "PENDING"
-                          ? "warn"
-                          : p.status === "CANCELLED"
-                            ? "off"
-                            : "bad"
-                    }
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-5">
+          <Section title={t("case.invoices")} count={data.invoices.length}>
+            {data.invoices.length === 0 ? (
+              <p className="text-sm text-muted">{t("case.noInvoices")}</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {data.invoices.map((i) => (
+                  <li
+                    key={i.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
                   >
-                    {t(`promiseStatus.${p.status}`)}
-                  </StatusBadge>
-                  {p.status === "PENDING" && (
-                    <Button
-                      variant="ghost"
-                      disabled={cancelPromise.isPending}
-                      onClick={() =>
-                        cancelPromise.mutate({
-                          promiseId: p.id,
-                          reason: t("actions.cancelPromise"),
-                        })
-                      }
-                    >
-                      {t("actions.cancelPromise")}
-                    </Button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
+                    <span className="min-w-0">
+                      <span className="block font-medium">
+                        {i.number ?? "—"}
+                        {i.fneNumber ? (
+                          <span className="font-normal text-muted">
+                            {" "}
+                            · {t("case.fne", { number: i.fneNumber })}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {t("columns.dueDate")} {formatDay(i.dueDate)}
+                        {i.daysOverdue > 0
+                          ? ` · ${t("days", { count: i.daysOverdue })} ${t("case.late")}`
+                          : ""}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <StatusBadge tone={INVOICE_STATUS_TONE[i.status] ?? "off"}>
+                        {t(`invoiceStatus.${i.status}`)}
+                      </StatusBadge>
+                      <span className="text-right tabular-nums">
+                        <span className="block font-semibold">{formatFCFA(i.balance)}</span>
+                        <span className="block text-xs text-muted">
+                          {t("case.ofTotal", { total: formatFCFA(i.total) })}
+                        </span>
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
 
-      <Section title={t("case.timeline")}>
-        <Timeline data={data} />
-      </Section>
+          <Section title={t("case.sequence")} count={data.reminders.length}>
+            {data.reminders.length === 0 ? (
+              <p className="text-sm text-muted">{t("case.noReminders")}</p>
+            ) : (
+              <ol className="flex flex-col">
+                {data.reminders.map((r, index) => {
+                  const done = r.status === "SENT";
+                  const off = r.status === "CANCELLED" || r.status === "SKIPPED";
+                  return (
+                    <li key={r.id} className="relative flex gap-3 pb-4 last:pb-0">
+                      {index < data.reminders.length - 1 && (
+                        <span
+                          aria-hidden
+                          className="absolute top-6 left-[11px] h-full w-px bg-border"
+                        />
+                      )}
+                      <span
+                        aria-hidden
+                        className={`relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${done ? "bg-status-ok text-white" : off ? "bg-surface-2 text-muted" : "bg-status-warn-bg text-status-warn"}`}
+                      >
+                        {done ? <Check size={14} /> : off ? <X size={14} /> : <Clock size={13} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                          <span className="font-medium">{stepLabel(r.stepKey)}</span>
+                          {r.channel && (
+                            <span className="text-muted">· {t(`list.channels.${r.channel}`)}</span>
+                          )}
+                          <StatusBadge tone={done ? "ok" : off ? "off" : "warn"}>
+                            {t(`reminderStatus.${r.status}`)}
+                          </StatusBadge>
+                          {done && <DeliveryTicks state={r.delivery} />}
+                        </p>
+                        <p className="text-xs text-muted">
+                          {formatDay(r.sentAt ?? r.scheduledFor)}
+                          {off && r.skippedReason ? ` · ${r.skippedReason}` : ""}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </Section>
+
+          <Section title={t("case.timeline")}>
+            <Timeline data={data} />
+          </Section>
+        </div>
+
+        <aside className="flex min-w-0 flex-col gap-5">
+          <Section title={t("case.promises")} count={kase.promises.length}>
+            {kase.promises.length === 0 ? (
+              <p className="text-sm text-muted">{t("case.noPromises")}</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {kase.promises.map((p) => (
+                  <li key={p.id} className="flex flex-col gap-1.5 py-2.5 text-sm">
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold tabular-nums">{formatFCFA(p.amount)}</span>
+                      <StatusBadge
+                        tone={
+                          p.status === "KEPT"
+                            ? "ok"
+                            : p.status === "PENDING"
+                              ? "warn"
+                              : p.status === "CANCELLED"
+                                ? "off"
+                                : "bad"
+                        }
+                      >
+                        {t(`promiseStatus.${p.status}`)}
+                      </StatusBadge>
+                    </span>
+                    <span className="text-xs text-muted">
+                      {t("case.promisedFor", { date: formatDay(p.promisedDate) })}
+                      {p.channel ? ` · ${t(`promiseChannels.${p.channel}`)}` : ""}
+                    </span>
+                    {p.status === "PENDING" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="self-start"
+                        disabled={cancelPromise.isPending}
+                        onClick={() =>
+                          cancelPromise.mutate({
+                            promiseId: p.id,
+                            reason: t("actions.cancelPromise"),
+                          })
+                        }
+                      >
+                        {t("actions.cancelPromise")}
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <FormalNoticeSection
+            caseId={kase.id}
+            active={canRemind}
+            today={data.today}
+            notice={data.formalNotice}
+            onChanged={() => void utils.collections.invalidate()}
+          />
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (
+    ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase() ||
+    "?"
+  );
+}
+
+function delayTone(days: number): "ok" | "warn" | "bad" {
+  if (days <= 7) return "ok";
+  if (days <= 30) return "warn";
+  return "bad";
+}
+
+const DELAY_PILL: Record<"ok" | "warn" | "bad", string> = {
+  ok: "bg-status-ok-bg text-status-ok",
+  warn: "bg-status-warn-bg text-status-warn",
+  bad: "bg-status-bad-bg text-status-bad",
+};
+
+/** Palier en clair : « 3 jours après l'échéance », « Relance envoyée à la main »… */
+function stepLabel(stepKey: string): string {
+  const step = describeStep(stepKey);
+  switch (step.kind) {
+    case "before":
+      return t("steps.before", { days: step.days });
+    case "after":
+      return t("steps.after", { days: step.days });
+    case "on":
+      return t("steps.on");
+    case "manual":
+      return t("steps.manual");
+    case "promise":
+      return t("steps.promise");
+    default:
+      return step.key;
+  }
+}
+
+function Figure({
+  label,
+  help,
+  example,
+  danger,
+  children,
+}: {
+  label: string;
+  help?: string;
+  example?: string;
+  danger?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative flex flex-col gap-1 rounded-lg bg-surface-2/70 p-3 pr-9">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className={`text-lg font-semibold tabular-nums ${danger ? "text-status-bad" : ""}`}>
+        {children}
+      </dd>
+      {help ? (
+        <span className="absolute top-1 right-1">
+          <EduTip text={help} example={example} />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function MoreActions({
+  actions,
+}: {
+  actions: { key: string; label: string; onClick: () => void; danger?: boolean }[];
+}) {
+  const [open, setOpen] = useState(false);
+  if (actions.length === 0) return null;
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        className="w-full sm:w-auto"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreHorizontal size={16} aria-hidden /> {t("actions.more")}
+      </Button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 z-30 mt-1 flex w-full min-w-60 flex-col rounded-lg border border-border bg-surface p-1 shadow-lg sm:w-auto"
+        >
+          {actions.map((a) => (
+            <button
+              key={a.key}
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                a.onClick();
+              }}
+              className={`min-h-11 rounded-md px-3 text-left text-sm hover:bg-surface-2 ${a.danger ? "mt-1 border-t border-border text-status-bad" : ""}`}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -421,33 +659,45 @@ function Timeline({ data }: { data: CaseData }) {
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
   if (entries.length === 0) return <p className="text-sm text-muted">{t("case.noTimeline")}</p>;
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="divide-y divide-border">
       {entries.map((e) => (
-        <li key={e.id} className="flex flex-col rounded-md border border-border p-3 text-sm">
-          <span className="text-xs text-muted">
-            {formatDay(e.at)}
-            {e.who ? ` · ${e.who}` : ""}
+        <li key={e.id} className="flex gap-3 py-2.5 text-sm">
+          <span
+            aria-hidden
+            className={`mt-1.5 size-2 shrink-0 rounded-full ${e.kind === "payment" ? "bg-status-ok" : e.kind === "call" ? "bg-accent" : "bg-border"}`}
+          />
+          <span className="min-w-0">
+            <span className="block">{e.text}</span>
+            <span className="text-xs text-muted">
+              {formatDay(e.at)}
+              {e.who ? ` · ${e.who}` : ""}
+            </span>
           </span>
-          <span>{e.text}</span>
         </li>
       ))}
     </ul>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count?: number;
+  children: ReactNode;
+}) {
   return (
-    <span className="flex flex-col">
-      <span className="text-xs text-muted">{label}</span>
-      <span className="font-medium">{value}</span>
-    </span>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
-      <h2 className="font-semibold">{title}</h2>
+    <section className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4">
+      <h2 className="flex items-center gap-2 font-semibold">
+        {title}
+        {count !== undefined && count > 0 && (
+          <span className="rounded-full bg-surface-2 px-2 text-xs font-medium text-muted">
+            {count}
+          </span>
+        )}
+      </h2>
       {children}
     </section>
   );
@@ -460,6 +710,8 @@ function DialogShell({
   onClose,
   onSubmit,
   pending,
+  submitDisabled,
+  submitLabel,
   error,
   children,
 }: {
@@ -467,6 +719,8 @@ function DialogShell({
   onClose: () => void;
   onSubmit: () => void;
   pending: boolean;
+  submitDisabled?: boolean;
+  submitLabel?: string;
   error?: string | null;
   children: ReactNode;
 }) {
@@ -475,7 +729,7 @@ function DialogShell({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-0 md:items-center md:p-4"
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-0 md:items-center md:p-4"
     >
       <form
         className="flex max-h-[90vh] w-full flex-col gap-3 overflow-y-auto rounded-t-lg bg-surface p-4 md:max-w-lg md:rounded-lg"
@@ -491,8 +745,8 @@ function DialogShell({
           <Button type="button" variant="ghost" onClick={onClose}>
             {t("actions.cancel")}
           </Button>
-          <Button type="submit" disabled={pending}>
-            {t("actions.save")}
+          <Button type="submit" disabled={pending || submitDisabled}>
+            {submitLabel ?? t("actions.save")}
           </Button>
         </div>
       </form>
@@ -530,12 +784,14 @@ function PaymentDialog({
   const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]>("CASH");
   const [reference, setReference] = useState("");
   const mutation = trpc.payment.record.useMutation({ onSuccess: onDone });
+  const account = usePaymentAccountBlock(method, date);
   return (
     <DialogShell
       title={t("actions.recordPayment")}
       onClose={onClose}
       pending={mutation.isPending}
-      error={mutation.error?.message}
+      submitDisabled={Boolean(account.message) || account.pending}
+      error={account.message ? null : mutation.error?.message}
       onSubmit={() =>
         mutation.mutate({
           customerId,
@@ -584,6 +840,7 @@ function PaymentDialog({
         />
       </Field>
       <p className="text-xs text-muted">{t("form.autoAllocation")}</p>
+      <PaymentAccountNotice message={account.message} />
     </DialogShell>
   );
 }

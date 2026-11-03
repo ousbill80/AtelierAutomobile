@@ -24,6 +24,9 @@ function formatNumber(value: number): string {
 
 function formatQuantity(key: string, value: number): string {
   if (key === "storageBytes") {
+    if (value > 0 && value < GB) {
+      return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.max(1, value / (1024 * 1024)))} Mo`;
+    }
     return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(value / GB)} Go`;
   }
   return formatNumber(value);
@@ -104,19 +107,21 @@ export default function SubscriptionPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [impact, setImpact] = useState<string[]>([]);
   const request = trpc.plan.requestChange.useMutation({
-    onSuccess(result) {
+    onSuccess(result, variables) {
       setNotice(
         result.status === "APPLIED"
           ? t("subscription.applied", { plan: t(`subscription.plans.${result.plan}`) })
-          : null,
+          : t("subscription.requested", {
+              plan: t(`subscription.plans.${variables.targetPlan}`),
+            }),
       );
       setImpact(
         result.downgradeImpact.map((i) =>
           t("subscription.impact", {
             label: t(`subscription.gauges.${i.key}`),
-            used: formatNumber(i.used),
-            limit: formatNumber(i.limit),
-            excess: formatNumber(i.excess),
+            used: formatQuantity(i.key, i.used),
+            limit: formatQuantity(i.key, i.limit),
+            excess: formatQuantity(i.key, i.excess),
           }),
         ),
       );
@@ -241,6 +246,8 @@ export default function SubscriptionPage() {
                     className="mt-auto min-h-11"
                     onClick={() => {
                       request.reset();
+                      setNotice(null);
+                      setImpact([]);
                       setTarget(offer.tier);
                     }}
                   >

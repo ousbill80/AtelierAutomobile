@@ -39,7 +39,7 @@ function createProvider(
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ provider: string }> }) {
-  const limited = webhookRateLimitResponse(req);
+  const limited = await webhookRateLimitResponse(req);
   if (limited) return limited;
   const { provider: providerName } = await params;
   const token = new URL(req.url).searchParams.get("token");

@@ -33,7 +33,10 @@ export function SidePanel({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={handleBackdropClick}>
+    <div
+      className="fixed inset-0 z-[80] flex justify-end bg-black/30"
+      onClick={handleBackdropClick}
+    >
       <aside
         role="dialog"
         aria-modal="true"

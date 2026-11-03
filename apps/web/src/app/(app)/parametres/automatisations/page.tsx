@@ -113,6 +113,20 @@ export default function AutomationsPage() {
   );
 }
 
+/** Message d'une erreur tRPC (phrase française côté serveur) ou libellé de repli. */
+function errorText(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function InlineError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="text-sm text-status-bad">
+      <span aria-hidden="true">⚠</span> {message}
+    </p>
+  );
+}
+
 function SectionTitle({ children }: { children: string }) {
   return <h3 className="text-lg font-semibold">{children}</h3>;
 }
@@ -124,6 +138,7 @@ function TemplatesSection({
 }) {
   const query = trpc.automations.templates.useQuery();
   const activate = trpc.automations.activateTemplate.useMutation();
+  const [activateError, setActivateError] = useState<{ key: string; message: string } | null>(null);
   return (
     <section className="flex flex-col gap-3" aria-labelledby="automation-templates">
       <span id="automation-templates">
@@ -161,15 +176,25 @@ function TemplatesSection({
                 <Button
                   variant="secondary"
                   loading={activate.isPending && activate.variables?.key === tpl.key}
+                  disabled={activate.isPending}
                   onClick={async () => {
-                    const result = await activate.mutateAsync({ key: tpl.key });
-                    onActivated(tpl.name, result.warnings);
+                    setActivateError(null);
+                    try {
+                      const result = await activate.mutateAsync({ key: tpl.key });
+                      onActivated(tpl.name, result.warnings);
+                    } catch (e) {
+                      setActivateError({
+                        key: tpl.key,
+                        message: errorText(e, t("automations.errors.activate")),
+                      });
+                    }
                   }}
                 >
                   {t("automations.templates.activate")}
                 </Button>
               )}
             </div>
+            <InlineError message={activateError?.key === tpl.key ? activateError.message : null} />
           </div>
         ))}
       </div>
@@ -187,7 +212,12 @@ function RulesSection({
   const utils = trpc.useUtils();
   const query = trpc.automations.list.useQuery();
   const [testing, setTesting] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState<string | null>(null);
   const toggle = trpc.automations.toggle.useMutation({
+    onMutate: () => setRowError(null),
+    onError: (e, vars) =>
+      setRowError({ id: vars.id, message: errorText(e, t("automations.errors.toggle")) }),
     onSuccess: (result) => {
       onChanged(result.warnings);
       void utils.automations.list.invalidate();
@@ -195,6 +225,9 @@ function RulesSection({
     },
   });
   const remove = trpc.automations.delete.useMutation({
+    onMutate: () => setRowError(null),
+    onError: (e, vars) =>
+      setRowError({ id: vars.id, message: errorText(e, t("automations.errors.delete")) }),
     onSuccess: () => {
       void utils.automations.list.invalidate();
       void utils.automations.templates.invalidate();
@@ -203,16 +236,25 @@ function RulesSection({
   });
 
   async function edit(rule: RuleRow) {
-    const full = await utils.automations.get.fetch({ id: rule.id });
-    onEdit({
-      id: full.id,
-      name: full.name,
-      trigger: full.trigger as AutomationTrigger,
-      conditions: full.conditions as AutomationCondition[],
-      actions: full.actions as AutomationAction[],
-      mode: full.mode,
-      delayMinutes: full.delayMinutes,
-    });
+    setRowError(null);
+    setLoadingEdit(rule.id);
+    try {
+      const full = await utils.automations.get.fetch({ id: rule.id });
+      onEdit({
+        id: full.id,
+        name: full.name,
+        trigger: full.trigger as AutomationTrigger,
+        conditions: full.conditions as AutomationCondition[],
+        actions: full.actions as AutomationAction[],
+        mode: full.mode,
+        delayMinutes: full.delayMinutes,
+        siteIds: full.siteIds,
+      });
+    } catch (e) {
+      setRowError({ id: rule.id, message: errorText(e, t("automations.errors.load")) });
+    } finally {
+      setLoadingEdit(null);
+    }
   }
 
   return (
@@ -268,13 +310,20 @@ function RulesSection({
               <Switch
                 label={t("automations.rules.activeLabel")}
                 checked={rule.isActive}
-                disabled={toggle.isPending || (!rule.available && !rule.isActive)}
+                disabled={
+                  (toggle.isPending && toggle.variables?.id === rule.id) ||
+                  (!rule.available && !rule.isActive)
+                }
                 onChange={(e) => toggle.mutate({ id: rule.id, isActive: e.target.checked })}
               />
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => edit(rule)}>
+            <Button
+              variant="secondary"
+              loading={loadingEdit === rule.id}
+              onClick={() => edit(rule)}
+            >
               {t("automations.rules.edit")}
             </Button>
             <Button
@@ -285,6 +334,7 @@ function RulesSection({
             </Button>
             <Button
               variant="ghost"
+              loading={remove.isPending && remove.variables?.id === rule.id}
               onClick={() => {
                 if (window.confirm(t("automations.rules.confirmDelete", { name: rule.name }))) {
                   remove.mutate({ id: rule.id });
@@ -294,6 +344,7 @@ function RulesSection({
               {t("automations.rules.delete")}
             </Button>
           </div>
+          <InlineError message={rowError?.id === rule.id ? rowError.message : null} />
           {testing === rule.id && <TestPanel ruleId={rule.id} onClose={() => setTesting(null)} />}
         </div>
       ))}
@@ -388,8 +439,25 @@ function TestPanel({ ruleId, onClose }: { ruleId: string; onClose: () => void })
 
 function ApprovalsSection({ onDecided }: { onDecided: () => void }) {
   const query = trpc.automations.pendingApprovals.useQuery();
-  const accept = trpc.ai.suggestion.accept.useMutation({ onSuccess: onDecided });
-  const dismiss = trpc.ai.suggestion.dismiss.useMutation({ onSuccess: onDecided });
+  const [decisionError, setDecisionError] = useState<{ id: string; message: string } | null>(null);
+  const onError = (e: unknown, vars: { suggestionId: string }) =>
+    setDecisionError({
+      id: vars.suggestionId,
+      message: errorText(e, t("automations.errors.decide")),
+    });
+  const accept = trpc.ai.suggestion.accept.useMutation({
+    onMutate: () => setDecisionError(null),
+    onSuccess: onDecided,
+    onError,
+  });
+  const dismiss = trpc.ai.suggestion.dismiss.useMutation({
+    onMutate: () => setDecisionError(null),
+    onSuccess: onDecided,
+    onError,
+  });
+  const busy = (id: string) =>
+    (accept.isPending && accept.variables?.suggestionId === id) ||
+    (dismiss.isPending && dismiss.variables?.suggestionId === id);
   return (
     <section className="flex flex-col gap-3">
       <SectionTitle>{t("automations.sections.approvals")}</SectionTitle>
@@ -422,19 +490,24 @@ function ApprovalsSection({ onDecided }: { onDecided: () => void }) {
             </ul>
             <div className="flex flex-wrap gap-2">
               <Button
-                loading={accept.isPending}
+                loading={accept.isPending && accept.variables?.suggestionId === suggestion.id}
+                disabled={busy(suggestion.id)}
                 onClick={() => accept.mutate({ suggestionId: suggestion.id })}
               >
                 {t("automations.approvals.approve")}
               </Button>
               <Button
                 variant="secondary"
-                loading={dismiss.isPending}
+                loading={dismiss.isPending && dismiss.variables?.suggestionId === suggestion.id}
+                disabled={busy(suggestion.id)}
                 onClick={() => dismiss.mutate({ suggestionId: suggestion.id })}
               >
                 {t("automations.approvals.dismiss")}
               </Button>
             </div>
+            <InlineError
+              message={decisionError?.id === suggestion.id ? decisionError.message : null}
+            />
           </div>
         );
       })}
@@ -443,18 +516,15 @@ function ApprovalsSection({ onDecided }: { onDecided: () => void }) {
 }
 
 function RunsSection() {
-  const query = trpc.automations.runs.useQuery({});
-  const [cursor, setCursor] = useState<string | null>(null);
-  const more = trpc.automations.runs.useQuery(
-    { cursor: cursor ?? undefined },
-    { enabled: !!cursor },
+  const query = trpc.automations.runs.useInfiniteQuery(
+    {},
+    { getNextPageParam: (last) => last.nextCursor ?? undefined },
   );
-  const items: RunRow[] = [...(query.data?.items ?? []), ...(more.data?.items ?? [])];
-  const nextCursor = more.data ? more.data.nextCursor : query.data?.nextCursor;
+  const items: RunRow[] = query.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <section className="flex flex-col gap-3">
       <SectionTitle>{t("automations.sections.runs")}</SectionTitle>
-      {query.isError && (
+      {query.isError && !query.isFetchNextPageError && (
         <ErrorBox message={t("automations.loadError")} onRetry={() => query.refetch()} />
       )}
       {query.isLoading && <ListSkeleton rows={2} />}
@@ -481,9 +551,16 @@ function RunsSection() {
           </li>
         ))}
       </ul>
-      {nextCursor && (
+      {query.isFetchNextPageError && (
+        <InlineError message={errorText(query.error, t("automations.loadError"))} />
+      )}
+      {query.hasNextPage && (
         <div>
-          <Button variant="secondary" onClick={() => setCursor(nextCursor)}>
+          <Button
+            variant="secondary"
+            loading={query.isFetchingNextPage}
+            onClick={() => void query.fetchNextPage()}
+          >
             {t("automations.runs.more")}
           </Button>
         </div>

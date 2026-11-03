@@ -6,8 +6,9 @@
 // atomique (`updateMany({ where: { status: "PLANNED" } })`) comme garde-fou de concurrence,
 // suffisant tant qu'un seul worker consomme la file des relances.
 import { createHash, randomBytes } from "node:crypto";
-import { adminDb, db } from "@atelieros/db";
+import { adminDb, db, issuePortalToken } from "@atelieros/db";
 import {
+  isDomainError,
   antiSpamAllows,
   clientNamespace,
   deferOutcome,
@@ -92,7 +93,13 @@ function buildGroups(
     const recipientKey = recipientKeyOf.get(r.id);
     if (!recipientKey) continue;
     const date = dayKey(r.scheduledFor);
-    const key = `${recipientKey}:${r.type}:${r.stepKey}:${date}`;
+    // Relance manuelle sur un canal choisi : un message par canal (pas de regroupement).
+    const channelPart =
+      (r.stepKey === "MANUAL" || r.channelLocked) && r.channel ? `:${r.channel}` : "";
+    // Un message par véhicule (choix du garage) : un client qui a plusieurs véhicules reçoit
+    // un message distinct pour chacun. VT + révision du MÊME véhicule restent combinées.
+    const vehiclePart = r.vehicleId ? `:${r.vehicleId}` : "";
+    const key = `${recipientKey}:${r.type}:${r.stepKey}${channelPart}${vehiclePart}:${date}`;
     const group = primary.get(key) ?? {
       key,
       type: r.type,
@@ -273,6 +280,32 @@ async function quoteLink(
   return `${appUrl}/p/${token}/devis`;
 }
 
+/** Lien portail client (M14) d'une relance : lien court /l/{code}, lisible dans un SMS. */
+async function portalLink(
+  tenantDb: TenantDb,
+  input: {
+    organizationId: string;
+    scope: "INVOICE" | "BOOKING" | "SURVEY";
+    targetId: string;
+    customerId: string;
+    reminderId: string;
+    days: number;
+  },
+): Promise<string> {
+  const { token, shortCode } = await issuePortalToken(tenantDb, {
+    organizationId: input.organizationId,
+    scope: input.scope,
+    targetId: input.targetId,
+    customerId: input.customerId,
+    expiresAt: new Date(Date.now() + input.days * 86_400_000),
+    reminderId: input.reminderId,
+    withShortCode: true,
+  });
+  const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const path = input.scope === "INVOICE" ? "facture" : input.scope === "BOOKING" ? "rdv" : "avis";
+  return shortCode ? `${appUrl}/l/${shortCode}` : `${appUrl}/p/${token}/${path}`;
+}
+
 async function buildContext(
   tenantDb: TenantDb,
   group: DispatchGroup,
@@ -282,7 +315,7 @@ async function buildContext(
   const base: Record<string, unknown> = {
     garage,
     client: clientNamespace(first.customer),
-    lien: { rdv: "", devis: "", facture: "", paiement: "", avis: "" },
+    lien: { rdv: "", devis: "", facture: "", paiement: "", avis: "", releve: "" },
   };
 
   const vehicles = group.reminders.filter((r) => r.vehicleId && r.vehicle);
@@ -362,6 +395,84 @@ async function buildContext(
       }
     }
   }
+  // M09 / M14 : {{lien.paiement}} des relances de créance = page facture du portail client
+  // (paiement en ligne Wave / Orange Money…). Facture de la relance, sinon la plus ancienne
+  // facture impayée du client. Lien court /l/{code} (lisible dans un SMS). Sans ce lien, les
+  // modèles par défaut (cr_jp3…) échouaient au rendu : aucune relance de créance ne partait.
+  if (group.type === "RECEIVABLE") {
+    const target =
+      first.invoice && first.invoice.balance > 0
+        ? first.invoice
+        : await tenantDb.invoice.findFirst({
+            where: {
+              customerId: first.customerId,
+              billTo: "CUSTOMER",
+              status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] },
+              balance: { gt: 0 },
+            },
+            orderBy: [{ dueDate: "asc" }, { id: "asc" }],
+          });
+    if (target) {
+      const link = await portalLink(tenantDb, {
+        organizationId: first.organizationId,
+        scope: "INVOICE",
+        targetId: target.id,
+        customerId: first.customerId,
+        reminderId: first.id,
+        days: 30,
+      });
+      // Pas encore de page « relevé » dans le portail : {{lien.releve}} (modèles _pro)
+      // ouvre la plus ancienne facture impayée, d'où le client peut aussi payer.
+      base.lien = {
+        ...(base.lien as Record<string, string>),
+        paiement: link,
+        facture: link,
+        releve: link,
+      };
+    }
+  }
+
+  // VT / révision (et envoi combiné) : {{lien.rdv}} = prise de rendez-vous en ligne (M03/M14).
+  if (group.type === "INSPECTION" || group.type === "SERVICE") {
+    base.lien = {
+      ...(base.lien as Record<string, string>),
+      rdv: await portalLink(tenantDb, {
+        organizationId: first.organizationId,
+        scope: "BOOKING",
+        targetId: first.vehicleId ?? first.customerId,
+        customerId: first.customerId,
+        reminderId: first.id,
+        days: 30,
+      }),
+    };
+  }
+
+  // Satisfaction : {{lien.avis}} = avis sur le dernier OR restitué (jeton SURVEY ciblant l'OR).
+  if (group.type === "SATISFACTION") {
+    const order = await tenantDb.repairOrder.findFirst({
+      where: {
+        customerId: first.customerId,
+        ...(first.vehicleId ? { vehicleId: first.vehicleId } : {}),
+        status: { in: ["DELIVERED", "INVOICED"] },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true },
+    });
+    if (order) {
+      base.lien = {
+        ...(base.lien as Record<string, string>),
+        avis: await portalLink(tenantDb, {
+          organizationId: first.organizationId,
+          scope: "SURVEY",
+          targetId: order.id,
+          customerId: first.customerId,
+          reminderId: first.id,
+          days: 14,
+        }),
+      };
+    }
+  }
+
   if (group.type === "QUOTE_FOLLOWUP" && first.quote) {
     const [y, m, d] = first.quote.validUntil.toISOString().slice(0, 10).split("-");
     base.devis = {
@@ -434,12 +545,29 @@ async function dispatchGroup(
   const rule = valid[0]!.rule;
   const steps = z.array(reminderStepSchema).parse(rule.steps);
   // M09 RG-M09-06 : la relance « promesse rompue » est hors séquence (pas de palier dans la règle).
+  // Relance manuelle (« Relancer maintenant », reminders.createManual) : hors séquence, elle
+  // reprend le premier palier client de la règle (modèle et canaux).
+  const firstClientStep = steps.find((s) => !s.internalOnly && s.channels.length > 0);
   const step =
     steps.find((s) => s.key === valid[0]!.stepKey) ??
     (valid[0]!.stepKey === "PROMISE_BROKEN" && steps[0]
       ? { ...steps[0], key: "PROMISE_BROKEN", templateKey: "cr_promesse_rompue" }
-      : undefined);
-  if (!step) return;
+      : firstClientStep
+        ? // MANUAL, ou palier retiré de la règle depuis : modèle du premier palier client.
+          { ...firstClientStep, key: valid[0]!.stepKey }
+        : undefined);
+  if (!step) {
+    await tenantDb.reminder.updateMany({
+      where: { id: { in: valid.map((r) => r.id) } },
+      data: {
+        status: "NEEDS_APPROVAL",
+        channel: null,
+        skippedReason:
+          "la règle de relance n'a plus de palier client (Paramètres › Relances). Ajoutez un palier, ou ne l'envoyez pas.",
+      },
+    });
+    return;
+  }
 
   const stepTemplateKey = group.isCombo ? "vt_rev_combo" : step.templateKey;
   const vehicleIds = new Set(valid.map((r) => r.vehicleId).filter((v): v is string => !!v));
@@ -452,16 +580,30 @@ async function dispatchGroup(
         isCombo: false,
       });
 
+  // Canal imposé par l'utilisateur (« Renvoyer par… », « Relancer » sur Créances) : ce canal
+  // seul, sans repli. Sinon, les canaux du palier dans l'ordre de préférence du client.
+  const lockedChannel =
+    (valid[0]!.stepKey === "MANUAL" || valid[0]!.channelLocked) && valid[0]!.channel
+      ? (valid[0]!.channel as Channel)
+      : null;
   const { candidates, providerByChannel } = await resolveChannelCandidates(
     tenantDb,
     recipient,
-    step.channels as Channel[],
+    lockedChannel ? [lockedChannel] : (step.channels as Channel[]),
   );
   const picked = pickChannel({ candidates });
   if (picked.channel === null) {
+    const label = { WHATSAPP: "WhatsApp", SMS: "SMS", EMAIL: "l'email" } as const;
     await tenantDb.reminder.updateMany({
       where: { id: { in: valid.map((r) => r.id) } },
-      data: { status: "NEEDS_APPROVAL", channel: null },
+      data: {
+        status: "NEEDS_APPROVAL",
+        channel: null,
+        channelLocked: false,
+        skippedReason: lockedChannel
+          ? `impossible d'envoyer par ${label[lockedChannel]} (contact manquant, client désinscrit ou canal non configuré). Choisissez un autre canal.`
+          : "aucun moyen de joindre le client (pas de numéro mobile ni d'email, ou aucun canal configuré).",
+      },
     });
     return;
   }
@@ -477,7 +619,9 @@ async function dispatchGroup(
   }
 
   const isTransactional = !NON_TRANSACTIONAL_TYPES.has(group.type);
-  if (!isTransactional) {
+  // Plafond anti-spam (1/jour, 3/semaine) : pas pour un envoi décidé à la main sur plusieurs
+  // canaux (« Relancer ») — déjà limité à une relance manuelle par 20 h (core/reminders/manual).
+  if (!isTransactional && group.stepKey !== "MANUAL" && !valid.some((r) => r.channelLocked)) {
     const dayStart = new Date(`${dayKey(now)}T00:00:00Z`);
     const weekStart = new Date(now.getTime() - 7 * 86_400_000);
     const [sentToday, sentThisWeek] = await Promise.all([
@@ -557,7 +701,7 @@ async function dispatchGroup(
 
   const groupKey = group.key;
   const edited = valid.find((r) => r.editedBody);
-  const idempotencyKey = `rem:${groupKey}`;
+  let idempotencyKey = `rem:${groupKey}`;
   const channel = picked.channel;
   const address = picked.address;
 
@@ -582,7 +726,15 @@ async function dispatchGroup(
         : undefined;
     }
 
-    const existing = await tenantDb.message.findFirst({ where: { idempotencyKey, channel } });
+    // Idempotence (RG-M10-26) : un message déjà créé pour ce groupe est réutilisé… sauf s'il a
+    // échoué : un renvoi (« Renvoyer par… », « Réessayer ») crée alors un nouveau message.
+    const prior = await tenantDb.message.findMany({
+      where: { idempotencyKey: { startsWith: idempotencyKey }, channel },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, status: true },
+    });
+    const existing = prior.find((m) => m.status !== "FAILED");
+    if (prior.length > 0 && !existing) idempotencyKey = `${idempotencyKey}:retry${prior.length}`;
     if (existing) {
       messageId = existing.id;
     } else {
@@ -628,7 +780,10 @@ async function dispatchGroup(
         data: {
           status: "NEEDS_APPROVAL",
           channel: null,
-          skippedReason: "Erreur de rendu, à vérifier.",
+          // Raison lisible par le garage (les erreurs métier du core sont en français).
+          skippedReason: isDomainError(error)
+            ? `Message impossible à préparer : ${error.message}`
+            : "Message impossible à préparer (erreur technique). Réessayez dans quelques minutes.",
         },
       });
       return;

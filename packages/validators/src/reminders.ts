@@ -208,6 +208,10 @@ export const reminderTabSchema = z.enum([
   "FAILED",
   "TO_CALL",
   "EXPIRED",
+  /** Échecs d'envoi + relances sans canal possible (contact manquant, canal en panne…). */
+  "BLOCKED",
+  /** Envoyées (vraiment) il y a plus de 2 h, sans accusé de remise du fournisseur (7 j). */
+  "UNCONFIRMED",
 ]);
 
 export const reminderQueueInputSchema = z.object({
@@ -278,19 +282,43 @@ export const reminderCreateManualInputSchema = z.object({
 });
 export type ReminderCreateManualInput = z.infer<typeof reminderCreateManualInputSchema>;
 
-export const reminderMarkWaLinkSentInputSchema = z.object({ id: z.string().trim().min(1) });
+/** « Renvoyer par… » : canal choisi par l'utilisateur pour (r)envoyer une relance. */
+export const reminderSendViaInputSchema = z.object({
+  id: z.string().trim().min(1),
+  channel: z.enum(["WHATSAPP", "SMS", "EMAIL"]),
+});
+
+export const reminderMarkWaLinkSentInputSchema = z.object({
+  id: z.string().trim().min(1),
+  /** Texte réellement ouvert dans wa.me (aperçu rendu) ; à défaut, le corps déjà rendu. */
+  body: z.string().trim().min(1).max(4096).optional(),
+});
 
 export const reminderDueDatesInputSchema = z.object({
   kind: z.enum(["INSPECTION", "SERVICE", "INSURANCE"]),
-  filter: z.enum(["ALL", "UPCOMING", "EXPIRED", "MISSING_DATA"]).default("ALL"),
+  filter: z
+    .enum(["ALL", "UPCOMING", "EXPIRED", "MISSING_DATA", "CLIENT", "WORKSHOP"])
+    .default("ALL"),
   month: z
     .string()
     .regex(/^\d{4}-\d\d$/)
+    .optional(),
+  /** Vue calendrier : clic sur un jour (`YYYY-MM-DD`) — prime sur `filter`. */
+  day: z
+    .string()
+    .regex(/^\d{4}-\d\d-\d\d$/)
     .optional(),
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(30),
 });
 export type ReminderDueDatesInput = z.infer<typeof reminderDueDatesInputSchema>;
+
+/** M10 §7.2 — vue calendrier mensuel des échéances : nombre d'échéances par jour du mois. */
+export const reminderDueCalendarInputSchema = z.object({
+  kind: z.enum(["INSPECTION", "SERVICE", "INSURANCE"]),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mois attendu au format AAAA-MM."),
+});
+export type ReminderDueCalendarInput = z.infer<typeof reminderDueCalendarInputSchema>;
 
 export const reminderMarkAppointmentTakenInputSchema = z.object({
   vehicleId: z.string().trim().min(1),
@@ -330,6 +358,11 @@ export const reminderHistoryInputSchema = z
     status: reminderHistoryStatusSchema.optional(),
     type: reminderTypeSchema.optional(),
     channel: messageChannelSchema.optional(),
+    // Fiches client/véhicule : historique d'un seul client ou véhicule.
+    customerId: z.string().trim().min(1).optional(),
+    vehicleId: z.string().trim().min(1).optional(),
+    /** Recherche : nom du client ou plaque. */
+    q: z.string().trim().max(80).optional(),
     cursor: z.string().optional(),
     limit: z.number().int().min(1).max(100).default(50),
   })
@@ -338,3 +371,21 @@ export const reminderHistoryInputSchema = z
     path: ["from"],
   });
 export type ReminderHistoryInput = z.infer<typeof reminderHistoryInputSchema>;
+
+/** Écran Échéances : véhicules à relancer (aperçu, avec les autres véhicules du même client). */
+export const reminderDueRemindPreviewInputSchema = z.object({
+  kind: z.enum(["INSPECTION", "SERVICE", "INSURANCE"]),
+  vehicleIds: z.array(z.string().trim().min(1)).min(1).max(200),
+});
+export type ReminderDueRemindPreviewInput = z.infer<typeof reminderDueRemindPreviewInputSchema>;
+
+/** Écran Échéances : relancer les véhicules choisis sur les canaux choisis. */
+export const reminderDueRemindInputSchema = z.object({
+  kind: z.enum(["INSPECTION", "SERVICE", "INSURANCE"]),
+  vehicleIds: z.array(z.string().trim().min(1)).min(1).max(200),
+  channels: z
+    .array(z.enum(["WHATSAPP", "SMS", "EMAIL"]))
+    .min(1)
+    .max(3),
+});
+export type ReminderDueRemindInput = z.infer<typeof reminderDueRemindInputSchema>;

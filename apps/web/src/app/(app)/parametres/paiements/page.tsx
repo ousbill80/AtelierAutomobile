@@ -32,7 +32,7 @@ export default function PaymentSettingsPage() {
       {data.providers.map((p) => (
         <ProviderCard key={p.provider} row={p} onSaved={() => query.refetch()} />
       ))}
-      <MerchantNumbers initial={data.merchantNumbers} />
+      <MerchantNumbers initial={data.merchantNumbers} onSaved={() => query.refetch()} />
       <CashSettingsCard />
     </div>
   );
@@ -88,7 +88,10 @@ function ProviderCard({ row, onSaved }: { row: ProviderRow; onSaved: () => void 
               label={`${t(`paymentSettings.fields.${f.name}`)}${f.filled ? ` (${t("paymentSettings.filled")})` : ""}`}
               placeholder={f.filled ? t("paymentSettings.keepHint") : ""}
               value={credentials[f.name] ?? ""}
-              onChange={(e) => setCredentials({ ...credentials, [f.name]: e.target.value })}
+              onChange={(e) => {
+                setSaved(false);
+                setCredentials({ ...credentials, [f.name]: e.target.value });
+              }}
             />
           ))}
         </div>
@@ -101,9 +104,10 @@ function ProviderCard({ row, onSaved }: { row: ProviderRow; onSaved: () => void 
               key={m}
               label={t(`invoicePortal.methods.${m}`)}
               checked={methods.includes(m)}
-              onChange={(e) =>
-                setMethods(e.target.checked ? [...methods, m] : methods.filter((x) => x !== m))
-              }
+              onChange={(e) => {
+                setSaved(false);
+                setMethods(e.target.checked ? [...methods, m] : methods.filter((x) => x !== m));
+              }}
             />
           ))}
         </div>
@@ -155,14 +159,32 @@ function ProviderCard({ row, onSaved }: { row: ProviderRow; onSaved: () => void 
   );
 }
 
-function MerchantNumbers({ initial }: { initial: Data["merchantNumbers"] }) {
+function MerchantNumbers({
+  initial,
+  onSaved,
+}: {
+  initial: Data["merchantNumbers"];
+  onSaved: () => void;
+}) {
   const [values, setValues] = useState<Record<(typeof MERCHANTS)[number], string>>({
     wave: initial.wave ?? "",
     orangeMoney: initial.orangeMoney ?? "",
     mtn: initial.mtn ?? "",
     moov: initial.moov ?? "",
   });
-  const update = trpc.paymentProviders.updateMerchantNumbers.useMutation();
+  const [saved, setSaved] = useState(false);
+  const update = trpc.paymentProviders.updateMerchantNumbers.useMutation({
+    onSuccess: (next) => {
+      setValues({
+        wave: next.wave ?? "",
+        orangeMoney: next.orangeMoney ?? "",
+        mtn: next.mtn ?? "",
+        moov: next.moov ?? "",
+      });
+      setSaved(true);
+      onSaved();
+    },
+  });
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
       <h3 className="font-semibold">{t("paymentSettings.merchantTitle")}</h3>
@@ -171,7 +193,13 @@ function MerchantNumbers({ initial }: { initial: Data["merchantNumbers"] }) {
         {MERCHANTS.map((m) => (
           <label key={m} className="flex flex-col gap-1 text-sm">
             {t(`paymentSettings.merchant.${m}`)}
-            <PhoneInput value={values[m]} onChange={(v) => setValues({ ...values, [m]: v })} />
+            <PhoneInput
+              value={values[m]}
+              onChange={(v) => {
+                setSaved(false);
+                setValues({ ...values, [m]: v });
+              }}
+            />
           </label>
         ))}
       </div>
@@ -180,18 +208,23 @@ function MerchantNumbers({ initial }: { initial: Data["merchantNumbers"] }) {
           ⚠ {update.error.message}
         </p>
       )}
-      {update.isSuccess && <p className="text-sm text-status-ok">✓ {t("paymentSettings.saved")}</p>}
+      {saved && (
+        <p role="status" className="text-sm text-status-ok">
+          ✓ {t("paymentSettings.saved")}
+        </p>
+      )}
       <div>
         <Button
           loading={update.isPending}
-          onClick={() =>
+          onClick={() => {
+            setSaved(false);
             update.mutate({
               wave: values.wave || null,
               orangeMoney: values.orangeMoney || null,
               mtn: values.mtn || null,
               moov: values.moov || null,
-            })
-          }
+            });
+          }}
         >
           {t("paymentSettings.save")}
         </Button>

@@ -238,6 +238,22 @@ describe("étape 4.3 — liens de paiement, webhooks, portail facture", () => {
       (await owner.paymentProviders.list()).providers.find((p) => p.provider === "cinetpay")
         ?.fields,
     ).toContainEqual({ name: "secretKey", filled: true });
+    // Activer puis désactiver sans rien saisir : le chiffré enregistré n'est jamais réécrit.
+    const beforeToggle = await adminDb.paymentProviderConfig.findFirstOrThrow({
+      where: { organizationId: orgA.id, provider: "cinetpay" },
+    });
+    for (const isActive of [true, false]) {
+      await owner.paymentProviders.upsert({
+        provider: "cinetpay",
+        methods: ["WAVE"],
+        credentials: {},
+        isActive,
+      });
+    }
+    const afterToggle = await adminDb.paymentProviderConfig.findFirstOrThrow({
+      where: { organizationId: orgA.id, provider: "cinetpay" },
+    });
+    expect(afterToggle.credentials).toBe(beforeToggle.credentials);
   });
 
   it("sans fournisseur actif : pas de lien, numéros marchands sur le portail", async () => {

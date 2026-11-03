@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/assurances/sinistres", key: "claimsTitle" },
   { href: "/assurances/compagnies", key: "insurersTitle" },
   { href: "/assurances/relances", key: "followUpsTitle" },
+  { href: "/assurances/guide", key: "guideNav" },
 ] as const;
 
 export function ClaimsNav() {

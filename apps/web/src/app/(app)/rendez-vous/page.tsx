@@ -5,6 +5,7 @@
 // Mobile : vue Liste par défaut, glisser-déposer remplacé par « Déplacer » (panneau).
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { GuideLink } from "@/components/guide-link";
 import { ChevronLeft, ChevronRight, Phone, Plus } from "lucide-react";
 import { Button, Select } from "@atelieros/ui";
 import {
@@ -204,15 +205,13 @@ export default function PlanningPage() {
       <div className="planning-header">
         <h1>{ta("title")}</h1>
         <div className="planning-header-actions">
+          <GuideLink href="/rendez-vous/guide" />
           <Link href="/rendez-vous/aujourdhui" className="btn btn-secondary">
             {ta("todayPage.title")}
           </Link>
           {canCreate && (
             <>
-              <Button
-                variant="secondary"
-                onClick={() => setCreating({ source: "PHONE" })}
-              >
+              <Button variant="secondary" onClick={() => setCreating({ source: "PHONE" })}>
                 <Phone size={16} aria-hidden /> {ta("phoneAppointment")}
               </Button>
               <Button onClick={() => setCreating({})}>
@@ -330,7 +329,7 @@ export default function PlanningPage() {
       {list.isLoading && (
         <div className="planning-loading" aria-busy>
           <div className="planning-loading-spinner" />
-          <p>Chargement du planning...</p>
+          <p>{ta("loadingPlanning")}</p>
         </div>
       )}
       {list.isError && <ErrorBox message={ta("loadError")} onRetry={() => list.refetch()} />}
@@ -552,12 +551,13 @@ function MechanicGrid({
       .reduce((s, a) => s + a.durationMinutes, 0);
     const ratio = available ? planned / available : 1;
     const tone = ratio > 0.9 ? "bad" : ratio >= 0.7 ? "warn" : "ok";
-    const label = available === 0
-      ? ta("mechanicAbsent")
-      : ta("mechanicLoad", {
-          planned: formatMinutesFr(planned),
-          available: formatMinutesFr(available),
-        });
+    const label =
+      available === 0
+        ? ta("mechanicAbsent")
+        : ta("mechanicLoad", {
+            planned: formatMinutesFr(planned),
+            available: formatMinutesFr(available),
+          });
     return {
       key: m.id,
       label: m.name,
@@ -663,7 +663,10 @@ function WeekView({
                 </button>
               ))}
               {items.length > 5 && (
-                <div className="planning-week-item" style={{ color: "var(--muted)", cursor: "default" }}>
+                <div
+                  className="planning-week-item"
+                  style={{ color: "var(--muted)", cursor: "default" }}
+                >
                   +{items.length - 5} autres
                 </div>
               )}

@@ -50,6 +50,9 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
 export const pinSignInInputSchema = z.object({
   deviceId: z.string().trim().min(1),
   membershipId: z.string().trim().min(1),
-  pin: z.string().trim().length(4),
+  pin: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Le code PIN doit comporter 6 chiffres."),
 });
 export type PinSignInInput = z.infer<typeof pinSignInInputSchema>;

@@ -150,7 +150,7 @@ test("parcours file du jour : envoyer une relance, en ignorer une autre avec mot
   });
 
   await page.goto("/relances");
-  await expect(page.getByRole("button", { name: /À valider/ })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /À envoyer/ })).toBeVisible();
   await expect(page.getByText("Kouassi Jean-Marc").first()).toBeVisible();
   await expect(page.getByText("2547 GH 01").first()).toBeVisible();
 
@@ -169,11 +169,10 @@ test("parcours file du jour : envoyer une relance, en ignorer une autre avec mot
 
   // Ignorer la relance restante avec un motif, en arrêtant sa séquence.
   await page.reload();
-  await page.getByRole("button", { name: "Ignorer" }).first().click();
-  // Les deux premiers <select> de la page sont les filtres (type, canal) : le formulaire
-  // d'abandon de la carte est le dernier combobox une fois une seule carte affichée.
-  await page.getByRole("combobox").last().selectOption("Client vendu le véhicule");
-  await page.getByLabel("Arrêter la séquence").check();
+  await page.getByRole("button", { name: "Plus d'actions" }).first().click();
+  await page.getByRole("menuitem", { name: "Ne pas envoyer" }).click();
+  await page.getByLabel("Pourquoi ne pas envoyer ?").selectOption("Client vendu le véhicule");
+  await page.getByLabel("Ne plus relancer ce client pour ce dossier").check();
   await page.getByRole("button", { name: "Confirmer" }).click();
 
   await expect(async () => {
@@ -187,4 +186,37 @@ test("parcours file du jour : envoyer une relance, en ignorer une autre avec mot
     where: { organizationId: organization.id, sequenceKey: remainingSequenceKey },
   });
   expect(suppression).not.toBeNull();
+});
+
+test("échéances en calendrier : un jour marqué ouvre la liste de ses véhicules (M10 §7.2)", async ({
+  page,
+  context,
+}) => {
+  const { organization } = await createSignedInContext(context);
+  const customer = await adminDb.customer.create({
+    data: { organizationId: organization.id, displayName: "Bamba Awa", type: "INDIVIDUAL" },
+  });
+  // Échéance au 15 du mois prochain : toujours visible après un clic sur « Mois suivant ».
+  const now = new Date();
+  const due = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 15));
+  await adminDb.vehicle.create({
+    data: {
+      organizationId: organization.id,
+      customerId: customer.id,
+      plate: "3318 KL 01",
+      plateCompact: "3318KL01",
+      make: "Peugeot",
+      model: "308",
+      inspectionExpiryDate: due,
+    },
+  });
+
+  await page.goto("/relances/echeances");
+  await page.getByRole("button", { name: "Calendrier" }).click();
+  await page.getByRole("button", { name: "Mois suivant" }).click();
+  await expect(page.getByText("1 échéance ce mois-ci")).toBeVisible();
+
+  await page.getByRole("button", { name: /15 .*: 1 échéance/ }).click();
+  await expect(page.getByText(/Échéances du .*15/)).toBeVisible();
+  await expect(page.getByText("Bamba Awa")).toBeVisible();
 });

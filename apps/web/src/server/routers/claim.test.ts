@@ -96,6 +96,26 @@ describe("M16 — assurances et sinistres", () => {
     siteA = await adminDb.site.create({
       data: { organizationId: orgA.id, name: "Marcory", code: "MAR" },
     });
+    await adminDb.treasuryAccount.createMany({
+      data: [
+        {
+          organizationId: orgA.id,
+          type: "MOBILE_MONEY",
+          name: "Wave",
+          paymentMethods: ["WAVE"],
+          ledgerAccount: "585",
+          openingDate: new Date("2026-01-01T00:00:00.000Z"),
+        },
+        {
+          organizationId: orgA.id,
+          type: "BANK",
+          name: "Banque",
+          paymentMethods: ["BANK_TRANSFER"],
+          ledgerAccount: "521",
+          openingDate: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ],
+    });
     await adminDb.site.create({ data: { organizationId: orgB.id, name: "Cocody", code: "COC" } });
     owner = await member(orgA.id, "OWNER");
     advisor = await member(orgA.id, "ADVISOR");
@@ -193,6 +213,7 @@ describe("M16 — assurances et sinistres", () => {
     await adminDb.notification.deleteMany({ where });
     await adminDb.membership.deleteMany({ where });
     await adminDb.user.deleteMany({ where: { id: { in: users } } });
+    await adminDb.treasuryAccount.deleteMany({ where });
     await adminDb.site.deleteMany({ where });
     await adminDb.organization.deleteMany({ where: { id: { in: orgIds } } });
   });

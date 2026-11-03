@@ -295,7 +295,9 @@ function Dashboard() {
       {tab === "workshop" && <WorkshopTab input={input} timeZone={timeZone} />}
       {tab === "frontDesk" && <FrontDeskTab input={input} />}
       {tab === "reminders" && <RemindersTab input={input} />}
-      {tab === "finances" && <FinancesTab input={input} timeZone={timeZone} />}
+      {tab === "finances" && (
+        <FinancesTab input={input} timeZone={timeZone} remindersOnly={!full} />
+      )}
       {tab === "customers" && <CustomersTab input={input} />}
       {tab === "cashier" && <CashierCard timeZone={timeZone} />}
 
@@ -324,19 +326,28 @@ function SummaryTab({ input }: { input: TabInput }) {
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {d.hasInvoices ? (
-          <ReceivablesCard receivables={d.receivables} />
+          <ReceivablesCard receivables={d.receivables} label={L.cards.unpaidInvoices} />
         ) : (
-          <KpiCard label={L.cards.receivables} value={L.dash} help={L.help.receivables} />
+          <KpiCard
+            label={L.cards.unpaidInvoices}
+            value={L.dash}
+            help={L.help.receivables}
+            example={L.help.receivablesExample}
+            href="/creances"
+          />
         )}
         <KpiCard
           label={L.cards.recovered}
           value={formatAmount(d.recovered.value)}
           variation={d.recovered.variation}
           help={L.help.recovered}
+          example={L.help.recoveredExample}
         />
         <KpiCard
           label={L.cards.toHandleToday}
           value={String(d.remindersToHandleToday)}
+          help={L.help.toHandleToday}
+          example={L.help.toHandleTodayExample}
           href="/relances"
         />
         <KpiCard
@@ -344,17 +355,23 @@ function SummaryTab({ input }: { input: TabInput }) {
           value={String(d.reminders.sent)}
           variation={d.reminders.sentVariation}
           sub={`${L.cards.returnedCustomers} : ${d.reminders.returnedCustomers}`}
+          help={L.help.remindersSent}
+          example={L.help.remindersSentExample}
         />
         <KpiCard
           label={L.cards.inspectionsDue30}
           value={d.inspectionsDue30 === null ? L.dash : String(d.inspectionsDue30)}
-          help={d.inspectionsDue30 === null ? L.cards.notAttributable : undefined}
+          help={d.inspectionsDue30 === null ? L.cards.notAttributable : L.help.inspectionsDue30}
+          example={d.inspectionsDue30 === null ? undefined : L.help.inspectionsDue30Example}
           href="/relances/echeances"
         />
         <KpiCard
           label={L.cards.servicesDueThisMonth}
           value={d.servicesDueThisMonth === null ? L.dash : String(d.servicesDueThisMonth)}
-          help={d.servicesDueThisMonth === null ? L.cards.notAttributable : undefined}
+          help={
+            d.servicesDueThisMonth === null ? L.cards.notAttributable : L.help.servicesDueThisMonth
+          }
+          example={d.servicesDueThisMonth === null ? undefined : L.help.servicesDueThisMonthExample}
           href="/relances/echeances"
         />
       </div>
@@ -378,22 +395,40 @@ function RemindersTab({ input }: { input: TabInput }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard label={L.reminders.sent} value={String(d.sent)} variation={d.sentVariation} />
+        <KpiCard
+          label={L.reminders.sent}
+          value={String(d.sent)}
+          variation={d.sentVariation}
+          help={L.help.remindersSent}
+          example={L.help.remindersSentExample}
+        />
         <KpiCard
           label={L.reminders.recovered}
           value={formatAmount(d.recoveredAmount)}
           variation={d.recoveredVariation}
           help={L.help.recovered}
+          example={L.help.recoveredExample}
         />
-        <KpiCard label={L.cards.returnedCustomers} value={String(d.returnedCustomers)} />
-        <KpiCard label={L.reminders.toApprove} value={String(d.toApprove)} href="/relances" />
+        <KpiCard
+          label={L.cards.returnedCustomers}
+          value={String(d.returnedCustomers)}
+          help={L.help.returnedCustomers}
+          example={L.help.returnedCustomersExample}
+        />
+        <KpiCard
+          label={L.reminders.toApprove}
+          value={String(d.toApprove)}
+          help={L.help.toApprove}
+          example={L.help.toApproveExample}
+          href="/relances"
+        />
       </div>
 
       {isEmpty ? (
         <EmptyState title={L.states.empty} />
       ) : (
         <>
-          <Section title={L.reminders.funnel}>
+          <Section title={L.reminders.funnel} help={L.help.funnel} example={L.help.funnelExample}>
             <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
               <Stat label={L.reminders.sent} value={d.sent} />
               <Stat label={L.reminders.delivered} value={d.delivered} />
@@ -416,7 +451,11 @@ function RemindersTab({ input }: { input: TabInput }) {
             </ul>
           </Section>
 
-          <Section title={L.reminders.returnRate} help={L.help.returnRate}>
+          <Section
+            title={L.reminders.returnRate}
+            help={L.help.returnRate}
+            example={L.help.returnRateExample}
+          >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <ReturnRateRow label={L.reminders.returnInspection} rate={d.returnRate.inspection} />
               <ReturnRateRow label={L.reminders.returnService} rate={d.returnRate.service} />
@@ -427,7 +466,7 @@ function RemindersTab({ input }: { input: TabInput }) {
           </Section>
 
           {d.weekly.length > 0 && (
-            <Section title={L.reminders.weekly}>
+            <Section title={L.reminders.weekly} help={L.help.weekly} example={L.help.weeklyExample}>
               <WeeklyBars weeks={d.weekly.slice(-7)} />
             </Section>
           )}
@@ -476,7 +515,15 @@ function WeeklyBars({ weeks }: { weeks: RouterOutputs["dashboard"]["reminders"][
 
 // ─── Onglet Finances (créances) ──────────────────────────────────────────────
 
-function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string }) {
+function FinancesTab({
+  input,
+  timeZone,
+  remindersOnly,
+}: {
+  input: TabInput;
+  timeZone: string;
+  remindersOnly: boolean;
+}) {
   const q = trpc.dashboard.finances.useQuery(input);
   if (q.isLoading) return <CardsSkeleton />;
   if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
@@ -490,22 +537,34 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
-          label={L.cards.receivables}
+          label={remindersOnly ? L.cards.unpaidInvoices : L.cards.receivables}
           value={formatAmount(r.total)}
           sub={fmt(L.cards.receivablesOver30, { amount: formatAmount(r.over30) })}
           help={L.help.receivables}
+          example={L.help.receivablesExample}
           href="/creances?filtre=en-retard"
         />
-        <KpiCard label={L.finances.overdue} value={formatAmount(r.overdue)} />
-        <KpiCard label={L.finances.disputed} value={formatAmount(r.disputed)} />
+        <KpiCard
+          label={L.finances.overdue}
+          value={formatAmount(r.overdue)}
+          help={L.help.overdue}
+          example={L.help.overdueExample}
+        />
+        <KpiCard
+          label={L.finances.disputed}
+          value={formatAmount(r.disputed)}
+          help={L.help.disputed}
+          example={L.help.disputedExample}
+        />
         <KpiCard
           label={L.finances.dso}
           value={d.dso === null ? L.dash : fmt(L.finances.dsoValue, { days: d.dso })}
           help={L.help.dso}
+          example={L.help.dsoExample}
         />
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <Section title={L.finances.aged}>
+        <Section title={L.finances.aged} help={L.help.aged} example={L.help.agedExample}>
           <BarList
             items={bucketKeys.map((k) => ({
               key: k,
@@ -514,7 +573,11 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
             }))}
           />
         </Section>
-        <Section title={L.finances.byMethod}>
+        <Section
+          title={L.finances.byMethod}
+          help={L.help.collected}
+          example={L.help.collectedExample}
+        >
           {Object.keys(d.collected.byMethod).length === 0 ? (
             <EmptyLine>{L.states.empty}</EmptyLine>
           ) : (
@@ -530,7 +593,11 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
           )}
         </Section>
       </div>
-      <Section title={L.finances.fneFailed}>
+      <Section
+        title={L.finances.fneFailed}
+        help={L.help.fneFailed}
+        example={L.help.fneFailedExample}
+      >
         {d.fneFailed.count === 0 ? (
           <EmptyLine>{L.finances.noFneFailed}</EmptyLine>
         ) : (
@@ -548,7 +615,11 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
         )}
       </Section>
       {d.promisesToday && (
-        <Section title={L.finances.promisesToday}>
+        <Section
+          title={L.finances.promisesToday}
+          help={L.help.promises}
+          example={L.help.promisesExample}
+        >
           {d.promisesToday.length === 0 ? (
             <EmptyLine>{L.finances.noPromises}</EmptyLine>
           ) : (
@@ -573,7 +644,22 @@ function FinancesTab({ input, timeZone }: { input: TabInput; timeZone: string })
 function TopUnpaid({ entries }: { entries: RouterOutputs["dashboard"]["finances"]["topUnpaid"] }) {
   if (entries.length === 0) return null;
   return (
-    <Section title={L.finances.topUnpaid}>
+    <Section
+      title={L.finances.topUnpaid}
+      help={L.help.topUnpaid}
+      example={
+        entries[0]
+          ? fmt(L.help.topUnpaidExample, {
+              customer: entries[0].customerName,
+              amount: formatAmount(entries[0].balance),
+              days:
+                entries[0].maxDaysLate > 0
+                  ? fmt(L.finances.daysLate, { days: entries[0].maxDaysLate })
+                  : L.finances.notDue,
+            })
+          : undefined
+      }
+    >
       <ul className="divide-y divide-border">
         {entries.map((e) => (
           <ListRow
@@ -611,7 +697,7 @@ function AlertsBlock() {
     onSuccess: () => utils.alerts.list.invalidate(),
   });
   return (
-    <Section title={L.alerts.title}>
+    <Section title={L.alerts.title} help={L.help.alerts} example={L.help.alertsExample}>
       {q.isLoading ? (
         <div className="h-16 animate-pulse rounded-md bg-surface-2" />
       ) : q.isError ? (

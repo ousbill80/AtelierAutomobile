@@ -5,7 +5,8 @@
 // une seule fois, test, rotation, désactivation, livraisons et relivraison).
 import { useState } from "react";
 import type { inferRouterOutputs } from "@trpc/server";
-import { Button, CheckboxRow, Input, PageHead, Select, StatusBadge } from "@atelieros/ui";
+import { API_SCOPES, WEBHOOK_EVENTS } from "@atelieros/core/api";
+import { Button, CheckboxRow, Input, Modal, PageHead, Select, StatusBadge } from "@atelieros/ui";
 import type { AppRouter } from "@/server/routers/_app";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDateTime } from "@/components/repair-orders/i18n";
@@ -15,6 +16,33 @@ import { trpc } from "@/trpc/react";
 type Outputs = inferRouterOutputs<AppRouter>;
 type KeyRow = Outputs["apiKeys"]["list"]["keys"][number];
 type Endpoint = Outputs["webhooks"]["list"]["endpoints"][number];
+
+/** Libellé français d'un droit (code brut si la liste du serveur en ajoute un inconnu). */
+function scopeLabel(scope: string): string {
+  return (API_SCOPES as readonly string[]).includes(scope)
+    ? t(`apiSettings.scopes.${scope}`)
+    : scope;
+}
+
+/** Libellé français d'un événement (`webhook.test` et inconnus : code brut). */
+function eventLabel(event: string): string {
+  return (WEBHOOK_EVENTS as readonly string[]).includes(event)
+    ? t(`apiSettings.events.${event}`)
+    : event;
+}
+
+function CodeLabel({ label, code }: { label: string; code: string }) {
+  return (
+    <>
+      {label} <code className="text-xs text-muted">{code}</code>
+    </>
+  );
+}
+
+function useOrgTimeZone(): string {
+  const me = trpc.me.get.useQuery();
+  return me.data?.activeOrganization?.timezone ?? "Africa/Abidjan";
+}
 
 async function copy(text: string): Promise<boolean> {
   try {
@@ -48,7 +76,19 @@ export default function ApiSettingsPage() {
   );
 }
 
-function OnceSecret({ title, hint, value }: { title: string; hint: string; value: string }) {
+function OnceSecret({
+  title,
+  hint,
+  value,
+  doneLabel,
+  onDone,
+}: {
+  title: string;
+  hint: string;
+  value: string;
+  doneLabel: string;
+  onDone: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <div
@@ -60,9 +100,16 @@ function OnceSecret({ title, hint, value }: { title: string; hint: string; value
       <code className="break-all rounded bg-surface p-2" data-testid="once-secret">
         {value}
       </code>
-      <div>
-        <Button size="sm" variant="secondary" onClick={async () => setCopied(await copy(value))}>
-          {copied ? t("apiSettings.keys.copied") : t("apiSettings.keys.copy")}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          className="min-h-11"
+          onClick={async () => setCopied(await copy(value))}
+        >
+          {copied ? `✓ ${t("apiSettings.keys.copied")}` : t("apiSettings.keys.copy")}
+        </Button>
+        <Button className="min-h-11" onClick={onDone}>
+          {doneLabel}
         </Button>
       </div>
     </div>
@@ -77,6 +124,8 @@ function ApiKeysSection() {
   const [environment, setEnvironment] = useState<"live" | "test">("live");
   const [scopes, setScopes] = useState<string[]>(["customers:read"]);
   const [logsFor, setLogsFor] = useState<string | null>(null);
+  const [toRevoke, setToRevoke] = useState<KeyRow | null>(null);
+  const timeZone = useOrgTimeZone();
   const create = trpc.apiKeys.create.useMutation({
     onSuccess: () => {
       setCreating(false);
@@ -85,7 +134,10 @@ function ApiKeysSection() {
     },
   });
   const revoke = trpc.apiKeys.revoke.useMutation({
-    onSuccess: () => void utils.apiKeys.list.invalidate(),
+    onSuccess: () => {
+      setToRevoke(null);
+      void utils.apiKeys.list.invalidate();
+    },
   });
 
   if (list.isError) {
@@ -106,6 +158,8 @@ function ApiKeysSection() {
           title={t("apiSettings.keys.createdTitle")}
           hint={t("apiSettings.keys.copyOnce")}
           value={create.data.key}
+          doneLabel={t("apiSettings.keys.done")}
+          onDone={() => create.reset()}
         />
       )}
       {creating && (
@@ -132,7 +186,7 @@ function ApiKeysSection() {
               {list.data.scopes.map((s) => (
                 <CheckboxRow
                   key={s}
-                  label={s}
+                  label={<CodeLabel label={scopeLabel(s)} code={s} />}
                   checked={scopes.includes(s)}
                   onChange={(e) =>
                     setScopes(e.target.checked ? [...scopes, s] : scopes.filter((x) => x !== s))
@@ -168,27 +222,59 @@ function ApiKeysSection() {
             <ApiKeyItem
               key={k.id}
               item={k}
-              revoking={revoke.isPending && revoke.variables?.id === k.id}
-              onRevoke={() => revoke.mutate({ id: k.id })}
+              timeZone={timeZone}
+              onRevoke={() => {
+                revoke.reset();
+                setToRevoke(k);
+              }}
               showLogs={logsFor === k.id}
               onToggleLogs={() => setLogsFor(logsFor === k.id ? null : k.id)}
             />
           ))}
         </ul>
       )}
+      <Modal
+        open={toRevoke !== null}
+        title={toRevoke ? t("apiSettings.keys.revokeConfirmTitle", { name: toRevoke.name }) : ""}
+        onClose={() => setToRevoke(null)}
+        footer={
+          <>
+            <Button variant="secondary" className="min-h-11" onClick={() => setToRevoke(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="danger"
+              className="min-h-11"
+              loading={revoke.isPending}
+              onClick={() => toRevoke && revoke.mutate({ id: toRevoke.id })}
+            >
+              {t("apiSettings.keys.revoke")}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-2 text-sm">
+          <p>{t("apiSettings.keys.revokeConfirmBody")}</p>
+          {revoke.error && (
+            <p role="alert" className="text-status-bad">
+              ⚠ {revoke.error.message}
+            </p>
+          )}
+        </div>
+      </Modal>
     </section>
   );
 }
 
 function ApiKeyItem({
   item,
-  revoking,
+  timeZone,
   onRevoke,
   showLogs,
   onToggleLogs,
 }: {
   item: KeyRow;
-  revoking: boolean;
+  timeZone: string;
   onRevoke: () => void;
   showLogs: boolean;
   onToggleLogs: () => void;
@@ -220,23 +306,32 @@ function ApiKeyItem({
         </span>
         <span className="text-xs text-muted">
           {item.lastUsedAt
-            ? t("apiSettings.keys.lastUsed", { date: formatDateTime(item.lastUsedAt) })
+            ? t("apiSettings.keys.lastUsed", { date: formatDateTime(item.lastUsedAt, timeZone) })
             : t("apiSettings.keys.neverUsed")}
           {" · "}
           {t("apiSettings.keys.requests", { count: item.requests24h })}
         </span>
       </div>
-      <p className="break-words text-xs text-muted">{item.scopes.join(" · ")}</p>
+      <p className="break-words text-xs text-muted">{item.scopes.map(scopeLabel).join(" · ")}</p>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="secondary" onClick={onToggleLogs}>
+        <Button
+          variant="secondary"
+          className="min-h-11"
+          aria-expanded={showLogs}
+          onClick={onToggleLogs}
+        >
           {t("apiSettings.keys.logs")}
         </Button>
         {state === "active" && (
-          <Button size="sm" variant="ghost" loading={revoking} onClick={onRevoke}>
+          <Button variant="ghost" className="min-h-11" onClick={onRevoke}>
             {t("apiSettings.keys.revoke")}
           </Button>
         )}
       </div>
+      {showLogs && logs.isLoading && <ListSkeleton rows={2} />}
+      {showLogs && logs.isError && (
+        <ErrorBox onRetry={() => void logs.refetch()} message={t("apiSettings.keys.logsError")} />
+      )}
       {showLogs && logs.data && (
         <ul className="flex flex-col gap-1 text-xs" data-testid="api-logs">
           {logs.data.length === 0 && <li className="text-muted">{t("apiSettings.keys.noLogs")}</li>}
@@ -248,7 +343,7 @@ function ApiKeyItem({
                 {l.status}
               </span>
               <span className="text-muted">
-                {formatDateTime(l.createdAt)} · {l.durationMs} ms
+                {formatDateTime(l.createdAt, timeZone)} · {l.durationMs} ms
               </span>
             </li>
           ))}
@@ -266,6 +361,7 @@ function WebhooksSection() {
   const [description, setDescription] = useState("");
   const [events, setEvents] = useState<string[]>(["invoice.issued", "payment.received"]);
   const [secret, setSecret] = useState<string | null>(null);
+  const timeZone = useOrgTimeZone();
   const create = trpc.webhooks.create.useMutation({
     onSuccess: (out) => {
       setSecret(out.secret);
@@ -292,6 +388,8 @@ function WebhooksSection() {
           title={t("apiSettings.webhooks.secretTitle")}
           hint={t("apiSettings.webhooks.secretOnce")}
           value={secret}
+          doneLabel={t("apiSettings.webhooks.done")}
+          onDone={() => setSecret(null)}
         />
       )}
       {creating && (
@@ -313,7 +411,7 @@ function WebhooksSection() {
               {list.data.events.map((ev) => (
                 <CheckboxRow
                   key={ev}
-                  label={ev}
+                  label={<CodeLabel label={eventLabel(ev)} code={ev} />}
                   checked={events.includes(ev)}
                   onChange={(e) =>
                     setEvents(e.target.checked ? [...events, ev] : events.filter((x) => x !== ev))
@@ -346,7 +444,7 @@ function WebhooksSection() {
       ) : (
         <ul className="flex flex-col gap-3">
           {list.data.endpoints.map((e) => (
-            <WebhookItem key={e.id} endpoint={e} onSecret={setSecret} />
+            <WebhookItem key={e.id} endpoint={e} onSecret={setSecret} timeZone={timeZone} />
           ))}
         </ul>
       )}
@@ -357,11 +455,14 @@ function WebhooksSection() {
 function WebhookItem({
   endpoint,
   onSecret,
+  timeZone,
 }: {
   endpoint: Endpoint;
   onSecret: (secret: string) => void;
+  timeZone: string;
 }) {
   const utils = trpc.useUtils();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const deliveries = trpc.webhooks.deliveries.useQuery({ id: endpoint.id, limit: 10 });
   const refresh = () => {
     void utils.webhooks.list.invalidate();
@@ -374,9 +475,14 @@ function WebhookItem({
       refresh();
     },
   });
-  const remove = trpc.webhooks.delete.useMutation({ onSuccess: refresh });
+  const remove = trpc.webhooks.delete.useMutation({
+    onSuccess: () => {
+      setConfirmDelete(false);
+      refresh();
+    },
+  });
   const redeliver = trpc.webhooks.redeliver.useMutation({ onSuccess: refresh });
-  const error = test.error ?? update.error ?? remove.error ?? redeliver.error;
+  const error = test.error ?? update.error ?? redeliver.error;
   return (
     <li
       className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm"
@@ -394,7 +500,9 @@ function WebhookItem({
         />
       </div>
       {endpoint.description && <p className="text-muted">{endpoint.description}</p>}
-      <p className="break-words text-xs text-muted">{endpoint.events.join(" · ")}</p>
+      <p className="break-words text-xs text-muted">
+        {endpoint.events.map(eventLabel).join(" · ")}
+      </p>
       {endpoint.consecutive_failures > 0 && (
         <p className="text-xs text-status-warn">
           ⚠ {t("apiSettings.webhooks.failures", { count: endpoint.consecutive_failures })}
@@ -402,16 +510,16 @@ function WebhookItem({
       )}
       <div className="flex flex-wrap gap-2">
         <Button
-          size="sm"
           variant="secondary"
+          className="min-h-11"
           loading={test.isPending}
           onClick={() => test.mutate({ id: endpoint.id })}
         >
           {t("apiSettings.webhooks.test")}
         </Button>
         <Button
-          size="sm"
           variant="secondary"
+          className="min-h-11"
           loading={update.isPending && update.variables?.rotateSecret === true}
           onClick={() => update.mutate({ id: endpoint.id, rotateSecret: true })}
           title={t("apiSettings.webhooks.rotateHint")}
@@ -419,8 +527,9 @@ function WebhookItem({
           {t("apiSettings.webhooks.rotate")}
         </Button>
         <Button
-          size="sm"
           variant="ghost"
+          className="min-h-11"
+          loading={update.isPending && update.variables?.isActive !== undefined}
           onClick={() => update.mutate({ id: endpoint.id, isActive: !endpoint.is_active })}
         >
           {endpoint.is_active
@@ -428,10 +537,12 @@ function WebhookItem({
             : t("apiSettings.webhooks.enable")}
         </Button>
         <Button
-          size="sm"
           variant="ghost"
-          loading={remove.isPending}
-          onClick={() => remove.mutate({ id: endpoint.id })}
+          className="min-h-11"
+          onClick={() => {
+            remove.reset();
+            setConfirmDelete(true);
+          }}
         >
           {t("apiSettings.webhooks.delete")}
         </Button>
@@ -449,6 +560,13 @@ function WebhookItem({
         </p>
       )}
       <h4 className="text-xs font-semibold">{t("apiSettings.webhooks.deliveries")}</h4>
+      {deliveries.isLoading && <ListSkeleton rows={2} />}
+      {deliveries.isError && (
+        <ErrorBox
+          onRetry={() => void deliveries.refetch()}
+          message={t("apiSettings.webhooks.deliveriesError")}
+        />
+      )}
       {deliveries.data && deliveries.data.length === 0 && (
         <p className="text-xs text-muted">{t("apiSettings.webhooks.noDeliveries")}</p>
       )}
@@ -459,18 +577,18 @@ function WebhookItem({
               tone={d.status === "succeeded" ? "ok" : d.status === "failed" ? "bad" : "warn"}
               label={`${d.status === "succeeded" ? "✓" : d.status === "failed" ? "✕" : "⏳"} ${t(`apiSettings.webhooks.status.${d.status}`)}`}
             />
-            <span className="font-mono">{d.event_type}</span>
+            <span title={d.event_type}>{eventLabel(d.event_type)}</span>
             <span className="text-muted">
               {t("apiSettings.webhooks.attempt", { count: d.attempt })}
               {d.response_code ? ` · HTTP ${d.response_code}` : ""}
               {d.next_attempt_at && d.status === "pending"
-                ? ` · ${t("apiSettings.webhooks.nextAttempt", { date: formatDateTime(d.next_attempt_at) })}`
+                ? ` · ${t("apiSettings.webhooks.nextAttempt", { date: formatDateTime(d.next_attempt_at, timeZone) })}`
                 : ""}
             </span>
             {d.status !== "succeeded" && (
               <Button
-                size="sm"
                 variant="ghost"
+                className="min-h-11"
                 loading={redeliver.isPending && redeliver.variables?.id === d.id}
                 onClick={() => redeliver.mutate({ id: d.id })}
               >
@@ -480,6 +598,41 @@ function WebhookItem({
           </li>
         ))}
       </ul>
+      <Modal
+        open={confirmDelete}
+        title={t("apiSettings.webhooks.deleteConfirmTitle")}
+        onClose={() => setConfirmDelete(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => setConfirmDelete(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="danger"
+              className="min-h-11"
+              loading={remove.isPending}
+              onClick={() => remove.mutate({ id: endpoint.id })}
+            >
+              {t("apiSettings.webhooks.delete")}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-2 text-sm">
+          <p className="break-words">
+            {t("apiSettings.webhooks.deleteConfirmBody", { url: endpoint.url })}
+          </p>
+          {remove.error && (
+            <p role="alert" className="text-status-bad">
+              ⚠ {remove.error.message}
+            </p>
+          )}
+        </div>
+      </Modal>
     </li>
   );
 }

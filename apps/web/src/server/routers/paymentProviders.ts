@@ -17,7 +17,6 @@ import {
 import {
   merchantNumbersInputSchema,
   paymentProviderInputSchema,
-  setPaymentProviderActiveInputSchema,
   upsertPaymentProviderInputSchema,
 } from "@atelieros/validators";
 import { actorOf } from "../billing/context";
@@ -98,8 +97,10 @@ export const paymentProvidersRouter = router({
       const credentials: Record<string, string> = { ...previous };
       for (const [k, v] of changed) credentials[k] = v.trim();
       // Simulateur : secret de signature généré côté serveur (jamais saisi).
+      let generated = false;
       if (input.provider === "fake" && !credentials.webhookSecret) {
         credentials.webhookSecret = randomBytes(24).toString("base64url");
+        generated = true;
       }
       const missing = missingFields(input.provider, credentials);
       if (input.isActive && missing.length > 0) {
@@ -108,7 +109,12 @@ export const paymentProvidersRouter = router({
       const data = {
         methods: input.methods,
         isActive: input.isActive,
-        credentials: encryptSecret(JSON.stringify(credentials), loadEncryptionKey()),
+        // Rien de saisi (ex. simple activation/désactivation) : le chiffré enregistré est gardé
+        // tel quel, jamais réécrit (même s'il n'a pas pu être relu).
+        credentials:
+          existing?.credentials && changed.length === 0 && !generated
+            ? existing.credentials
+            : encryptSecret(JSON.stringify(credentials), loadEncryptionKey()),
         ...(changed.length > 0 ? { lastTestedAt: null, lastTestOk: null, lastError: null } : {}),
       };
       const saved = existing
@@ -128,33 +134,6 @@ export const paymentProvidersRouter = router({
         },
       });
       return { provider: saved.provider, isActive: saved.isActive, missing };
-    }),
-
-  setActive: requirePermission("settings:payments")
-    .input(setPaymentProviderActiveInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      const config = await tenantDb.paymentProviderConfig.findFirst({
-        where: { provider: input.provider },
-      });
-      if (!config) bad("Configurez d'abord ce fournisseur.");
-      if (input.isActive) {
-        if (input.provider === "fake" && !simulatorAllowed()) {
-          bad("Le simulateur de paiement est interdit en production.");
-        }
-        if (missingFields(input.provider, readCredentials(config.credentials)).length > 0) {
-          bad("Renseignez tous les identifiants avant d'activer ce fournisseur.");
-        }
-      }
-      const saved = await tenantDb.paymentProviderConfig.update({
-        where: { id: config.id },
-        data: { isActive: input.isActive },
-      });
-      await audit(actorOf(ctx), "payment_provider.activated", "PaymentProviderConfig", saved.id, {
-        before: { isActive: config.isActive },
-        after: { isActive: saved.isActive },
-      });
-      return { provider: saved.provider, isActive: saved.isActive };
     }),
 
   /** RG-M15-17 — test : création d'un lien de 100 FCFA (aucune facture ; il expire seul). */

@@ -295,6 +295,14 @@ function ReportKpi({ metric, period, href }: { metric: KpiCode; period: Period; 
   if (k.isLoading) return <div className="h-28 animate-pulse rounded-xl bg-surface-2" />;
   if (k.isError || !k.data) return null;
   const value = k.data.value;
+  const help =
+    metric === "revenue_ht"
+      ? { text: L.help.revenueHt, example: L.help.revenueHtExample }
+      : metric === "collected"
+        ? { text: L.help.collected, example: L.help.collectedExample }
+        : metric === "receivables"
+          ? { text: L.help.receivables, example: L.help.receivablesExample }
+          : { text: L.help.recovered, example: L.help.recoveredExample };
   return (
     <KpiCard
       label={H.kpis[metric as keyof typeof H.kpis]}
@@ -308,6 +316,8 @@ function ReportKpi({ metric, period, href }: { metric: KpiCode; period: Period; 
       }
       variation={k.data.delta}
       href={href}
+      help={help.text}
+      example={help.example}
     />
   );
 }

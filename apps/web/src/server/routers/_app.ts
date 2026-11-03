@@ -18,6 +18,7 @@ import { reportsRouter } from "./reports";
 import { devOutboxRouter } from "./devOutbox";
 import { invitationRouter } from "./invitation";
 import { meRouter } from "./me";
+import { notificationsRouter } from "./notifications";
 import { memberRouter } from "./member";
 import { onboardingRouter } from "./onboarding";
 import { collectionsRouter } from "./collections";
@@ -132,6 +133,7 @@ export const appRouter = router({
   paymentProviders: paymentProvidersRouter,
   dashboard: dashboardRouter,
   alerts: alertsRouter,
+  notifications: notificationsRouter,
   digest: digestRouter,
   reports: reportsRouter,
   // M07 — stock, pièces, fournisseurs, achats

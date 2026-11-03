@@ -5,6 +5,8 @@ import {
   checkSalePrice,
   computeMarginRate,
   defaultQuantityScale,
+  GARAGE_STARTER_SUPPLIER,
+  garageStarterCatalog,
   looksLikeBarcode,
   matchCompatibility,
   minStockOfLevel,
@@ -22,7 +24,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { writeAuditLog } from "../audit";
-import { baseQty, canSeeCost } from "../stock/helpers";
+import { baseQty, canSeeCost, stockTx } from "../stock/helpers";
 import { requirePermission, requireSite, router } from "../trpc";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
@@ -490,6 +492,78 @@ export const productRouter = router({
       });
       return updated;
     }),
+
+  /**
+   * Catalogue de démarrage : pièces courantes d'un garage, sans quantité en stock
+   * (le magasinier réceptionne ou inventorie ensuite). Idempotent sur le SKU.
+   */
+  installStarterCatalog: requirePermission("product:manage").mutation(async ({ ctx }) => {
+    const result = await stockTx(ctx.organizationId, async (tx) => {
+      const catalog = garageStarterCatalog();
+      const existing = await tx.product.findMany({ select: { sku: true } });
+      const have = new Set(existing.map((product) => product.sku.toUpperCase()));
+      const missing = catalog.filter((item) => !have.has(item.sku.toUpperCase()));
+
+      const activeSupplier = await tx.supplier.findFirst({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      });
+      let supplier = activeSupplier;
+      let supplierCreated = false;
+      if (!supplier) {
+        supplier = await tx.supplier.create({
+          data: {
+            organizationId: ctx.organizationId,
+            name: GARAGE_STARTER_SUPPLIER,
+            notes:
+              "Créé avec le catalogue de démarrage. Ajoutez le WhatsApp pour envoyer les bons de commande.",
+          },
+          select: { id: true, name: true },
+        });
+        supplierCreated = true;
+      }
+
+      for (const item of missing) {
+        await tx.product.create({
+          data: {
+            organizationId: ctx.organizationId,
+            sku: item.sku,
+            name: item.name,
+            brand: item.brand,
+            category: item.category,
+            unit: item.unit,
+            salePrice: item.salePrice,
+            purchasePrice: item.purchasePrice,
+            averageCost: item.purchasePrice,
+            vatRate: 18,
+            minStock: item.minStock,
+            reorderQty: item.reorderQty,
+            packSize: item.packSize,
+            quantityScale: defaultQuantityScale(item.unit),
+            isStocked: true,
+            defaultSupplierId: supplier.id,
+          },
+        });
+      }
+      return {
+        created: missing.length,
+        skipped: catalog.length - missing.length,
+        supplierName: supplier.name,
+        supplierCreated,
+      };
+    });
+    await writeAuditLog({
+      organizationId: ctx.organizationId,
+      userId: ctx.user.id,
+      membershipId: ctx.membership.id,
+      action: "product.starter_catalog",
+      entity: "product",
+      entityId: ctx.organizationId,
+      after: result,
+    });
+    return result;
+  }),
 
   /** Seuils et emplacement par site (StockLevel.minStock/maxStock/binLocation). */
   setLevelSettings: requirePermission("product:manage")

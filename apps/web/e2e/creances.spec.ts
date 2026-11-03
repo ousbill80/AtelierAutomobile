@@ -73,7 +73,7 @@ test("parcours créances : enregistrer un paiement ferme le dossier", async ({ p
   });
 
   await page.goto("/creances");
-  await expect(page.getByText("Balance âgée")).toBeVisible();
+  await expect(page.getByText("Depuis combien de temps on vous doit")).toBeVisible();
   await expect(page.getByText("Koné Ibrahim").first()).toBeVisible();
 
   // §7.3 : alerte crédit orange (non bloquante) sur la fiche client.

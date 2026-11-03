@@ -17,6 +17,7 @@ import { EncaisserModal } from "@/components/billing/encaisser-modal";
 import { FnePanel } from "@/components/billing/fne-panel";
 import { PaymentLinkActions, PaymentLinksList } from "@/components/billing/payment-links-panel";
 import { t } from "@/components/billing/i18n";
+import { InvoiceDraftForm } from "./draft-form";
 
 const OPEN = ["ISSUED", "PARTIALLY_PAID", "OVERDUE"];
 
@@ -27,6 +28,7 @@ export function InvoiceView({ id }: { id: string }) {
   const perms = new Set(me.data?.permissions ?? []);
   const q = trpc.invoice.get.useQuery({ id });
   const [modal, setModal] = useState<"issue" | "pay" | "credit" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const refresh = () => utils.invoice.get.invalidate({ id });
   const remove = trpc.invoice.deleteDraft.useMutation({
     onSuccess: () => router.push("/factures"),
@@ -39,31 +41,72 @@ export function InvoiceView({ id }: { id: string }) {
   const inv = d.invoice;
   const isDraft = inv.status === "DRAFT";
   const isCredit = inv.type === "CREDIT_NOTE";
+  const canEdit = isDraft && !isCredit && inv.type !== "DEPOSIT" && perms.has("invoice:create");
+  const terms = isCredit
+    ? t("terms.credit")
+    : d.customer.paymentTermsDays > 0
+      ? t("terms.days", { days: d.customer.paymentTermsDays })
+      : t("terms.cash");
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-col gap-4">
-      <Link href="/factures" className="text-sm text-accent">
+    <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-4 pb-8">
+      <Link href="/factures" className="inline-flex min-h-11 items-center text-sm text-accent">
         ← {t("back")}
       </Link>
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="font-mono text-xl font-semibold" data-testid="invoice-number">
-            {inv.number ?? t("draft")}
-          </h1>
-          <span className="text-sm font-semibold">{t(`type.${inv.type}`)}</span>
-          {inv.billTo === "INSURANCE" && <span className="text-sm">{t("billTo.INSURANCE")}</span>}
-          <InvoiceStatusBadge status={inv.status} />
-          {!isDraft && <FneBadge status={inv.fneStatus} />}
+      <header className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold">
+              {t(`type.${inv.type}`)}
+              {inv.billTo === "INSURANCE" ? ` · ${t("billTo.INSURANCE")}` : ""}
+            </h1>
+            <InvoiceStatusBadge status={inv.status} />
+            {!isDraft && <FneBadge status={inv.fneStatus} />}
+          </div>
+          <p className="text-sm text-muted">
+            <span className="font-mono" data-testid="invoice-number">
+              {inv.number ?? t("draft")}
+            </span>
+            {d.site?.name ? ` · ${d.site.name}` : ""}
+          </p>
         </div>
-        <p className="text-sm text-muted">
-          {d.site?.name}
-          {inv.issuedAt ? ` · ${t("fields.date")} ${formatDay(inv.issuedAt, d.timeZone)}` : ""}
-          {inv.dueDate && !isCredit
-            ? ` · ${t("fields.dueDate")} ${formatDay(inv.dueDate, "UTC")}`
-            : ""}
-        </p>
-      </header>
 
+        <div className="flex flex-wrap gap-2">
+          {isDraft && perms.has("invoice:issue") && (
+            <Button onClick={() => setModal("issue")}>{t("actions.issue")}</Button>
+          )}
+          {OPEN.includes(inv.status) &&
+            !isCredit &&
+            (inv.billTo === "CUSTOMER" || Boolean(inv.insuranceClaimId)) &&
+            perms.has("payment:create") && (
+              <Button onClick={() => setModal("pay")}>{t("actions.encaisser")}</Button>
+            )}
+          <PaymentLinkActions
+            invoice={inv}
+            permissions={perms}
+            timeZone={d.timeZone}
+            onChanged={refresh}
+          />
+          <a
+            href={`/api/factures/${inv.id}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-secondary min-h-11"
+          >
+            📄 {t("actions.pdf")}
+          </a>
+          {!isDraft && !isCredit && inv.status !== "VOID" && perms.has("invoice:credit_note") && (
+            <Button variant="secondary" onClick={() => setModal("credit")}>
+              {t("actions.creditNote")}
+            </Button>
+          )}
+          {isDraft && perms.has("invoice:create") && (
+            <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+              {t("actions.deleteDraft")}
+            </Button>
+          )}
+        </div>
+      </header>
       <FnePanel
         invoice={inv}
         mode={d.fneMode}
@@ -71,146 +114,178 @@ export function InvoiceView({ id }: { id: string }) {
         timeZone={d.timeZone}
         onChanged={refresh}
       />
-
-      <div className="flex flex-wrap gap-2">
-        {isDraft && perms.has("invoice:issue") && (
-          <Button onClick={() => setModal("issue")}>{t("actions.issue")}</Button>
-        )}
-        {OPEN.includes(inv.status) &&
-          !isCredit &&
-          (inv.billTo === "CUSTOMER" || Boolean(inv.insuranceClaimId)) &&
-          perms.has("payment:create") && (
-            <Button onClick={() => setModal("pay")}>{t("actions.encaisser")}</Button>
-          )}
-        <PaymentLinkActions
-          invoice={inv}
-          permissions={perms}
-          timeZone={d.timeZone}
-          onChanged={refresh}
-        />
-        <a
-          href={`/api/factures/${inv.id}/pdf`}
-          target="_blank"
-          rel="noreferrer"
-          className="btn btn-secondary min-h-11"
-        >
-          📄 {t("actions.pdf")}
-        </a>
-        {!isDraft && !isCredit && inv.status !== "VOID" && perms.has("invoice:credit_note") && (
-          <Button variant="secondary" onClick={() => setModal("credit")}>
-            {t("actions.creditNote")}
-          </Button>
-        )}
-        {isDraft && perms.has("invoice:create") && (
-          <Button variant="danger" loading={remove.isPending} onClick={() => remove.mutate({ id })}>
-            {t("actions.deleteDraft")}
-          </Button>
-        )}
-      </div>
       {remove.error && (
         <p role="alert" className="text-sm text-status-bad">
           ⚠ {remove.error.message}
         </p>
       )}
 
-      <section className="grid gap-3 rounded-lg border border-border bg-surface p-3 text-sm sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-xs text-muted">{t("fields.customer")}</span>
-          <Link href={`/clients/${d.customer.id}`} className="font-semibold text-accent">
-            {d.customer.displayName}
-          </Link>
-          {d.customer.phone && <span>{d.customer.phone}</span>}
-          {d.customer.ncc && <span>NCC {d.customer.ncc}</span>}
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          {d.vehicle && (
-            <>
-              <span className="text-xs text-muted">{t("fields.vehicle")}</span>
-              <span className="flex flex-wrap items-center gap-2">
-                <PlateBadge plate={d.vehicle.plate} />
-                {d.vehicle.make} {d.vehicle.model}
-              </span>
-            </>
-          )}
-          {inv.mileage != null && (
-            <span>
-              {t("fields.mileage")} : {inv.mileage.toLocaleString("fr-FR")} km
-            </span>
-          )}
-          {d.repairOrder && (
-            <Link href={`/ordres/${d.repairOrder.id}`} className="text-accent">
-              {t("fields.repairOrder")} {d.repairOrder.number}
-            </Link>
-          )}
-          {d.creditedInvoice && (
-            <Link href={`/factures/${d.creditedInvoice.id}`} className="text-accent">
-              {t("type.INVOICE")} {d.creditedInvoice.number}
-            </Link>
-          )}
-        </div>
-      </section>
+      {canEdit ? (
+        <InvoiceDraftForm
+          key={inv.updatedAt.toISOString()}
+          timeZone={d.timeZone}
+          vatEnabled={d.vatEnabled}
+          terms={terms}
+          canSearchProducts={perms.has("stock:read")}
+          invoice={{
+            id: inv.id,
+            dueDate: inv.dueDate,
+            notes: inv.notes,
+            mileage: inv.mileage,
+          }}
+          lines={d.lines}
+          customer={d.customer}
+          vehicle={d.vehicle}
+          repairOrder={d.repairOrder}
+          creditedInvoice={d.creditedInvoice}
+          onSaved={refresh}
+        />
+      ) : (
+        <>
+          <section className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_16rem] lg:items-start">
+              <div className="min-w-0">
+                <p className="text-xs font-medium tracking-wide text-muted uppercase">
+                  {t("fields.customer")}
+                </p>
+                <Link
+                  href={`/clients/${d.customer.id}`}
+                  className="mt-1 block text-lg font-semibold text-accent"
+                >
+                  {d.customer.displayName}
+                </Link>
+                <p className="mt-1 text-sm text-muted">
+                  {[
+                    d.customer.phone,
+                    d.customer.address,
+                    d.customer.ncc ? `NCC ${d.customer.ncc}` : null,
+                    d.customer.rccm ? `RCCM ${d.customer.rccm}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                  {d.vehicle ? (
+                    <span className="flex flex-wrap items-center gap-2">
+                      <PlateBadge plate={d.vehicle.plate} />
+                      <span>
+                        {d.vehicle.make} {d.vehicle.model}
+                        {inv.mileage != null ? ` · ${inv.mileage.toLocaleString("fr-FR")} km` : ""}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-muted">{t("sheet.emptyDate")}</span>
+                  )}
+                  {d.repairOrder && (
+                    <Link href={`/ordres/${d.repairOrder.id}`} className="font-medium text-accent">
+                      {d.repairOrder.number}
+                    </Link>
+                  )}
+                  {d.creditedInvoice && (
+                    <Link
+                      href={`/factures/${d.creditedInvoice.id}`}
+                      className="font-medium text-accent"
+                    >
+                      {t("sheet.origin")} {d.creditedInvoice.number}
+                    </Link>
+                  )}
+                </div>
+              </div>
+              <dl className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-1">
+                <div>
+                  <dt className="text-muted">{t("fields.date")}</dt>
+                  <dd className="font-medium">
+                    {inv.issuedAt ? formatDay(inv.issuedAt, d.timeZone) : t("sheet.emptyDate")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted">{t("fields.dueDate")}</dt>
+                  <dd className="font-medium">
+                    {!isCredit && inv.dueDate
+                      ? formatDay(inv.dueDate, "UTC")
+                      : t("sheet.emptyDate")}
+                  </dd>
+                </div>
+                {!isDraft && !isCredit && (
+                  <div className="col-span-2 lg:col-span-1">
+                    <dt className="text-muted">{t("totals.balance")}</dt>
+                    <dd className="text-lg font-semibold tabular-nums">
+                      {formatFCFA(inv.balance)}
+                    </dd>
+                  </div>
+                )}
+                <div className="col-span-2 lg:col-span-1">
+                  <dt className="text-muted">{t("sheet.conditions")}</dt>
+                  <dd className="text-muted">{terms}</dd>
+                  {inv.notes && <dd className="mt-1 whitespace-pre-wrap">{inv.notes}</dd>}
+                </div>
+              </dl>
+            </div>
+          </section>
 
-      <section className="flex flex-col gap-2" aria-label={t("lines.title")}>
-        <h2 className="font-semibold">{t("lines.title")}</h2>
-        <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface">
-          {d.lines.map((l) => (
-            <li
-              key={l.id}
-              className="flex flex-col gap-1 p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-            >
-              <span className="min-w-0 break-words">{l.description}</span>
-              <span className="flex shrink-0 flex-wrap gap-3 text-xs text-muted sm:text-sm">
-                <span>
-                  {l.quantity.toLocaleString("fr-FR")} × {formatFCFA(l.unitPrice)}
-                </span>
-                {l.discountRate > 0 && <span>−{l.discountRate} %</span>}
-                {d.vatEnabled && <span>TVA {l.vatRate} %</span>}
-                <span className="font-semibold text-fg">{formatFCFA(l.lineSubtotal)} HT</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="flex flex-col items-end gap-1 rounded-lg border border-border bg-surface p-3 text-sm">
-        {inv.discountTotal !== 0 && (
-          <span>
-            {t("totals.discount")} : −{formatFCFA(inv.discountTotal)}
-          </span>
-        )}
-        <span>
-          {t("totals.subtotal")} : {formatFCFA(inv.subtotal)}
-        </span>
-        <span>
-          {t("totals.vat")} : {formatFCFA(inv.vatTotal)}
-        </span>
-        <span className="text-base font-semibold" data-testid="invoice-total">
-          {t("totals.total")} : {formatFCFA(inv.total)}
-        </span>
-        <span className="text-xs text-muted">
-          {t("totals.inWords", { words: amountInWords(Math.abs(inv.total)) })}
-        </span>
-        {!isDraft && !isCredit && (
-          <>
-            <span>
-              {t("totals.paid")} : {formatFCFA(inv.amountPaid)}
-            </span>
-            {inv.creditedAmount > 0 && (
-              <span>
-                {t("totals.credited")} : −{formatFCFA(inv.creditedAmount)}
-              </span>
-            )}
-            {d.pendingCheques > 0 && (
-              <span className="text-status-warn">
-                ⏳ {t("totals.pendingCheques", { amount: formatFCFA(d.pendingCheques) })}
-              </span>
-            )}
-            <span className="text-base font-semibold" data-testid="invoice-balance">
-              {t("totals.balance")} : {formatFCFA(inv.balance)}
-            </span>
-          </>
-        )}
-      </section>
+          <section
+            className="rounded-lg border border-border bg-surface p-4"
+            aria-label={t("sheet.lines")}
+          >
+            <h2 className="text-base font-semibold">{t("sheet.lines")}</h2>
+            <InvoiceLines lines={d.lines} vatEnabled={d.vatEnabled} />
+            <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4 sm:flex-row sm:items-end sm:justify-between">
+              <p className="text-sm text-muted">
+                {t("totals.inWords", { words: amountInWords(Math.abs(inv.total)) })}
+              </p>
+              <dl className="w-full text-sm sm:w-64">
+                {inv.discountTotal !== 0 && (
+                  <div className="flex justify-between gap-6 py-1">
+                    <dt className="text-muted">{t("totals.discount")}</dt>
+                    <dd>−{formatFCFA(inv.discountTotal)}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between gap-6 py-1">
+                  <dt className="text-muted">{t("totals.subtotal")}</dt>
+                  <dd>{formatFCFA(inv.subtotal)}</dd>
+                </div>
+                <div className="flex justify-between gap-6 py-1">
+                  <dt className="text-muted">{t("totals.vat")}</dt>
+                  <dd>{formatFCFA(inv.vatTotal)}</dd>
+                </div>
+                <div
+                  className="mt-1 flex justify-between gap-6 border-t border-border py-2 text-base font-semibold"
+                  data-testid="invoice-total"
+                >
+                  <dt>{t("totals.total")}</dt>
+                  <dd>{formatFCFA(inv.total)}</dd>
+                </div>
+                {!isDraft && !isCredit && (
+                  <>
+                    <div className="flex justify-between gap-6 py-1">
+                      <dt className="text-muted">{t("totals.paid")}</dt>
+                      <dd>{formatFCFA(inv.amountPaid)}</dd>
+                    </div>
+                    {inv.creditedAmount > 0 && (
+                      <div className="flex justify-between gap-6 py-1">
+                        <dt className="text-muted">{t("totals.credited")}</dt>
+                        <dd>−{formatFCFA(inv.creditedAmount)}</dd>
+                      </div>
+                    )}
+                    {d.pendingCheques > 0 && (
+                      <p className="py-1 text-status-warn">
+                        ⏳ {t("totals.pendingCheques", { amount: formatFCFA(d.pendingCheques) })}
+                      </p>
+                    )}
+                    <div
+                      className="flex justify-between gap-6 border-t border-border py-2 text-base font-semibold"
+                      data-testid="invoice-balance"
+                    >
+                      <dt>{t("totals.balance")}</dt>
+                      <dd>{formatFCFA(inv.balance)}</dd>
+                    </div>
+                  </>
+                )}
+              </dl>
+            </div>
+          </section>
+        </>
+      )}
 
       {!isDraft && !isCredit && (
         <section className="flex flex-col gap-2">
@@ -293,6 +368,34 @@ export function InvoiceView({ id }: { id: string }) {
         />
       )}
 
+      {confirmDelete && (
+        <Modal
+          open
+          title={t("deleteDraftConfirm.title")}
+          onClose={() => setConfirmDelete(false)}
+          footer={
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
+                {t("actions.cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                loading={remove.isPending}
+                onClick={() => remove.mutate({ id })}
+              >
+                {t("actions.deleteDraft")}
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-sm">{t("deleteDraftConfirm.body")}</p>
+          {remove.error && (
+            <p role="alert" className="mt-2 text-sm text-status-bad">
+              ⚠ {remove.error.message}
+            </p>
+          )}
+        </Modal>
+      )}
       {modal === "issue" && (
         <IssueModal
           id={inv.id}
@@ -324,6 +427,85 @@ export function InvoiceView({ id }: { id: string }) {
         />
       )}
     </div>
+  );
+}
+
+function formatQty(quantity: number) {
+  return quantity.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+}
+
+type SheetLine = {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discountRate: number;
+  vatRate: number;
+  lineSubtotal: number;
+  lineTotal: number;
+};
+
+function InvoiceLines({ lines, vatEnabled }: { lines: SheetLine[]; vatEnabled: boolean }) {
+  return (
+    <>
+      <div className="mt-4 hidden min-w-0 overflow-x-auto md:block">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-muted">
+              <th className="w-8 py-2 pr-2 font-medium">{t("lines.index")}</th>
+              <th className="py-2 pr-2 font-medium">{t("lines.description")}</th>
+              <th className="py-2 pr-2 text-right font-medium">{t("lines.quantity")}</th>
+              <th className="py-2 pr-2 text-right font-medium">{t("lines.unitPriceShort")}</th>
+              <th className="py-2 pr-2 text-right font-medium">{t("lines.discount")}</th>
+              {vatEnabled && <th className="py-2 pr-2 text-right font-medium">{t("lines.vat")}</th>}
+              <th className="py-2 pr-2 text-right font-medium">{t("lines.ht")}</th>
+              <th className="py-2 text-right font-medium">{t("lines.ttc")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line, index) => (
+              <tr key={line.id} className="border-b border-border">
+                <td className="py-2 pr-2 text-muted">{index + 1}</td>
+                <td className="py-2 pr-2">{line.description}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{formatQty(line.quantity)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{formatFCFA(line.unitPrice)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{line.discountRate}</td>
+                {vatEnabled && (
+                  <td className="py-2 pr-2 text-right tabular-nums">{line.vatRate}</td>
+                )}
+                <td className="py-2 pr-2 text-right tabular-nums">
+                  {formatFCFA(line.lineSubtotal)}
+                </td>
+                <td className="py-2 text-right font-medium tabular-nums">
+                  {formatFCFA(line.lineTotal)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="mt-3 flex flex-col divide-y divide-border md:hidden">
+        {lines.map((line, index) => (
+          <li key={line.id} className="flex flex-col gap-1 py-3 text-sm">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 break-words font-medium">
+                {index + 1}. {line.description}
+              </span>
+              <span className="shrink-0 font-semibold tabular-nums">
+                {formatFCFA(line.lineTotal)}
+              </span>
+            </div>
+            <p className="text-xs text-muted">
+              {formatQty(line.quantity)} × {formatFCFA(line.unitPrice)}
+              {line.discountRate > 0 ? ` · −${line.discountRate} %` : ""}
+              {vatEnabled ? ` · TVA ${line.vatRate} %` : ""}
+              {" · "}
+              {t("lines.ht")} {formatFCFA(line.lineSubtotal)}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

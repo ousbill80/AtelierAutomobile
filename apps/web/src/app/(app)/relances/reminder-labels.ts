@@ -1,65 +1,69 @@
 // Libellés français et petits utilitaires partagés par les écrans du module M10 (relances) :
 // /relances, /relances/echeances, /parametres/relances et les blocs « Relances » des fiches
 // client/véhicule. Regroupés ici pour éviter de dupliquer ces constantes dans chaque fichier.
+import type { StatusTone } from "@atelieros/ui";
+import { t } from "@/i18n/t";
 
-export const REMINDER_TYPE_LABELS: Record<string, string> = {
-  INSPECTION: "Visite technique",
-  SERVICE: "Révision",
-  RECEIVABLE: "Créance",
-  APPOINTMENT: "Rendez-vous",
-  QUOTE_FOLLOWUP: "Suivi de devis",
-  VEHICLE_READY: "Véhicule prêt",
-  INSURANCE_EXPIRY: "Assurance",
-  SATISFACTION: "Satisfaction",
-  RECOMMENDED_WORK: "Travaux recommandés",
-  CUSTOM: "Personnalisée",
-};
+/** Libellés d'une branche de messages/fr.json, indexés par code (types, statuts…). */
+function labelsOf<K extends string>(prefix: string, keys: readonly K[]): Record<K, string> {
+  return Object.fromEntries(keys.map((key) => [key, t(`${prefix}.${key}`)])) as Record<K, string>;
+}
 
-export const REMINDER_CHANNEL_LABELS: Record<string, string> = {
-  WHATSAPP: "WhatsApp",
-  SMS: "SMS",
-  EMAIL: "Email",
-};
+export const REMINDER_TYPE_LABELS: Record<string, string> = labelsOf("reminders.types", [
+  "INSPECTION",
+  "SERVICE",
+  "RECEIVABLE",
+  "APPOINTMENT",
+  "QUOTE_FOLLOWUP",
+  "VEHICLE_READY",
+  "INSURANCE_EXPIRY",
+  "SATISFACTION",
+  "RECOMMENDED_WORK",
+  "CUSTOM",
+] as const);
 
-// Pas de `Record<string, string>` ici (contrairement aux autres libellés de ce fichier) : la
-// page /relances dérive son type `Tab` des clés de cet objet (`keyof typeof`), qui doit donc
-// rester un littéral.
-export const REMINDER_TAB_LABELS = {
-  TO_APPROVE: "À valider",
-  PLANNED_TODAY: "Planifiées aujourd'hui",
-  SENT_TODAY: "Envoyées aujourd'hui",
-  FAILED: "Échecs",
-  TO_CALL: "À appeler",
-  EXPIRED: "Expirées",
-} as const;
+export const REMINDER_CHANNEL_LABELS: Record<string, string> = labelsOf("common.channels", [
+  "WHATSAPP",
+  "SMS",
+  "EMAIL",
+] as const);
 
-export const REMINDER_STOP_EVENT_LABELS: Record<string, string> = {
-  "appointment.created": "RDV créé",
-  "appointment.cancelled": "RDV annulé",
-  "appointment.updated": "RDV modifié",
-  "repair_order.created": "OR créé",
-  "vehicle.inspection_updated": "VT mise à jour",
-  "vehicle.service_recorded": "Révision enregistrée",
-  "vehicle.owner_changed": "Changement de propriétaire",
-  "vehicle.insurance_updated": "Assurance mise à jour",
-  "payment.received": "Paiement reçu",
-  "collection.promised": "Promesse de paiement",
-  "collection.disputed": "Créance contestée",
-  "collection.paused": "Relance de créance en pause",
-  "quote.accepted": "Devis accepté",
-  "quote.declined": "Devis refusé",
-  "quote.expired": "Devis expiré",
-  "repair_order.status_changed": "Statut de l'OR changé",
-  "message.inbound_received": "Message reçu du client",
-  "customer.updated": "Client mis à jour",
-};
+// Pas de `Record<string, string>` ici : la page /relances dérive son type `Tab` des clés de cet
+// objet (`keyof typeof`), qui doivent donc rester des littéraux.
+export const REMINDER_TAB_LABELS = labelsOf("reminders.queue.tabs", [
+  "TO_APPROVE",
+  "PLANNED_TODAY",
+  "SENT_TODAY",
+  "FAILED",
+  "TO_CALL",
+  "EXPIRED",
+] as const);
 
-export const DUE_DATES_FILTER_LABELS: Record<string, string> = {
-  ALL: "Tout",
-  UPCOMING: "À venir",
-  EXPIRED: "Expirées",
-  MISSING_DATA: "Données manquantes",
-};
+export const REMINDER_STOP_EVENT_LABELS: Record<string, string> = labelsOf("reminders.stopEvents", [
+  "appointment.created",
+  "appointment.cancelled",
+  "appointment.updated",
+  "repair_order.created",
+  "vehicle.inspection_updated",
+  "vehicle.service_recorded",
+  "vehicle.owner_changed",
+  "vehicle.insurance_updated",
+  "payment.received",
+  "collection.promised",
+  "collection.disputed",
+  "collection.paused",
+  "quote.accepted",
+  "quote.declined",
+  "quote.expired",
+  "repair_order.status_changed",
+  "message.inbound_received",
+  "customer.updated",
+] as const);
+
+export const DUE_DATES_FILTER_LABELS: Record<string, string> = labelsOf(
+  "reminders.dueFilterLabels",
+  ["ALL", "UPCOMING", "EXPIRED", "MISSING_DATA"] as const,
+);
 
 export function formatDateTime(date: Date | string | null | undefined): string {
   if (!date) return "—";
@@ -90,4 +94,19 @@ export function computeDueStatus(date: Date | string | null | undefined): {
   if (days < 0) return { status: "EXPIRED", daysRemaining: days };
   if (days <= 30) return { status: "DUE_SOON", daysRemaining: days };
   return { status: "OK", daysRemaining: days };
+}
+
+/** Couleur du badge de statut d'une relance (toujours accompagnée du libellé). */
+export function reminderStatusTone(status: string): StatusTone {
+  switch (status) {
+    case "SENT":
+      return "ok";
+    case "FAILED":
+      return "bad";
+    case "SKIPPED":
+    case "NEEDS_APPROVAL":
+      return "warn";
+    default:
+      return "off";
+  }
 }

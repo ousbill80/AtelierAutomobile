@@ -401,7 +401,7 @@ function ActionBar({
         </div>
       )}
       <div
-        className="fixed inset-x-0 bottom-0 z-20 flex gap-2 overflow-x-auto border-t border-border bg-surface p-2 md:static md:flex-wrap md:rounded-lg md:border"
+        className="fixed inset-x-0 bottom-[var(--bottom-nav-offset)] z-20 flex gap-2 overflow-x-auto border-t border-border bg-surface p-2 md:static md:flex-wrap md:rounded-lg md:border"
         aria-label={t("detail.actions")}
       >
         {order.transitions.map((tr) => (
@@ -1374,41 +1374,84 @@ function TimeTab({ order }: { order: RepairOrderDetail }) {
 }
 
 function DocumentsTab({ order, perms }: { order: RepairOrderDetail; perms: Set<string> }) {
-  const kinds = ["reception", "workshop", "full", "delivery"] as const;
+  const prints = (
+    [
+      ["reception", "client"],
+      ["workshop", "workshop"],
+      ["full", "client"],
+      ["delivery", "client"],
+    ] as const
+  ).filter(([kind]) => kind !== "delivery" || order.deliveredAt);
   // M14 §10 : création / envoi / révocation = repair_order:read + message:send.
   const canWriteLinks = perms.has("repair_order:read") && perms.has("message:send");
   return (
-    <section className="flex flex-col gap-3 text-sm">
-      <PortalLinksPanel scope="REPAIR_ORDER" targetId={order.id} canWrite={canWriteLinks} />
-      <PortalLinksPanel scope="VEHICLE" targetId={order.vehicleId} canWrite={canWriteLinks} />
-      {order.deliveredAt && (
-        <PortalLinksPanel scope="SURVEY" targetId={order.id} canWrite={canWriteLinks} />
-      )}
-      <div className="flex flex-wrap gap-2">
-        {kinds
-          .filter((k) => k !== "delivery" || order.deliveredAt)
-          .map((kind) => (
-            <a
-              key={kind}
-              href={`/api/ordres/${order.id}/pdf?kind=${kind}`}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-secondary min-h-11"
-            >
-              📄 {t(`documents.${kind}`)}
-            </a>
-          ))}
+    <section className="flex flex-col gap-6 text-sm">
+      <div className="flex flex-col gap-3">
+        <div>
+          <h3 className="font-semibold">{t("documents.forClient")}</h3>
+          <p className="mt-1 text-muted">
+            {t("documents.forClientHint", { name: order.customer.displayName })}
+          </p>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <PortalLinksPanel scope="REPAIR_ORDER" targetId={order.id} canWrite={canWriteLinks} />
+          <PortalLinksPanel scope="VEHICLE" targetId={order.vehicleId} canWrite={canWriteLinks} />
+          {order.deliveredAt && (
+            <PortalLinksPanel scope="SURVEY" targetId={order.id} canWrite={canWriteLinks} />
+          )}
+        </div>
       </div>
-      <h3 className="font-semibold">{t("documents.invoices")}</h3>
-      {order.invoices.length === 0 ? (
-        <p className="text-muted">{t("documents.noInvoice")}</p>
-      ) : (
-        order.invoices.map((i) => (
-          <span key={i.id}>
-            {i.number} · {formatFCFA(i.total)}
-          </span>
-        ))
-      )}
+
+      <div className="flex flex-col gap-3">
+        <div>
+          <h3 className="font-semibold">{t("documents.toPrint")}</h3>
+          <p className="mt-1 text-muted">{t("documents.printHint")}</p>
+        </div>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {prints.map(([kind, audience]) => (
+            <li key={kind}>
+              <a
+                href={`/api/ordres/${order.id}/pdf?kind=${kind}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-h-11 flex-col gap-1 rounded-lg border border-border bg-surface p-3 hover:border-accent"
+              >
+                <span className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">{t(`documents.${kind}`)}</span>
+                  <StatusBadge
+                    tone={audience === "workshop" ? "off" : "ok"}
+                    label={t(`documents.audience.${audience}`)}
+                  />
+                </span>
+                <span className="text-xs text-muted">{t(`documents.descriptions.${kind}`)}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="font-semibold">{t("documents.invoices")}</h3>
+        {order.invoices.length === 0 ? (
+          <p className="text-muted">{t("documents.noInvoice")}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {order.invoices.map((invoice) => (
+              <li key={invoice.id}>
+                <Link
+                  href={`/factures/${invoice.id}`}
+                  className="flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2 hover:border-accent"
+                >
+                  <span className="font-mono font-medium">
+                    {invoice.number || t("documents.draftInvoice")}
+                  </span>
+                  <span className="tabular-nums">{formatFCFA(invoice.total)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

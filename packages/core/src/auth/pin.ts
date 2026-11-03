@@ -1,18 +1,21 @@
 import { DomainError } from "../errors";
 import type { Role } from "./permissions";
 
-// RG-M01-14 — PIN atelier à 4 chiffres : refus des suites triviales (0000, 1234, 1111…).
+// RG-M01-14 — PIN atelier à 6 chiffres : refus des suites triviales (000000, 123456, 111111…).
 // Utilisable uniquement pour ces rôles, sur un appareil partagé d'atelier.
+export const PIN_LENGTH = 6;
 export const PIN_ELIGIBLE_ROLES: readonly Role[] = ["MANAGER", "MECHANIC", "STOREKEEPER"];
 
 export const PIN_MAX_FAILED_ATTEMPTS = 5;
 
-/** Vrai si le PIN à 4 chiffres est trivial : chiffres identiques ou suite consécutive. */
+/** Vrai si le PIN est trivial : chiffres identiques ou suite consécutive. */
 export function isTrivialPin(pin: string): boolean {
-  if (!/^\d{4}$/.test(pin)) {
-    throw new DomainError("pin.invalid_format", "Le code PIN doit comporter 4 chiffres.", {
-      pin,
-    });
+  if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin)) {
+    throw new DomainError(
+      "pin.invalid_format",
+      `Le code PIN doit comporter ${PIN_LENGTH} chiffres.`,
+      { pin },
+    );
   }
 
   const digits = pin.split("").map(Number);

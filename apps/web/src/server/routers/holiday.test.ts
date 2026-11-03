@@ -118,6 +118,29 @@ describe("holiday router (M15 étape 1.2)", () => {
     expect(log).not.toBeNull();
   });
 
+  it("holiday.update refuse de déplacer un jour sur une date déjà prise pour le même site (RG-M15-08)", async () => {
+    const caller = callerFactory(await contextFor(ownerA.token));
+    const closure = await caller.holiday.create({
+      date: new Date("2027-06-20"),
+      name: "Fermeture à déplacer",
+      kind: "CLOSURE",
+    });
+
+    await expect(
+      caller.holiday.update({ holidayId: closure.id, date: new Date("2027-01-01") }),
+    ).rejects.toThrow("existe déjà");
+
+    // Garder la même date (en changeant le nom) ne déclenche pas le contrôle de doublon.
+    const renamed = await caller.holiday.update({
+      holidayId: closure.id,
+      date: new Date("2027-06-20"),
+      name: "Fermeture renommée",
+    });
+    expect(renamed.name).toBe("Fermeture renommée");
+
+    await caller.holiday.delete({ holidayId: closure.id });
+  });
+
   it("holiday.delete supprime une fermeture exceptionnelle et journalise holiday.deleted", async () => {
     const caller = callerFactory(await contextFor(ownerA.token));
     const closure = await caller.holiday.create({

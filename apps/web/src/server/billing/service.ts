@@ -585,7 +585,8 @@ export async function issueInvoice(
       number,
       status: "ISSUED",
       issuedAt: plan.issuedAt,
-      dueDate: plan.dueDate,
+      // Une échéance déjà saisie sur le brouillon prime sur le délai du client.
+      dueDate: invoice.dueDate ?? plan.dueDate,
       fneStatus: plan.fneStatus,
       fneNextRetryAt: fneFirstAttemptAt(org, plan.fneStatus, plan.issuedAt),
     },
@@ -624,7 +625,11 @@ export async function issueInvoice(
   });
   await audit(actor, "invoice.issued", "Invoice", issued.id, {
     siteId: issued.siteId,
-    after: { number, total: issued.total, dueDate: plan.dueDate.toISOString().slice(0, 10) },
+    after: {
+      number,
+      total: issued.total,
+      dueDate: (invoice.dueDate ?? plan.dueDate).toISOString().slice(0, 10),
+    },
   });
   if (issued.billTo === "CUSTOMER" && issued.type !== "CREDIT_NOTE") {
     await syncReceivables(tx, org, issued.customerId);

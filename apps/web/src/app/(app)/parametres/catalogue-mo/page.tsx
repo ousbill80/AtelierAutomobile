@@ -78,6 +78,16 @@ export default function LaborCatalogPage() {
     onSuccess: () => void list.refetch(),
   });
   const error = create.error ?? update.error;
+  // Rouvrir un formulaire ne doit pas réafficher l'erreur (ou le résultat) précédent.
+  const openDraft = (next: Draft) => {
+    create.reset();
+    update.reset();
+    setDraft(next);
+  };
+  const openCsv = () => {
+    importCsv.reset();
+    setCsvOpen(true);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,15 +101,23 @@ export default function LaborCatalogPage() {
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <Button onClick={() => setDraft(EMPTY)}>+ {t("catalog.new")}</Button>
-        <Button variant="secondary" onClick={() => setCsvOpen(true)}>
+        <Button onClick={() => openDraft(EMPTY)}>+ {t("catalog.new")}</Button>
+        <Button variant="secondary" onClick={openCsv}>
           {t("catalog.import")}
         </Button>
       </div>
       <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
+        <input
+          type="checkbox"
+          className="h-5 w-5"
+          checked={archived}
+          onChange={(e) => setArchived(e.target.checked)}
+        />
         {t("catalog.showArchived")}
       </label>
+      {archive.error && (
+        <ErrorBox message={t("catalog.archiveError", { message: archive.error.message })} />
+      )}
       {list.isLoading ? (
         <ListSkeleton />
       ) : list.isError || !list.data ? (
@@ -120,7 +138,10 @@ export default function LaborCatalogPage() {
                 <span className="text-xs text-muted">
                   {op.fixedPrice != null
                     ? t("catalog.fixed", { amount: formatFCFA(op.fixedPrice) })
-                    : `${op.standardHours} h · ${t(`rateTypes.${op.rateType}`)}`}
+                    : t("catalog.hoursRate", {
+                        hours: String(op.standardHours).replace(".", ","),
+                        rate: t(`rateTypes.${op.rateType}`),
+                      })}
                   {!op.isActive ? ` · ${t("catalog.archived")}` : ""}
                 </span>
               </span>
@@ -130,7 +151,7 @@ export default function LaborCatalogPage() {
                   variant="secondary"
                   className="min-h-11"
                   onClick={() =>
-                    setDraft({
+                    openDraft({
                       id: op.id,
                       code: op.code,
                       name: op.name,
@@ -157,6 +178,7 @@ export default function LaborCatalogPage() {
                   size="sm"
                   variant="secondary"
                   className="min-h-11"
+                  loading={archive.isPending && archive.variables?.id === op.id}
                   onClick={() => archive.mutate({ id: op.id, archived: op.isActive })}
                 >
                   {op.isActive ? t("catalog.archive") : t("catalog.restore")}
@@ -282,14 +304,30 @@ export default function LaborCatalogPage() {
           onChange={(e) => setCsv(e.target.value)}
           aria-label={t("catalog.import")}
         />
-        {importCsv.data && (
-          <p role="status" className="text-sm">
-            {t("catalog.importResult", {
-              created: importCsv.data.created,
-              updated: importCsv.data.updated,
-              errors: importCsv.data.errors.length,
-            })}
+        {importCsv.error && (
+          <p role="alert" className="text-sm text-status-bad">
+            ⚠ {importCsv.error.message}
           </p>
+        )}
+        {importCsv.data && (
+          <div role="status" className="flex flex-col gap-1 text-sm">
+            <p>
+              {t("catalog.importResult", {
+                created: importCsv.data.created,
+                updated: importCsv.data.updated,
+                errors: importCsv.data.errors.length,
+              })}
+            </p>
+            {importCsv.data.errors.length > 0 && (
+              <ul className="list-disc pl-5 text-status-bad">
+                {importCsv.data.errors.map((e) => (
+                  <li key={`${e.line}-${e.message}`}>
+                    {t("catalog.importErrorLine", { line: e.line, message: e.message })}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </Modal>
     </div>

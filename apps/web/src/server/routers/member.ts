@@ -2,10 +2,13 @@ import { TRPCError } from "@trpc/server";
 import {
   canInviteRole,
   hashPassword as hashSecret,
+  isDomainError,
   isTrivialPin,
+  normalizePhoneCI,
   PIN_ELIGIBLE_ROLES,
   resolvePermissions,
   wouldRemoveLastOwner,
+  type Channel,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
 import {
@@ -20,8 +23,8 @@ import {
   setPinInputSchema,
   updateMemberInputSchema,
 } from "@atelieros/validators";
-import { createConsoleMessagingProvider, type MessageChannel } from "@atelieros/integrations";
 import { requirePermission, router } from "../trpc";
+import { deliverInvitation } from "../invitations/deliver";
 import { writeAuditLog } from "../audit";
 import { assertPlanLimit } from "../plan/limits";
 import {
@@ -42,13 +45,46 @@ async function assertCanManageLastOwner(organizationId: string, membershipId: st
   }
 }
 
+/** RG-M01-12 : on ne gère (rôle, sites, désactivation) que les rôles qu'on pourrait inviter. */
+function assertCanManageMember(
+  actor: { id: string; role: Parameters<typeof canInviteRole>[0] },
+  target: { id: string; role: Parameters<typeof canInviteRole>[1] },
+) {
+  if (actor.id !== target.id && !canInviteRole(actor.role, target.role)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Vous ne pouvez pas modifier un membre de ce rôle.",
+    });
+  }
+}
+
+/** Normalise le téléphone d'invitation en E.164 (core/phone), avec une erreur lisible. */
+function normalizeInvitePhone(input: string | undefined): string | undefined {
+  const raw = input?.trim();
+  if (!raw) return undefined;
+  const invalid = new TRPCError({
+    code: "BAD_REQUEST",
+    message:
+      "Numéro de téléphone invalide. Saisissez un numéro ivoirien à 10 chiffres (ex. 07 08 09 10 11).",
+  });
+  let e164: string | null;
+  try {
+    e164 = normalizePhoneCI(raw).e164;
+  } catch (error) {
+    if (isDomainError(error)) throw invalid;
+    throw error;
+  }
+  if (!e164) throw invalid;
+  return e164;
+}
+
 export const memberRouter = router({
   list: requirePermission("member:read")
     .input(listMembersInputSchema)
     .query(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const status = input.status ?? "ACTIVE";
-      return tenantDb.membership.findMany({
+      const rows = await tenantDb.membership.findMany({
         where: {
           ...(status === "ALL" ? {} : { isActive: status === "ACTIVE" }),
           ...(input.role ? { role: input.role } : {}),
@@ -59,6 +95,7 @@ export const memberRouter = router({
         include: { user: true },
         orderBy: { createdAt: "asc" },
       });
+      return rows.map(({ pinHash, ...rest }) => ({ ...rest, hasPin: Boolean(pinHash) }));
     }),
 
   get: requirePermission("member:read")
@@ -106,7 +143,19 @@ export const memberRouter = router({
       await assertPlanLimit(ctx.organizationId, "activeMembers");
 
       const email = input.email?.toLowerCase().trim();
-      const phone = input.phone?.trim();
+      const phone = normalizeInvitePhone(input.phone);
+      if (input.channel !== "EMAIL" && !phone) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Indiquez le téléphone : l'invitation est envoyée sur ce numéro.",
+        });
+      }
+      if (input.channel === "EMAIL" && !email) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Indiquez l'email : l'invitation est envoyée par email.",
+        });
+      }
 
       const existingUser = await adminDb.user.findFirst({
         where: {
@@ -162,15 +211,17 @@ export const memberRouter = router({
         },
       });
 
-      const provider = createConsoleMessagingProvider(input.channel as MessageChannel);
       const to = input.channel === "EMAIL" ? email! : phone!;
-      await provider.send({
+      const delivered = await deliverInvitation({
         organizationId: ctx.organizationId,
+        invitationId: invitation.id,
+        channel: input.channel as Channel,
         to,
-        channel: input.channel as MessageChannel,
-        body: `Vous êtes invité(e) à rejoindre ${org.name} sur AtelierOS. Lien d'invitation : /invitation/${token}`,
-        templateKey: "invitation.created",
-        idempotencyKey: `invitation:${invitation.id}:created`,
+        recipientName: input.name,
+        organizationName: org.name,
+        role: input.role,
+        token,
+        kind: "created",
       });
 
       await writeAuditLog({
@@ -185,7 +236,7 @@ export const memberRouter = router({
         userAgent: ctx.userAgent,
       });
 
-      return { invitationId: invitation.id };
+      return { invitationId: invitation.id, ...delivered };
     }),
 
   resendInvitation: requirePermission("member:invite")
@@ -208,19 +259,21 @@ export const memberRouter = router({
       const org = await adminDb.organization.findUniqueOrThrow({
         where: { id: ctx.organizationId },
       });
-      const channel = (invitation.channel ?? "EMAIL") as MessageChannel;
-      const provider = createConsoleMessagingProvider(channel);
+      const channel = (invitation.channel ?? "EMAIL") as Channel;
       const to = channel === "EMAIL" ? invitation.email! : invitation.phone!;
-      await provider.send({
+      const delivered = await deliverInvitation({
         organizationId: ctx.organizationId,
-        to,
+        invitationId: invitation.id,
         channel,
-        body: `Rappel : vous êtes invité(e) à rejoindre ${org.name} sur AtelierOS. Lien d'invitation : /invitation/${token}`,
-        templateKey: "invitation.created",
-        idempotencyKey: `invitation:${invitation.id}:resent:${token}`,
+        to,
+        recipientName: invitation.name,
+        organizationName: org.name,
+        role: invitation.role,
+        token,
+        kind: "resent",
       });
 
-      return { ok: true as const };
+      return { ok: true as const, ...delivered };
     }),
 
   revokeInvitation: requirePermission("member:invite")
@@ -246,6 +299,7 @@ export const memberRouter = router({
       const before = await tenantDb.membership.findUniqueOrThrow({
         where: { id: input.membershipId },
       });
+      assertCanManageMember(ctx.membership, before);
 
       if (input.role && input.role !== before.role) {
         if (!canInviteRole(ctx.membership.role, input.role)) {
@@ -323,11 +377,22 @@ export const memberRouter = router({
     .input(deactivateMemberInputSchema)
     .mutation(async ({ ctx, input }) => {
       await assertCanManageLastOwner(ctx.organizationId, input.membershipId);
+      if (input.membershipId === ctx.membership.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Vous ne pouvez pas désactiver votre propre accès. Demandez à un autre gérant de le faire.",
+        });
+      }
 
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const before = await tenantDb.membership.findUniqueOrThrow({
         where: { id: input.membershipId },
       });
+      assertCanManageMember(ctx.membership, before);
+      if (!before.isActive) {
+        throw new TRPCError({ code: "CONFLICT", message: "Ce membre est déjà désactivé." });
+      }
       const after = await tenantDb.membership.update({
         where: { id: input.membershipId },
         data: { isActive: false, deactivatedAt: new Date(), deactivationReason: input.reason },
@@ -354,6 +419,13 @@ export const memberRouter = router({
     .input(reactivateMemberInputSchema)
     .mutation(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      const before = await tenantDb.membership.findUniqueOrThrow({
+        where: { id: input.membershipId },
+      });
+      assertCanManageMember(ctx.membership, before);
+      if (before.isActive) {
+        throw new TRPCError({ code: "CONFLICT", message: "Ce membre est déjà actif." });
+      }
       await assertPlanLimit(ctx.organizationId, "activeMembers");
 
       const after = await tenantDb.membership.update({
@@ -414,6 +486,7 @@ export const memberRouter = router({
       const membership = await tenantDb.membership.findUniqueOrThrow({
         where: { id: input.membershipId },
       });
+      assertCanManageMember(ctx.membership, membership);
 
       const result = await adminDb.session.deleteMany({
         where: { userId: membership.userId, activeOrganizationId: ctx.organizationId },

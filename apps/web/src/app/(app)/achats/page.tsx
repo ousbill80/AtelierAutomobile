@@ -9,6 +9,7 @@ import { trpc } from "@/trpc/react";
 import { ErrorBox, ListSkeleton, ModuleNav, PageTitle, useCan } from "../stock/_lib/components";
 import { formatDay, PO_TONE, t } from "../stock/_lib/i18n";
 import { CreatePurchaseOrderModal } from "./_lib/po-form";
+import { GaragePulse, PurchasesEmptyAction } from "../stock/_lib/pulse";
 
 const STATUSES = ["DRAFT", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"] as const;
 type Status = (typeof STATUSES)[number];
@@ -33,22 +34,47 @@ export default function PurchasesPage() {
           ) : null
         }
       />
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        {[undefined, ...STATUSES].map((s) => (
-          <button
-            key={s ?? "all"}
-            type="button"
-            aria-pressed={status === s}
-            onClick={() => setStatus(s)}
-            className={`min-h-11 rounded-md border border-border px-3 ${status === s ? "bg-surface-2 font-semibold" : "bg-surface"}`}
-          >
-            {s ? t(`purchases.status.${s}`) : t("purchases.allStatuses")}
-          </button>
-        ))}
+      <GaragePulse
+        focus="purchases"
+        purchaseView={late ? "late" : status === "DRAFT" ? "drafts" : undefined}
+        onPurchaseView={(view) => {
+          if (view === "late") {
+            setStatus(undefined);
+            setLate((current) => !current);
+            return;
+          }
+          setLate(false);
+          setStatus((current) => (current === "DRAFT" ? undefined : "DRAFT"));
+        }}
+      />
+      <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-2 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className="flex flex-wrap gap-1"
+          role="group"
+          aria-label={t("purchases.columns.status")}
+        >
+          {[undefined, ...STATUSES].map((s) => (
+            <button
+              key={s ?? "all"}
+              type="button"
+              aria-pressed={status === s}
+              onClick={() => {
+                setStatus(s);
+                if (s !== undefined) setLate(false);
+              }}
+              className={`min-h-11 rounded-md px-3 text-sm ${status === s ? "bg-accent font-medium text-accent-foreground" : "hover:bg-surface-2"}`}
+            >
+              {s ? t(`purchases.status.${s}`) : t("purchases.allStatuses")}
+            </button>
+          ))}
+        </div>
         <CheckboxRow
           label={t("purchases.lateOnly")}
           checked={late}
-          onChange={(e) => setLate(e.target.checked)}
+          onChange={(e) => {
+            setLate(e.target.checked);
+            if (e.target.checked) setStatus(undefined);
+          }}
         />
       </div>
       {list.isLoading ? <ListSkeleton /> : null}
@@ -58,7 +84,13 @@ export default function PurchasesPage() {
           rows={list.data}
           rowKey={(po) => po.id}
           onRowClick={(po) => router.push(`/achats/${po.id}`)}
-          empty={<EmptyState title={t("purchases.empty")} />}
+          empty={
+            <EmptyState
+              title={t("purchases.empty")}
+              description={t("purchases.emptyHint")}
+              action={<PurchasesEmptyAction />}
+            />
+          }
           columns={[
             {
               key: "number",

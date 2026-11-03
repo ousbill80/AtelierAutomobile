@@ -66,59 +66,65 @@ export default function ImportPage() {
   const jobs = jobsQuery.data?.jobs ?? [];
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold text-foreground">{t("import.list.title")}</h1>
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-6">
+      <header>
+        <h1 className="text-2xl font-semibold text-foreground">{t("import.list.title")}</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted">{t("import.list.intro")}</p>
+      </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="size-5 text-accent" />
-            {t("import.list.fileImportCardTitle")}
-          </CardTitle>
-          <CardDescription>{t("import.list.fileImportCardDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link href="/import/fichier">{t("import.list.fileImportCardCta")}</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="border-accent/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="size-5 text-accent" aria-hidden />
+              {t("import.list.fileImportCardTitle")}
+            </CardTitle>
+            <CardDescription>{t("import.list.fileImportCardDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/import/fichier">{t("import.list.fileImportCardCta")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="size-5 text-accent" />
-            {t("import.list.syncCardTitle")}
-          </CardTitle>
-          <CardDescription>{t("import.list.syncCardDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild variant="outline">
-            <Link href="/import/sources">{t("import.list.syncCardCta")}</Link>
-          </Button>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="size-5 text-muted" aria-hidden />
+              {t("import.list.syncCardTitle")}
+            </CardTitle>
+            <CardDescription>{t("import.list.syncCardDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/import/sources">{t("import.list.syncCardCta")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
           <CardTitle>{t("import.list.templatesTitle")}</CardTitle>
           <CardDescription>{t("import.list.templatesDescription")}</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
+        <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {TEMPLATE_ENTITIES.map((entity) => (
             <Button
               key={entity}
               variant="outline"
-              size="sm"
+              className="justify-start"
               disabled={downloadingEntity === entity}
+              aria-label={`${t(`import.list.entity.${entity}`)}, ${t("import.list.downloadTemplate")}`}
               onClick={() => handleDownloadTemplate(entity)}
             >
               {downloadingEntity === entity ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" aria-hidden />
               ) : (
-                <Download className="size-4" />
+                <Download className="size-4" aria-hidden />
               )}
-              {t(`import.list.entity.${entity}`)} — {t("import.list.downloadTemplate")}
+              {t(`import.list.entity.${entity}`)}
             </Button>
           ))}
         </CardContent>

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { connectSourcesFromEnv, getSecurityHeaders } from "@atelieros/core/security/headers";
-import { SESSION_COOKIE_NAME } from "@/server/session-cookie-name";
+import { SESSION_COOKIE_NAME, WORKSHOP_DEVICE_COOKIE_NAME } from "@/server/session-cookie-name";
 
 const AUTH_PATHS = [
   "/connexion",
@@ -36,7 +36,7 @@ export function middleware(request: NextRequest) {
 
   if (hasSession && isAuthPath) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = pathname === "/tablette/connexion" ? "/tablette" : "/";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -54,6 +54,18 @@ export function middleware(request: NextRequest) {
     response.headers.set(key, val);
   }
 
+  if (pathname === "/tablette/connexion" && !request.cookies.get(WORKSHOP_DEVICE_COOKIE_NAME)) {
+    response.cookies.set({
+      name: WORKSHOP_DEVICE_COOKIE_NAME,
+      value: crypto.randomUUID(),
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 400,
+    });
+  }
+
   if (isPortalPath) {
     // M14 RG-M14-06 : pages client jamais indexées, jamais mises en cache partagé, et le jeton
     // de l'URL n'est jamais transmis dans l'en-tête Referer d'un lien sortant.
@@ -66,5 +78,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // M06 : le service worker et le manifeste de la PWA tablette restent publics.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|manifest-tablette.webmanifest|offline.html|icons/).*)",
+  ],
 };

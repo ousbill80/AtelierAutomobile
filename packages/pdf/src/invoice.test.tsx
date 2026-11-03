@@ -3,6 +3,7 @@ import {
   fneBlockLines,
   fneQrImage,
   fneQrSvg,
+  garageInitials,
   renderInvoicePdf,
   renderReceiptPdf,
   type InvoicePdfData,
@@ -84,6 +85,27 @@ describe("invoice and receipt PDFs", () => {
       fne: { status: "MANUAL", number: "FNE-123", qrCode: "https://dgi.example/verif/1" },
     });
     expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
+  });
+
+  it("prints the garage logo, or its initials when none is stored", async () => {
+    expect(garageInitials("Garage Excellence Auto SARL")).toBe("GE");
+    expect(garageInitials("SA")).toBe("G");
+    const logo =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const withLogo = await renderReceiptPdf({
+      number: "REC-2026-000310",
+      receivedAt: "19/10/2026 10:00",
+      garage: { name: "Excellence Auto", logo },
+      customer: "Kouassi Jean-Marc",
+      method: "Espèces",
+      amount: 100000,
+      status: "CONFIRMED",
+      allocations: [],
+      unallocated: 0,
+    });
+    const withMark = await renderInvoicePdf({ ...invoice, garage: { ...invoice.garage, logo } });
+    expect(withLogo.subarray(0, 4).toString()).toBe("%PDF");
+    expect(withMark.subarray(0, 4).toString()).toBe("%PDF");
   });
 
   it("renders a receipt", async () => {

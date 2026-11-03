@@ -43,6 +43,36 @@ describe("createSmtpProvider.send", () => {
     });
   });
 
+  it("joint le PDF au message SMTP", async () => {
+    const transporter = fakeTransporter();
+    const provider = createSmtpProvider(credentials, { transporter });
+    const content = new TextEncoder().encode("%PDF-test");
+
+    await provider.send({
+      organizationId: "org_1",
+      to: "client@example.com",
+      channel: "EMAIL",
+      body: "<p>Devis</p>",
+      idempotencyKey: "quote:1",
+      subject: "Votre devis",
+      attachments: [{ filename: "devis.pdf", contentType: "application/pdf", content }],
+    });
+
+    expect(transporter.sendMail).toHaveBeenCalledWith({
+      from: "Garage Excellence Auto <no-reply@garage.ci>",
+      to: "client@example.com",
+      subject: "Votre devis",
+      html: "<p>Devis</p>",
+      attachments: [
+        {
+          filename: "devis.pdf",
+          content: Buffer.from(content),
+          contentType: "application/pdf",
+        },
+      ],
+    });
+  });
+
   it("classe l'erreur et la relance avec une catégorie", async () => {
     const error = Object.assign(new Error("550 No such user"), { responseCode: 550 });
     const transporter = fakeTransporter({ sendMail: vi.fn().mockRejectedValue(error) });

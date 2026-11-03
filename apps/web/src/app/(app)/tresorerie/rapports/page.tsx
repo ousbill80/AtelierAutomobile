@@ -204,19 +204,35 @@ export default function TreasuryReportsPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="report-kpis">
-            <Kpi icon={Flag} label={tt("reports.opening")} value={formatFCFA(r.opening)} />
+            <Kpi
+              icon={Flag}
+              label={tt("reports.opening")}
+              value={formatFCFA(r.opening)}
+              help={tt("reports.help.opening")}
+              example={tt("reports.example.opening")}
+            />
             <Kpi
               icon={ArrowDownLeft}
               label={tt("reports.inflow")}
               value={formatFCFA(r.inflow)}
               tone="ok"
+              help={tt("reports.help.inflow")}
+              example={tt("reports.example.inflow")}
             />
-            <Kpi icon={ArrowUpRight} label={tt("reports.outflow")} value={formatFCFA(r.outflow)} />
+            <Kpi
+              icon={ArrowUpRight}
+              label={tt("reports.outflow")}
+              value={formatFCFA(r.outflow)}
+              help={tt("reports.help.outflow")}
+              example={tt("reports.example.outflow")}
+            />
             <Kpi
               icon={Wallet}
               label={tt("reports.closing")}
               value={formatFCFA(r.closing)}
               testId="report-closing"
+              help={tt("reports.help.closing")}
+              example={tt("reports.example.closing")}
             />
           </div>
           {!accountId && <p className="-mt-2 text-xs text-muted">{tt("reports.internalNote")}</p>}

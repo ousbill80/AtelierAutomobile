@@ -11,6 +11,7 @@ import {
   periodReport,
   planProjection,
   reconcile,
+  paymentAccountBlock,
   resolveMethodAccount,
   type AccountLike,
   type ProjectionInput,
@@ -88,6 +89,31 @@ describe("RG-M18-02 — rattachement des modes de paiement", () => {
     expect(
       resolveMethodAccount("WAVE", "yop", [{ ...wave, archivedAt: D("2026-10-21") }]),
     ).toBeNull();
+  });
+
+  it("bloque l'encaissement tant que le compte du mode n'existe pas", () => {
+    expect(
+      paymentAccountBlock({
+        method: "ORANGE_MONEY",
+        siteId: "yop",
+        paidOn: "2026-10-29",
+        accounts,
+      }),
+    ).toBe("Créez d'abord le compte Orange Money dans Trésorerie, puis encaissez.");
+    expect(
+      paymentAccountBlock({ method: "WAVE", siteId: "yop", paidOn: "2026-10-29", accounts }),
+    ).toBeNull();
+    expect(
+      paymentAccountBlock({ method: "CASH", siteId: "coc", paidOn: "2026-10-29", accounts }),
+    ).toBeNull();
+  });
+
+  it("bloque un encaissement antérieur à l'ouverture du compte", () => {
+    expect(
+      paymentAccountBlock({ method: "WAVE", siteId: "yop", paidOn: "2026-09-30", accounts }),
+    ).toBe(
+      "Le compte « Wave marchand » est ouvert à partir du 15/10/2026. Indiquez une date d'ouverture au plus tard le jour de l'encaissement, puis encaissez.",
+    );
   });
 });
 

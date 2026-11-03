@@ -75,7 +75,10 @@ function ClaimsList() {
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">{t("claimsTitle")}</h1>
+        <div>
+          <h1 className="text-xl font-semibold">{t("claimsTitle")}</h1>
+          <p className="text-sm text-muted">{t("claimsIntro")}</p>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-secondary min-h-11" onClick={exportCsv}>
             {t("csv")}
@@ -88,13 +91,15 @@ function ClaimsList() {
         </div>
       </div>
       <ClaimsNav />
-      <Input
-        aria-label={t("search")}
-        placeholder={t("search")}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-3 rounded-xl border border-border bg-surface p-3 md:grid-cols-2">
+        <div className="md:col-span-2 [&_.field]:mb-0">
+          <Input
+            aria-label={t("search")}
+            placeholder={t("search")}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
         <Select
           aria-label={t("allStatuses")}
           value={status}
@@ -119,7 +124,7 @@ function ClaimsList() {
             </option>
           ))}
         </Select>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
+        <label className="flex min-h-11 items-center gap-2 text-sm md:col-span-2">
           <input
             type="checkbox"
             className="h-5 w-5"
@@ -134,7 +139,17 @@ function ClaimsList() {
       ) : list.isError || !list.data ? (
         <ErrorBox onRetry={() => list.refetch()} message={t("loadError")} />
       ) : list.data.items.length === 0 ? (
-        <EmptyState title={t("empty.title")} description={t("empty.description")} />
+        <EmptyState
+          title={t("empty.title")}
+          description={t("empty.description")}
+          action={
+            perms.has("insurance:manage") ? (
+              <Link href="/assurances/sinistres/nouveau" className="btn btn-primary min-h-11">
+                + {t("new")}
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <ul className="flex flex-col gap-2" aria-label={t("claimsTitle")}>
           {list.data.items.map((c) => (

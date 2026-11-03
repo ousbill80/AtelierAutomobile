@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { computeSessionAbsoluteExpiry } from "@atelieros/core";
+import { computeSessionAbsoluteExpiry, garageStarterCatalog } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createContext } from "../context";
@@ -438,5 +438,35 @@ describe("routeurs stock et achats (M07)", () => {
     await expect(ownerB.purchaseOrder.get({ id: "x" })).rejects.toThrow(
       "Bon de commande introuvable.",
     );
+  });
+
+  it("pilotage du magasin et catalogue de démarrage, isolé par organisation", async () => {
+    const before = await owner.stock.pulse({});
+    expect(before.products).toBeGreaterThan(0);
+    expect(before.stockValue).toEqual(expect.any(Number));
+    expect((await advisor.stock.pulse({})).stockValue).toBeNull();
+    await expect(cashier.stock.pulse({})).rejects.toThrow("Permission manquante");
+    await expect(mechanic.product.installStarterCatalog()).rejects.toThrow("Permission manquante");
+
+    const installed = await storekeeper.product.installStarterCatalog();
+    expect(installed.created).toBe(garageStarterCatalog().length);
+    expect(installed.skipped).toBe(0);
+    expect(installed.supplierCreated).toBe(false);
+
+    const again = await storekeeper.product.installStarterCatalog();
+    expect(again).toMatchObject({ created: 0, skipped: garageStarterCatalog().length });
+
+    const pulse = await owner.stock.pulse({ siteId: yop });
+    expect(pulse.products).toBe(before.products + installed.created);
+    expect(pulse.belowMin).toBeGreaterThanOrEqual(installed.created);
+    expect(pulse.outOfStock).toBeGreaterThanOrEqual(installed.created);
+
+    const other = await ownerB.stock.pulse({});
+    expect(other.products).toBe(0);
+    expect(other.drafts).toBe(0);
+    const installedB = await ownerB.product.installStarterCatalog();
+    expect(installedB.created).toBe(garageStarterCatalog().length);
+    expect(installedB.supplierCreated).toBe(true);
+    expect((await owner.stock.pulse({})).products).toBe(pulse.products);
   });
 });

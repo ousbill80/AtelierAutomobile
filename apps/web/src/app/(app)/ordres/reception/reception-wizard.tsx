@@ -38,6 +38,15 @@ import type { ReceptionHit } from "@/components/repair-orders/types";
 import { trpc } from "@/trpc/react";
 
 const STEPS = ["vehicle", "meter", "condition", "items", "complaint", "signature"] as const;
+
+/** Ligne libre sans montant : le catalogue et la pièce client ont déjà un prix. */
+function needsUnitPrice(line: LineInput) {
+  if (line.unitPrice != null) return false;
+  if (line.type === "PART" && line.isCustomerSupplied) return false;
+  if (line.type === "LABOR" && line.laborOperationId) return false;
+  if (line.type === "PART" && line.productId) return false;
+  return true;
+}
 const PHOTO_SLOTS = ["front", "rear", "left", "right"] as const;
 const DAMAGE_TYPES = [
   "SCRATCH",
@@ -52,7 +61,15 @@ const DAMAGE_TYPES = [
 const SEVERITIES = ["LIGHT", "MEDIUM", "HEAVY"] as const;
 const BODY_TYPES: BodyType[] = ["SEDAN", "HATCHBACK", "SUV", "PICKUP", "VAN", "MINIBUS", "TRUCK"];
 const QUICK_OPS = ["oil", "brakes", "ac", "diagnostic", "preInspection"] as const;
-const QUICK_FUEL_LEVELS = [0, 2, 4, 6, 8] as const;
+const FUEL_CAPTIONS: Partial<
+  Record<number, "fuelEmpty" | "fuelQuarter" | "fuelHalf" | "fuelThreeQuarters" | "fuelFull">
+> = {
+  0: "fuelEmpty",
+  2: "fuelQuarter",
+  4: "fuelHalf",
+  6: "fuelThreeQuarters",
+  8: "fuelFull",
+};
 const ITEM_CATEGORIES = {
   security: ["triangle", "vest", "extinguisher", "antenna", "hubcaps"],
   tools: ["spare_wheel", "jack", "wheel_wrench"],
@@ -187,6 +204,28 @@ function isNetworkError(error: unknown): boolean {
   return /fetch|network|Failed to fetch|NetworkError|Load failed/i.test(message);
 }
 
+/** tRPC renvoie parfois le tableau Zod brut : on n'affiche que les messages en français. */
+function readableError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : "";
+  const start = raw.indexOf("[");
+  if (start >= 0) {
+    try {
+      const issues = JSON.parse(raw.slice(start)) as unknown;
+      if (Array.isArray(issues)) {
+        const messages = issues.flatMap((issue) => {
+          if (!issue || typeof issue !== "object" || !("message" in issue)) return [];
+          const message = (issue as { message: unknown }).message;
+          return typeof message === "string" && message.trim() ? [message.trim()] : [];
+        });
+        if (messages.length > 0) return messages.join(" ");
+      }
+    } catch {
+      // message non JSON : on le montre tel quel
+    }
+  }
+  return raw || t("errors.generic");
+}
+
 export function ReceptionWizard({
   initialVehicleId,
   appointmentId,
@@ -269,6 +308,22 @@ export function ReceptionWizard({
 
   const submit = useCallback(async () => {
     if (submittingRef.current || !draft.hit) return;
+    if (draft.signatureMode === "SIGNED" && !draft.signerName.trim()) {
+      update({ step: STEPS.indexOf("signature") });
+      setError(t("reception.signerNameRequired"));
+      return;
+    }
+    if (draft.signatureMode === "SIGNED" && !draft.signature) {
+      update({ step: STEPS.indexOf("signature") });
+      setError(t("reception.signatureRequired"));
+      return;
+    }
+    const missingPrice = draft.lines.find(needsUnitPrice);
+    if (missingPrice) {
+      update({ step: STEPS.indexOf("complaint") });
+      setError(t("reception.missingUnitPrice", { description: missingPrice.description }));
+      return;
+    }
     submittingRef.current = true;
     setSubmitting(true);
     setError(null);
@@ -325,7 +380,7 @@ export function ReceptionWizard({
             : draft.signatureMode === "REFUSED"
               ? { refused: true }
               : draft.signature
-                ? { dataUrl: draft.signature, signerName: draft.signerName }
+                ? { dataUrl: draft.signature, signerName: draft.signerName.trim() }
                 : undefined,
       });
       await clearDraft();
@@ -342,13 +397,17 @@ export function ReceptionWizard({
           data: draft,
         });
       } else {
-        setError(err instanceof Error ? err.message : t("errors.generic"));
+        const message = readableError(err);
+        if (message.includes("Confirmez le kilométrage")) {
+          update({ step: STEPS.indexOf("meter") });
+        }
+        setError(message);
       }
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
     }
-  }, [draft, checkIn, uploadPhoto, router, settings.data]);
+  }, [draft, checkIn, uploadPhoto, router, settings.data, update]);
 
   // Synchronisation au retour du réseau.
   useEffect(() => {
@@ -423,18 +482,28 @@ export function ReceptionWizard({
             draft={draft}
             initialVehicleId={initialVehicleId}
             onSelect={(hit) =>
-              update({
+              setDraft((current) => ({
+                ...current,
                 hit,
                 comebackOfId: undefined,
                 mileage: hit?.vehicle.currentMileage ? String(hit.vehicle.currentMileage) : "",
-              })
+                signerName: current.signerName.trim()
+                  ? current.signerName
+                  : (hit?.customer.displayName ?? ""),
+              }))
             }
             onComeback={(id) => update({ comebackOfId: id })}
             estimate={estimate}
           />
         )}
 
-        {step === "meter" && <MeterStep draft={draft} update={update} />}
+        {step === "meter" && (
+          <MeterStep
+            draft={draft}
+            update={update}
+            askMileageConfirm={Boolean(error?.includes("Confirmez le kilométrage"))}
+          />
+        )}
 
         {step === "condition" && (
           <ConditionStep
@@ -563,6 +632,11 @@ export function ReceptionWizard({
             estimate={estimate}
             minPhotos={settings.data?.minCheckInPhotos ?? 4}
             defaultCeiling={settings.data?.defaultAuthorizationCeiling ?? 0}
+            nameError={error === t("reception.signerNameRequired")}
+            onSignerName={(signerName) => {
+              update({ signerName });
+              if (signerName.trim()) setError(null);
+            }}
           />
         )}
       </div>
@@ -581,7 +655,7 @@ export function ReceptionWizard({
         </p>
       )}
 
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-bg/95 py-3 backdrop-blur-sm">
+      <div className="sticky bottom-[var(--bottom-nav-offset)] z-10 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-bg/95 py-3 backdrop-blur-sm">
         <Button
           variant="secondary"
           className="min-h-11"
@@ -610,7 +684,34 @@ export function ReceptionWizard({
           <Button
             className="min-h-11"
             disabled={!canNext}
-            onClick={() => update({ step: draft.step + 1 })}
+            onClick={() => {
+              if (step === "meter") {
+                if (draft.odometerUnreadable) {
+                  if (!draft.odometerReason.trim()) {
+                    setError(t("reception.odometerReasonRequired"));
+                    return;
+                  }
+                } else if (!draft.mileage.trim()) {
+                  setError(t("reception.mileageRequired"));
+                  return;
+                }
+                if (draft.fuel == null) {
+                  setError(t("reception.fuelRequired"));
+                  return;
+                }
+              }
+              if (step === "complaint") {
+                const missingPrice = draft.lines.find(needsUnitPrice);
+                if (missingPrice) {
+                  setError(
+                    t("reception.missingUnitPrice", { description: missingPrice.description }),
+                  );
+                  return;
+                }
+              }
+              setError(null);
+              update({ step: draft.step + 1 });
+            }}
           >
             {t("reception.next")} →
           </Button>
@@ -892,104 +993,120 @@ function Alerts({ hit }: { hit: ReceptionHit }) {
   );
 }
 
-function MeterStep({ draft, update }: { draft: Draft; update: (patch: Partial<Draft>) => void }) {
+function MeterStep({
+  draft,
+  update,
+  askMileageConfirm,
+}: {
+  draft: Draft;
+  update: (patch: Partial<Draft>) => void;
+  askMileageConfirm: boolean;
+}) {
   const lastMileage = draft.hit?.vehicle.currentMileage ?? null;
   const currentMileageNum = Number(draft.mileage.replace(/[^\d]/g, "")) || 0;
-  const delta = lastMileage != null ? currentMileageNum - lastMileage : null;
+  const delta =
+    lastMileage != null && currentMileageNum > 0 ? currentMileageNum - lastMileage : null;
+  const fuelKey = draft.fuel != null ? FUEL_CAPTIONS[draft.fuel] : undefined;
+  const showMileageConfirm =
+    askMileageConfirm || draft.confirmMileage || (delta != null && delta >= 5_000);
 
   return (
-    <section className="flex flex-col gap-4">
-      <DocumentCapture
-        kinds={["ODOMETER"]}
-        onExtracted={(result) => {
-          const mileage = result.fields.mileage?.value
-            ? String(result.fields.mileage.value).replace(/[^\d]/g, "")
-            : "";
-          if (mileage) update({ mileage, odometerUnreadable: false });
-        }}
-      />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-medium">
-          {t("reception.mileage")} ({t("reception.mileageUnit")})
-        </span>
-        {lastMileage != null && (
-          <span className="text-xs text-muted">
-            {t("reception.lastKnownMileage")} : {lastMileage.toLocaleString("fr-FR")} km
-          </span>
-        )}
-      </div>
-      <Input
-        inputMode="numeric"
-        value={draft.mileage}
-        disabled={draft.odometerUnreadable}
-        onChange={(e) => update({ mileage: e.target.value.replace(/[^\d]/g, "") })}
-        className="text-2xl font-mono"
-        aria-label={`${t("reception.mileage")} (${t("reception.mileageUnit")})`}
-      />
-      {delta != null && !draft.odometerUnreadable && currentMileageNum > 0 && (
-        <p className={`text-xs ${delta < 0 ? "font-semibold text-status-bad" : "text-muted"}`}>
-          {t("reception.mileageDelta")} :{" "}
-          {delta >= 0
-            ? `+${delta.toLocaleString("fr-FR")} km`
-            : t("reception.odometerRegression", { delta: delta.toLocaleString("fr-FR") })}
-        </p>
-      )}
-      <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="h-5 w-5"
-          checked={draft.odometerUnreadable}
-          onChange={(e) => update({ odometerUnreadable: e.target.checked })}
-        />
-        {t("reception.odometerUnreadable")}
-      </label>
-      {draft.odometerUnreadable && (
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
         <Input
-          label={t("reception.odometerReason")}
-          value={draft.odometerReason}
-          onChange={(e) => update({ odometerReason: e.target.value })}
+          label={`${t("reception.mileage")} (${t("reception.mileageUnit")})`}
+          hint={
+            lastMileage != null
+              ? `${t("reception.lastKnownMileage")} : ${lastMileage.toLocaleString("fr-FR")} km`
+              : t("reception.mileageHint")
+          }
+          inputMode="numeric"
+          value={draft.mileage}
+          disabled={draft.odometerUnreadable}
+          onChange={(e) => update({ mileage: e.target.value.replace(/[^\d]/g, "") })}
+          className="font-mono text-2xl"
+          aria-label={`${t("reception.mileage")} (${t("reception.mileageUnit")})`}
         />
-      )}
-      <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="h-5 w-5"
-          checked={draft.confirmMileage}
-          onChange={(e) => update({ confirmMileage: e.target.checked })}
+        {delta != null && !draft.odometerUnreadable && (
+          <p className={`text-sm ${delta < 0 ? "font-semibold text-status-bad" : "text-muted"}`}>
+            {t("reception.mileageDelta")} :{" "}
+            {delta >= 0
+              ? `+${delta.toLocaleString("fr-FR")} km`
+              : t("reception.odometerRegression", { delta: delta.toLocaleString("fr-FR") })}
+          </p>
+        )}
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-5 w-5"
+            checked={draft.odometerUnreadable}
+            onChange={(e) =>
+              update({
+                odometerUnreadable: e.target.checked,
+                confirmMileage: e.target.checked ? false : draft.confirmMileage,
+              })
+            }
+          />
+          {t("reception.odometerUnreadable")}
+        </label>
+        {draft.odometerUnreadable && (
+          <Input
+            label={t("reception.odometerReason")}
+            value={draft.odometerReason}
+            onChange={(e) => update({ odometerReason: e.target.value })}
+          />
+        )}
+        {showMileageConfirm && !draft.odometerUnreadable && (
+          <label className="flex min-h-11 items-center gap-2 rounded-md border border-status-warn bg-status-warn-bg px-3 text-sm text-status-warn">
+            <input
+              type="checkbox"
+              className="h-5 w-5"
+              checked={draft.confirmMileage}
+              onChange={(e) => update({ confirmMileage: e.target.checked })}
+            />
+            {t("reception.confirmMileage")}
+          </label>
+        )}
+        <DocumentCapture
+          compact
+          label={t("reception.scanOdometer")}
+          kinds={["ODOMETER"]}
+          onExtracted={(result) => {
+            const mileage = result.fields.mileage?.value
+              ? String(result.fields.mileage.value).replace(/[^\d]/g, "")
+              : "";
+            if (mileage) update({ mileage, odometerUnreadable: false });
+          }}
         />
-        {t("reception.confirmMileage")}
-      </label>
+      </div>
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">
-          {t("reception.fuel")}
-          {draft.fuel !== null ? ` : ${t("reception.fuelValue", { level: draft.fuel })}` : ""}
-        </span>
-        <span className="text-xs text-muted">{t("reception.quickFuelTitle")}</span>
-        <div className="flex flex-wrap gap-1.5">
-          {QUICK_FUEL_LEVELS.map((level) => (
-            <button
-              key={level}
-              type="button"
-              onClick={() => update({ fuel: level })}
-              className={`min-h-11 min-w-[4.5rem] flex-1 rounded-md px-2 text-sm font-semibold ${
-                draft.fuel === level
-                  ? "bg-accent text-accent-foreground"
-                  : "border border-border bg-surface text-muted"
-              }`}
-            >
-              {t("reception.fuelValue", { level })}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span className="text-sm font-medium">{t("reception.fuel")}</span>
+          <span className={`text-sm ${draft.fuel == null ? "text-muted" : "font-medium"}`}>
+            {draft.fuel == null
+              ? t("reception.fuelHint")
+              : fuelKey
+                ? `${t(`reception.${fuelKey}`)} · ${t("reception.fuelValue", { level: draft.fuel })}`
+                : t("reception.fuelValue", { level: draft.fuel })}
+          </span>
         </div>
         <FuelGauge
           label={t("reception.fuel")}
           value={draft.fuel}
           onChange={(fuel) => update({ fuel })}
           levelLabel={(level) => t("reception.fuelValue", { level })}
+          captions={{
+            0: t("reception.fuelEmpty"),
+            2: t("reception.fuelQuarter"),
+            4: t("reception.fuelHalf"),
+            6: t("reception.fuelThreeQuarters"),
+            8: t("reception.fuelFull"),
+          }}
         />
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">{t("reception.warningLights")}</span>
+        <span className="text-xs text-muted">{t("reception.warningLightsHint")}</span>
         <div className="flex flex-wrap gap-2">
           {WARNING_LIGHTS.map((light) => {
             const on = draft.warningLights.includes(light);
@@ -1411,19 +1528,41 @@ function ComplaintStep({
         {draft.lines.map((line, i) => (
           <div
             key={i}
-            className="flex min-h-11 items-center justify-between gap-2 rounded-md bg-surface px-2 text-sm"
+            className={`flex flex-col gap-2 rounded-md bg-surface px-2 py-2 text-sm ${needsUnitPrice(line) ? "border border-status-warn" : ""}`}
           >
-            <span>
-              {t(`lineType.${line.type}`)} — {line.description} × {line.quantity}
-              {line.unitPrice != null ? ` · ${formatFCFA(line.unitPrice)}` : ""}
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => update({ lines: draft.lines.filter((_, j) => j !== i) })}
-            >
-              {t("lines.remove")}
-            </Button>
+            <div className="flex min-h-11 items-center justify-between gap-2">
+              <span>
+                {t(`lineType.${line.type}`)} — {line.description} × {line.quantity}
+                {line.unitPrice != null ? ` · ${formatFCFA(line.unitPrice)}` : null}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => update({ lines: draft.lines.filter((_, j) => j !== i) })}
+              >
+                {t("lines.remove")}
+              </Button>
+            </div>
+            {needsUnitPrice(line) && (
+              <div className="flex w-full flex-col gap-1 sm:max-w-xs">
+                <MoneyInput
+                  label={t("lines.unitPrice")}
+                  aria-label={`${t("lines.unitPrice")} — ${line.description}`}
+                  value={line.unitPrice ?? null}
+                  invalid
+                  onChange={(unitPrice) =>
+                    update({
+                      lines: draft.lines.map((current, j) =>
+                        j === i ? { ...current, unitPrice: unitPrice ?? undefined } : current,
+                      ),
+                    })
+                  }
+                />
+                <p role="alert" className="text-sm text-status-warn">
+                  {t("reception.lineMissingPrice")}
+                </p>
+              </div>
+            )}
           </div>
         ))}
         <LineForm onSubmit={(line) => update({ lines: [...draft.lines, line] })} />
@@ -1468,13 +1607,29 @@ function SignatureStep({
   estimate,
   minPhotos,
   defaultCeiling,
+  nameError,
+  onSignerName,
 }: {
   draft: Draft;
   update: (patch: Partial<Draft>) => void;
   estimate: number;
   minPhotos: number;
   defaultCeiling: number;
+  nameError: boolean;
+  onSignerName: (signerName: string) => void;
 }) {
+  const namePrefilled = useRef(false);
+  useEffect(() => {
+    if (namePrefilled.current) return;
+    if (draft.signerName.trim()) {
+      namePrefilled.current = true;
+      return;
+    }
+    const customerName = draft.hit?.customer.displayName;
+    if (!customerName) return;
+    namePrefilled.current = true;
+    update({ signerName: customerName });
+  }, [draft.hit?.customer.displayName, draft.signerName, update]);
   const credit = trpc.collections.creditCheck.useQuery(
     { customerId: draft.hit?.customer.id ?? "", additionalAmount: estimate },
     { enabled: Boolean(draft.hit), retry: false },
@@ -1557,8 +1712,15 @@ function SignatureStep({
           <Input
             label={t("reception.signerName")}
             value={draft.signerName}
-            onChange={(e) => update({ signerName: e.target.value })}
+            invalid={nameError}
+            aria-invalid={nameError}
+            onChange={(e) => onSignerName(e.target.value)}
           />
+          {nameError && (
+            <p role="alert" className="text-sm text-status-bad">
+              {t("reception.signerNameRequired")}
+            </p>
+          )}
           <span className="text-sm">{t("reception.signHere")}</span>
           <SignaturePad
             label={t("reception.signHere")}

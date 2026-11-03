@@ -1,7 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { computeSessionAbsoluteExpiry } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("../messaging/queue", () => ({
+  enqueueMessageSendJob: vi.fn(async () => undefined),
+}));
 import { createContext } from "../context";
 import { createCallerFactory } from "../trpc";
 import { appRouter } from "./_app";
@@ -51,6 +55,8 @@ describe("member router (M01)", () => {
   });
 
   afterAll(async () => {
+    await adminDb.message.deleteMany({ where: { organizationId: org.id } });
+    await adminDb.channelConfig.deleteMany({ where: { organizationId: org.id } });
     await adminDb.invitation.deleteMany({ where: { organizationId: org.id } });
     await adminDb.auditLog.deleteMany({ where: { organizationId: org.id } });
     await adminDb.session.deleteMany({ where: { userId: { in: userIds } } });
@@ -90,6 +96,7 @@ describe("member router (M01)", () => {
       channel: "EMAIL",
     });
     expect(result.invitationId).toBeDefined();
+    expect(result.delivered).toBe(false);
 
     const invitation = await adminDb.invitation.findUniqueOrThrow({
       where: { id: result.invitationId },
@@ -100,6 +107,41 @@ describe("member router (M01)", () => {
       where: { organizationId: org.id, action: "member.invited", entityId: result.invitationId },
     });
     expect(log).not.toBeNull();
+  });
+
+  it("member.invite met le message en file quand le canal email est actif", async () => {
+    await adminDb.channelConfig.create({
+      data: {
+        organizationId: org.id,
+        channel: "EMAIL",
+        provider: "console",
+        isActive: true,
+        priority: 1,
+        credentials: "",
+      },
+    });
+    const caller = callerFactory(await contextFor(owner.token));
+    const email = `invite-${randomBytes(4).toString("hex")}@example.com`;
+    const result = await caller.member.invite({
+      name: "Nouveau Mécanicien",
+      email,
+      role: "MECHANIC",
+      siteIds: [],
+      channel: "EMAIL",
+    });
+    expect(result.delivered).toBe(true);
+
+    const message = await adminDb.message.findFirst({
+      where: {
+        organizationId: org.id,
+        idempotencyKey: `invitation:${result.invitationId}:created`,
+      },
+    });
+    expect(message?.status).toBe("QUEUED");
+    expect(message?.channel).toBe("EMAIL");
+    expect(message?.to).toBe(email);
+    expect(message?.provider).toBe("console");
+    expect(message?.body).toContain("/invitation/");
   });
 
   it("member.update change le rôle et journalise member.role_changed", async () => {
@@ -151,17 +193,80 @@ describe("member router (M01)", () => {
     expect(reactivated.isActive).toBe(true);
   });
 
+  it("member.deactivate refuse de se désactiver soi-même, même s'il reste un autre OWNER", async () => {
+    const secondOwner = await memberContextFor(org.id, "Second Owner", "OWNER");
+    userIds.push(secondOwner.userId);
+    const caller = callerFactory(await contextFor(secondOwner.token));
+    await expect(
+      caller.member.deactivate({ membershipId: secondOwner.membershipId, reason: "Test" }),
+    ).rejects.toThrow("votre propre accès");
+    // Nettoyage : l'autre OWNER le désactive (il reste alors un OWNER actif).
+    await callerFactory(await contextFor(owner.token)).member.deactivate({
+      membershipId: secondOwner.membershipId,
+      reason: "Nettoyage du test",
+    });
+  });
+
+  it("member.deactivate / reactivate refusent un état déjà atteint", async () => {
+    const caller = callerFactory(await contextFor(owner.token));
+    const target = await memberContextFor(org.id, "Etat Test", "CASHIER");
+    userIds.push(target.userId);
+
+    await expect(caller.member.reactivate({ membershipId: target.membershipId })).rejects.toThrow(
+      "déjà actif",
+    );
+    await caller.member.deactivate({ membershipId: target.membershipId, reason: "Départ" });
+    await expect(
+      caller.member.deactivate({ membershipId: target.membershipId, reason: "Départ" }),
+    ).rejects.toThrow("déjà désactivé");
+
+    const inactive = await caller.member.list({ status: "INACTIVE" });
+    expect(inactive.map((m) => m.id)).toContain(target.membershipId);
+  });
+
+  it("member.update refuse qu'un MANAGER modifie un OWNER (RG-M01-12)", async () => {
+    const caller = callerFactory(await contextFor(manager.token));
+    await expect(
+      caller.member.update({ membershipId: owner.membershipId, siteIds: [] }),
+    ).rejects.toThrow("membre de ce rôle");
+  });
+
+  it("member.invite normalise le téléphone en E.164 et refuse un numéro invalide", async () => {
+    const caller = callerFactory(await contextFor(owner.token));
+    const result = await caller.member.invite({
+      name: "Mécanicien SMS",
+      phone: "07 08 09 10 11",
+      role: "MECHANIC",
+      siteIds: [],
+      channel: "SMS",
+    });
+    const invitation = await adminDb.invitation.findUniqueOrThrow({
+      where: { id: result.invitationId },
+    });
+    expect(invitation.phone).toBe("+2250708091011");
+
+    await expect(
+      caller.member.invite({
+        name: "Numéro faux",
+        phone: "12345",
+        role: "MECHANIC",
+        siteIds: [],
+        channel: "SMS",
+      }),
+    ).rejects.toThrow("Numéro de téléphone invalide");
+  });
+
   it("member.setPin refuse un rôle non éligible et un PIN trivial", async () => {
     const caller = callerFactory(await contextFor(owner.token));
     const advisor = await memberContextFor(org.id, "Conseiller PIN", "ADVISOR");
     userIds.push(advisor.userId);
 
     await expect(
-      caller.member.setPin({ membershipId: advisor.membershipId, pin: "7042" }),
+      caller.member.setPin({ membershipId: advisor.membershipId, pin: "704281" }),
     ).rejects.toThrow("n'est disponible que pour les rôles");
 
     await expect(
-      caller.member.setPin({ membershipId: mechanic.membershipId, pin: "1234" }),
+      caller.member.setPin({ membershipId: mechanic.membershipId, pin: "123456" }),
     ).rejects.toThrow("trop simple");
   });
 
@@ -169,7 +274,7 @@ describe("member router (M01)", () => {
     const caller = callerFactory(await contextFor(owner.token));
     const result = await caller.member.setPin({
       membershipId: mechanic.membershipId,
-      pin: "7042",
+      pin: "704281",
     });
     expect(result.ok).toBe(true);
 

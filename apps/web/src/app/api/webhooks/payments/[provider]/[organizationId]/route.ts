@@ -11,7 +11,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ provider: string; organizationId: string }> },
 ) {
-  const limited = webhookRateLimitResponse(request);
+  const limited = await webhookRateLimitResponse(request);
   if (limited) return limited;
   const { provider, organizationId } = await params;
   const rawBody = await request.text();

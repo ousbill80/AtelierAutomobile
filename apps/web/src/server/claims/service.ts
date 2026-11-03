@@ -198,33 +198,13 @@ export interface ClaimLines {
   quoteId: string | null;
 }
 
-/** Lignes du dossier : celles de l'OR (travaux réels) ou, à défaut, celles du devis retenu. */
-export async function claimLines(tx: Tx, claim: InsuranceClaim): Promise<ClaimLines> {
-  const order = await claimRepairOrder(tx, claim.id);
-  if (order) {
-    const lines = await tx.repairOrderLine.findMany({
-      where: { repairOrderId: order.id },
-      include: { product: { select: { averageCost: true } } },
-    });
-    const split = splitRepairOrderLines(
-      lines.map((l): RepairOrderLineForInvoice => ({
-        ...l,
-        productAverageCost: l.product?.averageCost || null,
-      })),
-    );
-    return {
-      source: "repair_order",
-      insurance: split.insurance,
-      customer: split.customer,
-      repairOrderId: order.id,
-      quoteId: claim.quoteId,
-    };
-  }
+async function linesFromQuote(tx: Tx, claim: InsuranceClaim): Promise<ClaimLines> {
   const quote = await claimQuote(tx, claim);
-  if (!quote)
+  if (!quote) {
     return { source: "none", insurance: [], customer: [], repairOrderId: null, quoteId: null };
+  }
   const lines = await tx.quoteLine.findMany({
-    where: { quoteId: quote.id, accepted: { not: false } },
+    where: { quoteId: quote.id, OR: [{ accepted: true }, { accepted: null }] },
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
   });
   const toDraft = (l: (typeof lines)[number]): DraftInvoiceLine => ({
@@ -248,6 +228,46 @@ export async function claimLines(tx: Tx, claim: InsuranceClaim): Promise<ClaimLi
     customer: lines.filter((l) => l.payer === "CUSTOMER").map(toDraft),
     repairOrderId: null,
     quoteId: quote.id,
+  };
+}
+
+/**
+ * Lignes du dossier : celles de l'OR dès qu'il porte des travaux assurance.
+ * Sinon le devis retenu — l'OR de réception n'a souvent encore aucune ligne chiffrée.
+ */
+export async function claimLines(tx: Tx, claim: InsuranceClaim): Promise<ClaimLines> {
+  const order = await claimRepairOrder(tx, claim.id);
+  let orderCustomer: DraftInvoiceLine[] = [];
+  if (order) {
+    const lines = await tx.repairOrderLine.findMany({
+      where: { repairOrderId: order.id },
+      include: { product: { select: { averageCost: true } } },
+    });
+    const split = splitRepairOrderLines(
+      lines.map((l): RepairOrderLineForInvoice => ({
+        ...l,
+        productAverageCost: l.product?.averageCost || null,
+      })),
+    );
+    if (split.insurance.length > 0) {
+      return {
+        source: "repair_order",
+        insurance: split.insurance,
+        customer: split.customer,
+        repairOrderId: order.id,
+        quoteId: claim.quoteId,
+      };
+    }
+    orderCustomer = split.customer;
+  }
+  const fromQuote = await linesFromQuote(tx, claim);
+  if (fromQuote.insurance.length > 0 || orderCustomer.length === 0) return fromQuote;
+  return {
+    source: "repair_order",
+    insurance: [],
+    customer: orderCustomer,
+    repairOrderId: order!.id,
+    quoteId: claim.quoteId,
   };
 }
 

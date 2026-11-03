@@ -16,6 +16,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     throw err;
   }
 
+  if (me.isPinSession) {
+    redirect("/tablette");
+  }
+
   const onboardingDone = Boolean(me.activeOrganization?.onboardingCompletedAt);
   if (!onboardingDone) {
     redirect("/bienvenue");

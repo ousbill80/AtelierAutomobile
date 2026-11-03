@@ -6,15 +6,15 @@ describe("webhookRateLimitResponse", () => {
     resetSensitiveRateLimiter();
   });
 
-  it("laisse passer les premiers appels puis répond 429", () => {
+  it("laisse passer les premiers appels puis répond 429", async () => {
     const req = new Request("http://localhost/api/webhooks/whatsapp", {
       method: "POST",
       headers: { "x-forwarded-for": "198.51.100.20" },
     });
     for (let i = 0; i < 120; i++) {
-      expect(webhookRateLimitResponse(req)).toBeNull();
+      expect(await webhookRateLimitResponse(req)).toBeNull();
     }
-    const blocked = webhookRateLimitResponse(req);
+    const blocked = await webhookRateLimitResponse(req);
     expect(blocked?.status).toBe(429);
   });
 });

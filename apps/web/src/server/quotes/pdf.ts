@@ -3,6 +3,7 @@
 import { groupQuoteLines } from "@atelieros/core";
 import { renderQuotePdf, type QuotePdfVariant } from "@atelieros/pdf";
 import type { Quote } from "@atelieros/db";
+import { ensurePortalQrUrl } from "../portal/documentQr";
 import { getAttachmentStorage } from "../storage";
 import { quoteDeductible, totalsFor, type OrgQuoteContext, type Tx } from "./service";
 
@@ -59,6 +60,18 @@ export async function renderQuotePdfFor(
     quote.status,
   );
   const effectiveVariant: QuotePdfVariant = variant === "signed" && !decided ? "customer" : variant;
+  const link =
+    publicUrl ??
+    (quote.status !== "DRAFT" && !quote.deletedAt
+      ? await ensurePortalQrUrl(tx, {
+          organizationId: org.id,
+          scope: "QUOTE",
+          targetId: quote.id,
+          customerId: quote.customerId,
+          now: new Date(),
+          validUntil: quote.validUntil,
+        })
+      : null);
   return renderQuotePdf({
     variant: effectiveVariant,
     garage: {
@@ -67,6 +80,7 @@ export async function renderQuotePdfFor(
       phone: org.phone,
       rccm: org.rccm,
       ncc: org.ncc,
+      logo: org.logoUrl,
     },
     number: quote.number,
     version: quote.version,
@@ -95,6 +109,8 @@ export async function renderQuotePdfFor(
           quantity: l.quantity,
           unitPrice: l.unitPrice,
           discountRate: l.discountRate,
+          vatRate: l.vatRate,
+          lineSubtotal: a.billable ? a.subtotal : 0,
           total: a.billable ? a.total : 0,
           payer: l.payer,
           accepted: l.accepted,
@@ -123,7 +139,7 @@ export async function renderQuotePdfFor(
             signature: await imageDataUri(quote.signatureUrl, tx),
           }
         : null,
-    publicUrl: publicUrl ?? null,
+    publicUrl: link,
   });
 }
 

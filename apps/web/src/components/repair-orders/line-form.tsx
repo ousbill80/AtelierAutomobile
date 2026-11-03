@@ -37,6 +37,7 @@ export function LineForm({
     "CUSTOMER",
   );
   const [priceReason, setPriceReason] = useState("");
+  const [priceError, setPriceError] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search.trim()), 250);
@@ -59,16 +60,26 @@ export function LineForm({
     setSupplierName("");
     setCostPrice(null);
     setPriceReason("");
+    setPriceError(false);
   };
 
   const submit = () => {
     const qty = Number(quantity.replace(",", "."));
     if (!description.trim() || !Number.isFinite(qty) || qty <= 0) return;
+    const suppliedPart = customerSupplied && type === "PART";
+    const price = suppliedPart ? 0 : unitPrice;
+    const pricedByCatalog =
+      (type === "LABOR" && catalogId != null) || (type === "PART" && catalogId != null);
+    if (price == null && !pricedByCatalog) {
+      setPriceError(true);
+      return;
+    }
+    setPriceError(false);
     const line: LineInput & { priceReason?: string } = {
       type,
       description: description.trim(),
       quantity: qty,
-      unitPrice: unitPrice ?? undefined,
+      unitPrice: price ?? undefined,
       laborOperationId: type === "LABOR" ? catalogId : undefined,
       productId: type === "PART" ? catalogId : undefined,
       isCustomerSupplied: customerSupplied || undefined,
@@ -121,6 +132,7 @@ export function LineForm({
                       setDescription(item.name);
                       setQuantity(String(item.hours ?? 1));
                       setUnitPrice(item.unitPrice);
+                      setPriceError(false);
                       setSearch("");
                     }}
                   >
@@ -135,7 +147,7 @@ export function LineForm({
           )}
         </div>
       )}
-      <div className="grid gap-2 sm:grid-cols-[1fr_6rem_10rem]">
+      <div className="grid gap-2 sm:grid-cols-[1fr_6rem_minmax(11rem,14rem)]">
         <Input
           label={t("lines.description")}
           value={description}
@@ -147,22 +159,35 @@ export function LineForm({
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
         />
-        <label className="flex flex-col gap-1 text-sm">
-          <span>{t("lines.unitPrice")}</span>
+        <div className="flex flex-col gap-1">
           <MoneyInput
+            label={t("lines.unitPrice")}
             aria-label={t("lines.unitPrice")}
             value={customerSupplied && type === "PART" ? 0 : unitPrice}
-            onChange={setUnitPrice}
+            onChange={(value) => {
+              setUnitPrice(value);
+              if (value != null) setPriceError(false);
+            }}
             disabled={customerSupplied && type === "PART"}
+            invalid={priceError}
+            aria-invalid={priceError}
           />
-        </label>
+          {priceError && (
+            <p role="alert" className="text-sm text-status-bad">
+              {t("lines.unitPriceRequired")}
+            </p>
+          )}
+        </div>
       </div>
       {(type === "PART" || type === "LABOR") && (
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={customerSupplied}
-            onChange={(e) => setCustomerSupplied(e.target.checked)}
+            onChange={(e) => {
+              setCustomerSupplied(e.target.checked);
+              if (e.target.checked && type === "PART") setPriceError(false);
+            }}
             className="h-5 w-5"
           />
           {t("lines.customerSupplied")}

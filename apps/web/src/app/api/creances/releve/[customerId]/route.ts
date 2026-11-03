@@ -35,7 +35,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ customer
 
   const org = await adminDb.organization.findUniqueOrThrow({
     where: { id: organizationId },
-    select: { name: true, legalName: true, address: true, rccm: true, ncc: true, timezone: true },
+    select: {
+      name: true,
+      legalName: true,
+      address: true,
+      phone: true,
+      email: true,
+      rccm: true,
+      ncc: true,
+      logoUrl: true,
+      invoiceFooter: true,
+      timezone: true,
+    },
   });
   const tenantDb = db.forTenant({ organizationId });
   const today = businessDate(receivablesNow(), org.timezone);
@@ -53,7 +64,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ customer
   }
 
   const pdf = await renderStatementPdf({
-    garage: org,
+    garage: {
+      name: org.name,
+      legalName: org.legalName,
+      address: org.address,
+      phone: org.phone,
+      email: org.email,
+      rccm: org.rccm,
+      ncc: org.ncc,
+      logo: org.logoUrl,
+      footer: org.invoiceFooter,
+    },
     customer: statement.customer,
     from: statement.from,
     to: statement.to,

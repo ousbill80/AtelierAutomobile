@@ -167,6 +167,9 @@ describe("Global Multi-Tenant Isolation Audit (CLAUDE.md & Étape 7.1)", () => {
     const callerA = callerFactory(await contextFor(ownerA.token));
     const list = await callerA.vehicle.list({ limit: 100 });
     expect(list.items.some((v) => v.id === vehicleB.id)).toBe(false);
+    const summary = await callerA.vehicle.summary();
+    expect(summary.total).toBe(list.items.length);
+    expect(summary.dueSoon + summary.expired + summary.unknown + summary.ok).toBe(summary.total);
   });
 
   it("isolation Client : le garage A ne peut pas lire le client du garage B", async () => {

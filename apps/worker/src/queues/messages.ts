@@ -7,6 +7,12 @@ export const MESSAGES_SEND_JOB_NAME = "messages.send";
 
 export interface MessagesSendJobData {
   messageId: string;
+  /** Présent quand l'envoi WhatsApp doit partir comme modèle Meta, pas comme texte libre. */
+  whatsapp?: {
+    templateName: string;
+    templateLanguage?: string;
+    templateParams?: string[];
+  };
 }
 
 let queue: Queue<MessagesSendJobData> | undefined;

@@ -87,6 +87,26 @@ describe("M08 — facturation, paiements, caisse", () => {
     siteA = await adminDb.site.create({
       data: { organizationId: orgA.id, name: "Yopougon", code: "YOP" },
     });
+    await adminDb.treasuryAccount.createMany({
+      data: [
+        {
+          organizationId: orgA.id,
+          type: "MOBILE_MONEY",
+          name: "Wave",
+          paymentMethods: ["WAVE"],
+          ledgerAccount: "585",
+          openingDate: new Date("2026-01-01T00:00:00.000Z"),
+        },
+        {
+          organizationId: orgA.id,
+          type: "BANK",
+          name: "Banque",
+          paymentMethods: ["BANK_TRANSFER", "CHEQUE", "CARD"],
+          ledgerAccount: "521",
+          openingDate: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ],
+    });
     await adminDb.site.create({ data: { organizationId: orgB.id, name: "Cocody", code: "COC" } });
     owner = (await member(orgA.id, "OWNER")).caller;
     advisor = (await member(orgA.id, "ADVISOR")).caller;
@@ -183,6 +203,7 @@ describe("M08 — facturation, paiements, caisse", () => {
     await adminDb.session.deleteMany({ where: { userId: { in: users } } });
     await adminDb.membership.deleteMany({ where });
     await adminDb.user.deleteMany({ where: { id: { in: users } } });
+    await adminDb.treasuryAccount.deleteMany({ where });
     await adminDb.site.deleteMany({ where });
     await adminDb.organization.deleteMany({ where: { id: { in: orgIds } } });
   });
@@ -321,6 +342,17 @@ describe("M08 — facturation, paiements, caisse", () => {
     await expect(owner.cash.open({ openingFloat: 0 })).rejects.toThrow(
       "Une caisse est déjà ouverte sur ce site.",
     );
+  });
+
+  it("refuse Orange Money tant que le compte n'existe pas dans Trésorerie", async () => {
+    await expect(
+      cashier.payment.create({
+        customerId: kouassi.id,
+        method: "ORANGE_MONEY",
+        amount: 1_000,
+        reference: "OM-SANS-COMPTE",
+      }),
+    ).rejects.toThrow("Créez d'abord le compte Orange Money dans Trésorerie, puis encaissez.");
   });
 
   it("US-M08-06/08 : paiement partiel espèces puis Wave avec trop-perçu ; référence Wave unique", async () => {
@@ -653,6 +685,43 @@ describe("M08 — facturation, paiements, caisse", () => {
     await expect(
       cashier.accounting.export({ from: "2026-10-19", to: "2026-10-19", journal: "ALL" }),
     ).rejects.toThrow(/Permission manquante/);
+  });
+
+  it("une facture déjà soldée ne s'encaisse pas une seconde fois", async () => {
+    const customer = await adminDb.customer.create({
+      data: {
+        organizationId: orgA.id,
+        displayName: "Client un seul règlement",
+        phone: "+2250500000099",
+      },
+    });
+    const draft = await advisor.invoice.createDirect({
+      customerId: customer.id,
+      lines: [{ type: "LABOR", description: "Réglage", quantity: 1, unitPrice: 20_000 }],
+    });
+    const issued = await advisor.invoice.issue({ id: draft.id });
+    const first = await cashier.payment.create({
+      customerId: customer.id,
+      method: "WAVE",
+      amount: issued.total,
+      reference: "wave-une-fois",
+      currentInvoiceId: issued.id,
+    });
+    expect(first.unallocated).toBe(0);
+    await expect(
+      cashier.payment.create({
+        customerId: customer.id,
+        method: "WAVE",
+        amount: issued.total,
+        reference: "wave-deux-fois",
+        currentInvoiceId: issued.id,
+      }),
+    ).rejects.toThrow("Cette facture est déjà soldée.");
+    const inv = await adminDb.invoice.findUniqueOrThrow({ where: { id: issued.id } });
+    expect(inv).toMatchObject({ status: "PAID", amountPaid: issued.total, balance: 0 });
+    expect(
+      await adminDb.payment.count({ where: { customerId: customer.id, voidedAt: null } }),
+    ).toBe(1);
   });
 
   it("RG-M08-04 : émission bloquée sans RCCM/NCC", async () => {

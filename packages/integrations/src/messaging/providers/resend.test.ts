@@ -37,6 +37,32 @@ describe("createResendProvider.send", () => {
     expect(payload.from).toBe("Garage Excellence Auto <contact@garage.ci>");
     expect(payload.subject).toBe("Votre facture");
     expect(payload.html).toBe("<p>Bonjour</p>");
+    expect(payload.attachments).toBeUndefined();
+  });
+
+  it("joint le PDF en base64", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ id: "email_pdf" }));
+    const provider = createResendProvider(credentials, { fetchImpl });
+    const content = new TextEncoder().encode("%PDF-test");
+
+    await provider.send({
+      organizationId: "org_1",
+      to: "client@example.com",
+      channel: "EMAIL",
+      body: "<p>Devis</p>",
+      idempotencyKey: "quote:1",
+      subject: "Votre devis",
+      attachments: [{ filename: "devis.pdf", contentType: "application/pdf", content }],
+    });
+
+    const payload = JSON.parse(fetchImpl.mock.calls[0]?.[1].body);
+    expect(payload.attachments).toEqual([
+      {
+        filename: "devis.pdf",
+        content: Buffer.from(content).toString("base64"),
+        content_type: "application/pdf",
+      },
+    ]);
   });
 
   it("utilise un objet par défaut si absent", async () => {
@@ -151,11 +177,31 @@ describe("createResendProvider.parseWebhook", () => {
     ]);
   });
 
+  it("convertit email.opened en statut READ (accusé de lecture)", async () => {
+    const provider = createResendProvider(credentials);
+    const req = new Request("https://example.com/webhook", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "email.opened",
+        data: { email_id: "email_123" },
+        created_at: "2026-01-01",
+      }),
+    });
+    expect(await provider.parseWebhook(req)).toEqual([
+      {
+        kind: "status",
+        providerMessageId: "email_123",
+        status: "READ",
+        occurredAt: expect.any(Date),
+      },
+    ]);
+  });
+
   it("ignore un type d'événement non reconnu", async () => {
     const provider = createResendProvider(credentials);
     const req = new Request("https://example.com/webhook", {
       method: "POST",
-      body: JSON.stringify({ type: "email.opened", data: {} }),
+      body: JSON.stringify({ type: "email.clicked", data: {} }),
     });
     expect(await provider.parseWebhook(req)).toEqual([]);
   });

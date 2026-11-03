@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import { adminDb } from "./client";
+import { adminDb, transactionOptions } from "./client";
 
 export interface TenantContext {
   organizationId: string;
@@ -67,10 +67,24 @@ type ModelDelegate = Record<string, (args: unknown) => Promise<unknown>>;
 // s'applique réellement : voir packages/db/prisma/migrations/*_enable_rls.
 const globalForTenantDb = globalThis as unknown as { prismaApp?: PrismaClient };
 
+/** Le pool Prisma par défaut est trop petit pour le tableau de bord (une transaction par requête). */
+function appDatabaseUrl(raw: string | undefined): string | undefined {
+  if (!raw) return raw;
+  try {
+    const url = new URL(raw);
+    if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", "20");
+    if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", "20");
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
 const appDb =
   globalForTenantDb.prismaApp ??
   new PrismaClient({
-    datasources: { db: { url: process.env.DATABASE_APP_URL } },
+    datasources: { db: { url: appDatabaseUrl(process.env.DATABASE_APP_URL) } },
+    transactionOptions,
   });
 
 if (process.env.NODE_ENV !== "production") {

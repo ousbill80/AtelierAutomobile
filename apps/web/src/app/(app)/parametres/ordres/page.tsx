@@ -1,7 +1,9 @@
 "use client";
 
 // M04 §6 / §7 — /parametres/ordres : plafond par défaut, photos minimales, contrôle qualité et
-// check-list, garanties, taux horaires (A3 : settings.labor.rates), gardiennage, consommables.
+// check-list, garanties, taux horaires (A3 : settings.labor.rates), gardiennage.
+// autoDraftInvoiceOnReady et consumablesRate restent lus/validés (données existantes) mais ne
+// sont pas exposés : aucun traitement ne les applique encore.
 import { useState } from "react";
 import { Button, Input, MoneyInput, PageHead, Textarea } from "@atelieros/ui";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
@@ -30,10 +32,13 @@ function SettingsForm({ initial }: { initial: Settings }) {
   const [form, setForm] = useState<Settings>(initial);
   const [checklist, setChecklist] = useState(initial.qcChecklist.map((i) => i.label).join("\n"));
   const [saved, setSaved] = useState(false);
+  const utils = trpc.useUtils();
   const save = trpc.repairOrder.updateSettings.useMutation({
     onSuccess: (data) => {
       setForm(data);
       setSaved(true);
+      // La réception (check-list, photos minimales, plafond) relit ces paramètres.
+      void utils.repairOrder.settings.invalidate();
     },
   });
 
@@ -81,15 +86,6 @@ function SettingsForm({ initial }: { initial: Settings }) {
             setChecklist(e.target.value);
           }}
         />
-      </label>
-      <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="h-5 w-5"
-          checked={form.autoDraftInvoiceOnReady}
-          onChange={(e) => set({ autoDraftInvoiceOnReady: e.target.checked })}
-        />
-        {t("settings.autoDraftInvoice")}
       </label>
 
       <h2 className="font-semibold">{t("settings.laborRates")}</h2>
@@ -150,12 +146,6 @@ function SettingsForm({ initial }: { initial: Settings }) {
           value={String(form.readyReminderAfterDays)}
           onChange={(e) => set({ readyReminderAfterDays: num(e.target.value) || 1 })}
         />
-        <Input
-          label={t("settings.consumablesRate")}
-          inputMode="numeric"
-          value={String(form.consumablesRate)}
-          onChange={(e) => set({ consumablesRate: num(e.target.value) })}
-        />
       </section>
 
       {save.error && <ErrorBox message={save.error.message} />}
@@ -172,21 +162,15 @@ function SettingsForm({ initial }: { initial: Settings }) {
             .split("\n")
             .map((l) => l.trim())
             .filter(Boolean);
-          const previous = new Map(form.qcChecklist.map((i) => [i.label, i.key]));
           save.mutate({
             minCheckInPhotos: form.minCheckInPhotos,
             qcRequired: form.qcRequired,
-            qcChecklist: labels.map((label, i) => ({
-              key: previous.get(label) ?? `point_${i + 1}`,
-              label,
-            })),
-            autoDraftInvoiceOnReady: form.autoDraftInvoiceOnReady,
+            qcChecklist: checklistItems(labels, form.qcChecklist),
             defaultAuthorizationCeiling: form.defaultAuthorizationCeiling,
             storageFeeEnabled: form.storageFeeEnabled,
             storageFeeAfterDays: form.storageFeeAfterDays,
             storageFeePerDay: form.storageFeePerDay,
             readyReminderAfterDays: form.readyReminderAfterDays,
-            consumablesRate: form.consumablesRate,
             laborRates: form.laborRates,
             warranty: form.warranty,
           });
@@ -196,4 +180,28 @@ function SettingsForm({ initial }: { initial: Settings }) {
       </Button>
     </div>
   );
+}
+
+/**
+ * Clés stables et uniques des points de contrôle : un libellé inchangé garde sa clé ; un
+ * nouveau libellé reçoit `point_N` avec N jamais déjà utilisé (ni par l'ancienne liste ni par
+ * la nouvelle), ce qui évite les collisions après suppression/réordonnancement.
+ */
+function checklistItems(labels: string[], previous: Settings["qcChecklist"]) {
+  const byLabel = new Map<string, string>();
+  for (const item of previous) if (!byLabel.has(item.label)) byLabel.set(item.label, item.key);
+  const used = new Set<string>(previous.map((i) => i.key));
+  const taken = new Set<string>();
+  let n = 1;
+  return labels.map((label) => {
+    const existing = byLabel.get(label);
+    if (existing && !taken.has(existing)) {
+      taken.add(existing);
+      return { key: existing, label };
+    }
+    while (used.has(`point_${n}`) || taken.has(`point_${n}`)) n++;
+    const key = `point_${n}`;
+    taken.add(key);
+    return { key, label };
+  });
 }

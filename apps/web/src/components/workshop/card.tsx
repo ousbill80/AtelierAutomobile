@@ -3,11 +3,37 @@
 // US-M06-01 — carte d'OR du kanban atelier : n°, plaque, véhicule, client, mécaniciens,
 // avancement, date promise, badges (priorité, pièces manquantes, sous-traitance), retard.
 import Link from "next/link";
-import { AlertTriangle, Clock, Handshake, PackageX, Wrench } from "lucide-react";
-import { PlateBadge, StatusBadge } from "@atelieros/ui";
+import { useState } from "react";
+import { AlertTriangle, Clock, Handshake, PackageX, Wrench, type LucideIcon } from "lucide-react";
+import { PlateBadge } from "@atelieros/ui";
 import { formatDateTime } from "@/components/repair-orders/i18n";
 import { formatDuration, initials, tw } from "./i18n";
 import type { WorkshopCard } from "./types";
+
+function CardFlag({
+  tone,
+  icon: Icon,
+  children,
+}: {
+  tone: "bad" | "warn" | "off" | "ok";
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
+  const toneClass = {
+    bad: "bg-status-bad-bg text-status-bad",
+    warn: "bg-status-warn-bg text-status-warn",
+    off: "bg-status-off-bg text-status-off",
+    ok: "bg-status-ok-bg text-status-ok",
+  }[tone];
+  return (
+    <p
+      className={`flex w-full min-w-0 items-start gap-1 rounded-md px-1.5 py-1 text-xs font-medium leading-snug ${toneClass}`}
+    >
+      <Icon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+      <span className="min-w-0">{children}</span>
+    </p>
+  );
+}
 
 export function OrderCard({
   card,
@@ -24,6 +50,7 @@ export function OrderCard({
   onDragStart?: () => void;
   onDragEnd?: () => void;
 }) {
+  const [nowMs] = useState(() => Date.now());
   return (
     <article
       data-testid={`ro-card-${card.number}`}
@@ -34,77 +61,101 @@ export function OrderCard({
         onDragStart?.();
       }}
       onDragEnd={onDragEnd}
-      className={`flex min-w-0 flex-col gap-2 rounded-lg border bg-surface p-3 shadow-sm ${
+      className={`flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-lg border bg-surface p-2 shadow-sm ${
         card.lateness.late ? "border-status-bad" : "border-border"
       }`}
     >
       {card.lateness.late ? (
-        <div className="-mx-3 -mt-3 flex items-center gap-1 rounded-t-lg bg-status-bad px-3 py-1 text-xs font-semibold text-white">
-          <Clock className="size-3.5" aria-hidden />
-          {tw("board.late", { duration: formatDuration(card.lateness.lateMinutes) })}
+        <div className="-mx-2 -mt-2 flex min-w-0 items-start gap-1 rounded-t-lg bg-status-bad px-2 py-1 text-xs font-semibold leading-snug text-white">
+          <Clock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span className="min-w-0">
+            {tw("board.late", { duration: formatDuration(card.lateness.lateMinutes) })}
+          </span>
         </div>
       ) : null}
-      <div className="flex items-start justify-between gap-2">
-        <Link href={`/ordres/${card.id}`} className="text-sm font-semibold hover:underline">
+      <div className="flex min-w-0 flex-col items-start gap-1">
+        <PlateBadge plate={card.plate} />
+        <Link
+          href={`/ordres/${card.id}`}
+          className="max-w-full font-mono text-[10px] font-semibold leading-tight break-all hover:underline"
+        >
           {card.number}
         </Link>
-        <PlateBadge plate={card.plate} />
       </div>
-      <p className="truncate text-sm">{card.vehicle}</p>
-      <p className="truncate text-xs text-muted">{card.customerName}</p>
-      <div className="flex flex-wrap items-center gap-1" aria-label={tw("board.mechanicsLabel")}>
+      <div>
+        <p className="truncate text-sm font-medium">{card.vehicle}</p>
+        <p className="truncate text-xs text-muted">{card.customerName}</p>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1" aria-label={tw("board.mechanicsLabel")}>
         {card.mechanics.length === 0 ? (
           <span className="text-xs text-muted">{tw("board.noMechanic")}</span>
         ) : (
-          card.mechanics.map((m) => (
-            <span
-              key={m.id}
-              title={m.name}
-              className="inline-flex size-7 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold"
-            >
-              {initials(m.name)}
-            </span>
-          ))
+          <div className="flex items-center gap-1">
+            {card.mechanics.map((m) => (
+              <span
+                key={m.id}
+                title={m.name}
+                className="inline-flex size-7 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold"
+              >
+                {initials(m.name)}
+              </span>
+            ))}
+          </div>
         )}
-        <span className="ml-auto text-xs font-medium">
-          {tw("board.progress", { done: card.progress.done, total: card.progress.total })}
-        </span>
+        {card.progress.total > 0 ? (
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-[11px] font-medium tabular-nums">
+              {tw("board.progress", { done: card.progress.done, total: card.progress.total })}
+            </span>
+            <div className="h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+              <div
+                className={`h-full ${card.progress.done === card.progress.total ? "bg-status-ok" : "bg-accent"}`}
+                style={{
+                  width: `${Math.round((card.progress.done / card.progress.total) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
-      <p className="text-xs text-muted">
+      <p
+        className={`break-words text-xs ${
+          card.lateness.late
+            ? "font-medium text-status-bad"
+            : card.promisedAt && new Date(card.promisedAt).getTime() < nowMs
+              ? "font-medium text-status-warn"
+              : "text-muted"
+        }`}
+      >
         {card.promisedAt
           ? tw("board.promised", { date: formatDateTime(card.promisedAt, timeZone) })
           : tw("board.noPromise")}
       </p>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex w-full min-w-0 flex-col gap-1">
         {card.priority === "HIGH" || card.priority === "URGENT" ? (
-          <StatusBadge tone={card.priority === "URGENT" ? "bad" : "warn"}>
-            <AlertTriangle className="size-3" aria-hidden />
+          <CardFlag tone={card.priority === "URGENT" ? "bad" : "warn"} icon={AlertTriangle}>
             {tw(`priorityLabels.${card.priority}`)}
-          </StatusBadge>
+          </CardFlag>
         ) : null}
         {card.lateness.atRisk ? (
-          <StatusBadge tone="warn">
-            <Clock className="size-3" aria-hidden />
+          <CardFlag tone="warn" icon={Clock}>
             {tw("board.atRisk")}
-          </StatusBadge>
+          </CardFlag>
         ) : null}
         {card.badges.missingParts ? (
-          <StatusBadge tone="bad">
-            <PackageX className="size-3" aria-hidden />
+          <CardFlag tone="bad" icon={PackageX}>
             {tw("board.missingParts")}
-          </StatusBadge>
+          </CardFlag>
         ) : null}
         {card.badges.subcontract ? (
-          <StatusBadge tone="off">
-            <Handshake className="size-3" aria-hidden />
+          <CardFlag tone="off" icon={Handshake}>
             {tw("board.subcontract")}
-          </StatusBadge>
+          </CardFlag>
         ) : null}
         {card.activeMechanics.length > 0 ? (
-          <StatusBadge tone="ok">
-            <Wrench className="size-3" aria-hidden />
+          <CardFlag tone="ok" icon={Wrench}>
             {card.activeMechanics.map((m) => initials(m.name)).join(", ")}
-          </StatusBadge>
+          </CardFlag>
         ) : null}
       </div>
       {footer}

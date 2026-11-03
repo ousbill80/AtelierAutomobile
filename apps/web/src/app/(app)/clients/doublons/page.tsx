@@ -2,6 +2,7 @@
 
 import { Button, EmptyState, StatusBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { t } from "@/i18n/t";
 
 export default function DuplicatesPage() {
   const utils = trpc.useUtils();
@@ -17,7 +18,7 @@ export default function DuplicatesPage() {
   // champ, aperçu des documents déplacés) reste à construire ; voir le message de commit.
   function handleMerge(sourceId: string, targetId: string, sourceName: string) {
     const confirmName = window.prompt(
-      `Pour confirmer la fusion, saisissez le nom du client absorbé : « ${sourceName} »`,
+      t("customers.duplicates.confirmPrompt", { name: sourceName }),
     );
     if (!confirmName) return;
     mergeCustomers.mutate({ sourceId, targetId, fieldChoices: {}, confirmName });
@@ -25,11 +26,11 @@ export default function DuplicatesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Doublons suggérés</h1>
+      <h1 className="text-2xl font-semibold">{t("customers.duplicates.title")}</h1>
 
-      {isLoading && <p className="text-sm text-muted">Chargement…</p>}
+      {isLoading && <p className="text-sm text-muted">{t("customers.duplicates.loading")}</p>}
 
-      {pairs && pairs.length === 0 && <EmptyState title="Aucun doublon détecté pour l'instant." />}
+      {pairs && pairs.length === 0 && <EmptyState title={t("customers.duplicates.empty")} />}
 
       {pairs && pairs.length > 0 && (
         <ul className="flex flex-col gap-3">
@@ -44,7 +45,7 @@ export default function DuplicatesPage() {
                 </p>
                 <div className="mt-1 flex flex-wrap gap-2">
                   <StatusBadge tone={pair.score >= 80 ? "bad" : "warn"}>
-                    Score {pair.score}
+                    {t("customers.duplicates.score", { score: pair.score })}
                   </StatusBadge>
                   {pair.reasons.map((reason) => (
                     <span key={reason} className="text-xs text-muted">
@@ -57,7 +58,7 @@ export default function DuplicatesPage() {
                 <Button
                   onClick={() => handleMerge(pair.customerIdA, pair.customerIdB, pair.displayNameA)}
                 >
-                  Fusionner
+                  {t("customers.duplicates.merge")}
                 </Button>
                 <Button
                   variant="secondary"
@@ -65,7 +66,7 @@ export default function DuplicatesPage() {
                     dismiss.mutate({ customerIdA: pair.customerIdA, customerIdB: pair.customerIdB })
                   }
                 >
-                  Ignorer
+                  {t("customers.duplicates.dismiss")}
                 </Button>
               </div>
             </li>

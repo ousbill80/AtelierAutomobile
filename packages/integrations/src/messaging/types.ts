@@ -9,13 +9,30 @@
 
 export type MessageChannel = "WHATSAPP" | "SMS" | "EMAIL";
 
+/** Fichier déjà lu, prêt à être joint par un adaptateur email. */
+export interface OutboundAttachment {
+  filename: string;
+  contentType: string;
+  content: Uint8Array;
+}
+
 export interface OutboundMessage {
   /** Absent pour les messages système hors organisation (OTP d'authentification, avant connexion). */
   organizationId?: string;
   to: string;
   channel: MessageChannel;
   body: string;
+  subject?: string;
   templateKey?: string;
+  /**
+   * Modèle Meta (hors fenêtre 24 h, RG-M11-10). Seul l'adaptateur WhatsApp Cloud les lit ;
+   * SMS et email envoient `body`.
+   */
+  templateName?: string;
+  templateLanguage?: string;
+  templateParams?: string[];
+  /** Pièces jointes (PDF de devis ou de facture). Ignorées par les canaux sans fichier. */
+  attachments?: OutboundAttachment[];
   /** Clé d'idempotence de l'appelant (RG-M11-01) : "rem:<groupKey>", "inv:<invoiceId>:issued"… */
   idempotencyKey: string;
 }

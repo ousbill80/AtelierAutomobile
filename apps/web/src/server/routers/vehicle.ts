@@ -3,6 +3,7 @@ import {
   computeAvgKmPerDay,
   computeNextServiceDue,
   estimateMileage,
+  inspectionExpiryBounds,
   inspectionStatus,
   isDomainError,
   normalizePlate,
@@ -116,7 +117,33 @@ async function computeVehicleStatus(vehicle: {
   };
 }
 
+type InspectionFilter = "UNKNOWN" | "OK" | "DUE_SOON" | "EXPIRED";
+
+/** Même découpage que `inspectionStatus` (RG-M02-12), pour compter et filtrer en base. */
+function inspectionExpiryFilter(status: InspectionFilter, today = new Date()) {
+  const { expiredBefore, dueSoonBefore } = inspectionExpiryBounds(today);
+  if (status === "UNKNOWN") return { inspectionExpiryDate: null };
+  if (status === "EXPIRED") return { inspectionExpiryDate: { lt: expiredBefore } };
+  if (status === "DUE_SOON")
+    return { inspectionExpiryDate: { gte: expiredBefore, lt: dueSoonBefore } };
+  return { inspectionExpiryDate: { gte: dueSoonBefore } };
+}
+
 export const vehicleRouter = router({
+  summary: requirePermission("vehicle:read").query(async ({ ctx }) => {
+    const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+    const alive = { deletedAt: null };
+    const today = new Date();
+    const [total, dueSoon, expired, unknown, ok] = await Promise.all([
+      tenantDb.vehicle.count({ where: alive }),
+      tenantDb.vehicle.count({ where: { ...alive, ...inspectionExpiryFilter("DUE_SOON", today) } }),
+      tenantDb.vehicle.count({ where: { ...alive, ...inspectionExpiryFilter("EXPIRED", today) } }),
+      tenantDb.vehicle.count({ where: { ...alive, ...inspectionExpiryFilter("UNKNOWN", today) } }),
+      tenantDb.vehicle.count({ where: { ...alive, ...inspectionExpiryFilter("OK", today) } }),
+    ]);
+    return { total, dueSoon, expired, unknown, ok };
+  }),
+
   list: requirePermission("vehicle:read")
     .input(vehicleListInputSchema)
     .query(async ({ ctx, input }) => {
@@ -126,6 +153,9 @@ export const vehicleRouter = router({
       if (input.make) where.make = input.make;
       if (input.usage) where.usage = input.usage;
       if (input.plateType) where.plateType = input.plateType;
+      if (input.inspectionStatus) {
+        Object.assign(where, inspectionExpiryFilter(input.inspectionStatus));
+      }
       if (input.q) {
         const compact = input.q.toUpperCase().replace(/[^A-Z0-9]/g, "");
         where.OR = [
@@ -140,8 +170,11 @@ export const vehicleRouter = router({
         orderBy: { createdAt: "desc" },
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        include: {
+          customer: { select: { id: true, displayName: true, phone: true } },
+        },
       });
-      const nextCursor = items.length > input.limit ? items[input.limit]!.id : null;
+      const nextCursor = items.length > input.limit ? items[input.limit - 1]!.id : null;
 
       const filtered = await Promise.all(
         items.slice(0, input.limit).map(async (vehicle) => ({

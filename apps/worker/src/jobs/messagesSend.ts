@@ -24,6 +24,7 @@ import {
   resolveMessagingProvider,
   type MessageChannel,
   type MessagingConfigStore,
+  type OutboundAttachment,
   type ProviderErrorCategory,
 } from "@atelieros/integrations";
 import {
@@ -38,6 +39,7 @@ import {
 } from "@atelieros/core";
 import { logger } from "../logger";
 import { enqueueMessageSendJob, type MessagesSendJobData } from "../queues/messages";
+import { getObjectStorage } from "../storage";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
 
@@ -194,6 +196,101 @@ async function createFallbackMessage(
   return { id: fallback.id, channel: picked.channel };
 }
 
+function contentTypeFor(kind: string, filename: string): string {
+  if (kind === "pdf" || filename.toLowerCase().endsWith(".pdf")) return "application/pdf";
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  return "application/octet-stream";
+}
+
+/** Relit les fichiers stockés à l'enqueue (PDF de devis ou de facture) pour les joindre à l'email. */
+async function loadEmailAttachments(raw: Prisma.JsonValue): Promise<OutboundAttachment[]> {
+  if (!Array.isArray(raw)) return [];
+  const files = raw.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as { storageKey?: unknown; filename?: unknown; kind?: unknown };
+    if (typeof row.storageKey !== "string" || typeof row.filename !== "string") return [];
+    return [
+      {
+        storageKey: row.storageKey,
+        filename: row.filename,
+        kind: typeof row.kind === "string" ? row.kind : "pdf",
+      },
+    ];
+  });
+  if (files.length === 0) return [];
+  const storage = getObjectStorage();
+  const loaded: OutboundAttachment[] = [];
+  for (const file of files) {
+    const content = await storage.getObjectBytes(file.storageKey);
+    loaded.push({
+      filename: file.filename,
+      contentType: contentTypeFor(file.kind, file.filename),
+      content,
+    });
+  }
+  return loaded;
+}
+
+/**
+ * M10 — une relance suit son message : envoyé → relance `SENT` (date et canal réels) ; échec
+ * définitif sans repli → relance `FAILED` avec la raison. Les relances pointent le premier
+ * message de la chaîne de repli (`fallbackOfId`) : on remonte la chaîne pour les retrouver.
+ */
+async function messageChainIds(tx: TenantDb, message: { id: string; fallbackOfId: string | null }) {
+  const ids = [message.id];
+  let parent = message.fallbackOfId;
+  for (let i = 0; parent && i < 5; i++) {
+    ids.push(parent);
+    const row = await tx.message.findFirst({
+      where: { id: parent },
+      select: { fallbackOfId: true },
+    });
+    parent = row?.fallbackOfId ?? null;
+  }
+  return ids;
+}
+
+async function syncRemindersOnSent(
+  tx: TenantDb,
+  message: { id: string; fallbackOfId: string | null; channel: string },
+  sentAt: Date,
+) {
+  await tx.reminder.updateMany({
+    where: { messageId: { in: await messageChainIds(tx, message) }, status: "QUEUED" },
+    data: {
+      status: "SENT",
+      sentAt,
+      channel: message.channel as Channel,
+      messageId: message.id,
+      skippedReason: null,
+    },
+  });
+}
+
+async function syncRemindersOnFailed(
+  tx: TenantDb,
+  message: { id: string; fallbackOfId: string | null },
+  reason: string,
+) {
+  await tx.reminder.updateMany({
+    where: { messageId: { in: await messageChainIds(tx, message) }, status: "QUEUED" },
+    data: { status: "FAILED", skippedReason: reason },
+  });
+}
+
+const FAILURE_LABELS: Record<string, string> = {
+  OPTED_OUT: "Client désinscrit de ce canal.",
+  NO_CONSENT: "Le client n'a pas accepté de recevoir des relances.",
+  CHANNEL_INACTIVE: "Canal non configuré ou en erreur (Paramètres › Canaux).",
+};
+
+function failureReason(code: string): string {
+  return FAILURE_LABELS[code] ?? `Échec d'envoi (${code}).`;
+}
+
 async function handlePermanentFailure(
   tx: TenantDb,
   organizationId: string,
@@ -209,6 +306,8 @@ async function handlePermanentFailure(
   const fallback = await createFallbackMessage(tx, organizationId, full, tried);
   if (fallback) {
     await enqueueMessageSendJob(fallback.id);
+  } else {
+    await syncRemindersOnFailed(tx, full, failureReason(errorCode));
   }
 }
 
@@ -235,7 +334,9 @@ export async function processMessagesSendJob(
     return;
   }
   if (message.status === "SENT" || message.status === "DELIVERED" || message.status === "READ") {
-    return; // déjà envoyé (job rejoué après crash avec providerMessageId déjà présent)
+    // Déjà envoyé (job rejoué après crash) : on rattrape le statut de la relance si besoin.
+    await syncRemindersOnSent(tx, message, message.sentAt ?? new Date());
+    return;
   }
   if (message.status === "FAILED") {
     return; // conformité déjà tranchée ou repli déjà créé
@@ -271,6 +372,7 @@ export async function processMessagesSendJob(
         where: { id: message.id },
         data: { status: "FAILED", errorCode: "OPTED_OUT", failedAt: new Date() },
       });
+      await syncRemindersOnFailed(tx, message, failureReason("OPTED_OUT"));
       return;
     }
   }
@@ -279,6 +381,7 @@ export async function processMessagesSendJob(
       where: { id: message.id },
       data: { status: "FAILED", errorCode: "NO_CONSENT", failedAt: new Date() },
     });
+    await syncRemindersOnFailed(tx, message, failureReason("NO_CONSENT"));
     return;
   }
 
@@ -312,12 +415,20 @@ export async function processMessagesSendJob(
       },
     );
 
+    const attachments =
+      message.channel === "EMAIL" ? await loadEmailAttachments(message.attachments) : undefined;
+
     const result = await provider.send({
       organizationId,
       to: message.to ?? "",
       channel: message.channel as MessageChannel,
       body: message.body,
+      subject: message.subject ?? undefined,
       templateKey: message.templateKey ?? undefined,
+      templateName: job.data.whatsapp?.templateName,
+      templateLanguage: job.data.whatsapp?.templateLanguage,
+      templateParams: job.data.whatsapp?.templateParams,
+      attachments,
       idempotencyKey: `${message.idempotencyKey ?? message.id}:attempt:${attempt.attempt}`,
     });
 
@@ -325,16 +436,18 @@ export async function processMessagesSendJob(
       where: { id: attempt.id },
       data: { finishedAt: new Date(), outcome: "OK" },
     });
+    const sentAt = new Date();
     await tx.message.update({
       where: { id: message.id },
       data: {
         status: nextStatus("SENDING", "SENT"),
         providerMessageId: result.providerMessageId,
         cost: result.cost,
-        sentAt: new Date(),
+        sentAt,
         attemptCount: attempt.attempt,
       },
     });
+    await syncRemindersOnSent(tx, message, sentAt);
   } catch (error) {
     const category = errorCategory(error);
     const providerCode = errorProviderCode(error);

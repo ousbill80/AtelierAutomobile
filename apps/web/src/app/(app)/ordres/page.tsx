@@ -4,6 +4,7 @@
 // contrôlé par la machine à états) et Liste (cartes sur mobile), filtres et recherche.
 import { useState, type DragEvent } from "react";
 import Link from "next/link";
+import { GuideLink } from "@/components/guide-link";
 import {
   Car,
   Check,
@@ -28,6 +29,7 @@ import { Button, EmptyState, PlateBadge } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
 import { PromiseCountdown, RepairOrderStatusBadge } from "@/components/repair-orders/badges";
 import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
+import { EduTip } from "@/components/edu-tip";
 import { formatDay, t } from "@/components/repair-orders/i18n";
 import type { BoardCard } from "@/components/repair-orders/types";
 
@@ -84,9 +86,12 @@ export default function RepairOrdersPage() {
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("subtitle")}</p>
         </div>
-        <Link href="/ordres/reception" className="btn btn-primary min-h-11">
-          <Plus size={16} aria-hidden /> {t("newReception")}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <GuideLink href="/ordres/guide" />
+          <Link href="/ordres/reception" className="btn btn-primary min-h-11">
+            <Plus size={16} aria-hidden /> {t("newReception")}
+          </Link>
+        </div>
       </header>
 
       {counters.isLoading && (
@@ -101,20 +106,37 @@ export default function RepairOrdersPage() {
           className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"
           aria-label={t("title")}
         >
-          <Kpi icon={Wrench} label={t("kpi.active")} value={c.active} />
+          <Kpi
+            icon={Wrench}
+            label={t("kpi.active")}
+            value={c.active}
+            help={t("kpiHelp.active")}
+            example={t("kpiExample.active")}
+          />
           <Kpi
             icon={Hand}
             label={t("kpi.awaitingApproval")}
             value={c.awaitingApproval}
             tone={c.awaitingApproval > 0 ? "warn" : "neutral"}
+            help={t("kpiHelp.awaitingApproval")}
+            example={t("kpiExample.awaitingApproval")}
           />
           <Kpi
             icon={Package}
             label={t("kpi.waitingParts")}
             value={c.waitingParts}
             tone={c.waitingParts > 0 ? "bad" : "neutral"}
+            help={t("kpiHelp.waitingParts")}
+            example={t("kpiExample.waitingParts")}
           />
-          <Kpi icon={CircleCheck} label={t("kpi.ready")} value={c.ready} tone="ok" />
+          <Kpi
+            icon={CircleCheck}
+            label={t("kpi.ready")}
+            value={c.ready}
+            tone="ok"
+            help={t("kpiHelp.ready")}
+            example={t("kpiExample.ready")}
+          />
           <Kpi
             icon={TriangleAlert}
             label={t("kpi.late")}
@@ -122,6 +144,8 @@ export default function RepairOrdersPage() {
             tone={c.late > 0 ? "bad" : "neutral"}
             pressed={filters.late}
             onClick={() => toggle("late")}
+            help={t("kpiHelp.late")}
+            example={t("kpiExample.late")}
           />
         </div>
       )}
@@ -259,6 +283,8 @@ function Kpi({
   tone = "neutral",
   pressed,
   onClick,
+  help,
+  example,
 }: {
   icon: LucideIcon;
   label: string;
@@ -266,6 +292,8 @@ function Kpi({
   tone?: Tone;
   pressed?: boolean;
   onClick?: () => void;
+  help: string;
+  example: string;
 }) {
   const body = (
     <>
@@ -274,7 +302,7 @@ function Kpi({
       >
         <Icon size={18} aria-hidden />
       </span>
-      <span className="min-w-0 text-left">
+      <span className="min-w-0 pr-8 text-left">
         <span
           className={`block text-2xl leading-none font-semibold tabular-nums ${TONE_TEXT[tone]}`}
         >
@@ -284,17 +312,25 @@ function Kpi({
       </span>
     </>
   );
-  const base = "flex min-h-11 items-center gap-3 rounded-lg border bg-surface p-4";
-  if (!onClick) return <div className={`${base} border-border`}>{body}</div>;
+  const base = "flex min-h-11 w-full items-center gap-3 rounded-lg border bg-surface p-4 text-left";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={pressed}
-      className={`${base} transition-colors hover:border-primary ${pressed ? "border-primary ring-1 ring-primary" : "border-border"}`}
-    >
-      {body}
-    </button>
+    <div className="relative min-w-0">
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          aria-pressed={pressed}
+          className={`${base} transition-colors hover:border-primary ${pressed ? "border-primary ring-1 ring-primary" : "border-border"}`}
+        >
+          {body}
+        </button>
+      ) : (
+        <div className={`${base} border-border`}>{body}</div>
+      )}
+      <span className="absolute right-0.5 top-0.5 z-10">
+        <EduTip text={help} example={example} />
+      </span>
+    </div>
   );
 }
 

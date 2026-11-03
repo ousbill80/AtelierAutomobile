@@ -418,6 +418,62 @@ describe("atelier M06 — routeurs workshop / tech", () => {
     expect(list.items.some((i) => i.source === "offline-sync")).toBe(true);
   });
 
+  it("le chef saisit la présence d'un mécanicien, une seule fois, avec motif", async () => {
+    setRepairOrdersClock(fixedClock(at("18:00")));
+    await expect(
+      konan.caller.workshop.recordAttendance({
+        membershipId: ibrahim.membershipId,
+        clockIn: at("08:00"),
+        clockOut: null,
+        breakMinutes: 0,
+        reason: "Oubli de pointage",
+      }),
+    ).rejects.toThrow(/time:edit/);
+    await expect(
+      manager.caller.workshop.recordAttendance({
+        membershipId: ibrahim.membershipId,
+        clockIn: at("18:30"),
+        clockOut: null,
+        breakMinutes: 0,
+        reason: "Heure future",
+      }),
+    ).rejects.toThrow(/futur/);
+
+    await manager.caller.workshop.recordAttendance({
+      membershipId: ibrahim.membershipId,
+      clockIn: at("08:00"),
+      clockOut: null,
+      breakMinutes: 0,
+      reason: "Oubli de pointage à l'arrivée",
+    });
+    const left = await manager.caller.workshop.recordAttendance({
+      membershipId: ibrahim.membershipId,
+      clockIn: at("08:00"),
+      clockOut: at("17:00"),
+      breakMinutes: 60,
+      reason: "Départ oublié",
+    });
+    expect(left.attendance.presenceMinutes).toBe(8 * 60);
+    const rows = await adminDb.attendance.findMany({
+      where: { organizationId: orgA, membershipId: ibrahim.membershipId },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ autoClosed: false, breakMinutes: 60 });
+    const audit = await adminDb.auditLog.findFirstOrThrow({
+      where: { organizationId: orgA, action: "attendance.edit", entityId: rows[0]!.id },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(audit.reason).toBe("Départ oublié");
+    const board = await manager.caller.workshop.timeEntries({
+      from: at("00:00"),
+      to: at("23:59"),
+    });
+    expect(board.team.find((m) => m.membershipId === ibrahim.membershipId)).toMatchObject({
+      status: "left",
+      presenceMinutes: 480,
+    });
+  });
+
   it("demande de pièce : créée depuis la tablette, refusée sans motif, puis préparée", async () => {
     const result = await syncAt(konan, "11:55", [
       op(konan.membershipId, 1, "partRequest.create", "11:55", {

@@ -170,7 +170,7 @@ Toutes les tâches : **verrou par organisation**, retries avec backoff exponenti
 
 ## 8. Sécurité
 
-- Mots de passe hachés (argon2), OTP à usage unique à durée courte, limitation de débit sur connexion/OTP/webhooks.
+- Mots de passe hachés (argon2), OTP à usage unique à durée courte, limitation de débit sur connexion/OTP/webhooks (compteurs Redis en production, conservés au redémarrage).
 - Secrets des fournisseurs (clés WhatsApp, SMS, paiement, FNE, base externe) **chiffrés en base** (AES-256-GCM, clé maîtresse en variable d'environnement), jamais renvoyés au front.
 - Webhooks : vérification de signature (Meta `X-Hub-Signature-256`, HMAC des agrégateurs de paiement), idempotence par identifiant de transaction.
 - Liens publics du portail client : jetons aléatoires longs, expirables, révocables, à portée limitée (un devis, une facture).

@@ -19,6 +19,8 @@ export interface InvoicePdfGarage {
   taxRegime: string;
   invoiceFooter: string | null;
   vatEnabled: boolean;
+  /** Image PNG ou JPEG (data URL ou URL https) imprimée en tête. */
+  logoUrl?: string | null;
 }
 
 /** Lecture d'une pièce jointe (QR FNE importé) depuis le stockage objet. */
@@ -85,6 +87,7 @@ export async function buildInvoicePdfData(
       ncc: org.ncc,
       taxRegime: org.taxRegime,
       footer: org.invoiceFooter,
+      logo: org.logoUrl ?? null,
     },
     customer: {
       displayName: customer.displayName,

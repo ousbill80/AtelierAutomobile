@@ -190,3 +190,52 @@ h4 {
   letter-spacing: 0.15em;
   margin-left: 0.5rem;
 }
+
+/* ===== PWA / application mobile (≤ 760 px) =====
+   Barre d'onglets en bas + menu plein écran (components/shell/mobile-nav.tsx) à la place
+   de la barre latérale ; marges de sécurité des téléphones à encoche (viewport-fit=cover). */
+:root {
+  --bottom-nav-offset: 0px;
+}
+.topbar-mobile-brand {
+  display: none;
+}
+@media (max-width: 760px) {
+  :root {
+    --bottom-nav-offset: calc(var(--bottomtab-h) + env(safe-area-inset-bottom));
+  }
+  .app-shell > .sidebar {
+    display: none;
+  }
+  .topbar {
+    padding-top: env(safe-area-inset-top);
+    height: calc(var(--topbar-h) + env(safe-area-inset-top));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .topbar-mobile-brand {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .topbar-mobile-brand .sidebar-logo {
+    width: 36px;
+    height: 36px;
+  }
+  .app-main .content {
+    padding-bottom: calc(var(--bottom-nav-offset) + 16px);
+  }
+  .bottom-tabs {
+    height: calc(var(--bottomtab-h) + env(safe-area-inset-bottom));
+  }
+}
+/* Application installée : pas de rebond ni de sélection accidentelle sur la navigation. */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+  }
+  .bottom-tabs,
+  .topbar {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

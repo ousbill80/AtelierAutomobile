@@ -77,6 +77,32 @@ describe("customer router (M02)", () => {
     await expect(callerA.customer.get({ id: customerB.id })).rejects.toThrow();
   });
 
+  it("fiche client : à solder = solde restant, pas le total de la facture", async () => {
+    const site = await adminDb.site.create({
+      data: { organizationId: orgA.id, name: "Site encours", code: "ENC" },
+    });
+    const customer = await adminDb.customer.create({
+      data: { organizationId: orgA.id, displayName: "Client partiel", type: "COMPANY" },
+    });
+    await adminDb.invoice.create({
+      data: {
+        organizationId: orgA.id,
+        siteId: site.id,
+        customerId: customer.id,
+        status: "PARTIALLY_PAID",
+        number: "FAC-TEST-PARTIEL",
+        total: 31_860,
+        amountPaid: 1_860,
+        balance: 30_000,
+        dueDate: new Date("2020-01-01T00:00:00.000Z"),
+        issuedAt: new Date("2020-01-01T00:00:00.000Z"),
+      },
+    });
+    const callerA = callerFactory(await contextFor(ownerA.token));
+    const detail = await callerA.customer.get({ id: customer.id });
+    expect(detail.balance).toMatchObject({ due: 30_000, overdue: 30_000 });
+  });
+
   it("isolation : customer.list ne renvoie jamais les clients d'une autre organisation", async () => {
     const callerA = callerFactory(await contextFor(ownerA.token));
     const result = await callerA.customer.list({ limit: 100 });
@@ -253,11 +279,46 @@ describe("customer router (M02)", () => {
         customerId: customer.id,
         status: "ISSUED",
         total: 185000,
+        balance: 185000,
       },
     });
 
     await expect(callerA.customer.delete({ id: customer.id, reason: "test" })).rejects.toThrow(
       "impayés",
     );
+  });
+
+  it("une compagnie d'assurance n'apparaît pas dans les clients, sa fiche de facturation reste lisible", async () => {
+    const insurer = await adminDb.customer.create({
+      data: {
+        organizationId: orgA.id,
+        type: "COMPANY",
+        displayName: "Compagnie Test",
+        companyName: "Compagnie Test",
+        source: "assureur",
+      },
+    });
+    const callerA = callerFactory(await contextFor(ownerA.token));
+    const listed = await callerA.customer.list({ q: "Compagnie Test", limit: 20 });
+    expect(listed.items.some((c) => c.id === insurer.id)).toBe(false);
+    const summary = await callerA.customer.summary();
+    const all = await callerA.customer.list({ limit: 100 });
+    expect(summary.total).toBe(all.total);
+    const fiche = await callerA.customer.get({ id: insurer.id });
+    expect(fiche.displayName).toBe("Compagnie Test");
+    expect(fiche.source).toBe("assureur");
+  });
+
+  it("customer.summary compte uniquement le garage courant", async () => {
+    const callerA = callerFactory(await contextFor(ownerA.token));
+    const [summary, listed] = await Promise.all([
+      callerA.customer.summary(),
+      callerA.customer.list({ limit: 100 }),
+    ]);
+    expect(summary.total).toBe(listed.total);
+    expect(summary.individual + summary.company).toBe(summary.total);
+    expect(listed.items.some((c) => c.id === customerB.id)).toBe(false);
+    const withBalance = await callerA.customer.list({ hasBalance: true, limit: 100 });
+    expect(summary.withBalance).toBe(withBalance.total);
   });
 });

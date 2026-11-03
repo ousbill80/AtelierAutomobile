@@ -176,7 +176,7 @@ export function InvoicePortalView({
             {view.fne.qrSvg && (
               <div
                 role="img"
-                aria-label="QR code FNE"
+                aria-label={t("invoicePortal.fneQrLabel")}
                 className="size-40 bg-white p-1"
                 // SVG généré côté serveur par `qrcode` (tracés uniquement, aucun texte saisi).
                 dangerouslySetInnerHTML={{ __html: view.fne.qrSvg }}

@@ -24,6 +24,9 @@ interface Edit {
   unitCost: number | null;
 }
 
+/** Champ de saisie bas : les libellés sont dans l'en-tête de colonne, pas sur chaque ligne. */
+const compactInput = { height: 34, padding: "0 8px", fontSize: 13 };
+
 export default function SuggestionsPage() {
   const router = useRouter();
   const [siteId, setSiteId] = useDefaultSite();
@@ -111,60 +114,68 @@ export default function SuggestionsPage() {
       {query.data?.map((group) => (
         <section
           key={group.supplierId ?? "none"}
-          className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4"
+          className="rounded-lg border border-border bg-surface px-3 py-2"
         >
-          <h2 className="font-semibold">{group.supplierName ?? t("suggestions.noSupplier")}</h2>
+          <h2 className="py-1 text-sm font-semibold">
+            {group.supplierName ?? t("suggestions.noSupplier")}
+          </h2>
           {!group.supplierId ? (
-            <p className="text-sm text-muted">{t("suggestions.noSupplierHint")}</p>
+            <p className="pb-1 text-sm text-muted">{t("suggestions.noSupplierHint")}</p>
           ) : null}
-          <ul className="flex flex-col gap-2">
+          <div className="hidden grid-cols-[minmax(0,1fr)_6.5rem_10.5rem_6.5rem] gap-3 border-b border-border px-1 py-1 text-xs font-medium text-muted sm:grid">
+            <span>{t("common.product")}</span>
+            <span>{t("suggestions.suggested")}</span>
+            <span>{t("common.unitCost")}</span>
+            <span className="text-right">{t("common.total")}</span>
+          </div>
+          <ul>
             {group.lines.map((l) => {
               const edit = editOf(l, group.supplierId);
+              const lineTotal = edit
+                ? Math.round(Number(edit.quantity.replace(",", ".")) * (edit.unitCost ?? 0)) || 0
+                : null;
               return (
                 <li
                   key={l.productId}
-                  className="flex flex-col gap-2 border-t border-border pt-2 sm:flex-row sm:items-end"
+                  className="grid grid-cols-1 items-center gap-2 border-t border-border py-1.5 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_6.5rem_10.5rem_6.5rem] sm:gap-3 sm:py-1"
                 >
-                  <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                     <CheckboxRow
-                      label={`${l.name} (${l.sku})`}
+                      label={<span className="text-sm">{`${l.name} (${l.sku})`}</span>}
                       disabled={!group.supplierId}
                       checked={!!edit?.selected}
                       onChange={(e) => setEdit(l, group.supplierId, { selected: e.target.checked })}
                     />
-                    <div className="flex flex-wrap gap-2 text-xs text-muted">
-                      <span>
-                        {t("suggestions.projected")} : {qtyText(l.projected, l.quantityScale)}
-                      </span>
-                      <span>
-                        {t("suggestions.min")} : {qtyText(l.minStock, l.quantityScale)}
-                      </span>
-                      <StatusBadge tone="warn" label={t(`suggestions.reason.${l.reason}`)} />
-                    </div>
+                    <span className="text-xs text-muted">
+                      {t("suggestions.projected")} : {qtyText(l.projected, l.quantityScale)}
+                      {" · "}
+                      {t("suggestions.min")} : {qtyText(l.minStock, l.quantityScale)}
+                    </span>
+                    <StatusBadge tone="warn" label={t(`suggestions.reason.${l.reason}`)} />
                   </div>
-                  <div className="w-full sm:w-28">
+                  <div className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-2 sm:contents">
+                    <span className="col-span-3 grid grid-cols-[5.5rem_minmax(0,1fr)_auto] gap-2 text-[11px] leading-none text-muted sm:hidden">
+                      <span>{t("suggestions.suggested")}</span>
+                      <span>{t("common.unitCost")}</span>
+                      <span className="text-right">{t("common.total")}</span>
+                    </span>
                     <Input
-                      label={`${t("suggestions.suggested")} (${l.unit})`}
+                      aria-label={`${t("suggestions.suggested")} (${l.unit})`}
                       inputMode="decimal"
+                      className="num"
+                      style={compactInput}
                       value={edit?.quantity ?? ""}
                       onChange={(e) => setEdit(l, group.supplierId, { quantity: e.target.value })}
                     />
-                  </div>
-                  <div className="w-full sm:w-40">
                     <MoneyInput
-                      label={t("common.unitCost")}
+                      aria-label={t("common.unitCost")}
+                      style={compactInput}
                       value={edit?.unitCost ?? null}
                       onChange={(v) => setEdit(l, group.supplierId, { unitCost: v })}
                     />
-                  </div>
-                  <div className="text-sm sm:w-28 sm:text-right">
-                    {edit
-                      ? formatFCFA(
-                          Math.round(
-                            Number(edit.quantity.replace(",", ".")) * (edit.unitCost ?? 0),
-                          ) || 0,
-                        )
-                      : "—"}
+                    <div className="min-w-[5.5rem] text-right text-sm font-medium tabular-nums">
+                      {lineTotal != null ? formatFCFA(lineTotal) : "—"}
+                    </div>
                   </div>
                 </li>
               );

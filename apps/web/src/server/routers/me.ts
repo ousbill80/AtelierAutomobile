@@ -39,6 +39,7 @@ export const meRouter = router({
       organizations,
       activeOrganization,
       activeSiteId: ctx.session?.activeSiteId ?? null,
+      isPinSession: ctx.session.isPinSession,
       membership: ctx.membership,
       permissions: [...ctx.permissions],
       allowedSites,

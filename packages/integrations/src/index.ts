@@ -3,6 +3,7 @@ export type {
   MessageChannel,
   MessagingProvider,
   MessagingSendErrorLike,
+  OutboundAttachment,
   OutboundMessage,
   OutboxEntry,
   ProviderErrorCategory,
@@ -26,6 +27,22 @@ export { createSmtpProvider, classifySmtpError } from "./messaging";
 export type { SmtpCredentials } from "./messaging";
 
 export { decryptSecret, encryptSecret, loadEncryptionKey } from "./encryption";
+
+export type {
+  ConsolePushEntry,
+  PushPayload,
+  PushProvider,
+  PushSendResult,
+  PushSubscriptionKeys,
+  VapidConfig,
+} from "./push";
+export {
+  createConsolePushProvider,
+  createWebPushProvider,
+  defaultPushOutbox,
+  PushOutbox,
+  pushProviderFromEnv,
+} from "./push";
 
 export type {
   CreatePaymentLinkInput,

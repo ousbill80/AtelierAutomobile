@@ -218,6 +218,29 @@ describe("M08 §FNE — configuration, certification, reprises, saisie manuelle"
     });
     expect(JSON.stringify(audits)).not.toContain(SECRET);
     expect(audits[0]!.after).toMatchObject({ credentials: "[secret modifié]" });
+    // L'adresse (non secrète) est renvoyée pour préremplir ; rotation de la seule clé :
+    // l'adresse vide conserve celle enregistrée.
+    expect(config.baseUrl).toBe("https://fne.example.test");
+    const ROTATED = "sk_rotated_0123456789";
+    await owner.fne.updateConfig({
+      mode: "api",
+      provider: "dgi_api",
+      credentials: { baseUrl: "", apiKey: ROTATED },
+    });
+    const rotated = await owner.fne.getConfig();
+    expect(rotated.baseUrl).toBe("https://fne.example.test");
+    expect(JSON.stringify(rotated)).not.toContain(ROTATED);
+    const reloaded = await adminDb.fneConfig.findUniqueOrThrow({
+      where: { organizationId: orgA.id },
+    });
+    expect(reloaded.credentials).not.toBe(stored.credentials);
+    await expect(
+      owner.fne.updateConfig({
+        mode: "api",
+        provider: "dgi_api",
+        credentials: { baseUrl: "pas-une-adresse", apiKey: "" },
+      }),
+    ).rejects.toThrow(/Adresse du service DGI invalide/);
 
     await expect(owner.fne.updateConfig({ mode: "disabled" })).rejects.toThrow(/arrêté n°0337/);
     // Simulateur pour la suite (aucun compte DGI requis) ; identifiants conservés.

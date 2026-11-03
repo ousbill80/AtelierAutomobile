@@ -25,7 +25,7 @@ import {
 } from "./labels";
 import type { PlanningAppointment } from "./types";
 
-export const SLOT_PX = 16; // hauteur d'un pas de 15 min
+export const SLOT_PX = 24; // hauteur d'un pas de 15 min (une heure = 96 px, le texte du RDV tient)
 const STEP = 15;
 
 export interface GridColumn {
@@ -72,6 +72,8 @@ export function DayGrid({
 }) {
   const [start, end] = range;
   const height = ((end - start) / STEP) * SLOT_PX;
+  const tallHead = columns.some((column) => column.header);
+  const headClass = tallHead ? "h-[4.75rem]" : "h-14";
   const grabOffset = useRef(0);
   const [resizing, setResizing] = useState<{ id: string; duration: number } | null>(null);
   const hours: number[] = [];
@@ -115,7 +117,7 @@ export function DayGrid({
     <div className="overflow-x-auto rounded-lg border border-border" data-testid="day-grid">
       <div className="inline-flex min-w-full">
         <div className="sticky left-0 z-20 w-14 shrink-0 border-r border-border bg-surface">
-          <div className="h-14 border-b border-border" />
+          <div className={`${headClass} border-b border-border`} />
           <div className="relative" style={{ height }}>
             {hours.map((m) => (
               <span
@@ -131,12 +133,14 @@ export function DayGrid({
         {columns.map((column) => (
           <div
             key={column.key || "unassigned"}
-            className="min-w-[150px] flex-1 border-r border-border last:border-r-0"
+            className={`${tallHead ? "min-w-[12.5rem]" : "min-w-[150px]"} flex-1 border-r border-border last:border-r-0`}
           >
             <div
-              className={`sticky top-0 z-10 flex h-14 flex-col justify-center border-b border-border px-2 ${column.disabled ? "bg-surface-2 text-muted" : "bg-surface"}`}
+              className={`sticky top-0 z-10 flex ${headClass} flex-col justify-center gap-0.5 overflow-hidden border-b border-border px-2 ${column.disabled ? "bg-surface-2 text-muted" : "bg-surface"}`}
             >
-              <span className="truncate text-sm font-semibold">{column.label}</span>
+              <span className="planning-col-name" title={column.label}>
+                {column.label}
+              </span>
               {column.header}
             </div>
             <div
@@ -194,12 +198,17 @@ export function DayGrid({
                   const meta = STATUS_META[status];
                   const Icon = meta.Icon;
                   const draggable = canDrag && (status === "BOOKED" || status === "CONFIRMED");
+                  const heightPx = Math.max(SLOT_PX * 2 - 2, (duration / STEP) * SLOT_PX - 2);
+                  const showVehicle = heightPx >= 64;
+                  const showType = heightPx >= 88;
+                  const vehicleLabel = a.vehicle ? `${a.vehicle.model} ${a.vehicle.plate}` : "";
                   return (
                     <div
                       key={a.id}
                       data-testid="appt-card"
                       data-appointment-id={a.id}
                       draggable={draggable}
+                      title={`${fmtTime(a.startsAt, timeZone)} · ${a.customer.displayName}${vehicleLabel ? ` · ${vehicleLabel}` : ""} · ${ta(`types.${a.type}`)}`}
                       onDragStart={(e) => {
                         e.dataTransfer.setData("text/plain", a.id);
                         e.dataTransfer.effectAllowed = "move";
@@ -210,10 +219,10 @@ export function DayGrid({
                         e.stopPropagation();
                         onSelect(a.id);
                       }}
-                      className={`absolute inset-x-1 z-[2] overflow-hidden rounded-md border bg-surface px-2 py-1 text-xs shadow-sm ${a.flags.late ? "border-status-bad" : "border-border"} ${draggable ? "cursor-grab" : "cursor-pointer"}`}
+                      className={`absolute inset-x-1 z-[2] overflow-hidden rounded-md border bg-surface px-2 py-1 text-xs leading-4 shadow-sm ${a.flags.late ? "border-status-bad" : "border-border"} ${draggable ? "cursor-grab" : "cursor-pointer"}`}
                       style={{
                         top: toY(startMin),
-                        height: Math.max(SLOT_PX * 2 - 2, (duration / STEP) * SLOT_PX - 2),
+                        height: heightPx,
                         borderLeft: `4px solid ${TYPE_COLORS[a.type as AppointmentType]}`,
                       }}
                     >
@@ -234,25 +243,27 @@ export function DayGrid({
                         )}
                       </div>
                       <div className="truncate font-medium">{a.customer.displayName}</div>
-                      {a.vehicle && (
-                        <div className="truncate text-muted">
-                          {a.vehicle.model} {a.vehicle.plate}
+                      {showVehicle && a.vehicle && (
+                        <div className="truncate text-muted">{vehicleLabel}</div>
+                      )}
+                      {showType && (
+                        <div className="flex min-w-0 items-center gap-1">
+                          <span className="truncate">{ta(`types.${a.type}`)}</span>
+                          {a.flags.noShowCount >= 2 && (
+                            <span className="shrink-0 text-status-bad">
+                              · {ta("badges.noShows", { count: a.flags.noShowCount })}
+                            </span>
+                          )}
+                          {a.flags.inspectionSoon && (
+                            <span className="shrink-0 text-status-warn">
+                              · {ta("badges.inspectionSoon")}
+                            </span>
+                          )}
+                          {a.flags.late && (
+                            <span className="shrink-0 text-status-bad">· {ta("badges.late")}</span>
+                          )}
                         </div>
                       )}
-                      <div className="flex flex-wrap gap-1">
-                        <span className="truncate">{ta(`types.${a.type}`)}</span>
-                        {a.flags.noShowCount >= 2 && (
-                          <span className="text-status-bad">
-                            · {ta("badges.noShows", { count: a.flags.noShowCount })}
-                          </span>
-                        )}
-                        {a.flags.inspectionSoon && (
-                          <span className="text-status-warn">· {ta("badges.inspectionSoon")}</span>
-                        )}
-                        {a.flags.late && (
-                          <span className="text-status-bad">· {ta("badges.late")}</span>
-                        )}
-                      </div>
                       {draggable && (
                         <div
                           aria-hidden

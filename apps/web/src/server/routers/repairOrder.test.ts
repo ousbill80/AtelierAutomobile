@@ -351,7 +351,8 @@ describe("repairOrder routers (M04)", () => {
       id: second.line.id,
       patch: { approval: "APPROVED", approvalSource: "PHONE" },
     });
-    const approved = await advisor.repairOrder.transition({ id: orderId, transition: "approve" });
+    // Plus aucune ligne en attente → l'OR passe automatiquement « Approuvé » (afterLineChange).
+    const approved = await advisor.repairOrder.get({ id: orderId });
     expect(approved.status).toBe("APPROVED");
   });
 

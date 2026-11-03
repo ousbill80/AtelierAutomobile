@@ -154,24 +154,32 @@ export default function CashSessionsPage() {
               icon={CalendarDays}
               label={tc("sessions.kpi.sessions")}
               value={String(first.totals.sessions)}
+              help={tc("sessions.kpiHelp.sessions")}
+              example={tc("sessions.kpiExample.sessions")}
             />
             <Kpi
               icon={TriangleAlert}
               label={tc("sessions.kpi.withVariance")}
               value={String(first.totals.withVariance)}
               tone={first.totals.withVariance > 0 ? "warn" : "neutral"}
+              help={tc("sessions.kpiHelp.withVariance")}
+              example={tc("sessions.kpiExample.withVariance")}
             />
             <Kpi
               icon={Scale}
               label={tc("sessions.kpi.net")}
               value={signedFCFA(first.totals.netDifference)}
               tone={differenceTone(first.totals.netDifference)}
+              help={tc("sessions.kpiHelp.net")}
+              example={tc("sessions.kpiExample.net")}
             />
             <Kpi
               icon={Clock}
               label={tc("sessions.kpi.toReview")}
               value={String(first.toReview)}
               tone={first.toReview > 0 ? "bad" : "neutral"}
+              help={tc("sessions.kpiHelp.toReview")}
+              example={tc("sessions.kpiExample.toReview")}
             />
           </div>
 

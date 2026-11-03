@@ -8,8 +8,6 @@ import {
   INITIAL_LOCKOUT_STATE,
   isLocked,
   pickActiveSite,
-  PIN_ELIGIBLE_ROLES,
-  PIN_MAX_FAILED_ATTEMPTS,
   recordFailedLogin,
   requiresNewDeviceOtp,
   type SecuritySettingsLike,
@@ -31,6 +29,7 @@ import {
   verifyOtp as verifyOtpCode,
 } from "../auth/otp-service";
 import { assertPasswordPolicy } from "../auth/password-policy";
+import { signInWithPin } from "../auth/pin-session";
 import { buildSessionCookie, clearSessionCookie } from "../cookies";
 import { authedProcedure, publicProcedure, router } from "../trpc";
 import { writeAuditLog } from "../audit";
@@ -177,8 +176,8 @@ export const authRouter = router({
 
   sendOtp: publicProcedure.input(sendOtpInputSchema).mutation(async ({ input, ctx }) => {
     const resolved = resolveIdentifier(input.identifier);
-    assertSensitiveRateLimit(`otp:${resolved.value}`, DEFAULT_RATE_LIMITS.otpByIdentifier);
-    assertSensitiveRateLimit(`otp-ip:${ctx.ip}`, DEFAULT_RATE_LIMITS.otpByIdentifier);
+    await assertSensitiveRateLimit(`otp:${resolved.value}`, DEFAULT_RATE_LIMITS.otpByIdentifier);
+    await assertSensitiveRateLimit(`otp-ip:${ctx.ip}`, DEFAULT_RATE_LIMITS.otpByIdentifier);
     const channel = input.channel ?? (resolved.kind === "PHONE" ? "WHATSAPP" : "EMAIL");
     try {
       return await sendOtpCode(resolved.value, input.purpose, channel, new Date());
@@ -241,7 +240,7 @@ export const authRouter = router({
   }),
 
   signIn: publicProcedure.input(signInInputSchema).mutation(async ({ input, ctx }) => {
-    assertSensitiveRateLimit(`login:${ctx.ip}`, DEFAULT_RATE_LIMITS.loginByIp);
+    await assertSensitiveRateLimit(`login:${ctx.ip}`, DEFAULT_RATE_LIMITS.loginByIp);
     const resolved = resolveIdentifier(input.identifier);
     const user = await findUserByIdentifier(resolved);
     const now = new Date();
@@ -389,104 +388,8 @@ export const authRouter = router({
   }),
 
   pinSignIn: publicProcedure.input(pinSignInInputSchema).mutation(async ({ input, ctx }) => {
-    assertSensitiveRateLimit(`login:${ctx.ip}`, DEFAULT_RATE_LIMITS.loginByIp);
-    const now = new Date();
-    const device = await adminDb.trustedDevice.findUnique({ where: { deviceId: input.deviceId } });
-    if (!device || !device.isSharedWorkshopDevice || (device.expiresAt && device.expiresAt < now)) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Cet appareil n'est pas enregistré comme appareil partagé d'atelier.",
-      });
-    }
-
-    const membership = await adminDb.membership.findUnique({
-      where: { id: input.membershipId },
-    });
-    if (
-      !membership ||
-      !membership.isActive ||
-      membership.organizationId !== device.organizationId ||
-      !PIN_ELIGIBLE_ROLES.includes(membership.role)
-    ) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "Connexion par code PIN non autorisée pour ce membre.",
-      });
-    }
-
-    if (!membership.pinHash) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Aucun code PIN n'est défini pour ce membre.",
-      });
-    }
-
-    if (membership.pinFailedCount >= PIN_MAX_FAILED_ATTEMPTS) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Code PIN bloqué après plusieurs échecs. Connectez-vous avec votre mot de passe.",
-      });
-    }
-
-    const pinIsValid = await verifyPassword(membership.pinHash, input.pin);
-    if (!pinIsValid) {
-      const failedCount = membership.pinFailedCount + 1;
-      await adminDb.membership.update({
-        where: { id: membership.id },
-        data: { pinFailedCount: failedCount },
-      });
-      await writeAuditLog({
-        organizationId: membership.organizationId,
-        userId: membership.userId,
-        membershipId: membership.id,
-        action: "auth.login.failed",
-        entity: "Membership",
-        entityId: membership.id,
-        ip: ctx.ip,
-        userAgent: ctx.userAgent,
-      });
-      if (failedCount >= PIN_MAX_FAILED_ATTEMPTS) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            "Code PIN bloqué après plusieurs échecs. Connectez-vous avec votre mot de passe.",
-        });
-      }
-      throw new TRPCError({ code: "UNAUTHORIZED", message: "Code PIN incorrect." });
-    }
-
-    await adminDb.membership.update({
-      where: { id: membership.id },
-      data: { pinFailedCount: 0 },
-    });
-
-    const session = await adminDb.session.create({
-      data: {
-        userId: membership.userId,
-        token: randomBytes(32).toString("hex"),
-        expiresAt: computeSessionAbsoluteExpiry(now, true),
-        ipAddress: ctx.ip,
-        userAgent: ctx.userAgent,
-        deviceId: input.deviceId,
-        activeOrganizationId: membership.organizationId,
-        activeSiteId: device.siteId ?? membership.siteIds[0] ?? null,
-        isPinSession: true,
-        lastActiveAt: now,
-      },
-    });
-    ctx.resHeaders.append("set-cookie", buildSessionCookie(session.token, session.expiresAt));
-
-    await writeAuditLog({
-      organizationId: membership.organizationId,
-      userId: membership.userId,
-      membershipId: membership.id,
-      action: "auth.login.success",
-      entity: "Membership",
-      entityId: membership.id,
-      ip: ctx.ip,
-      userAgent: ctx.userAgent,
-    });
-
+    const { setCookie } = await signInWithPin(input, { ip: ctx.ip, userAgent: ctx.userAgent });
+    ctx.resHeaders.append("set-cookie", setCookie);
     return { ok: true as const };
   }),
 

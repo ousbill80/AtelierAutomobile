@@ -3,17 +3,10 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Building2,
-  Car,
-  Mail,
-  MapPin,
-  Phone,
-  User,
-} from "lucide-react";
+import { ArrowLeft, Building2, Car, Phone, User } from "lucide-react";
 import { Button, PhoneInput, PlateInput } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
+import { t } from "@/i18n/t";
 
 type CustomerType = "INDIVIDUAL" | "COMPANY";
 
@@ -94,17 +87,17 @@ export default function NewCustomerPage() {
       <div className="form-page-header">
         <Link href="/clients" className="form-back-link">
           <ArrowLeft size={18} />
-          Retour aux clients
+          {t("customers.form.backToList")}
         </Link>
-        <h1>Nouveau client</h1>
-        <p>Remplissez les informations pour creer un nouveau client</p>
+        <h1>{t("customers.form.newTitle")}</h1>
+        <p>{t("customers.form.newSubtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit}>
         {/* Type selector - full width */}
         <div className="form-2col-full">
           <div className="form-card">
-            <div className="form-card-title">Type de client</div>
+            <div className="form-card-title">{t("customers.form.typeTitle")}</div>
             <div className="form-type-row">
               <button
                 type="button"
@@ -113,8 +106,8 @@ export default function NewCustomerPage() {
               >
                 <User size={24} />
                 <div>
-                  <strong>Particulier</strong>
-                  <span>Personne physique</span>
+                  <strong>{t("customers.form.individual")}</strong>
+                  <span>{t("customers.form.individualHint")}</span>
                 </div>
               </button>
               <button
@@ -124,8 +117,8 @@ export default function NewCustomerPage() {
               >
                 <Building2 size={24} />
                 <div>
-                  <strong>Entreprise</strong>
-                  <span>Societe, association</span>
+                  <strong>{t("customers.form.company")}</strong>
+                  <span>{t("customers.form.companyHint")}</span>
                 </div>
               </button>
             </div>
@@ -139,11 +132,11 @@ export default function NewCustomerPage() {
             <div className="form-card-title">
               {type === "INDIVIDUAL" ? (
                 <>
-                  <User size={18} /> Identite
+                  <User size={18} /> {t("customers.form.identity")}
                 </>
               ) : (
                 <>
-                  <Building2 size={18} /> Entreprise
+                  <Building2 size={18} /> {t("customers.form.company")}
                 </>
               )}
             </div>
@@ -151,75 +144,87 @@ export default function NewCustomerPage() {
             {type === "INDIVIDUAL" ? (
               <div className="form-card-body">
                 <div className="form-field">
-                  <label>Civilite</label>
+                  <label htmlFor="customer-civility">{t("customers.form.civility")}</label>
                   <select
+                    id="customer-civility"
                     className="select"
                     value={civility}
                     onChange={(e) => setCivility(e.target.value as typeof civility)}
                   >
                     <option value="">—</option>
-                    <option value="M">M.</option>
-                    <option value="MME">Mme</option>
-                    <option value="MLLE">Mlle</option>
+                    <option value="M">{t("customers.form.civilityM")}</option>
+                    <option value="MME">{t("customers.form.civilityMme")}</option>
+                    <option value="MLLE">{t("customers.form.civilityMlle")}</option>
                   </select>
                 </div>
                 <div className="form-field">
-                  <label>
-                    Nom <span className="required">*</span>
+                  <label htmlFor="customer-last-name">
+                    {t("customers.form.lastName")}{" "}
+                    <span className="required" aria-hidden="true">
+                      *
+                    </span>
                   </label>
                   <input
+                    id="customer-last-name"
                     type="text"
                     className="input"
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    placeholder="KOULIBALI"
+                    placeholder={t("customers.form.lastNamePlaceholder")}
                   />
                 </div>
                 <div className="form-field">
-                  <label>Prenom(s)</label>
+                  <label htmlFor="customer-first-name">{t("customers.form.firstName")}</label>
                   <input
+                    id="customer-first-name"
                     type="text"
                     className="input"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Jean-Marc"
+                    placeholder={t("customers.form.firstNamePlaceholder")}
                   />
                 </div>
               </div>
             ) : (
               <div className="form-card-body">
                 <div className="form-field">
-                  <label>
-                    Raison sociale <span className="required">*</span>
+                  <label htmlFor="customer-company-name">
+                    {t("customers.form.companyName")}{" "}
+                    <span className="required" aria-hidden="true">
+                      *
+                    </span>
                   </label>
                   <input
+                    id="customer-company-name"
                     type="text"
                     className="input"
                     required
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="SOTRA Logistique SARL"
+                    placeholder={t("customers.form.companyNamePlaceholder")}
                   />
                 </div>
                 <div className="form-field">
-                  <label>N° Contribuable (NCC)</label>
+                  <label htmlFor="customer-ncc">{t("customers.form.ncc")}</label>
                   <input
+                    id="customer-ncc"
                     type="text"
                     className="input"
                     value={ncc}
                     onChange={(e) => setNcc(e.target.value)}
-                    placeholder="CI-ABJ-2024-XXXXX"
+                    placeholder={t("customers.form.nccPlaceholder")}
                   />
                 </div>
                 <div className="form-field">
-                  <label>RCCM</label>
+                  <label htmlFor="customer-rccm">{t("customers.form.rccm")}</label>
                   <input
+                    id="customer-rccm"
                     type="text"
                     className="input"
                     value={rccm}
                     onChange={(e) => setRccm(e.target.value)}
-                    placeholder="CI-ABJ-2024-B-XXXXX"
+                    placeholder={t("customers.form.rccmPlaceholder")}
                   />
                 </div>
               </div>
@@ -229,42 +234,45 @@ export default function NewCustomerPage() {
           {/* Right column - Contact */}
           <div className="form-card">
             <div className="form-card-title">
-              <Phone size={18} /> Coordonnees
+              <Phone size={18} /> {t("customers.form.contact")}
             </div>
             <div className="form-card-body">
               <div className="form-field">
-                <label>Telephone</label>
-                <PhoneInput value={phone} onChange={setPhone} />
+                <label htmlFor="customer-phone">{t("customers.form.phone")}</label>
+                <PhoneInput id="customer-phone" value={phone} onChange={setPhone} />
               </div>
               <div className="form-field">
-                <label>Email</label>
+                <label htmlFor="customer-email">{t("customers.form.email")}</label>
                 <input
+                  id="customer-email"
                   type="email"
                   className="input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="client@email.com"
+                  placeholder={t("customers.form.emailPlaceholder")}
                 />
               </div>
               <div className="form-row">
                 <div className="form-field">
-                  <label>Commune</label>
+                  <label htmlFor="customer-commune">{t("customers.form.commune")}</label>
                   <input
+                    id="customer-commune"
                     type="text"
                     className="input"
                     value={commune}
                     onChange={(e) => setCommune(e.target.value)}
-                    placeholder="Cocody"
+                    placeholder={t("customers.form.communePlaceholder")}
                   />
                 </div>
                 <div className="form-field">
-                  <label>Adresse</label>
+                  <label htmlFor="customer-address">{t("customers.form.address")}</label>
                   <input
+                    id="customer-address"
                     type="text"
                     className="input"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Rue des Jardins"
+                    placeholder={t("customers.form.addressPlaceholder")}
                   />
                 </div>
               </div>
@@ -276,38 +284,41 @@ export default function NewCustomerPage() {
         <div className="form-2col-full">
           <div className="form-card">
             <div className="form-card-title">
-              <Car size={18} /> Vehicule
-              <span className="form-card-subtitle">Optionnel - ajoutez un vehicule maintenant ou plus tard</span>
+              <Car size={18} /> {t("customers.form.vehicle")}
+              <span className="form-card-subtitle">{t("customers.form.vehicleOptional")}</span>
             </div>
             <div className="form-card-body">
               <div className="form-row-4">
                 <div className="form-field">
-                  <label>Plaque</label>
-                  <PlateInput value={plate} onChange={setPlate} />
+                  <label htmlFor="customer-plate">{t("customers.form.plate")}</label>
+                  <PlateInput id="customer-plate" value={plate} onChange={setPlate} />
                 </div>
                 <div className="form-field">
-                  <label>Marque</label>
+                  <label htmlFor="customer-make">{t("customers.form.make")}</label>
                   <input
+                    id="customer-make"
                     type="text"
                     className="input"
                     value={make}
                     onChange={(e) => setMake(e.target.value)}
-                    placeholder="Toyota"
+                    placeholder={t("customers.form.makePlaceholder")}
                   />
                 </div>
                 <div className="form-field">
-                  <label>Modele</label>
+                  <label htmlFor="customer-model">{t("customers.form.model")}</label>
                   <input
+                    id="customer-model"
                     type="text"
                     className="input"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    placeholder="Corolla"
+                    placeholder={t("customers.form.modelPlaceholder")}
                   />
                 </div>
                 <div className="form-field">
-                  <label>Annee</label>
+                  <label htmlFor="customer-year">{t("customers.form.year")}</label>
                   <input
+                    id="customer-year"
                     type="text"
                     className="input"
                     value={year}
@@ -318,13 +329,14 @@ export default function NewCustomerPage() {
                 </div>
               </div>
               <div className="form-field">
-                <label>VIN (chassis)</label>
+                <label htmlFor="customer-vin">{t("customers.form.vin")}</label>
                 <input
+                  id="customer-vin"
                   type="text"
                   className="input"
                   value={vin}
                   onChange={(e) => setVin(e.target.value.toUpperCase())}
-                  placeholder="1HGBH41JXMN109186"
+                  placeholder={t("customers.form.vinPlaceholder")}
                   maxLength={17}
                 />
               </div>
@@ -338,13 +350,16 @@ export default function NewCustomerPage() {
             <div className="form-alert warn">
               <p>{duplicateError}</p>
               <div className="form-field" style={{ marginTop: 12 }}>
-                <label>Motif pour creer quand meme</label>
+                <label htmlFor="customer-duplicate-override-reason">
+                  {t("customers.form.duplicateReason")}
+                </label>
                 <input
+                  id="customer-duplicate-override-reason"
                   type="text"
                   className="input"
                   value={duplicateOverrideReason}
                   onChange={(e) => setDuplicateOverrideReason(e.target.value)}
-                  placeholder="Numero partage, autre personne..."
+                  placeholder={t("customers.form.duplicateReasonPlaceholder")}
                 />
               </div>
             </div>
@@ -354,10 +369,10 @@ export default function NewCustomerPage() {
         {/* Actions */}
         <div className="form-2col-actions">
           <Link href="/clients" className="btn btn-secondary">
-            Annuler
+            {t("customers.form.cancel")}
           </Link>
           <Button type="submit" disabled={createCustomer.isPending}>
-            {createCustomer.isPending ? "Enregistrement..." : "Enregistrer le client"}
+            {createCustomer.isPending ? t("customers.form.saving") : t("customers.form.saveNew")}
           </Button>
         </div>
       </form>

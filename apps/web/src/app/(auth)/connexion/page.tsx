@@ -147,7 +147,7 @@ function ConnexionForm() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="stack">
-          <div className="auth-mode-tabs" role="tablist" aria-label="Mode de connexion">
+          <div className="auth-mode-tabs" role="tablist" aria-label={t("auth.signIn.modeTabs")}>
             <button
               type="button"
               role="tab"

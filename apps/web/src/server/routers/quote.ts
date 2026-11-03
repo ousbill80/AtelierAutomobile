@@ -71,6 +71,7 @@ import {
   initialValidUntil,
   issueQuoteToken,
   loadOrgQuoteContext,
+  linkQuoteToOpenRepairOrder,
   mirrorPendingLinesIntoOrder,
   nextQuoteNumber,
   quoteNotFound,
@@ -620,6 +621,7 @@ export const quoteRouter = router({
         by: ["status"],
         where: { deletedAt: null, supersededAt: null, ...siteFilter(ctx) },
         _count: { _all: true },
+        _sum: { total: true, acceptedTotal: true },
       });
       const pendingDiscounts = await tenantDb.quote.count({
         where: {
@@ -629,6 +631,10 @@ export const quoteRouter = router({
           ...siteFilter(ctx),
         },
       });
+      const sumOf = (statuses: QuoteStatus[], field: "total" | "acceptedTotal") =>
+        counts
+          .filter((c) => statuses.includes(c.status))
+          .reduce((s, c) => s + (c._sum[field] ?? 0), 0);
       return {
         items: page.map((q) => ({
           id: q.id,
@@ -662,6 +668,13 @@ export const quoteRouter = router({
             .reduce((s, c) => s + c._count._all, 0),
           expired: counts.find((c) => c.status === "EXPIRED")?._count._all ?? 0,
         },
+        amounts: {
+          todo: sumOf(["DRAFT"], "total"),
+          waiting: sumOf(["SENT", "VIEWED"], "total"),
+          decided: sumOf(DECIDED, "acceptedTotal"),
+          expired: sumOf(["EXPIRED"], "total"),
+        },
+        pendingDiscounts,
         timeZone: org.timeZone,
       };
     }),
@@ -1359,15 +1372,19 @@ export const quoteRouter = router({
           total: totals.total,
           customerId: quote.customerId,
         });
-        if (quote.repairOrderId) {
-          await mirrorPendingLinesIntoOrder(tx, updated);
-          await requestOrderApproval(tx, quote.repairOrderId, now);
-          await recomputeTotals(tx, quote.repairOrderId, org.vatEnabled);
+        let current = updated;
+        if (!current.repairOrderId) {
+          current = await linkQuoteToOpenRepairOrder(tx, current);
+        }
+        if (current.repairOrderId) {
+          await mirrorPendingLinesIntoOrder(tx, current);
+          await requestOrderApproval(tx, current.repairOrderId, now);
+          await recomputeTotals(tx, current.repairOrderId, org.vatEnabled);
         }
         await audit(ctx, "quote.sent", quote.id, {
           after: { channel: input.channel, sentTo, messageId, version: quote.version },
         });
-        return { quote: updated, messageId, waLink, publicUrl: link.url, body };
+        return { quote: current, messageId, waLink, publicUrl: link.url, body };
       });
       await flush([out.messageId]);
       return out;

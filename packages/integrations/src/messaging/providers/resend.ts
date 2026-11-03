@@ -66,8 +66,17 @@ export function createResendProvider(
         body: JSON.stringify({
           from: `${credentials.fromName} <${credentials.fromEmail}>`,
           to: msg.to,
-          subject: (msg as OutboundMessage & { subject?: string }).subject ?? "AtelierOS",
+          subject: msg.subject ?? "AtelierOS",
           html: msg.body,
+          ...(msg.attachments?.length
+            ? {
+                attachments: msg.attachments.map((file) => ({
+                  filename: file.filename,
+                  content: Buffer.from(file.content).toString("base64"),
+                  content_type: file.contentType,
+                })),
+              }
+            : {}),
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as ResendSendResponse;
@@ -115,6 +124,8 @@ export function createResendProvider(
         .catch(() => null)) as ResendWebhookPayload | null;
       const statusMap: Record<string, ProviderEvent["status"]> = {
         "email.delivered": "DELIVERED",
+        // Ouverture de l'email (suivi d'ouverture activé chez Resend) : accusé de lecture.
+        "email.opened": "READ",
         "email.bounced": "FAILED",
         "email.complained": "FAILED",
       };

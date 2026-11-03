@@ -218,6 +218,7 @@ export {
 } from "./segment";
 
 export type {
+  ChannelSetActiveInput,
   ChannelTestInput,
   ChannelUpsertInput,
   ConversationAssignInput,
@@ -228,6 +229,7 @@ export type {
   ConversationSetStatusInput,
   DevOutboxSimulateInput,
   DevOutboxSimulateReplyInput,
+  MessageLogInput,
   MessagingHistoryInput,
   MessagingSendInput,
   OptOutAddInput,
@@ -242,6 +244,7 @@ export type {
 } from "./messaging";
 export {
   channelProviderSchema,
+  channelSetActiveInputSchema,
   channelTestInputSchema,
   channelUpsertInputSchema,
   conversationAssignInputSchema,
@@ -253,6 +256,7 @@ export {
   conversationStatusSchema,
   devOutboxSimulateInputSchema,
   devOutboxSimulateReplyInputSchema,
+  messageLogInputSchema,
   messagingHistoryInputSchema,
   messagingSendInputSchema,
   optOutAddInputSchema,
@@ -269,6 +273,7 @@ export {
 export type {
   ReminderApproveInput,
   ReminderCreateManualInput,
+  ReminderDueCalendarInput,
   ReminderDueDatesInput,
   ReminderMarkAppointmentTakenInput,
   ReminderMarkInspectionDoneInput,
@@ -292,6 +297,7 @@ export {
   DEFAULT_REMINDER_SETTINGS,
   reminderApproveInputSchema,
   reminderCreateManualInputSchema,
+  reminderDueCalendarInputSchema,
   reminderDueDatesInputSchema,
   reminderGetInputSchema,
   reminderMarkAppointmentTakenInputSchema,
@@ -301,6 +307,9 @@ export {
   reminderPreviewInputSchema,
   reminderQueueInputSchema,
   reminderRetryInputSchema,
+  reminderSendViaInputSchema,
+  reminderDueRemindInputSchema,
+  reminderDueRemindPreviewInputSchema,
   reminderRuleConditionsSchema,
   reminderRuleGetInputSchema,
   reminderRuleSimulateInputSchema,
@@ -470,3 +479,10 @@ export * from "./automations";
 export * from "./publicApi";
 export * from "./subscription";
 export * from "./treasury";
+export {
+  notificationListInputSchema,
+  notificationMarkReadInputSchema,
+  pushSubscribeInputSchema,
+  pushUnsubscribeInputSchema,
+} from "./notifications";
+export type { NotificationListInput, PushSubscribeInput } from "./notifications";

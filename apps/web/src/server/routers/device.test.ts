@@ -66,7 +66,7 @@ describe("device.registerShared + auth.pinSignIn (M01)", () => {
       caller.auth.pinSignIn({
         deviceId: "appareil-inconnu",
         membershipId: mechanic.membershipId,
-        pin: "7042",
+        pin: "704281",
       }),
     ).rejects.toThrow("n'est pas enregistré");
   });
@@ -88,21 +88,21 @@ describe("device.registerShared + auth.pinSignIn (M01)", () => {
     });
     const caller = callerFactory(await contextFor(null));
     await expect(
-      caller.auth.pinSignIn({ deviceId, membershipId: advisor.membershipId, pin: "7042" }),
+      caller.auth.pinSignIn({ deviceId, membershipId: advisor.membershipId, pin: "704281" }),
     ).rejects.toThrow("non autorisée");
   });
 
   it("auth.pinSignIn refuse quand aucun PIN n'est défini", async () => {
     const caller = callerFactory(await contextFor(null));
     await expect(
-      caller.auth.pinSignIn({ deviceId, membershipId: mechanic.membershipId, pin: "7042" }),
+      caller.auth.pinSignIn({ deviceId, membershipId: mechanic.membershipId, pin: "704281" }),
     ).rejects.toThrow("Aucun code PIN");
   });
 
   it("auth.pinSignIn réussit avec un PIN valide et ouvre une session PIN de 12h", async () => {
     await callerFactory(await contextFor(owner.token)).member.setPin({
       membershipId: mechanic.membershipId,
-      pin: "7042",
+      pin: "704281",
     });
 
     const ctx = await contextFor(null);
@@ -110,7 +110,7 @@ describe("device.registerShared + auth.pinSignIn (M01)", () => {
     const result = await caller.auth.pinSignIn({
       deviceId,
       membershipId: mechanic.membershipId,
-      pin: "7042",
+      pin: "704281",
     });
     expect(result.ok).toBe(true);
     expect(ctx.resHeaders.get("set-cookie")).toContain("atelieros_session=");
@@ -136,7 +136,7 @@ describe("device.registerShared + auth.pinSignIn (M01)", () => {
     userIds.push(target.userId);
     await callerFactory(await contextFor(owner.token)).member.setPin({
       membershipId: target.membershipId,
-      pin: "7042",
+      pin: "704281",
     });
 
     for (let i = 0; i < 5; i++) {
@@ -144,7 +144,7 @@ describe("device.registerShared + auth.pinSignIn (M01)", () => {
         callerFactory(await contextFor(null)).auth.pinSignIn({
           deviceId,
           membershipId: target.membershipId,
-          pin: "0000",
+          pin: "000000",
         }),
       ).rejects.toThrow();
     }
@@ -153,7 +153,7 @@ describe("device.registerShared + auth.pinSignIn (M01)", () => {
       callerFactory(await contextFor(null)).auth.pinSignIn({
         deviceId,
         membershipId: target.membershipId,
-        pin: "7042",
+        pin: "704281",
       }),
     ).rejects.toThrow("bloqué");
   });

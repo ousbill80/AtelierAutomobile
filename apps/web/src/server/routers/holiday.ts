@@ -86,11 +86,25 @@ export const holidayRouter = router({
     .mutation(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
       const before = await tenantDb.holiday.findUniqueOrThrow({ where: { id: input.holidayId } });
+      const date = input.date ? toUtcDateOnly(input.date) : undefined;
+
+      // Même règle que `create` (RG-M15-08), en excluant la ligne modifiée elle-même.
+      if (date && date.getTime() !== before.date.getTime()) {
+        const duplicate = await tenantDb.holiday.findFirst({
+          where: { date, siteId: before.siteId, id: { not: before.id } },
+        });
+        if (duplicate) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Un jour férié existe déjà à cette date pour ce site.",
+          });
+        }
+      }
 
       const holiday = await tenantDb.holiday.update({
         where: { id: input.holidayId },
         data: {
-          date: input.date ? toUtcDateOnly(input.date) : undefined,
+          date,
           name: input.name,
           kind: input.kind,
           isEstimated: input.isEstimated,

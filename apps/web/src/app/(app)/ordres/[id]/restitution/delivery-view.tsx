@@ -242,7 +242,7 @@ export function DeliveryView({ id }: { id: string }) {
         </label>
       )}
       {deliver.error && <ErrorBox message={deliver.error.message} />}
-      <div className="sticky bottom-0 border-t border-border bg-bg/95 py-3 backdrop-blur-sm">
+      <div className="sticky bottom-[var(--bottom-nav-offset)] border-t border-border bg-bg/95 py-3 backdrop-blur-sm">
         <Button
           block
           className="min-h-11"

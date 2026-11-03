@@ -51,11 +51,13 @@ const STOCK_LINKS = [
   { href: "/stock/inventaires", key: "counts", permission: "stock:count" },
   { href: "/stock/transferts", key: "transfers", permission: "stock:transfer" },
   { href: "/stock/valorisation", key: "valuation", permission: "stock:valuation" },
+  { href: "/stock/guide", key: "guide", permission: "stock:read" },
 ];
 const PURCHASE_LINKS = [
   { href: "/achats", key: "purchases", permission: "purchase:read" },
   { href: "/achats/suggestions", key: "suggestions", permission: "purchase:create" },
   { href: "/achats/fournisseurs", key: "suppliers", permission: "purchase:read" },
+  { href: "/achats/guide", key: "guide", permission: "purchase:read" },
 ];
 
 export function useMe() {

@@ -109,6 +109,10 @@ async function main(): Promise<void> {
     await import("./queues/automations");
   const { processAutomationsDispatchJob } = await import("./jobs/automations");
 
+  const { NOTIFICATIONS_JOB_NAMES, NOTIFICATIONS_QUEUE_NAME, scheduleNotificationJobs } =
+    await import("./queues/notifications");
+  const { processNotificationsPushJob } = await import("./jobs/notificationsPush");
+
   const { EXPORTS_JOB_NAMES, EXPORTS_QUEUE_NAME, scheduleExportJobs } =
     await import("./queues/exports");
   type OrgExportJobData = import("./jobs/orgExport").OrgExportJobData;
@@ -342,6 +346,22 @@ async function main(): Promise<void> {
     logger.error({ jobName: job?.name, error: error.message }, "portal : un job a échoué");
   });
 
+  // PWA : notifications in-app poussées sur les appareils abonnés, chaque minute.
+  await scheduleNotificationJobs();
+
+  const notificationsWorker = new Worker(
+    NOTIFICATIONS_QUEUE_NAME,
+    async (job: Job) => {
+      if (job.name === NOTIFICATIONS_JOB_NAMES.PUSH) return processNotificationsPushJob();
+      logger.warn({ jobName: job.name }, "notifications : job inconnu, ignoré");
+      return undefined;
+    },
+    { connection: createRedisConnection(), concurrency: 1 },
+  );
+  notificationsWorker.on("failed", (job, error) => {
+    logger.error({ jobName: job?.name, error: error.message }, "notifications : un job a échoué");
+  });
+
   // M08 §9 : caisse non clôturée à 23:00 (RG-M08-29).
   await scheduleCashJobs();
 
@@ -557,6 +577,7 @@ async function main(): Promise<void> {
       aiWorker.close(),
       automationsWorker.close(),
       exportsWorker.close(),
+      notificationsWorker.close(),
     ]);
     process.exit(0);
   }

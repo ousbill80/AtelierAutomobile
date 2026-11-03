@@ -15,6 +15,7 @@ import {
   StatusBadge,
   Tabs,
 } from "@atelieros/ui";
+import { EduTip } from "@/components/edu-tip";
 import { trpc } from "@/trpc/react";
 import {
   downloadText,
@@ -62,33 +63,43 @@ function ValueTab() {
   });
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <Field label={t("valuation.groupBy")}>
-          <Select value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}>
-            <option value="category">{t("valuation.byCategory")}</option>
-            <option value="site">{t("valuation.bySite")}</option>
-          </Select>
-        </Field>
-        <SiteSelect value={siteId} onChange={setSiteId} allowAll />
-        <Input
-          label={t("valuation.at")}
-          type="date"
-          value={at}
-          onChange={(e) => setAt(e.target.value)}
-        />
-      </div>
+      <section className="form-card product-toolbar">
+        <div className="form-card-body form-dense">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Field label={t("valuation.groupBy")}>
+              <Select
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}
+              >
+                <option value="category">{t("valuation.byCategory")}</option>
+                <option value="site">{t("valuation.bySite")}</option>
+              </Select>
+            </Field>
+            <SiteSelect value={siteId} onChange={setSiteId} allowAll />
+            <Input
+              label={t("valuation.at")}
+              type="date"
+              value={at}
+              onChange={(e) => setAt(e.target.value)}
+            />
+          </div>
+        </div>
+      </section>
       {query.isLoading ? <ListSkeleton /> : null}
       {query.isError ? <ErrorBox onRetry={() => query.refetch()} /> : null}
       {query.data ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
-            <div>
+            <div className="relative pr-12">
               <div className="text-sm text-muted">
                 {t("valuation.total")} · {at ? formatDay(at) : t("valuation.today")}
               </div>
               <div className="text-2xl font-semibold" data-testid="valuation-total">
                 {formatFCFA(query.data.total)}
               </div>
+              <span className="absolute right-0 top-0">
+                <EduTip text={t("valuation.help")} example={t("valuation.example")} />
+              </span>
             </div>
             <Button
               variant="secondary"
@@ -111,10 +122,16 @@ function ValueTab() {
           <p className="text-xs text-muted">{t("valuation.negativesHint")}</p>
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {query.data.groups.map((g) => (
-              <li key={g.key} className="rounded-lg border border-border bg-surface p-3">
+              <li
+                key={g.key}
+                className="relative rounded-lg border border-border bg-surface p-3 pr-12"
+              >
                 <div className="text-sm text-muted">{g.label || t("valuation.noCategory")}</div>
                 <div className="text-lg font-semibold">{formatFCFA(g.value)}</div>
                 <div className="text-xs text-muted">{t("valuation.items", { count: g.items })}</div>
+                <span className="absolute right-0.5 top-0.5">
+                  <EduTip text={t("valuation.groupHelp")} example={t("valuation.groupExample")} />
+                </span>
               </li>
             ))}
           </ul>
@@ -129,29 +146,32 @@ function DormantTab() {
   const query = trpc.stock.dormant.useQuery({ days });
   return (
     <div className="flex flex-col gap-3">
-      <div className="max-w-xs">
-        <Field label={t("valuation.dormantDays")}>
-          <Select
-            value={days ?? ""}
-            onChange={(e) => setDays(e.target.value ? Number(e.target.value) : undefined)}
-          >
-            <option value="">
-              {query.data ? t("valuation.dormantDaysOption", { days: query.data.days }) : "—"}
-            </option>
-            {DORMANT_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {t("valuation.dormantDaysOption", { days: d })}
+      <section className="form-card product-toolbar">
+        <div className="form-card-body form-dense max-w-sm">
+          <Field label={t("valuation.dormantDays")}>
+            <Select
+              value={days ?? ""}
+              onChange={(e) => setDays(e.target.value ? Number(e.target.value) : undefined)}
+            >
+              <option value="">
+                {query.data ? t("valuation.dormantDaysOption", { days: query.data.days }) : "—"}
               </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+              {DORMANT_OPTIONS.map((d) => (
+                <option key={d} value={d}>
+                  {t("valuation.dormantDaysOption", { days: d })}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </section>
       {query.isLoading ? <ListSkeleton /> : null}
       {query.isError ? <ErrorBox onRetry={() => query.refetch()} /> : null}
       {query.data ? (
         <>
-          <p className="font-medium">
+          <p className="flex items-center gap-1 font-medium">
             {t("valuation.dormantTotal", { value: formatFCFA(query.data.totalValue) })}
+            <EduTip text={t("valuation.dormantHelp")} example={t("valuation.dormantExample")} />
           </p>
           <DataTable
             rows={query.data.rows}

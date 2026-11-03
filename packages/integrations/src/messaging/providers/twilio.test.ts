@@ -32,7 +32,27 @@ describe("createTwilioProvider.send", () => {
     );
     const params = new URLSearchParams(init.body);
     expect(params.get("To")).toBe("+2250747218890");
+    expect(params.get("From")).toBe("+12025550123");
     expect(params.get("Body")).toBe("Bonjour");
+  });
+
+  it("envoie le numéro enregistré sous fromNumber par le formulaire des canaux", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ sid: "SM456" }));
+    const provider = createTwilioProvider(
+      { accountSid: "AC123", authToken: "auth_token", fromNumber: "+2250700000000" },
+      { fetchImpl },
+    );
+
+    await provider.send({
+      organizationId: "org_1",
+      to: "+2250747218890",
+      channel: "SMS",
+      body: "Bonjour",
+      idempotencyKey: "rem:2",
+    });
+
+    const params = new URLSearchParams(fetchImpl.mock.calls[0]?.[1].body);
+    expect(params.get("From")).toBe("+2250700000000");
   });
 
   it("lève une erreur classée pour un numéro invalide (21211)", async () => {
@@ -58,8 +78,10 @@ describe("classifyTwilioError", () => {
     [21211, "PERMANENT_RECIPIENT"],
     [21614, "PERMANENT_RECIPIENT"],
     [21610, "PERMANENT_RECIPIENT"],
+    [572002, "PERMANENT_RECIPIENT"],
     [20003, "PERMANENT_CONFIG"],
     [20404, "PERMANENT_CONFIG"],
+    [572006, "PERMANENT_CONFIG"],
     [429, "RATE_LIMIT"],
     [14107, "RATE_LIMIT"],
     [99999, "TEMPORARY"],

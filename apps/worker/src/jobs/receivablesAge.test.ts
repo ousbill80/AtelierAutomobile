@@ -73,6 +73,7 @@ describe("receivables.age / collections.promises — intégration (M09)", () => 
     await adminDb.channelConfig.deleteMany({ where: { organizationId: org.id } });
     await adminDb.paymentPromise.deleteMany({ where: { organizationId: org.id } });
     await adminDb.reminderRule.deleteMany({ where: { organizationId: org.id } });
+    await adminDb.portalToken.deleteMany({ where: { organizationId: org.id } });
     await adminDb.invoice.deleteMany({ where: { organizationId: org.id } });
     await adminDb.collectionCase.deleteMany({ where: { organizationId: org.id } });
     await adminDb.domainEvent.deleteMany({ where: { organizationId: org.id } });
@@ -170,7 +171,7 @@ describe("receivables.age / collections.promises — intégration (M09)", () => 
     });
     await processRemindersDispatchJob();
     const sent = await adminDb.reminder.findUniqueOrThrow({ where: { id: reminder.id } });
-    expect(sent.status).toBe("QUEUED");
+    expect(["QUEUED", "SENT"]).toContain(sent.status);
     const message = await adminDb.message.findUniqueOrThrow({ where: { id: sent.messageId! } });
     expect(message.body).toContain("185 000 FCFA");
     expect(message.body).toContain("25/10/2026");

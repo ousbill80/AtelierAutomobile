@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { formatFCFA } from "@atelieros/core/money";
 import { Button, Modal, Textarea } from "@atelieros/ui";
+import { EduTip } from "@/components/edu-tip";
 import { t, tc } from "@/components/billing/i18n";
 import { trpc } from "@/trpc/react";
 import type { AppRouter } from "@/server/routers/_app";
@@ -68,6 +69,10 @@ export function Kpi({
   tone = "neutral",
   hint,
   testId,
+  help,
+  example,
+  onClick,
+  pressed = false,
 }: {
   icon: LucideIcon;
   label: string;
@@ -75,15 +80,22 @@ export function Kpi({
   tone?: Tone;
   hint?: string;
   testId?: string;
+  help?: string;
+  example?: string;
+  onClick?: () => void;
+  pressed?: boolean;
 }) {
-  return (
-    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-surface p-3 sm:p-4">
+  const frame = `flex min-w-0 w-full items-center gap-3 rounded-lg border bg-surface p-3 text-left sm:p-4 ${
+    pressed ? "border-accent ring-2 ring-accent" : "border-border"
+  }`;
+  const body = (
+    <>
       <span
         className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-full sm:flex ${TONE_ICON_BG[tone]}`}
       >
         <Icon size={18} aria-hidden />
       </span>
-      <span className="min-w-0">
+      <span className={`min-w-0 ${help ? "pr-9" : ""}`}>
         <span
           className={`block text-lg leading-tight font-semibold break-words tabular-nums sm:text-xl ${TONE_TEXT[tone]}`}
           data-testid={testId}
@@ -93,6 +105,22 @@ export function Kpi({
         <span className="mt-0.5 block text-xs font-medium text-muted">{label}</span>
         {hint && <span className="block text-xs text-muted">{hint}</span>}
       </span>
+    </>
+  );
+  return (
+    <div className="relative min-w-0">
+      {onClick ? (
+        <button type="button" onClick={onClick} aria-pressed={pressed} className={frame}>
+          {body}
+        </button>
+      ) : (
+        <div className={frame}>{body}</div>
+      )}
+      {help ? (
+        <span className="absolute right-0.5 top-0.5 z-10">
+          <EduTip text={help} example={example} />
+        </span>
+      ) : null}
     </div>
   );
 }

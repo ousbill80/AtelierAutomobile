@@ -177,6 +177,7 @@ export async function listCustomers(ctx: ApiContext): Promise<ApiResult> {
   const rows = await ctx.tenantDb.customer.findMany({
     where: {
       deletedAt: null,
+      AND: [{ OR: [{ source: null }, { source: { not: "assureur" } }] }],
       ...(since ? { updatedAt: { gte: since } } : {}),
       ...(phone ? { OR: [{ phone }, { phone2: phone }, { whatsappPhone: phone }] } : {}),
       ...cursorWhere("updatedAt", q.get("cursor")),

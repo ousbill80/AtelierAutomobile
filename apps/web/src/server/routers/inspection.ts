@@ -426,11 +426,28 @@ export const inspectionTemplateRouter = router({
     .input(z.object({ id: z.string().min(1), archived: z.boolean().default(true) }))
     .mutation(async ({ ctx, input }) => {
       const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
-      const existing = await tenantDb.inspectionTemplate.findFirst({ where: { id: input.id } });
-      if (!existing) notFound("Modèle introuvable.");
-      return tenantDb.inspectionTemplate.update({
-        where: { id: existing.id },
-        data: { isActive: !input.archived, ...(input.archived ? { isDefault: false } : {}) },
+      return tenantDb.transaction(async (tx) => {
+        const existing = await tx.inspectionTemplate.findFirst({ where: { id: input.id } });
+        if (!existing) notFound("Modèle introuvable.");
+        const updated = await tx.inspectionTemplate.update({
+          where: { id: existing.id },
+          data: { isActive: !input.archived, ...(input.archived ? { isDefault: false } : {}) },
+        });
+        // Archiver le modèle par défaut : le premier modèle actif (ordre alphabétique, même
+        // règle que le repli de `start`) devient le défaut, pour qu'il en reste toujours un.
+        if (input.archived && existing.isDefault) {
+          const next = await tx.inspectionTemplate.findFirst({
+            where: { isActive: true, id: { not: existing.id } },
+            orderBy: { name: "asc" },
+          });
+          if (next) {
+            await tx.inspectionTemplate.update({
+              where: { id: next.id },
+              data: { isDefault: true },
+            });
+          }
+        }
+        return updated;
       });
     }),
 });

@@ -29,6 +29,7 @@ import { trpc } from "@/trpc/react";
 import { ErrorBox } from "@/components/repair-orders/error-box";
 import { formatDateTime } from "@/components/repair-orders/i18n";
 import { t, tc } from "@/components/billing/i18n";
+import { GuideLink } from "@/components/guide-link";
 import {
   AmountRow,
   CashJournal,
@@ -79,6 +80,7 @@ export default function CashPage() {
           </p>
         </div>
         <nav className="flex flex-wrap gap-2" aria-label={tc("title")}>
+          <GuideLink href="/caisse/guide" />
           <Link href="/caisse/depenses" className="btn btn-secondary min-h-11">
             <HandCoins size={16} aria-hidden /> {tc("expensesLink")}
           </Link>
@@ -290,8 +292,16 @@ function OpenSession({
           value={formatFCFA(session.expectedCash)}
           tone="ok"
           testId="expected-cash"
+          help={tc("kpiHelp.expected")}
+          example={tc("kpiExample.expected")}
         />
-        <Kpi icon={Wallet} label={tc("kpi.received")} value={formatFCFA(session.totalReceived)} />
+        <Kpi
+          icon={Wallet}
+          label={tc("kpi.received")}
+          value={formatFCFA(session.totalReceived)}
+          help={tc("kpiHelp.received")}
+          example={tc("kpiExample.received")}
+        />
         <Kpi
           icon={ArrowUpRight}
           label={tc("kpi.expenses")}
@@ -302,8 +312,16 @@ function OpenSession({
               ? `+ ${formatFCFA(session.pendingExpensesTotal)} ${tc("status.PENDING").toLowerCase()}`
               : undefined
           }
+          help={tc("kpiHelp.expenses")}
+          example={tc("kpiExample.expenses")}
         />
-        <Kpi icon={Landmark} label={tc("kpi.drops")} value={formatFCFA(session.dropsTotal)} />
+        <Kpi
+          icon={Landmark}
+          label={tc("kpi.drops")}
+          value={formatFCFA(session.dropsTotal)}
+          help={tc("kpiHelp.drops")}
+          example={tc("kpiExample.drops")}
+        />
       </div>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
@@ -387,6 +405,8 @@ function ExpenseModal({
   const [file, setFile] = useState<{ name: string; mimeType: string; base64: string } | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const me = trpc.me.get.useQuery();
+  const canApprove = (me.data?.permissions ?? []).includes("cash:expense_approve");
   const upload = trpc.cash.uploadExpenseReceipt.useMutation();
   const m = trpc.cash.expense.useMutation({
     async onSuccess(expense) {
@@ -404,7 +424,12 @@ function ExpenseModal({
       onDone(expense.status === "PENDING");
     },
   });
-  const pending = (amount ?? 0) > approval;
+  const pending = !canApprove && (amount ?? 0) > approval;
+  const hint = canApprove
+    ? tc("expenseForm.selfApproveHint")
+    : pending
+      ? tc("expenseForm.pendingHint", { amount: formatFCFA(approval) })
+      : tc("expenseForm.underHint", { amount: formatFCFA(approval) });
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -492,7 +517,7 @@ function ExpenseModal({
           }`}
         >
           <Hourglass size={15} aria-hidden className="mt-0.5 shrink-0" />
-          {tc("expenseForm.pendingHint", { amount: formatFCFA(approval) })}
+          {hint}
         </p>
         {m.error && (
           <p role="alert" className="mt-2 text-sm text-status-bad">

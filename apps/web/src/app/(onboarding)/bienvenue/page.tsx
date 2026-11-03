@@ -12,7 +12,6 @@ import {
   Users,
   Wrench,
   MapPin,
-  Phone,
   FileText,
   Sparkles,
   Bell,
@@ -193,7 +192,7 @@ function GarageStep({
           onChange={(e) => setName(e.target.value)}
           required
           minLength={1}
-          placeholder="Ex: Garage Central Abidjan"
+          placeholder={t("onboarding.garage.namePlaceholder")}
           leftIcon={<Building2 size={16} />}
         />
       </Field>
@@ -201,7 +200,7 @@ function GarageStep({
         <Input
           value={legalName}
           onChange={(e) => setLegalName(e.target.value)}
-          placeholder="Ex: SARL Garage Central"
+          placeholder={t("onboarding.garage.legalNamePlaceholder")}
           leftIcon={<FileText size={16} />}
         />
       </Field>
@@ -210,7 +209,7 @@ function GarageStep({
           <Input
             value={commune}
             onChange={(e) => setCommune(e.target.value)}
-            placeholder="Ex: Cocody"
+            placeholder={t("onboarding.garage.communePlaceholder")}
             leftIcon={<MapPin size={16} />}
           />
         </Field>
@@ -222,7 +221,7 @@ function GarageStep({
         <Input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="Ex: Boulevard Lagunaire, Lot 45"
+          placeholder={t("onboarding.garage.addressPlaceholder")}
           leftIcon={<MapPin size={16} />}
         />
       </Field>
@@ -265,7 +264,7 @@ function WorkshopStep({
           onChange={(e) => setName(e.target.value)}
           required
           minLength={1}
-          placeholder="Ex: Atelier Principal"
+          placeholder={t("onboarding.workshop.namePlaceholder")}
           leftIcon={<Wrench size={16} />}
         />
       </Field>
@@ -277,7 +276,7 @@ function WorkshopStep({
           minLength={2}
           maxLength={10}
           pattern="[A-Z0-9]+"
-          placeholder="Ex: ATL01"
+          placeholder={t("onboarding.workshop.codePlaceholder")}
           leftIcon={<Settings2 size={16} />}
         />
       </Field>
@@ -331,7 +330,9 @@ function ModeStep({
         </div>
         <div className="onboarding-mode-body">
           <div className="onboarding-mode-title">{t("onboarding.mode.remindersOnly")}</div>
-          <div className="onboarding-mode-desc">{t("onboarding.mode.remindersOnlyDescription")}</div>
+          <div className="onboarding-mode-desc">
+            {t("onboarding.mode.remindersOnlyDescription")}
+          </div>
         </div>
       </button>
     </div>
@@ -526,12 +527,7 @@ function DataStep({
         </h2>
         <p className="onboarding-step-desc">{t("onboarding.data.description")}</p>
       </div>
-      <button
-        type="button"
-        className="onboarding-mode-card"
-        disabled={loading}
-        onClick={onDemo}
-      >
+      <button type="button" className="onboarding-mode-card" disabled={loading} onClick={onDemo}>
         <div className="onboarding-mode-icon">
           <Sparkles size={20} />
         </div>

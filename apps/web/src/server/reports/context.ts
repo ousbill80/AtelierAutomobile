@@ -44,6 +44,7 @@ export interface OrgReportContext {
   name: string;
   legalName: string | null;
   ncc: string | null;
+  logoUrl: string | null;
   timezone: string;
   operatingMode: string;
   attributionWindowDays: number;
@@ -62,6 +63,7 @@ export async function loadOrgReportContext(organizationId: string): Promise<OrgR
       name: true,
       legalName: true,
       ncc: true,
+      logoUrl: true,
       timezone: true,
       operatingMode: true,
       settings: true,
@@ -75,6 +77,7 @@ export async function loadOrgReportContext(organizationId: string): Promise<OrgR
     name: org.name,
     legalName: org.legalName,
     ncc: org.ncc,
+    logoUrl: org.logoUrl,
     timezone: org.timezone,
     operatingMode: org.operatingMode,
     attributionWindowDays: positiveInt(settings.reports?.attributionWindowDays, 14),

@@ -283,6 +283,24 @@ export async function recordStatusEvent(input: StatusEventInput): Promise<void> 
     });
   }
 
+  // M09 RG-M09-16 : mise en demeure envoyée par email (« fn:{caseId}:… ») — la remise
+  // confirmée par le fournisseur vaut accusé de réception (date de remise du dossier).
+  if (
+    (input.status === "DELIVERED" || input.status === "READ") &&
+    message.idempotencyKey?.startsWith("fn:")
+  ) {
+    const caseId = message.idempotencyKey.split(":")[1];
+    if (caseId) {
+      await tx.collectionCase.updateMany({
+        where: { id: caseId, formalNoticeDeliveredAt: null },
+        data: {
+          formalNoticeDeliveredAt: input.occurredAt,
+          formalNoticeMethod: message.channel === "WHATSAPP" ? "whatsapp" : "email",
+        },
+      });
+    }
+  }
+
   if (
     message.channel === "WHATSAPP" &&
     (input.status === "DELIVERED" || input.status === "READ") &&

@@ -62,39 +62,41 @@ export default function MovementsPage() {
   return (
     <div className="flex flex-col gap-4">
       <ModuleNav section="stock" />
-      <PageTitle
-        title={t("movements.title")}
-        actions={
-          <Button variant="secondary" loading={exporting} onClick={() => void exportCsv()}>
-            {t("movements.export")}
-          </Button>
-        }
-      />
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label={t("movements.type")}>
-          <Select value={type} onChange={(e) => setType(e.target.value as MovementType | "")}>
-            <option value="">{t("movements.allTypes")}</option>
-            {TYPES.map((ty) => (
-              <option key={ty} value={ty}>
-                {t(`movementTypes.${ty}`)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <SiteSelect value={siteId} onChange={setSiteId} allowAll />
-        <Input
-          label={t("movements.from")}
-          type="date"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-        />
-        <Input
-          label={t("movements.to")}
-          type="date"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-        />
-      </div>
+      <PageTitle title={t("movements.title")} />
+      <section className="form-card product-toolbar">
+        <div className="form-card-body form-dense">
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label={t("movements.type")}>
+              <Select value={type} onChange={(e) => setType(e.target.value as MovementType | "")}>
+                <option value="">{t("movements.allTypes")}</option>
+                {TYPES.map((ty) => (
+                  <option key={ty} value={ty}>
+                    {t(`movementTypes.${ty}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <SiteSelect value={siteId} onChange={setSiteId} allowAll />
+            <Input
+              label={t("movements.from")}
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            <Input
+              label={t("movements.to")}
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button variant="secondary" loading={exporting} onClick={() => void exportCsv()}>
+              {t("movements.export")}
+            </Button>
+          </div>
+        </div>
+      </section>
 
       {list.isLoading ? <ListSkeleton rows={6} /> : null}
       {list.isError ? <ErrorBox onRetry={() => list.refetch()} /> : null}

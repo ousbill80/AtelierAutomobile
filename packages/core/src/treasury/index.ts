@@ -84,6 +84,41 @@ const METHOD_NAMES: Record<string, string> = {
 
 export const methodName = (method: string) => METHOD_NAMES[method] ?? method;
 
+const frDay = (iso: string) => {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
+};
+
+/**
+ * Encaissement au comptoir : le mode (hors espèces) doit déjà avoir un compte actif, ouvert au
+ * plus tard le jour du paiement. Sinon l'argent est encaissé sur la facture mais n'entre dans
+ * aucun compte. `null` si l'encaissement peut être enregistré.
+ */
+export function paymentAccountBlock(input: {
+  method: string;
+  siteId: string;
+  /** Jour du paiement, `yyyy-MM-dd`. */
+  paidOn: string;
+  accounts: readonly AccountLike[];
+}): string | null {
+  if (input.method === "CASH") return null;
+  const account = resolveMethodAccount(input.method, input.siteId, input.accounts);
+  const label = methodName(input.method);
+  if (!account) {
+    return `Créez d'abord le compte ${label} dans Trésorerie, puis encaissez.`;
+  }
+  const opening = account.openingDate.toISOString().slice(0, 10);
+  if (input.paidOn < opening) {
+    return `Le compte « ${account.name} » est ouvert à partir du ${frDay(opening)}. Indiquez une date d'ouverture au plus tard le jour de l'encaissement, puis encaissez.`;
+  }
+  return null;
+}
+
+export function assertPaymentAccount(input: Parameters<typeof paymentAccountBlock>[0]): void {
+  const message = paymentAccountBlock(input);
+  if (message) throw new DomainError("treasury.account_required", message);
+}
+
 /**
  * RG-M18-01/02 — validation d'un compte (création ou modification) : nom non vide et unique,
  * CASH jamais rattaché, un mode à un seul compte actif, caisse liée à un site et unique par site.

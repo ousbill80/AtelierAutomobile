@@ -173,7 +173,7 @@ export function ClaimView({ id }: { id: string }) {
             {t("actions.createQuote")}
           </Button>
         )}
-        {manage && currentQuote && !CLOSED.includes(c.status) && c.status !== "ESTIMATE_SENT" && (
+        {manage && currentQuote && ["OPENED", "EXPERT_SCHEDULED"].includes(c.status) && (
           <Button
             variant="secondary"
             className="min-h-11"

@@ -22,7 +22,7 @@ import { db, reportFacts, type Prisma } from "@atelieros/db";
 import { kpiCodeSchema } from "@atelieros/validators";
 import type { AiToolCall } from "@atelieros/integrations";
 import { z } from "zod";
-import { loadOrgReportContext } from "../reports/context";
+import { loadOrgReportContext, reportsNow } from "../reports/context";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
 
@@ -386,13 +386,15 @@ const handlers: { [K in AssistantToolName]: Handler<K> } = {
     if (sites === "DENIED") return DENIED;
     const period = input.period ?? "month";
     const org = await loadOrgReportContext(ctx.organizationId);
+    // Même horloge que `dashboard.kpi` (reports/context) : mêmes chiffres pour la même période.
+    const kpiCtx = { ...ctx, now: reportsNow() };
     const result = await reportFacts.computeKpi(tx, {
       organizationId: ctx.organizationId,
       org,
       metric,
       scope: { siteIds: sites },
-      period: resolvedPeriodOf(period, ctx),
-      now: ctx.now,
+      period: resolvedPeriodOf(period, kpiCtx),
+      now: kpiCtx.now,
       compare: input.compare ?? false,
     });
     const snapshot = metric === "receivables";

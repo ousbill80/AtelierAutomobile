@@ -166,7 +166,7 @@ function InspectionEditor({
       )}
       {complete.error && <ErrorBox message={complete.error.message} />}
       {!readOnly && (
-        <div className="sticky bottom-0 border-t border-border bg-bg py-3">
+        <div className="sticky bottom-[var(--bottom-nav-offset)] border-t border-border bg-bg py-3">
           <Button
             block
             loading={complete.isPending}

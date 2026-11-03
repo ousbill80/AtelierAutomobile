@@ -30,7 +30,6 @@ import {
   ShieldCheck,
   ShoppingCart,
   Sliders,
-  Sparkles,
   Star,
   Tablet,
   UploadCloud,
@@ -45,7 +44,6 @@ import {
   Content,
   DropdownItem,
   DropdownMenu,
-  IconButton,
   NavItem,
   SearchBox,
   Sidebar,
@@ -60,6 +58,10 @@ import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
 import { setStoredActiveOrgId } from "@/trpc/active-org";
 import { GlobalSearch } from "@/components/global-search";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { PwaProvider } from "@/components/pwa/pwa-provider";
+import type { MenuEntryDef, MenuItemDef } from "@/components/shell/menu-types";
+import { MobileMenuSheet, MobileTabBar } from "@/components/shell/mobile-nav";
 import { SETTINGS_PERMISSIONS } from "./parametres/settings-nav";
 
 type Me = inferRouterOutputs<AppRouter>["me"]["get"];
@@ -108,6 +110,20 @@ function subscribeOpenGroups(onChange: () => void) {
   };
 }
 
+/** Le menu n'affiche que les formats déjà acceptés sur les factures. */
+function sidebarLogoSrc(logo: string | null | undefined): string | null {
+  if (!logo) return null;
+  if (
+    logo.startsWith("data:image/png") ||
+    logo.startsWith("data:image/jpeg") ||
+    logo.startsWith("data:image/jpg") ||
+    logo.startsWith("https://")
+  ) {
+    return logo;
+  }
+  return null;
+}
+
 function initialsOf(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return (
@@ -116,22 +132,6 @@ function initialsOf(name: string) {
     ).toUpperCase() || "?"
   );
 }
-
-interface MenuItemDef {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  permission?: string | string[];
-  hidden?: boolean;
-  badge?: ReactNode;
-  badgeVariant?: "default" | "accent" | "ai" | "warn";
-  exact?: boolean;
-}
-
-/** Entrée du menu : lien direct, ou menu repliable avec ses sous-menus. */
-type MenuEntryDef =
-  | { kind: "link"; item: MenuItemDef }
-  | { kind: "group"; id: string; label: string; icon: ReactNode; items: MenuItemDef[] };
 
 export function AppShellClient({ me, children }: { me: Me; children: ReactNode }) {
   const pathname = usePathname();
@@ -354,14 +354,6 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
           permission: "message:read",
         },
       ]),
-      link({
-        href: "/assistant",
-        label: t("nav.assistant"),
-        icon: <Sparkles size={17} strokeWidth={2} />,
-        permission: "ai:use",
-        badge: t("nav.aiBadge"),
-        badgeVariant: "ai",
-      }),
       group("customers", t("nav.sectionFleet"), <Users size={17} strokeWidth={2} />, [
         {
           href: "/clients",
@@ -428,6 +420,19 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     });
   }, [menuEntries, menuFilter, permissions]);
 
+  // Menu mobile : mêmes entrées, filtrées par permission (la recherche est dans le menu).
+  const visibleEntries = useMemo(() => {
+    const visible = (item: MenuItemDef) => has(item.permission) && !item.hidden;
+    return menuEntries.flatMap((entry): MenuEntryDef[] => {
+      if (entry.kind === "link") return visible(entry.item) ? [entry] : [];
+      const items = entry.items.filter(visible);
+      return items.length > 0 ? [{ ...entry, items }] : [];
+    });
+  }, [menuEntries, me.permissions]);
+  const unreadNotifications = trpc.notifications.unreadCount.useQuery(undefined, {
+    refetchInterval: 60_000,
+  });
+
   // Deux menus ouverts au plus : celui de la page courante + le dernier ouvert par
   // l'utilisateur (mémorisé dans le navigateur). Ouvrir un troisième referme le plus ancien.
   const recentGroups = useSyncExternalStore(subscribeOpenGroups, readOpenGroups, () => NO_GROUPS);
@@ -468,13 +473,22 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
     }
   };
 
+  const garageLogo = sidebarLogoSrc(me.activeOrganization?.logoUrl);
+
   return (
     <AppShell>
       <Sidebar
         garageName={me.activeOrganization?.name ?? t("common.appName")}
         garageSub={garageSub}
-        logoLabel={t("common.appName")}
-        logoIcon={<Wrench size={19} strokeWidth={2.4} />}
+        logoLabel={me.activeOrganization?.name ?? t("common.appName")}
+        logoIcon={
+          garageLogo ? (
+            // Data URL enregistrée par le gérant, pas une image distante optimisable.
+            <img src={garageLogo} alt="" />
+          ) : (
+            <Wrench size={19} strokeWidth={2.4} />
+          )
+        }
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
         collapseLabel={t("nav.collapseSidebar")}
@@ -584,6 +598,15 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
 
       <AppMain>
         <Topbar>
+          <Link href="/" className="topbar-mobile-brand" aria-label={t("nav.mobile.home")}>
+            <span className="sidebar-logo" aria-hidden>
+              {garageLogo ? (
+                <img src={garageLogo} alt="" />
+              ) : (
+                <Wrench size={17} strokeWidth={2.4} />
+              )}
+            </span>
+          </Link>
           {me.allowedSites.length > 1 ? (
             <div className="dropdown-wrap">
               <button
@@ -612,7 +635,7 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
           {has("customer:read") ? <GlobalSearch /> : <SearchBox placeholder={t("common.search")} />}
 
           <TopbarActions>
-            <IconButton aria-label={t("nav.notifications")} />
+            <NotificationBell />
             <div className="dropdown-wrap">
               <Avatar label={me.user?.name ?? "?"} onClick={() => setProfileOpen((v) => !v)} />
               <DropdownMenu open={profileOpen} onClose={() => setProfileOpen(false)}>
@@ -676,6 +699,24 @@ export function AppShellClient({ me, children }: { me: Me; children: ReactNode }
         ) : null}
         <Content>{children}</Content>
       </AppMain>
+      <MobileTabBar
+        entries={visibleEntries}
+        isActive={isItemActive}
+        renderMenu={(close) => (
+          <MobileMenuSheet
+            onClose={close}
+            entries={visibleEntries}
+            isActive={isItemActive}
+            garageName={me.activeOrganization?.name ?? t("common.appName")}
+            userName={me.user?.name ?? ""}
+            userMeta={me.membership ? t(`common.roles.${me.membership.role}`) : ""}
+            showSettings={has(SETTINGS_PERMISSIONS)}
+            onSignOut={() => signOut.mutate()}
+            unreadCount={unreadNotifications.data?.count ?? 0}
+          />
+        )}
+      />
+      <PwaProvider />
     </AppShell>
   );
 }

@@ -40,6 +40,40 @@ export const listInvoicesInputSchema = z.object({
 
 export const caseIdInputSchema = z.object({ caseId: id });
 
+/** M09 §7 — « Relancer maintenant » : relance de créance hors séquence, envoyée tout de suite. */
+const reminderChannel = z.enum(["WHATSAPP", "SMS", "EMAIL"]);
+
+export const remindNowInputSchema = z.object({
+  caseId: id,
+  /** Canaux choisis par l'utilisateur ; absent = canaux automatiques de la règle « Créances ». */
+  channels: z.array(reminderChannel).min(1).max(3).optional(),
+  /** Compatibilité : un seul canal. */
+  channel: reminderChannel.optional(),
+});
+
+/** M09 RG-M09-16 — envoi de la mise en demeure par email (PDF joint). */
+export const formalNoticeSendInputSchema = z.object({ caseId: id });
+
+/** « Marquer comme remise » : accusé de réception de la mise en demeure (date + mode). */
+export const formalNoticeDeliveredInputSchema = z.object({
+  caseId: id,
+  deliveredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format AAAA-MM-JJ."),
+  method: z.enum(["email", "whatsapp", "hand", "bailiff", "registered_mail"]),
+  note: z.string().trim().max(500).optional(),
+});
+
+/** Aperçu de l'envoi groupé : clients à relancer, canaux disponibles. */
+export const remindPreviewInputSchema = z.object({
+  caseIds: z.array(id).min(1).max(300).optional(),
+  minDaysOverdue: z.number().int().min(0).max(365).default(0),
+});
+
+/** Envoi groupé « Relancer les clients sélectionnés » sur les canaux choisis. */
+export const remindBulkInputSchema = z.object({
+  caseIds: z.array(id).min(1).max(300),
+  channels: z.array(reminderChannel).min(1, "Choisissez au moins un canal.").max(3),
+});
+
 export const addPromiseInputSchema = z.object({
   caseId: id,
   installments: z

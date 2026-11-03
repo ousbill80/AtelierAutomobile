@@ -47,7 +47,7 @@ const SAT_HOURS = {
   sat: [["08:00", "14:00"]],
   sun: [],
 };
-const SLOT_PX = 16;
+const SLOT_PX = 24;
 
 function nextSaturday(): string {
   let day = addDaysToKey(localDateKey(new Date(), TZ), 2);

@@ -26,6 +26,7 @@ export async function findSimilarCustomerNames(
     FROM "Customer"
     WHERE "organizationId" = ${organizationId}
       AND "deletedAt" IS NULL
+      AND "source" IS DISTINCT FROM 'assureur'
       AND similarity("displayName", ${name}) >= ${NAME_SIMILARITY_THRESHOLD}
       ${excludeId ? Prisma.sql`AND id <> ${excludeId}` : Prisma.empty}
     ORDER BY similarity DESC
@@ -77,6 +78,7 @@ export async function searchCustomersByPhone(
     FROM "Customer" c
     WHERE c."organizationId" = ${organizationId}
       AND c."deletedAt" IS NULL
+      AND c.source IS DISTINCT FROM 'assureur'
       AND (
         c.phone LIKE ${suffix} OR c.phone2 LIKE ${suffix} OR c."whatsappPhone" LIKE ${suffix}
         OR EXISTS (
@@ -136,6 +138,7 @@ export async function searchCustomersByName(
     LEFT JOIN contact_match m ON m."customerId" = c.id
     WHERE c."organizationId" = ${organizationId}
       AND c."deletedAt" IS NULL
+      AND c.source IS DISTINCT FROM 'assureur'
       AND (
         unaccent(lower(c."displayName")) % unaccent(${q})
         OR unaccent(lower(c."displayName")) LIKE unaccent(${contains})

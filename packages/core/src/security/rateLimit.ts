@@ -40,8 +40,8 @@ export function checkSlidingWindowRateLimit(
 }
 
 /**
- * Compteur en mémoire (processus) pour login / OTP / webhooks.
- * En production multi-instance, préférer Redis ; ce store suffit au local et aux tests.
+ * Compteur en mémoire du processus. Les tests et le repli sans Redis l'utilisent.
+ * En production, le serveur web enregistre la même fenêtre dans Redis (`REDIS_URL`).
  */
 export class InMemoryRateLimiter {
   private readonly hits = new Map<string, number[]>();

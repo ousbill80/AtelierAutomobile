@@ -194,7 +194,23 @@ test("parcours facturation : OR prêt → facture émise → espèces + Wave →
   await expect(page.getByTestId("invoice-balance")).toContainText("21 419 FCFA");
   await expect(page.getByText("Partiellement payée")).toBeVisible();
 
-  // ── Solde payé par Wave reçu sur le numéro marchand (saisie manuelle, référence) ──
+  // ── Wave sans compte : l'encaissement est bloqué, on crée le compte, puis on encaisse ──
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
+  await dialog.getByRole("button", { name: "Wave" }).click();
+  await expect(
+    dialog.getByText("Créez d'abord le compte Wave dans Trésorerie, puis encaissez."),
+  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Valider l'encaissement" })).toBeDisabled();
+  await dialog.getByRole("link", { name: "Créer le compte" }).click();
+  await expect(page).toHaveURL(/\/tresorerie/);
+  await page.getByRole("button", { name: "Nouveau compte" }).click();
+  const accountDialog = page.getByRole("dialog", { name: "Nouveau compte de trésorerie" });
+  await accountDialog.getByLabel("Nom du compte").fill("Wave");
+  await accountDialog.getByLabel("Type").selectOption({ label: "Mobile money" });
+  await accountDialog.getByRole("checkbox", { name: "Wave" }).check();
+  await accountDialog.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Compte créé.")).toBeVisible();
+  await page.goto(invoiceUrl);
   await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   await dialog.getByRole("button", { name: "Wave" }).click();
   await dialog.getByLabel("Référence").fill("T_8F2A91");

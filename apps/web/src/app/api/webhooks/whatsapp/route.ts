@@ -42,7 +42,7 @@ interface WhatsappWebhookPayload {
 }
 
 export async function POST(req: Request) {
-  const limited = webhookRateLimitResponse(req);
+  const limited = await webhookRateLimitResponse(req);
   if (limited) return limited;
   const payload = (await req
     .clone()

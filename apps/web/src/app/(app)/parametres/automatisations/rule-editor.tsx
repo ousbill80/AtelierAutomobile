@@ -38,6 +38,8 @@ export interface RuleDraft {
   actions: AutomationAction[];
   mode: "AUTO" | "PROPOSE";
   delayMinutes: number;
+  /** Restriction par site existante : conservée telle quelle à l'enregistrement. */
+  siteIds: string[];
 }
 
 export const EMPTY_RULE: RuleDraft = {
@@ -47,7 +49,93 @@ export const EMPTY_RULE: RuleDraft = {
   actions: [{ type: "send_template", templateKey: "", channel: "WHATSAPP" }],
   mode: "PROPOSE",
   delayMinutes: 0,
+  siteIds: [],
 };
+
+/** Actions proposées dans le sélecteur (celles non livrées en v1 en sont exclues). */
+const SELECTABLE_ACTIONS = AUTOMATION_ACTION_TYPES.filter((type) => !UNAVAILABLE_ACTIONS.has(type));
+
+/** Condition en cours d'édition : la saisie brute est gardée telle quelle, convertie à l'enregistrement. */
+interface ConditionDraft {
+  field: string;
+  op: ConditionOp;
+  raw: string;
+  /** Valeur d'origine (non retouchée) : conservée telle quelle, ex. booléen. */
+  original?: AutomationCondition["value"];
+}
+
+const NUMERIC_OPS: ReadonlySet<ConditionOp> = new Set(["gt", "gte", "lt", "lte"]);
+
+function toDraft(condition: AutomationCondition): ConditionDraft {
+  return {
+    field: condition.field,
+    op: condition.op,
+    raw: displayValue(condition.value),
+    original: condition.value,
+  };
+}
+
+function fromDraft(draft: ConditionDraft): AutomationCondition {
+  return {
+    field: draft.field,
+    op: draft.op,
+    value: draft.original !== undefined ? draft.original : parseValue(draft.op, draft.raw),
+  };
+}
+
+/** Libellé d'un champ de condition ; un chemin hors catalogue s'affiche tel quel. */
+function fieldLabel(field: string): string {
+  try {
+    return t(`automations.fields.${field}`);
+  } catch {
+    return field;
+  }
+}
+
+/** Contrôles avant envoi (messages en français) ; `null` si la règle est enregistrable. */
+function validateRule(rule: RuleDraft, conditions: ConditionDraft[]): string | null {
+  if (!rule.name.trim()) return t("automations.editor.errors.name");
+  for (const condition of conditions) {
+    const raw = condition.raw.trim();
+    if (condition.original !== undefined) continue;
+    if (!raw) return t("automations.editor.errors.conditionValue");
+    if (NUMERIC_OPS.has(condition.op) && Number.isNaN(Number(raw)))
+      return t("automations.editor.errors.conditionNumber");
+  }
+  if (rule.actions.length === 0) return t("automations.editor.errors.noAction");
+  for (const action of rule.actions) {
+    switch (action.type) {
+      case "send_template":
+        if (!action.templateKey.trim()) return t("automations.editor.errors.templateKey");
+        break;
+      case "notify_members":
+      case "create_task":
+        if (!action.title.trim()) return t("automations.editor.errors.title");
+        if (
+          action.type === "notify_members" &&
+          !action.roles?.length &&
+          !action.membershipIds?.length
+        )
+          return t("automations.editor.errors.roles");
+        break;
+      case "add_customer_tag":
+        if (!action.tag.trim()) return t("automations.editor.errors.tag");
+        break;
+      case "assign_conversation":
+        if (!action.membershipId) return t("automations.editor.errors.membership");
+        break;
+      case "schedule_reminder":
+        if (!action.templateKey?.trim()) return t("automations.editor.errors.unavailableAction");
+        break;
+      case "call_webhook":
+        if (!action.endpointId) return t("automations.editor.errors.unavailableAction");
+        break;
+      default:
+        break;
+    }
+  }
+  return null;
+}
 
 function defaultAction(type: AutomationActionType): AutomationAction {
   switch (type) {
@@ -91,6 +179,9 @@ export function RuleEditor({
   onDone: (warnings: string[]) => void;
 }) {
   const [rule, setRule] = useState<RuleDraft>(initial);
+  const [conditions, setConditions] = useState<ConditionDraft[]>(() =>
+    initial.conditions.map(toDraft),
+  );
   const [error, setError] = useState<string | null>(null);
   const templates = trpc.automations.messageTemplates.useQuery();
   const create = trpc.automations.create.useMutation();
@@ -98,22 +189,27 @@ export function RuleEditor({
   const saving = create.isPending || update.isPending;
 
   const set = (patch: Partial<RuleDraft>) => setRule((r) => ({ ...r, ...patch }));
-  const setCondition = (i: number, patch: Partial<AutomationCondition>) =>
-    set({ conditions: rule.conditions.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
+  const setCondition = (i: number, patch: Partial<ConditionDraft>) =>
+    setConditions((all) => all.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const setAction = (i: number, next: AutomationAction) =>
     set({ actions: rule.actions.map((a, j) => (j === i ? next : a)) });
 
   async function save() {
     setError(null);
-    // Valeurs de condition saisies (chaîne/nombre/liste) : validées côté serveur (Zod).
+    const invalid = validateRule(rule, conditions);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    // Valeurs de condition converties ici (liste pour `in`, nombre si numérique) ; Zod revalide.
     const payload = {
-      name: rule.name,
+      name: rule.name.trim(),
       trigger: rule.trigger,
-      conditions: rule.conditions,
+      conditions: conditions.map(fromDraft),
       actions: rule.actions,
       mode: rule.mode,
       delayMinutes: rule.delayMinutes,
-      siteIds: [],
+      siteIds: rule.siteIds,
     } as Parameters<typeof create.mutateAsync>[0];
     try {
       const result = rule.id
@@ -161,19 +257,22 @@ export function RuleEditor({
 
       <fieldset className="flex flex-col gap-2 rounded-md bg-surface-2 p-3">
         <legend className="font-semibold">{t("automations.editor.if")}</legend>
-        {rule.conditions.length === 0 && (
+        {conditions.length === 0 && (
           <p className="text-sm text-muted">{t("automations.editor.noCondition")}</p>
         )}
-        {rule.conditions.map((condition, i) => (
+        {conditions.map((condition, i) => (
           <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
             <Select
               aria-label={t("automations.editor.field")}
               value={condition.field}
               onChange={(e) => setCondition(i, { field: e.target.value })}
             >
+              {!(CONDITION_FIELDS as readonly string[]).includes(condition.field) && (
+                <option value={condition.field}>{fieldLabel(condition.field)}</option>
+              )}
               {CONDITION_FIELDS.map((field) => (
                 <option key={field} value={field}>
-                  {t(`automations.fields.${field}`)}
+                  {fieldLabel(field)}
                 </option>
               ))}
             </Select>
@@ -181,8 +280,7 @@ export function RuleEditor({
               aria-label={t("automations.editor.op")}
               value={condition.op}
               onChange={(e) => {
-                const op = e.target.value as ConditionOp;
-                setCondition(i, { op, value: parseValue(op, displayValue(condition.value)) });
+                setCondition(i, { op: e.target.value as ConditionOp, original: undefined });
               }}
             >
               {CONDITION_OPS.map((op) => (
@@ -193,12 +291,15 @@ export function RuleEditor({
             </Select>
             <Input
               aria-label={t("automations.editor.value")}
-              value={displayValue(condition.value)}
-              onChange={(e) => setCondition(i, { value: parseValue(condition.op, e.target.value) })}
+              value={condition.raw}
+              placeholder={
+                condition.op === "in" ? t("automations.editor.listPlaceholder") : undefined
+              }
+              onChange={(e) => setCondition(i, { raw: e.target.value, original: undefined })}
             />
             <Button
               variant="ghost"
-              onClick={() => set({ conditions: rule.conditions.filter((_, j) => j !== i) })}
+              onClick={() => setConditions((all) => all.filter((_, j) => j !== i))}
             >
               {t("automations.editor.remove")}
             </Button>
@@ -208,13 +309,9 @@ export function RuleEditor({
           <Button
             variant="secondary"
             onClick={() =>
-              set({
-                conditions: [
-                  ...rule.conditions,
-                  { field: CONDITION_FIELDS[0], op: "eq", value: "" },
-                ],
-              })
+              setConditions((all) => [...all, { field: CONDITION_FIELDS[0], op: "eq", raw: "" }])
             }
+            disabled={conditions.length >= 10}
           >
             {t("automations.editor.addCondition")}
           </Button>
@@ -234,12 +331,14 @@ export function RuleEditor({
                       setAction(i, defaultAction(e.target.value as AutomationActionType))
                     }
                   >
-                    {AUTOMATION_ACTION_TYPES.map((type) => (
+                    {UNAVAILABLE_ACTIONS.has(action.type) && (
+                      <option value={action.type} disabled>
+                        {`${t(`automations.actions.${action.type}`)} ${t("automations.actions.unavailable")}`}
+                      </option>
+                    )}
+                    {SELECTABLE_ACTIONS.map((type) => (
                       <option key={type} value={type}>
                         {t(`automations.actions.${type}`)}
-                        {UNAVAILABLE_ACTIONS.has(type)
-                          ? ` ${t("automations.actions.unavailable")}`
-                          : ""}
                       </option>
                     ))}
                   </Select>
@@ -405,14 +504,46 @@ function ActionFields({
         />
       );
     case "assign_conversation":
-      return (
-        <Input
-          label={t("automations.editor.membershipId")}
-          value={action.membershipId}
-          onChange={(e) => onChange({ ...action, membershipId: e.target.value })}
-        />
-      );
+      return <AssigneeField action={action} onChange={onChange} />;
     default:
-      return <p className="text-sm text-muted">{t("automations.actions.unavailable")}</p>;
+      return <p className="text-sm text-muted">{t("automations.editor.unavailableHint")}</p>;
   }
+}
+
+function AssigneeField({
+  action,
+  onChange,
+}: {
+  action: Extract<AutomationAction, { type: "assign_conversation" }>;
+  onChange: (next: AutomationAction) => void;
+}) {
+  const assignees = trpc.messaging.conversations.assignees.useQuery();
+  const members = assignees.data ?? [];
+  const known = members.some((m) => m.id === action.membershipId);
+  return (
+    <Field
+      label={t("automations.editor.assignee")}
+      error={assignees.isError ? t("automations.editor.assigneesError") : undefined}
+    >
+      <Select
+        value={action.membershipId}
+        disabled={assignees.isLoading}
+        onChange={(e) => onChange({ ...action, membershipId: e.target.value })}
+      >
+        <option value="">
+          {assignees.isLoading
+            ? t("automations.editor.assigneesLoading")
+            : t("automations.editor.selectAssignee")}
+        </option>
+        {action.membershipId && !known && !assignees.isLoading && (
+          <option value={action.membershipId}>{t("automations.editor.unknownAssignee")}</option>
+        )}
+        {members.map((m) => (
+          <option key={m.id} value={m.id}>
+            {`${m.name ?? "—"} · ${t(`automations.roles.${m.role}`)}`}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
 }

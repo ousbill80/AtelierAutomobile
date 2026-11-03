@@ -1,8 +1,9 @@
 "use client";
 
 // M05 §6 / §7 — /parametres/devis : validité, signature obligatoire, plafonds de remise par
-// rôle (RG-M05-07), acompte (RG-M05-14), premier rappel si véhicule sur place, conditions
-// imprimées, affichage des prix par ligne. Paliers de relance : renvoi vers M10.
+// rôle (RG-M05-07), acompte (RG-M05-14), conditions imprimées, affichage des prix par ligne.
+// Paliers de relance : renvoi vers M10. `followupWhenVehicleOnSite` reste lu/validé (données
+// existantes) mais n'est pas exposé : aucune relance ne l'applique encore.
 import { useState } from "react";
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -25,10 +26,12 @@ export default function QuoteSettingsPage() {
 function SettingsForm({ initial }: { initial: Settings }) {
   const [form, setForm] = useState<Settings>(initial);
   const [saved, setSaved] = useState(false);
+  const utils = trpc.useUtils();
   const save = trpc.quote.updateSettings.useMutation({
     onSuccess: (data) => {
       setForm(data);
       setSaved(true);
+      void utils.quote.settings.invalidate();
     },
   });
   const set = (patch: Partial<Settings>) => {
@@ -36,6 +39,10 @@ function SettingsForm({ initial }: { initial: Settings }) {
     setForm({ ...form, ...patch });
   };
   const num = (value: string) => Math.min(100_000_000, Number(value.replace(/\D/g, "")) || 0);
+  // Validité : entre 1 et 365 jours (schéma serveur) ; 0/vide signalé avant l'envoi.
+  const days = (value: string) => Math.min(365, num(value));
+  const validityInvalid = form.validityDays < 1;
+  const validityCompanyInvalid = form.validityDaysCompany < 1;
   return (
     <div className="flex flex-col gap-4">
       <PageHead title={t("settings.title")} description={t("settings.description")} />
@@ -44,13 +51,19 @@ function SettingsForm({ initial }: { initial: Settings }) {
           label={t("settings.validityDays")}
           inputMode="numeric"
           value={String(form.validityDays)}
-          onChange={(e) => set({ validityDays: num(e.target.value) })}
+          invalid={validityInvalid}
+          aria-invalid={validityInvalid}
+          hint={validityInvalid ? t("settings.validityRange") : undefined}
+          onChange={(e) => set({ validityDays: days(e.target.value) })}
         />
         <Input
           label={t("settings.validityDaysCompany")}
           inputMode="numeric"
           value={String(form.validityDaysCompany)}
-          onChange={(e) => set({ validityDaysCompany: num(e.target.value) })}
+          invalid={validityCompanyInvalid}
+          aria-invalid={validityCompanyInvalid}
+          hint={validityCompanyInvalid ? t("settings.validityRange") : undefined}
+          onChange={(e) => set({ validityDaysCompany: days(e.target.value) })}
         />
       </section>
       <CheckboxRow
@@ -132,12 +145,6 @@ function SettingsForm({ initial }: { initial: Settings }) {
           </div>
         )}
       </section>
-      <Input
-        label={t("settings.followupOnSite")}
-        value={form.followupWhenVehicleOnSite}
-        onChange={(e) => set({ followupWhenVehicleOnSite: e.target.value })}
-        hint={t("settings.followupHint")}
-      />
       <Link href="/parametres/relances" className="text-sm text-accent">
         {t("settings.reminderRules")} →
       </Link>
@@ -161,6 +168,7 @@ function SettingsForm({ initial }: { initial: Settings }) {
       )}
       <Button
         loading={save.isPending}
+        disabled={validityInvalid || validityCompanyInvalid}
         onClick={() =>
           save.mutate({
             validityDays: form.validityDays,
@@ -169,7 +177,6 @@ function SettingsForm({ initial }: { initial: Settings }) {
             showLinePricesToCustomer: form.showLinePricesToCustomer,
             discountCaps: form.discountCaps,
             depositRule: form.depositRule,
-            followupWhenVehicleOnSite: form.followupWhenVehicleOnSite,
             termsText: form.termsText,
           })
         }

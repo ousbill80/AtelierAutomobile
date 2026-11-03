@@ -11,7 +11,7 @@
 //   « Entretien » n'est pas implémenté (nécessiterait une convention de catégorie M08/M07
 //   non normalisée à ce stade).
 import { adminDb, db } from "@atelieros/db";
-import { optimizeSendTime, resolveAiSettings } from "@atelieros/core";
+import { formatFCFA, optimizeSendTime, resolveAiSettings } from "@atelieros/core";
 
 type TenantDb = ReturnType<typeof db.forTenant>;
 import {
@@ -545,6 +545,21 @@ async function planForOrganization(
               },
             });
           }
+
+          // M10 §5.2 : palier interne (alerte gérant, ex. créance J+45) — aucun message client,
+          // une notification à chaque OWNER (cloche + push) et, pour une créance, l'escalade
+          // du dossier de recouvrement (M09 `collections.escalate`).
+          if (step.internalOnly) {
+            await raiseInternalAlert(tenantDb, {
+              organizationId,
+              reminderId: created.id,
+              type: rule.type,
+              stepLabel: step.label,
+              customerId: candidate.customerId,
+              invoiceId: candidate.invoiceId ?? null,
+              now,
+            });
+          }
         } catch (error) {
           // Contrainte unique (organizationId, dedupeKey) : déjà créé par un passage
           // concurrent (ON CONFLICT DO NOTHING, RG-M10-05).
@@ -557,6 +572,76 @@ async function planForOrganization(
         }
       }
     }
+  }
+}
+
+/** M10 §5.2 — alerte gérant d'un palier `internalOnly` (idempotente par relance). */
+export async function raiseInternalAlert(
+  tenantDb: TenantDb,
+  input: {
+    organizationId: string;
+    reminderId: string;
+    type: string;
+    stepLabel: string;
+    customerId: string;
+    invoiceId: string | null;
+    now: Date;
+  },
+): Promise<void> {
+  const [owners, customer, invoice, openCase] = await Promise.all([
+    tenantDb.membership.findMany({
+      where: { role: "OWNER", isActive: true },
+      select: { id: true },
+    }),
+    tenantDb.customer.findFirst({ where: { id: input.customerId }, select: { displayName: true } }),
+    input.invoiceId
+      ? tenantDb.invoice.findFirst({
+          where: { id: input.invoiceId },
+          select: { number: true, balance: true },
+        })
+      : Promise.resolve(null),
+    input.type === "RECEIVABLE"
+      ? tenantDb.collectionCase.findFirst({
+          where: { customerId: input.customerId, status: { in: ["OPEN", "ESCALATED"] } },
+          select: { id: true, status: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const name = customer?.displayName ?? "Client";
+  const isReceivable = input.type === "RECEIVABLE";
+  const title = isReceivable ? `Créance à reprendre en main : ${name}` : `Alerte relance : ${name}`;
+  const amount = invoice?.balance != null ? ` (${formatFCFA(invoice.balance)} restant dû)` : "";
+  const body = isReceivable
+    ? `${input.stepLabel}${invoice?.number ? ` — facture ${invoice.number}${amount}` : ""}. Les relances automatiques sont terminées : appelez le client ou décidez de la suite.`
+    : `${input.stepLabel}. Les relances automatiques sont terminées pour ce dossier.`;
+  const link = isReceivable
+    ? openCase
+      ? `/creances/${openCase.id}`
+      : "/creances"
+    : `/clients/${input.customerId}`;
+
+  if (owners.length > 0) {
+    await tenantDb.notification.createMany({
+      data: owners.map((owner) => ({
+        organizationId: input.organizationId,
+        membershipId: owner.id,
+        type: "reminder.internal_alert",
+        title,
+        body,
+        link,
+        severity: "warning",
+        dedupeKey: `reminder.internal_alert:${input.reminderId}`,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  if (openCase && openCase.status !== "ESCALATED") {
+    await tenantDb.collectionCase.updateMany({
+      where: { id: openCase.id, status: "OPEN" },
+      data: { status: "ESCALATED", escalatedAt: input.now },
+    });
   }
 }
 

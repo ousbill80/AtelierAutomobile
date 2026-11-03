@@ -81,16 +81,18 @@ export function InsurerView({ id }: { id: string }) {
         </Link>
       )}
       {canEdit && (
-        <InsurerForm
-          initial={initial}
-          pending={update.isPending}
-          error={error}
-          onSubmit={(v) => {
-            setError(null);
-            setSaved(false);
-            update.mutate({ id, ...insurerPayload(v) });
-          }}
-        />
+        <div className="max-w-3xl">
+          <InsurerForm
+            initial={initial}
+            pending={update.isPending}
+            error={error}
+            onSubmit={(v) => {
+              setError(null);
+              setSaved(false);
+              update.mutate({ id, ...insurerPayload(v) });
+            }}
+          />
+        </div>
       )}
       {saved && (
         <p role="status" className="text-sm text-status-ok">

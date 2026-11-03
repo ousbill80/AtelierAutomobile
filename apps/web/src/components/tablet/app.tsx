@@ -154,6 +154,14 @@ function SyncBar({ tablet }: { tablet: Tablet }) {
   const rejections = tablet.meta?.rejections ?? [];
   return (
     <div className="flex flex-col gap-2">
+      <form method="post" action="/api/auth/sortie">
+        <button
+          type="submit"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-border bg-surface px-4 text-base font-semibold"
+        >
+          {tt("signOut")}
+        </button>
+      </form>
       {!tablet.online ? (
         <div
           role="status"
@@ -274,9 +282,11 @@ function HomeView({
           ))}
         </div>
       ) : null}
-      <Link href="/" className="inline-flex min-h-11 items-center text-sm text-muted underline">
-        {tt("office")}
-      </Link>
+      {me.data?.isPinSession ? null : (
+        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-muted underline">
+          {tt("office")}
+        </Link>
+      )}
     </section>
   );
 }

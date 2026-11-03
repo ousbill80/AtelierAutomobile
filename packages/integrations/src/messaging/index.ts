@@ -3,6 +3,7 @@ export type {
   MessageChannel,
   MessagingProvider,
   MessagingSendErrorLike,
+  OutboundAttachment,
   OutboundMessage,
   ProviderErrorCategory,
   ProviderEvent,

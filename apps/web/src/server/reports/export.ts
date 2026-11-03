@@ -126,7 +126,12 @@ function formattedRows(columns: readonly ReportColumn[], rows: readonly ReportRo
 export async function toPdf(result: ReportResult, meta: ExportMeta): Promise<Uint8Array> {
   const hasTotals = Object.keys(result.totals).length > 0;
   const pdf = await renderReportPdf({
-    garage: { name: meta.org.name, legalName: meta.org.legalName, ncc: meta.org.ncc },
+    garage: {
+      name: meta.org.name,
+      legalName: meta.org.legalName,
+      ncc: meta.org.ncc,
+      logo: meta.org.logoUrl,
+    },
     title: reportTitle(meta.slug),
     params: paramLines(result, meta)
       .slice(1)
