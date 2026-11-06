@@ -324,7 +324,7 @@ function SummaryTab({ input }: { input: TabInput }) {
   }
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
         {d.hasInvoices ? (
           <ReceivablesCard receivables={d.receivables} label={L.cards.unpaidInvoices} />
         ) : (
@@ -394,7 +394,7 @@ function RemindersTab({ input }: { input: TabInput }) {
   const isEmpty = d.sent === 0 && d.failed === 0 && d.toApprove === 0 && d.recoveredAmount === 0;
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label={L.reminders.sent}
           value={String(d.sent)}
@@ -535,7 +535,7 @@ function FinancesTab({
   const bucketKeys = Object.keys(L.finances.buckets) as (keyof typeof r.buckets)[];
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label={remindersOnly ? L.cards.unpaidInvoices : L.cards.receivables}
           value={formatAmount(r.total)}

@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./styles.css": "./src/styles.css",
+    "./motion.css": "./src/motion.css",
     "./src/data-table": "./src/data-table.tsx",
     "./src/empty-state": "./src/empty-state.tsx",
     "./src/status-badge": "./src/status-badge.tsx"

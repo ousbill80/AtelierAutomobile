@@ -36,6 +36,7 @@ export function Button({
 
   return (
     <button className={classes} disabled={disabled ?? loading} aria-busy={loading} {...rest}>
+      {loading ? <span className="btn-spinner" aria-hidden="true" /> : null}
       {children}
     </button>
   );

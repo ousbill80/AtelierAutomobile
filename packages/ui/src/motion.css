@@ -1,0 +1,116 @@
+/*
+ * Mouvement AtelierOS — transitions courtes (120-260 ms) qui rendent l'interface fluide
+ * sans ralentir le travail. Tout est neutralisé sous `prefers-reduced-motion: reduce`.
+ */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 260ms;
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes pop-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px) scale(0.98); } }
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheet-out { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes nav-progress {
+  0% { transform: scaleX(0); }
+  40% { transform: scaleX(0.55); }
+  100% { transform: scaleX(0.9); }
+}
+
+/* Entrée de page (app/(app)/template.tsx) */
+.page-enter { animation: rise-in var(--dur-slow) var(--ease-out) both; }
+
+/* Listes : apparition en cascade des premiers éléments */
+.stagger > * { animation: rise-in var(--dur-slow) var(--ease-out) both; }
+.stagger > :nth-child(2) { animation-delay: 30ms; }
+.stagger > :nth-child(3) { animation-delay: 60ms; }
+.stagger > :nth-child(4) { animation-delay: 90ms; }
+.stagger > :nth-child(5) { animation-delay: 120ms; }
+.stagger > :nth-child(6) { animation-delay: 150ms; }
+.stagger > :nth-child(n + 7) { animation-delay: 180ms; }
+
+/* Barre de progression de navigation */
+.nav-progress {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 200;
+  pointer-events: none; transform-origin: left; background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: nav-progress 8s var(--ease-out) forwards;
+}
+.nav-progress.done {
+  transform: scaleX(1);
+  animation: fade-out var(--dur-slow) ease var(--dur-fast) forwards;
+  transition: transform var(--dur-fast) ease;
+}
+
+/* Boutons : retour tactile et indicateur de chargement */
+.btn { transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast),
+  box-shadow var(--dur-base), transform var(--dur-fast) var(--ease-out); }
+.btn:not(:disabled):active { transform: scale(0.97); }
+.btn-primary:not(:disabled):hover { box-shadow: var(--shadow-sm); }
+.btn-spinner {
+  width: 1em; height: 1em; flex: none; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+.icon-btn { transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast); }
+.icon-btn:active { transform: scale(0.92); }
+
+/* Cartes, liens et tableaux */
+.card { transition: box-shadow var(--dur-base), border-color var(--dur-base), transform var(--dur-base) var(--ease-out); }
+a.card:hover, a > .card:hover, .card[role="button"]:hover, button.card:hover {
+  box-shadow: var(--shadow-md); transform: translateY(-2px);
+}
+table.data-table tbody tr { transition: background var(--dur-fast); }
+.nav-item { transition: background var(--dur-fast), color var(--dur-fast); }
+
+/* Champs : focus qui « s'allume » */
+.input, .select, .textarea {
+  transition: border-color var(--dur-fast), box-shadow var(--dur-base);
+}
+
+/* Menu latéral : sections qui se déplient en douceur */
+.sidebar-section-collapse {
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-in-out), opacity var(--dur-base);
+}
+.sidebar-section-collapse > * { min-height: 0; overflow: hidden; }
+.sidebar-section-collapse > * { transition: visibility 0s; }
+.sidebar-section.closed .sidebar-section-collapse { grid-template-rows: 0fr; opacity: 0; }
+/* Section repliée : hors de l'arbre d'accessibilité une fois l'animation terminée. */
+.sidebar-section.closed .sidebar-section-collapse > * { visibility: hidden; transition: visibility 0s var(--dur-base); }
+@media (max-width: 760px) {
+  .sidebar-section.closed .sidebar-section-collapse { display: none; }
+}
+.sidebar-section-icon { transition: transform var(--dur-base) var(--ease-in-out); }
+.sidebar-section.closed .sidebar-section-icon { transform: rotate(-90deg); }
+
+/* Menus déroulants */
+.dropdown-menu { animation: pop-in var(--dur-base) var(--ease-out) both; transform-origin: top right; }
+
+/* Modales : entrée et sortie */
+.modal-backdrop { animation: fade-in var(--dur-base) ease both; }
+.modal { animation: pop-in var(--dur-slow) var(--ease-out) both; }
+.modal-backdrop.closing { animation: fade-out var(--dur-base) ease both; }
+.modal-backdrop.closing .modal { animation: pop-out var(--dur-base) ease both; }
+@media (max-width: 760px) {
+  .modal { animation-name: sheet-in; }
+  .modal-backdrop.closing .modal { animation-name: sheet-out; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+  .btn-spinner { animation: spin 1.2s linear infinite !important; }
+  .nav-progress { animation: none; transform: scaleX(0.6); }
+}
