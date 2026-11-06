@@ -1,7 +1,14 @@
 import { adminDb } from "@atelieros/db";
 import { OTP_RESEND_COOLDOWN_SECONDS } from "@atelieros/core";
-import { afterEach, describe, expect, it } from "vitest";
-import { hashResetToken, OtpRateLimitError, sendOtp, verifyOtp } from "./otp-service";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  canDeliverOtp,
+  hashResetToken,
+  OtpDeliveryError,
+  OtpRateLimitError,
+  sendOtp,
+  verifyOtp,
+} from "./otp-service";
 
 const testIdentifiers: string[] = [];
 
@@ -12,6 +19,8 @@ function nextIdentifier(label: string): string {
 }
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   await adminDb.verification.deleteMany({
     where: { identifier: { in: testIdentifiers.map((id) => `${id}:VERIFY`) } },
   });
@@ -84,6 +93,100 @@ describe("sendOtp / verifyOtp (RG-M01-04)", () => {
     await verifyOtp(identifier, "000002", "VERIFY", now);
     const outcome = await verifyOtp(identifier, "000003", "VERIFY", now);
     expect(outcome).toBe("TOO_MANY_ATTEMPTS");
+  });
+});
+
+const PLATFORM_ENV_NAMES = [
+  "PLATFORM_WHATSAPP_PHONE_ID",
+  "PLATFORM_WHATSAPP_TOKEN",
+  "PLATFORM_WHATSAPP_OTP_TEMPLATE",
+  "PLATFORM_SMS_PROVIDER",
+  "PLATFORM_SMS_CREDENTIALS",
+  "PLATFORM_EMAIL_PROVIDER",
+  "PLATFORM_EMAIL_CREDENTIALS",
+  "PLATFORM_EMAIL_FROM",
+];
+
+function clearPlatformEnv() {
+  for (const name of PLATFORM_ENV_NAMES) vi.stubEnv(name, "");
+}
+
+function stubPlatformEmail() {
+  vi.stubEnv("PLATFORM_EMAIL_PROVIDER", "resend");
+  vi.stubEnv("PLATFORM_EMAIL_CREDENTIALS", JSON.stringify({ apiKey: "re_fictif" }));
+  vi.stubEnv("PLATFORM_EMAIL_FROM", "codes@atelieros.ci");
+}
+
+describe("sendOtp — canaux plateforme (RG-M01-04, M01 §14)", () => {
+  it("en production sans canal plateforme : erreur lisible, aucun code conservé", async () => {
+    clearPlatformEnv();
+    vi.stubEnv("APP_ENV", "production");
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const identifier = nextIdentifier("prod-none");
+
+    await expect(sendOtp(identifier, "VERIFY", "EMAIL", new Date())).rejects.toThrow(
+      "Envoi du code impossible pour le moment. Réessayez dans quelques minutes.",
+    );
+    await expect(sendOtp(identifier, "VERIFY", "EMAIL", new Date())).rejects.toBeInstanceOf(
+      OtpDeliveryError,
+    );
+    expect(
+      await adminDb.verification.count({ where: { identifier: `${identifier}:VERIFY` } }),
+    ).toBe(0);
+    // Le journal ne contient ni le destinataire ni le code.
+    const logged = errorLog.mock.calls.flat().join(" ");
+    expect(logged).not.toContain(identifier);
+    expect(logged).not.toMatch(/\d{6}/);
+    errorLog.mockRestore();
+  });
+
+  it("en production avec email plateforme : envoi réel, code absent de la réponse", async () => {
+    clearPlatformEnv();
+    stubPlatformEmail();
+    vi.stubEnv("APP_ENV", "production");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "re_1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const identifier = nextIdentifier("prod-email");
+
+    const result = await sendOtp(identifier, "VERIFY", "EMAIL", new Date());
+
+    expect(result.sentVia).toBe("EMAIL");
+    expect(result.devCode).toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.to).toBe(identifier);
+    expect(body.subject).toMatch(/^Votre code AtelierOS : \d{6}$/);
+  });
+
+  it("hors production sans canal plateforme : fournisseur console", async () => {
+    clearPlatformEnv();
+    vi.stubEnv("APP_ENV", "development");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const identifier = nextIdentifier("dev-console");
+
+    await expect(sendOtp(identifier, "VERIFY", "EMAIL", new Date())).resolves.toMatchObject({
+      sentVia: "EMAIL",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("canDeliverOtp : faux en production sans canal, vrai avec, toujours vrai hors production", () => {
+    clearPlatformEnv();
+    vi.stubEnv("APP_ENV", "production");
+    expect(canDeliverOtp("EMAIL")).toBe(false);
+    expect(canDeliverOtp("WHATSAPP")).toBe(false);
+    stubPlatformEmail();
+    expect(canDeliverOtp("EMAIL")).toBe(true);
+    expect(canDeliverOtp("WHATSAPP")).toBe(false);
+    vi.stubEnv("APP_ENV", "development");
+    clearPlatformEnv();
+    expect(canDeliverOtp("WHATSAPP")).toBe(true);
   });
 });
 

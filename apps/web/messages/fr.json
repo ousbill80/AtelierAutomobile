@@ -429,7 +429,8 @@
       "resendIn": "Renvoyer le code dans {seconds}s",
       "resend": "Renvoyer le code",
       "switchToSms": "Recevoir par SMS",
-      "invalidCode": "Code invalide ou expiré."
+      "invalidCode": "Code invalide ou expiré.",
+      "deliveryFailed": "Votre compte est créé, mais le code n'a pas pu être envoyé. Réessayez dans quelques minutes avec « Renvoyer le code »."
     },
     "forgotPassword": {
       "title": "Mot de passe oublié",
@@ -616,7 +617,8 @@
       "nameLabel": "Nom",
       "roleLabel": "Rôle",
       "channelLabel": "Canal",
-      "submit": "Envoyer les invitations"
+      "submit": "Envoyer les invitations",
+      "invitationsPending": "{count} invitation(s) enregistrée(s) mais pas encore envoyée(s) : aucun canal n'est connecté. Une fois vos canaux configurés, renvoyez-les depuis Paramètres → Équipe."
     },
     "channels": {
       "title": "Canaux de communication",
@@ -624,6 +626,8 @@
       "smsEnabled": "Activer les SMS",
       "emailEnabled": "Activer l'email",
       "sendTestLabel": "Envoyer un message de test à",
+      "realAccountsHint": "WhatsApp démarre en liens wa.me (sans compte). Pour envoyer automatiquement des SMS, des emails ou des messages WhatsApp, connectez vos comptes dans Paramètres → Canaux.",
+      "toConfigure": "Pour que vos SMS et emails partent vraiment, connectez vos comptes dans Paramètres → Canaux puis cliquez sur « Tester ».",
       "submit": "Enregistrer"
     },
     "data": {

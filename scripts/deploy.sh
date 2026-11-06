@@ -22,6 +22,11 @@ for name in "${required_vars[@]}"; do
     exit 1
   fi
 done
+# RG-M01-04 : sans canal plateforme, aucun code OTP ne part (inscription, nouvel appareil).
+if [ -z "${PLATFORM_EMAIL_PROVIDER:-}" ] && [ -z "${PLATFORM_SMS_PROVIDER:-}" ] && [ -z "${PLATFORM_WHATSAPP_PHONE_ID:-}" ]; then
+  echo "ATTENTION: aucun canal plateforme (PLATFORM_EMAIL_*, PLATFORM_SMS_*, PLATFORM_WHATSAPP_*) :" >&2
+  echo "           les codes de vérification ne pourront pas être envoyés. Voir docs/exploitation.md §2." >&2
+fi
 
 echo "=== Déploiement AtelierOS (${ATELIEROS_VERSION}) ==="
 

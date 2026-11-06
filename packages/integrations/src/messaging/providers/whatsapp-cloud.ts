@@ -22,6 +22,11 @@ export interface WhatsappCloudSendInput extends OutboundMessage {
   templateName?: string;
   templateLanguage?: string;
   templateParams?: string[];
+  /**
+   * Paramètre du bouton URL d'index 0. Les modèles Meta de catégorie « authentification »
+   * (OTP, RG-M01-04) exigent le code à la fois dans le corps et dans le bouton « Copier le code ».
+   */
+  templateUrlButtonParam?: string;
 }
 
 export type ProviderErrorCategory =
@@ -87,14 +92,26 @@ export function createWhatsappCloudProvider(
             template: {
               name: input.templateName,
               language: { code: input.templateLanguage ?? "fr" },
-              components: input.templateParams?.length
-                ? [
-                    {
-                      type: "body",
-                      parameters: input.templateParams.map((text) => ({ type: "text", text })),
-                    },
-                  ]
-                : [],
+              components: [
+                ...(input.templateParams?.length
+                  ? [
+                      {
+                        type: "body",
+                        parameters: input.templateParams.map((text) => ({ type: "text", text })),
+                      },
+                    ]
+                  : []),
+                ...(input.templateUrlButtonParam
+                  ? [
+                      {
+                        type: "button",
+                        sub_type: "url",
+                        index: "0",
+                        parameters: [{ type: "text", text: input.templateUrlButtonParam }],
+                      },
+                    ]
+                  : []),
+              ],
             },
           }
         : {

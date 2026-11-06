@@ -38,6 +38,9 @@ export default function InscriptionPage() {
       if (result.devCode) {
         params.set("devCode", result.devCode);
       }
+      if ("deliveryFailed" in result && result.deliveryFailed) {
+        params.set("deliveryFailed", "1");
+      }
       router.push(`/verification?${params.toString()}`);
     },
     onError(err) {
@@ -93,9 +96,7 @@ export default function InscriptionPage() {
                 aria-label={
                   showPassword ? t("auth.signIn.hidePassword") : t("auth.signIn.showPassword")
                 }
-                title={
-                  showPassword ? t("auth.signIn.hidePassword") : t("auth.signIn.showPassword")
-                }
+                title={showPassword ? t("auth.signIn.hidePassword") : t("auth.signIn.showPassword")}
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

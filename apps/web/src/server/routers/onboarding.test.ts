@@ -3,7 +3,11 @@ import { computeSessionAbsoluteExpiry } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { defaultOutbox } from "@atelieros/integrations";
 import { reminderRuleUpsertInputSchema } from "@atelieros/validators";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("../messaging/queue", () => ({
+  enqueueMessageSendJob: vi.fn(async () => undefined),
+}));
 import { createContext } from "../context";
 import { createCallerFactory } from "../trpc";
 import { appRouter } from "./_app";
@@ -37,7 +41,12 @@ describe("onboarding router (M01, RG-M01-16/17)", () => {
   const userIds: string[] = [];
   const orgIds: string[] = [];
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   afterAll(async () => {
+    await adminDb.message.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.auditLog.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.invitation.deleteMany({ where: { organizationId: { in: orgIds } } });
     await adminDb.vehicle.deleteMany({ where: { organizationId: { in: orgIds } } });
@@ -187,14 +196,14 @@ describe("onboarding router (M01, RG-M01-16/17)", () => {
     it("étape 5 (équipe) omise marque l'étape comme passée sans effet de bord", async () => {
       const caller = callerFactory(await contextFor(token));
       const result = await caller.onboarding.saveStep({ step: 5 });
-      expect(result).toEqual({ nextStep: 6, invitationIds: [] });
+      expect(result).toEqual({ nextStep: 6, invitationIds: [], deliveredCount: 0 });
 
       const org = await adminDb.organization.findUniqueOrThrow({ where: { id: orgId } });
       const onboarding = (org.settings as { onboarding: { skipped: number[] } }).onboarding;
       expect(onboarding.skipped).toContain(5);
     });
 
-    it("étape 5 (équipe) avec invitations crée les Invitation et envoie un message", async () => {
+    it("étape 5 (équipe) avec invitations crée les Invitation par le circuit d'envoi du garage", async () => {
       const caller = callerFactory(await contextFor(token));
       const result = await caller.onboarding.saveStep({
         step: 5,
@@ -218,8 +227,10 @@ describe("onboarding router (M01, RG-M01-16/17)", () => {
       expect(invitation.role).toBe("MECHANIC");
       expect(invitation.status).toBe("PENDING");
 
-      const sent = defaultOutbox.lastFor("+2250700000099");
-      expect(sent?.body).toContain("Garage Excellence Auto");
+      // Aucun canal automatique à ce stade (wa_link seul) : rien ne part, pas même en console ;
+      // l'invitation reste enregistrée et se renvoie depuis Paramètres → Équipe.
+      expect(result.deliveredCount).toBe(0);
+      expect(defaultOutbox.lastFor("+2250700000099")).toBeUndefined();
 
       const auditLog = await adminDb.auditLog.findFirstOrThrow({
         where: { organizationId: orgId, action: "member.invited" },
@@ -230,7 +241,31 @@ describe("onboarding router (M01, RG-M01-16/17)", () => {
     it("étape 6 (canaux) omise marque l'étape comme passée", async () => {
       const caller = callerFactory(await contextFor(token));
       const result = await caller.onboarding.saveStep({ step: 6 });
-      expect(result).toEqual({ nextStep: 7, testSent: false });
+      expect(result).toEqual({ nextStep: 7, testSent: false, channelsToConfigure: [] });
+    });
+
+    it("étape 6 (canaux) en production ne crée aucun fournisseur console (RG-M11-26)", async () => {
+      vi.stubEnv("APP_ENV", "production");
+      const caller = callerFactory(await contextFor(token));
+      const result = await caller.onboarding.saveStep({
+        step: 6,
+        data: {
+          whatsappProvider: "wa_link",
+          smsEnabled: true,
+          emailEnabled: true,
+          sendTestTo: "+2250700000097",
+        },
+      });
+      if (!("channelsToConfigure" in result)) throw new Error("channelsToConfigure manquant");
+      expect(result.channelsToConfigure).toEqual(["SMS", "EMAIL"]);
+      // wa_link n'envoie rien tout seul : le test ne peut pas partir.
+      expect(result.testSent).toBe(false);
+
+      const activeConsole = await adminDb.channelConfig.count({
+        where: { organizationId: orgId, provider: "console", isActive: true },
+      });
+      expect(activeConsole).toBe(0);
+      expect(defaultOutbox.lastFor("+2250700000097")).toBeUndefined();
     });
 
     it("étape 6 (canaux) active SMS/email et envoie un message de test", async () => {
@@ -256,7 +291,11 @@ describe("onboarding router (M01, RG-M01-16/17)", () => {
       });
       expect(email.isActive).toBe(true);
 
-      expect(defaultOutbox.lastFor("+2250700000098")).toBeDefined();
+      // Le test passe par la file d'envoi (worker), sur le premier canal automatique actif.
+      const testMessage = await adminDb.message.findFirstOrThrow({
+        where: { organizationId: orgId, to: "+2250700000098" },
+      });
+      expect(testMessage.channel).toBe("SMS");
     });
 
     it("étape 7 (données) avec choice=demo charge les clients/véhicules de démonstration", async () => {

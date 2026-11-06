@@ -2,7 +2,7 @@ import { randomInt } from "node:crypto";
 import { hashPassword, LOCKOUT_FAILURE_THRESHOLD, normalizePhoneCI } from "@atelieros/core";
 import { adminDb } from "@atelieros/db";
 import { defaultOutbox } from "@atelieros/integrations";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetSensitiveRateLimiter } from "../security/sensitiveRateLimit";
 import type { Ctx } from "../context";
 import { createCallerFactory } from "../trpc";
@@ -103,6 +103,38 @@ async function createUserWithOrg(role: "OWNER" | "MECHANIC", password: string) {
 }
 
 describe("authRouter — parcours inscription / connexion (M01)", () => {
+  it("signUp en production sans canal plateforme : refus lisible, aucun compte créé", async () => {
+    for (const name of [
+      "PLATFORM_WHATSAPP_PHONE_ID",
+      "PLATFORM_WHATSAPP_TOKEN",
+      "PLATFORM_WHATSAPP_OTP_TEMPLATE",
+      "PLATFORM_SMS_PROVIDER",
+      "PLATFORM_EMAIL_PROVIDER",
+    ]) {
+      vi.stubEnv(name, "");
+    }
+    vi.stubEnv("APP_ENV", "production");
+    const phone = randomPhone();
+    const caller = callerFactory(makeCtx());
+
+    try {
+      await expect(
+        caller.auth.signUp({
+          name: "Sans Canal",
+          phone,
+          password: "SuperSecret123",
+          acceptTerms: true,
+        }),
+      ).rejects.toMatchObject({
+        code: "SERVICE_UNAVAILABLE",
+        message: "Envoi du code impossible pour le moment. Réessayez dans quelques minutes.",
+      });
+      expect(await adminDb.user.count({ where: { phone: normalizePhoneCI(phone).e164! } })).toBe(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("signUp → verifyOtp(VERIFY) → signIn réussit", async () => {
     const phone = randomPhone();
     const caller = callerFactory(makeCtx());

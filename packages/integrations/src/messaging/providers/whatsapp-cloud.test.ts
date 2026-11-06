@@ -61,6 +61,33 @@ describe("createWhatsappCloudProvider.send", () => {
     ]);
   });
 
+  it("ajoute le bouton URL d'un modèle d'authentification (OTP plateforme)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ messages: [{ id: "wamid.789" }] }));
+    const provider = createWhatsappCloudProvider(credentials, { fetchImpl });
+
+    await provider.send({
+      to: "+2250747218890",
+      channel: "WHATSAPP",
+      body: "ignoré",
+      idempotencyKey: "otp:1",
+      templateName: "atelieros_otp",
+      templateParams: ["482913"],
+      templateUrlButtonParam: "482913",
+    } as never);
+
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const payload = JSON.parse(init.body);
+    expect(payload.template.components).toEqual([
+      { type: "body", parameters: [{ type: "text", text: "482913" }] },
+      {
+        type: "button",
+        sub_type: "url",
+        index: "0",
+        parameters: [{ type: "text", text: "482913" }],
+      },
+    ]);
+  });
+
   it("lève une erreur classée PERMANENT_RECIPIENT pour un numéro non WhatsApp (131026)", async () => {
     const fetchImpl = vi
       .fn()

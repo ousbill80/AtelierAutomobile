@@ -64,10 +64,12 @@ function Wizard({ initialStep }: { initialStep: number }) {
     STEP_KEYS.filter((key) => STEP_NUMBER[key] < initialStep),
   );
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const saveStep = trpc.onboarding.saveStep.useMutation({
     onSuccess(result) {
       setError(null);
+      setNotice(onboardingNotice(result));
       const currentKey = STEP_KEYS[stepIndex];
       setDoneKeys((prev) => (prev.includes(currentKey) ? prev : [...prev, currentKey]));
       utils.me.get.invalidate();
@@ -96,6 +98,11 @@ function Wizard({ initialStep }: { initialStep: number }) {
       </div>
       <Stepper steps={steps} currentKey={currentKey} doneKeys={doneKeys} />
       {error ? <p className="error">{error}</p> : null}
+      {notice ? (
+        <p className="notice" role="status">
+          {notice}
+        </p>
+      ) : null}
       {currentKey === "garage" ? (
         <GarageStep
           loading={saveStep.isPending}
@@ -453,6 +460,19 @@ function TeamStep({
   );
 }
 
+/** Message d'information après les étapes Équipe et Canaux (envois non partis, comptes à connecter). */
+function onboardingNotice(result: object): string | null {
+  if ("invitationIds" in result && "deliveredCount" in result) {
+    const ids = result.invitationIds as string[];
+    const pending = ids.length - (result.deliveredCount as number);
+    if (pending > 0) return t("onboarding.team.invitationsPending", { count: pending });
+  }
+  if ("channelsToConfigure" in result && (result.channelsToConfigure as string[]).length > 0) {
+    return t("onboarding.channels.toConfigure");
+  }
+  return null;
+}
+
 function ChannelsStep({
   loading,
   onSubmit,
@@ -481,6 +501,7 @@ function ChannelsStep({
           {t("onboarding.channels.title")}
         </h2>
         <p className="onboarding-step-desc">{t("onboarding.channels.description")}</p>
+        <p className="hint">{t("onboarding.channels.realAccountsHint")}</p>
       </div>
       <Switch
         label={t("onboarding.channels.smsEnabled")}

@@ -24,7 +24,10 @@ import {
 } from "@atelieros/validators";
 import { resolveIdentifier } from "../auth/identifier";
 import {
+  canDeliverOtp,
   hashResetToken,
+  OtpDeliveryError,
+  OtpRateLimitError,
   sendOtp as sendOtpCode,
   verifyOtp as verifyOtpCode,
 } from "../auth/otp-service";
@@ -36,6 +39,14 @@ import { writeAuditLog } from "../audit";
 import { assertSensitiveRateLimit } from "../security/sensitiveRateLimit";
 
 const RESET_TOKEN_EXPIRY_MINUTES = 10;
+
+/** Envoi d'OTP impossible (RG-M01-04, cas limite « aucun réseau ») : message lisible. */
+function otpDeliveryUnavailable(): TRPCError {
+  return new TRPCError({
+    code: "SERVICE_UNAVAILABLE",
+    message: "Envoi du code impossible pour le moment. Réessayez dans quelques minutes.",
+  });
+}
 
 async function findUserByIdentifier(identifier: ReturnType<typeof resolveIdentifier>) {
   return identifier.kind === "EMAIL"
@@ -149,6 +160,10 @@ export const authRouter = router({
       });
     }
 
+    const otpChannel = phone ? "WHATSAPP" : "EMAIL";
+    // Sans canal pour envoyer le code, le compte serait créé mais impossible à valider.
+    if (!canDeliverOtp(otpChannel)) throw otpDeliveryUnavailable();
+
     const passwordHash = await hashPassword(input.password);
     const now = new Date();
 
@@ -167,11 +182,15 @@ export const authRouter = router({
       return createdUser;
     });
 
-    const otpChannel = phone ? "WHATSAPP" : "EMAIL";
     const identifier = phone ?? email!;
-    const { devCode } = await sendOtpCode(identifier, "VERIFY", otpChannel, now);
-
-    return { userId: user.id, otpChannel, devCode };
+    try {
+      const { devCode, sentVia } = await sendOtpCode(identifier, "VERIFY", otpChannel, now);
+      return { userId: user.id, otpChannel: sentVia, devCode };
+    } catch (error) {
+      if (!(error instanceof OtpDeliveryError)) throw error;
+      // Compte créé : l'écran de vérification permet de redemander un code plus tard.
+      return { userId: user.id, otpChannel, devCode: undefined, deliveryFailed: true as const };
+    }
   }),
 
   sendOtp: publicProcedure.input(sendOtpInputSchema).mutation(async ({ input, ctx }) => {
@@ -181,11 +200,12 @@ export const authRouter = router({
     const channel = input.channel ?? (resolved.kind === "PHONE" ? "WHATSAPP" : "EMAIL");
     try {
       return await sendOtpCode(resolved.value, input.purpose, channel, new Date());
-    } catch {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: "Veuillez patienter avant de redemander un code.",
-      });
+    } catch (error) {
+      if (error instanceof OtpDeliveryError) throw otpDeliveryUnavailable();
+      if (error instanceof OtpRateLimitError) {
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: error.message });
+      }
+      throw error;
     }
   }),
 
@@ -316,7 +336,8 @@ export const authRouter = router({
             let devCode: string | undefined;
             try {
               devCode = (await sendOtpCode(resolved.value, "NEW_DEVICE", otpChannel, now)).devCode;
-            } catch {
+            } catch (error) {
+              if (error instanceof OtpDeliveryError) throw otpDeliveryUnavailable();
               // Un code a déjà été envoyé récemment : le client peut saisir le dernier reçu.
             }
             return { status: "OTP_REQUIRED" as const, devCode };

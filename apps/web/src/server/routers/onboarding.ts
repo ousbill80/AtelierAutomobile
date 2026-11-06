@@ -12,12 +12,15 @@ import {
   organizationSlug,
 } from "@atelieros/core";
 import { adminDb, db, type Prisma } from "@atelieros/db";
-import { createConsoleMessagingProvider, type MessageChannel } from "@atelieros/integrations";
+import type { Channel } from "@atelieros/core";
 import { saveOnboardingStepInputSchema, type SaveOnboardingStepInput } from "@atelieros/validators";
 import { authedProcedure, router } from "../trpc";
 import type { Ctx, CtxSession, CtxUser } from "../context";
 import { writeAuditLog } from "../audit";
 import { assertPlanLimit } from "../plan/limits";
+import { deliverInvitation } from "../invitations/deliver";
+import { messagingEnqueue } from "../messaging/enqueue";
+import { enqueueMessageSendJob } from "../messaging/queue";
 import {
   computeInvitationExpiry,
   generateInvitationToken,
@@ -343,12 +346,13 @@ async function saveTeamStep(
 ) {
   if (!data) {
     await advanceOnboardingStep(organizationId, 5, true);
-    return { nextStep: 6 as const, invitationIds: [] as string[] };
+    return { nextStep: 6 as const, invitationIds: [] as string[], deliveredCount: 0 };
   }
 
   const membershipId = requireMembership(ctx);
   const org = await adminDb.organization.findUniqueOrThrow({ where: { id: organizationId } });
   const invitationIds: string[] = [];
+  let deliveredCount = 0;
 
   for (const invite of data.invitations) {
     await assertPlanLimit(organizationId, "activeMembers");
@@ -374,15 +378,20 @@ async function saveTeamStep(
       },
     });
 
-    const provider = createConsoleMessagingProvider(invite.channel as MessageChannel);
-    const to = invite.channel === "EMAIL" ? email! : phone!;
-    await provider.send({
-      to,
-      channel: invite.channel as MessageChannel,
-      body: `Vous êtes invité(e) à rejoindre ${org.name} sur AtelierOS. Lien d'invitation : /invitation/${token}`,
-      templateKey: "invitation.created",
-      idempotencyKey: `inv:${token}:created`,
+    // Même circuit que Paramètres → Équipe : canal réel du garage, lien absolu (APP_URL).
+    // Sans canal actif à ce stade, l'invitation reste enregistrée et se renvoie plus tard.
+    const delivered = await deliverInvitation({
+      organizationId,
+      invitationId: invitation.id,
+      channel: invite.channel as Channel,
+      to: invite.channel === "EMAIL" ? email! : phone!,
+      recipientName: invite.name,
+      organizationName: org.name,
+      role: invite.role,
+      token,
+      kind: "created",
     });
+    if (delivered.delivered) deliveredCount += 1;
 
     await writeAuditLog({
       organizationId,
@@ -400,82 +409,95 @@ async function saveTeamStep(
   }
 
   await advanceOnboardingStep(organizationId, 5);
-  return { nextStep: 6 as const, invitationIds };
+  return { nextStep: 6 as const, invitationIds, deliveredCount };
 }
 
+/**
+ * Étape 6 — canaux. WhatsApp démarre en `wa_link` (liens wa.me, aucun compte requis) ; l'API
+ * Meta, les SMS et l'email réels se branchent dans Paramètres → Canaux, avec leurs identifiants.
+ * En production, aucun fournisseur `console` n'est créé : le worker refuserait de démarrer
+ * (RG-M11-26) et les messages ne partiraient jamais.
+ */
 async function saveChannelsStep(
   organizationId: string,
   data: Extract<SaveOnboardingStepInput, { step: 6 }>["data"],
 ) {
+  const production = process.env.APP_ENV === "production";
   if (!data) {
     await advanceOnboardingStep(organizationId, 6, true);
-    return { nextStep: 7 as const, testSent: false };
+    return { nextStep: 7 as const, testSent: false, channelsToConfigure: [] as Channel[] };
   }
 
   const tenantDb = db.forTenant({ organizationId });
-  await tenantDb.channelConfig.upsert({
-    where: {
-      organizationId_channel_provider: {
-        organizationId,
-        channel: "WHATSAPP",
-        provider: data.whatsappProvider,
-      },
-    },
-    create: {
-      organizationId,
-      channel: "WHATSAPP",
-      provider: data.whatsappProvider,
-      isActive: true,
-      credentials: "{}",
-    },
-    update: { isActive: true },
-  });
-  if (data.smsEnabled) {
+  const channelsToConfigure: Channel[] = [];
+
+  // whatsapp_cloud exige des identifiants Meta : impossible sans le formulaire des canaux.
+  if (data.whatsappProvider === "wa_link") {
     await tenantDb.channelConfig.upsert({
       where: {
-        organizationId_channel_provider: { organizationId, channel: "SMS", provider: "console" },
+        organizationId_channel_provider: {
+          organizationId,
+          channel: "WHATSAPP",
+          provider: "wa_link",
+        },
       },
       create: {
         organizationId,
-        channel: "SMS",
-        provider: "console",
+        channel: "WHATSAPP",
+        provider: "wa_link",
         isActive: true,
         credentials: "{}",
       },
       update: { isActive: true },
     });
+  } else {
+    channelsToConfigure.push("WHATSAPP");
   }
-  if (data.emailEnabled) {
+
+  for (const [enabled, channel] of [
+    [data.smsEnabled, "SMS"],
+    [data.emailEnabled, "EMAIL"],
+  ] as const) {
+    if (!enabled) continue;
+    if (production) {
+      channelsToConfigure.push(channel);
+      continue;
+    }
+    // Local et tests : fournisseur console, lisible dans /dev/outbox.
     await tenantDb.channelConfig.upsert({
       where: {
-        organizationId_channel_provider: { organizationId, channel: "EMAIL", provider: "console" },
+        organizationId_channel_provider: { organizationId, channel, provider: "console" },
       },
-      create: {
-        organizationId,
-        channel: "EMAIL",
-        provider: "console",
-        isActive: true,
-        credentials: "{}",
-      },
+      create: { organizationId, channel, provider: "console", isActive: true, credentials: "{}" },
       update: { isActive: true },
     });
   }
 
   let testSent = false;
   if (data.sendTestTo) {
-    const provider = createConsoleMessagingProvider("WHATSAPP");
-    await provider.send({
-      to: data.sendTestTo,
-      channel: "WHATSAPP",
-      body: "Ceci est un message de test AtelierOS.",
-      templateKey: "onboarding.test",
-      idempotencyKey: `onboarding:test:${crypto.randomUUID()}`,
-    });
-    testSent = true;
+    // Vrai circuit d'envoi (file + worker) par le premier canal automatique actif. wa_link
+    // n'envoie rien tout seul : sans SMS/WhatsApp API, le test ne part pas (testSent = false).
+    const result = await tenantDb.transaction((tx) =>
+      messagingEnqueue(tx, organizationId, {
+        idempotencyKey: `onboarding:test:${crypto.randomUUID()}`,
+        kind: "transactional",
+        to: { phone: data.sendTestTo, whatsapp: data.sendTestTo },
+        channels: ["WHATSAPP", "SMS"],
+        bodyOverride: "Ceci est un message de test AtelierOS.",
+      }),
+    );
+    if ("message" in result && result.message) {
+      try {
+        await enqueueMessageSendJob(result.message.id);
+        testSent = true;
+      } catch {
+        testSent = false;
+      }
+    }
   }
 
   await advanceOnboardingStep(organizationId, 6);
-  return { nextStep: 7 as const, testSent };
+  return { nextStep: 7 as const, testSent, channelsToConfigure };
 }
 
 async function saveDataStep(

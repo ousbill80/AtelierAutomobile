@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { adminDb } from "@atelieros/db";
-import { OtpRateLimitError, sendOtp, verifyOtp } from "./otp-service";
+import { OtpDeliveryError, OtpRateLimitError, sendOtp, verifyOtp } from "./otp-service";
 
 // M15 §10 — export complet et suppression du compte exigent un OTP frais (< 5 min, durée de vie
 // du code RG-M01-04) envoyé au demandeur lui-même (email, sinon WhatsApp).
@@ -35,6 +35,9 @@ export async function sendSensitiveActionOtp(userId: string, now: Date) {
   } catch (error) {
     if (error instanceof OtpRateLimitError) {
       throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: error.message });
+    }
+    if (error instanceof OtpDeliveryError) {
+      throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: error.message });
     }
     throw error;
   }

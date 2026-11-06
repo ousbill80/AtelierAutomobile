@@ -147,3 +147,18 @@ export type {
 } from "./webhooks";
 
 export * from "./subscription";
+
+export type {
+  PlatformEmailProvider,
+  PlatformMessagingConfig,
+  PlatformProviderDeps,
+  PlatformSmsProvider,
+  SendPlatformOtpInput,
+} from "./platform/messaging";
+export {
+  createPlatformMessagingProvider,
+  platformOtpChannels,
+  PlatformOtpDeliveryError,
+  readPlatformMessagingConfig,
+  sendPlatformOtp,
+} from "./platform/messaging";

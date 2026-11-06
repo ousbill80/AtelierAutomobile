@@ -565,4 +565,4 @@ model AuditLog {
 }
 ```
 
-Variables d'environnement ajoutées (canaux plateforme pour les OTP) : `PLATFORM_WHATSAPP_PHONE_ID`, `PLATFORM_WHATSAPP_TOKEN`, `PLATFORM_WHATSAPP_OTP_TEMPLATE`, `PLATFORM_SMS_PROVIDER`, `PLATFORM_SMS_CREDENTIALS`, `PLATFORM_EMAIL_FROM`.
+Variables d'environnement ajoutées (canaux plateforme pour les OTP) : `PLATFORM_WHATSAPP_PHONE_ID`, `PLATFORM_WHATSAPP_TOKEN`, `PLATFORM_WHATSAPP_OTP_TEMPLATE`, `PLATFORM_WHATSAPP_OTP_LANGUAGE` (défaut `fr`), `PLATFORM_SMS_PROVIDER` (`twilio` | `orange_sms` | `http_sms`), `PLATFORM_SMS_CREDENTIALS` (JSON), `PLATFORM_EMAIL_PROVIDER` (`resend` | `smtp`), `PLATFORM_EMAIL_CREDENTIALS` (JSON), `PLATFORM_EMAIL_FROM`, `PLATFORM_EMAIL_FROM_NAME` (défaut « AtelierOS »). Lues par `readPlatformMessagingConfig` (`packages/integrations/src/platform/messaging.ts`). Hors production, sans canal plateforme, le fournisseur `console` prend le relais ; en production, l'envoi échoue avec « Envoi du code impossible pour le moment. Réessayez dans quelques minutes. » (journal + Sentry `fatal`, sans code ni destinataire) et l'inscription est refusée avant la création du compte.

@@ -23,8 +23,11 @@ function VerificationForm() {
   const purpose = (searchParams.get("purpose") ?? "VERIFY") as "VERIFY" | "RESET" | "NEW_DEVICE";
   const [channel, setChannel] = useState(searchParams.get("channel") ?? "EMAIL");
   const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SEC);
+  const deliveryFailed = searchParams.get("deliveryFailed") === "1";
+  const [error, setError] = useState<string | null>(
+    deliveryFailed ? t("auth.verifyOtp.deliveryFailed") : null,
+  );
+  const [cooldown, setCooldown] = useState(deliveryFailed ? 0 : RESEND_COOLDOWN_SEC);
   // Code OTP visible uniquement en développement
   const [devCode, setDevCode] = useState(searchParams.get("devCode"));
 
@@ -38,6 +41,8 @@ function VerificationForm() {
     onSuccess(result) {
       setCooldown(RESEND_COOLDOWN_SEC);
       setError(null);
+      // Repli WhatsApp → SMS (RG-M01-04) : afficher le canal réellement utilisé.
+      setChannel(result.sentVia);
       // Mettre à jour le code de dev si disponible (renvoi OTP)
       if (result.devCode) {
         setDevCode(result.devCode);
