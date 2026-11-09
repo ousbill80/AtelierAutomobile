@@ -68,6 +68,7 @@ function ConnexionForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [needsOtp, setNeedsOtp] = useState(false);
+  const [otpFromApp, setOtpFromApp] = useState(false);
   const [devOtpCode, setDevOtpCode] = useState<string | null>(null);
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,8 @@ function ConnexionForm() {
       }
       if (result.status === "OTP_REQUIRED") {
         setNeedsOtp(true);
-        setDevOtpCode(result.devCode ?? null);
+        setOtpFromApp(result.method === "TOTP");
+        setDevOtpCode("devCode" in result ? (result.devCode ?? null) : null);
         setError(null);
         return;
       }
@@ -261,11 +263,18 @@ function ConnexionForm() {
                 </span>
               </div>
               <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>
-                {t("auth.signIn.securityCheckDesc")}
+                {otpFromApp
+                  ? t("auth.signIn.securityCheckTotpDesc")
+                  : t("auth.signIn.securityCheckDesc")}
               </p>
               <Field label={t("auth.verifyOtp.title")}>
                 <OtpInput value={otpCode} onChange={setOtpCode} />
               </Field>
+              {otpFromApp ? (
+                <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>
+                  <Link href="/mot-de-passe-oublie">{t("auth.signIn.totpLostPhone")}</Link>
+                </p>
+              ) : null}
               {devOtpCode ? (
                 <div className="auth-dev-badge">
                   <span>{t("auth.signIn.devTestCode")}</span>

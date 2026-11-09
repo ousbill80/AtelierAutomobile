@@ -3,6 +3,7 @@
 import { Button, Card, EmptyState, PageHead } from "@atelieros/ui";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
+import { TotpCard } from "./totp-card";
 
 export default function ProfileSecurityPage() {
   const utils = trpc.useUtils();
@@ -16,6 +17,7 @@ export default function ProfileSecurityPage() {
   return (
     <>
       <PageHead title={t("profile.security.title")} />
+      <TotpCard />
       <Card title={t("profile.security.sessionsTitle")}>
         {sessions.isLoading ? (
           <p>{t("common.loading")}</p>

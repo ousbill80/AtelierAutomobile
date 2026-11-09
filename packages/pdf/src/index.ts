@@ -48,3 +48,4 @@ export {
   renderFormalNoticePdf,
   type FormalNoticePdfData,
 } from "./formalNotice";
+export { qrDataUrl } from "./qr";

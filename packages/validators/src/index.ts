@@ -5,6 +5,10 @@ export type {
   SendOtpInput,
   SignInInput,
   SignUpInput,
+  SignUpTotpConfirmInput,
+  TotpDisableInput,
+  TotpEnableInput,
+  TotpSetupInput,
   VerifyOtpInput,
 } from "./auth";
 export {
@@ -15,6 +19,10 @@ export {
   sendOtpInputSchema,
   signInInputSchema,
   signUpInputSchema,
+  signUpTotpConfirmInputSchema,
+  totpDisableInputSchema,
+  totpEnableInputSchema,
+  totpSetupInputSchema,
   verifyOtpInputSchema,
 } from "./auth";
 

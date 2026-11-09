@@ -122,6 +122,10 @@ model User {
   locale        String  @default("fr")
   isActive      Boolean @default(true)
   lastLoginAt   DateTime?
+  // Application d'authentification (TOTP, RFC 6238) — vérification « nouvel appareil » (RG-M01-07)
+  totpSecret       String?   // secret base32 chiffré AES-256-GCM (ENCRYPTION_KEY), jamais renvoyé après la configuration
+  totpEnabledAt    DateTime? // null = configuration non confirmée par un premier code
+  totpLastUsedStep Int?      // dernier pas de 30 s accepté (anti-rejeu)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   memberships   Membership[]

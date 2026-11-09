@@ -393,6 +393,8 @@
       "atelierModeDesc": "Accès rapide mécanicien par code PIN à 6 chiffres",
       "securityCheck": "Vérification de sécurité",
       "securityCheckDesc": "Nouvel appareil détecté. Entrez le code de vérification reçu pour confirmer votre identité.",
+      "securityCheckTotpDesc": "Nouvel appareil détecté. Ouvrez votre application d'authentification (Google Authenticator, Microsoft Authenticator…) et saisissez le code à 6 chiffres affiché pour AtelierOS.",
+      "totpLostPhone": "Téléphone perdu ? Réinitialisez votre mot de passe : l'application d'authentification sera retirée.",
       "devTestCode": "Code de test (environnement local) :",
       "modeTabs": "Mode de connexion"
     },
@@ -420,7 +422,21 @@
       "acceptTerms": "J'accepte les conditions d'utilisation",
       "submit": "Créer mon compte",
       "hasAccount": "Déjà un compte ?",
-      "signInLink": "Se connecter"
+      "signInLink": "Se connecter",
+      "verificationLabel": "Comment vérifier votre identité ?",
+      "methodMessage": "Code par email ou WhatsApp/SMS",
+      "methodMessageDesc": "Nous vous envoyons un code à 6 chiffres.",
+      "methodApp": "Application d'authentification",
+      "methodAppDesc": "Google Authenticator, Microsoft Authenticator… Aucun message envoyé.",
+      "appOnlyInfo": "Vous allez relier une application d'authentification (Google Authenticator, Microsoft Authenticator…) : elle vous donnera un code à chaque connexion depuis un nouvel appareil. Installez-la sur votre téléphone avant de continuer.",
+      "continue": "Continuer",
+      "scanTitle": "Reliez votre application",
+      "scanStep1": "1. Ouvrez l'application, ajoutez un compte et scannez ce QR code.",
+      "scanStep2": "2. Saisissez le code à 6 chiffres affiché pour AtelierOS.",
+      "codeLabel": "Code de l'application",
+      "confirm": "Créer mon compte",
+      "back": "Retour",
+      "expiresHint": "Terminez dans les 15 minutes, sinon il faudra recommencer."
     },
     "verifyOtp": {
       "title": "Vérification",
@@ -1020,7 +1036,29 @@
       "revokeSession": "Révoquer",
       "trustedDevicesTitle": "Appareils approuvés",
       "noTrustedDevices": "Aucun appareil approuvé pour le moment.",
-      "noSessions": "Aucune session active."
+      "noSessions": "Aucune session active.",
+      "totp": {
+        "title": "Application d'authentification",
+        "description": "Recevez vos codes de vérification dans une application comme Google Authenticator ou Microsoft Authenticator, sans email ni SMS. Le code est demandé à chaque connexion depuis un nouvel appareil.",
+        "statusOn": "Activée",
+        "statusOff": "Désactivée",
+        "enabledSince": "Activée le {date}",
+        "start": "Configurer l'application",
+        "passwordLabel": "Votre mot de passe actuel",
+        "passwordHint": "Pour confirmer que c'est bien vous.",
+        "continue": "Continuer",
+        "cancel": "Annuler",
+        "step1": "1. Dans votre application, ajoutez un compte et scannez ce QR code.",
+        "qrAlt": "QR code à scanner avec l'application d'authentification",
+        "manualKey": "Impossible de scanner ? Saisissez cette clé à la main :",
+        "step2": "2. Saisissez le code à 6 chiffres affiché par l'application.",
+        "codeLabel": "Code de l'application",
+        "activate": "Activer",
+        "enabledToast": "Application d'authentification activée.",
+        "disable": "Désactiver",
+        "disableConfirm": "Saisissez votre mot de passe pour désactiver l'application. Les codes de vérification repartiront par email, WhatsApp ou SMS.",
+        "disabledToast": "Application d'authentification désactivée."
+      }
     }
   },
   "permissions": {

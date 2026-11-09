@@ -56,3 +56,33 @@ export const pinSignInInputSchema = z.object({
     .regex(/^\d{6}$/, "Le code PIN doit comporter 6 chiffres."),
 });
 export type PinSignInInput = z.infer<typeof pinSignInInputSchema>;
+
+// Application d'authentification (TOTP) — profil → sécurité.
+export const totpSetupInputSchema = z.object({
+  password: z.string().min(1),
+});
+export type TotpSetupInput = z.infer<typeof totpSetupInputSchema>;
+
+export const totpEnableInputSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Le code contient 6 chiffres."),
+});
+export type TotpEnableInput = z.infer<typeof totpEnableInputSchema>;
+
+export const totpDisableInputSchema = z.object({
+  password: z.string().min(1),
+});
+export type TotpDisableInput = z.infer<typeof totpDisableInputSchema>;
+
+// Inscription avec application d'authentification (sans email/SMS envoyé).
+export const signUpTotpConfirmInputSchema = z.object({
+  pendingToken: z.string().min(1).max(4000),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Le code contient 6 chiffres."),
+  deviceId: z.string().trim().min(1),
+});
+export type SignUpTotpConfirmInput = z.infer<typeof signUpTotpConfirmInputSchema>;

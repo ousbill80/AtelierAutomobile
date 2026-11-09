@@ -115,6 +115,10 @@ Permettre à un garage de créer son espace AtelierOS en moins de 10 minutes, d'
 
 **RG-M01-07 — Nouvel appareil.** Si l'organisation active `settings.security.otpOnNewDevice` (défaut : activé pour `OWNER` et `ACCOUNTANT`), une connexion depuis un appareil non approuvé demande un OTP ; l'appareil est ensuite approuvé 90 jours (`TrustedDevice`).
 
+**RG-M01-07 bis — Application d'authentification (TOTP).** Chaque utilisateur peut activer, dans _Profil → Sécurité_, une application d'authentification (Google Authenticator, Microsoft Authenticator, Authy…) : TOTP RFC 6238, HMAC-SHA1, 6 chiffres, pas de 30 s, tolérance ±1 pas. Configuration : mot de passe actuel → QR code (`otpauth://`) et clé manuelle → premier code saisi pour confirmer (avant confirmation, le secret n'est pas actif). Le secret est chiffré en base (`ENCRYPTION_KEY`). Une fois activée : la vérification « nouvel appareil » s'applique à ce compte **quel que soit son rôle**, et le code est lu dans l'application au lieu d'être envoyé par email/WhatsApp/SMS. Un code déjà accepté ne peut pas resservir (anti-rejeu) ; un code faux compte comme un échec de connexion (RG-M01-05). Désactivation : mot de passe actuel. Téléphone perdu : la réinitialisation du mot de passe par OTP (US-M01-04) retire l'application. Audit : `auth.totp_enabled`, `auth.totp_disabled`, `auth.totp_new_device`.
+
+**RG-M01-07 ter — Inscription avec application d'authentification.** Sur `/inscription`, l'utilisateur peut relier une application d'authentification au lieu de recevoir un code par message ; c'est la seule option proposée quand aucun canal plateforme ne peut envoyer de code (production sans `PLATFORM_EMAIL_*`/`PLATFORM_SMS_*`/`PLATFORM_WHATSAPP_*`). Étape 1 : rien n'est créé ; nom, identifiant, mot de passe haché et secret TOTP partent dans un jeton chiffré (AES-256-GCM, `ENCRYPTION_KEY`) valable 15 minutes. Étape 2 : le premier code de l'application crée le compte (appli active), approuve l'appareil et ouvre la session. L'email/téléphone reste **non vérifié** (`emailVerifiedAt`/`phoneVerifiedAt` nuls). Récupération sans canal : la commande serveur `pnpm --filter @atelieros/worker account:reset-link --email <adresse>` (ou `--phone`) génère un lien à usage unique de 30 minutes vers `/mot-de-passe-oublie?token=…` ; la réinitialisation retire l'application (audit `auth.reset_link_issued`).
+
 **RG-M01-08 — Résolution des permissions effectives.**
 
 ```
@@ -446,6 +450,9 @@ model User {
   lockCount           Int       @default(0)   // récidives depuis le dernier succès (RG-M01-05)
   lastActiveOrganizationId String?
   lastActiveSiteId    String?
+  totpSecret          String?   // RG-M01-07 bis : secret TOTP chiffré
+  totpEnabledAt       DateTime?
+  totpLastUsedStep    Int?      // anti-rejeu
   // passwordHash : NON utilisé. Better Auth stocke le hash dans Account.password (providerId "credential").
   // Proposition : supprimer User.passwordHash dans une migration ultérieure.
 }

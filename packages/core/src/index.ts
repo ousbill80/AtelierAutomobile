@@ -153,6 +153,17 @@ export {
   TRUSTED_DEVICE_APPROVAL_DAYS,
 } from "./auth/new-device";
 
+export type { TotpVerificationResult, VerifyTotpInput } from "./auth/totp";
+export {
+  buildTotpUri,
+  createTotpSecret,
+  TOTP_DIGITS,
+  TOTP_PERIOD_SECONDS,
+  TOTP_SECRET_BYTES,
+  totpCode,
+  verifyTotp,
+} from "./auth/totp";
+
 export type { PickActiveSiteInput, SiteOption } from "./auth/site";
 export { canUseAllSitesOption, pickActiveSite } from "./auth/site";
 

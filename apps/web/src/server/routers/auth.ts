@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import {
+  buildTotpUri,
   computeSessionAbsoluteExpiry,
   computeTrustedDeviceExpiry,
   DEFAULT_RATE_LIMITS,
@@ -12,14 +13,17 @@ import {
   requiresNewDeviceOtp,
   type SecuritySettingsLike,
   verifyPassword,
+  verifyTotp,
 } from "@atelieros/core";
 import { adminDb, db } from "@atelieros/db";
+import { qrDataUrl } from "@atelieros/pdf";
 import {
   pinSignInInputSchema,
   resetPasswordInputSchema,
   sendOtpInputSchema,
   signInInputSchema,
   signUpInputSchema,
+  signUpTotpConfirmInputSchema,
   verifyOtpInputSchema,
 } from "@atelieros/validators";
 import { resolveIdentifier } from "../auth/identifier";
@@ -32,6 +36,13 @@ import {
   verifyOtp as verifyOtpCode,
 } from "../auth/otp-service";
 import { assertPasswordPolicy } from "../auth/password-policy";
+import {
+  checkAndConsumeTotp,
+  generateTotpSecret,
+  hasTotpEnabled,
+  openTotpSecret,
+  sealTotpSecret,
+} from "../auth/totp-service";
 import { signInWithPin } from "../auth/pin-session";
 import { buildSessionCookie, clearSessionCookie } from "../cookies";
 import { authedProcedure, publicProcedure, router } from "../trpc";
@@ -39,6 +50,46 @@ import { writeAuditLog } from "../audit";
 import { assertSensitiveRateLimit } from "../security/sensitiveRateLimit";
 
 const RESET_TOKEN_EXPIRY_MINUTES = 10;
+const PENDING_TOTP_SIGNUP_MINUTES = 15;
+
+/** Inscription par application en attente du premier code (jeton chiffré, côté client). */
+interface PendingTotpSignUp {
+  name: string;
+  email?: string;
+  phone?: string;
+  passwordHash: string;
+  secret: string;
+  expiresAt: number;
+}
+
+function openPendingTotpSignUp(token: string, now: Date): PendingTotpSignUp {
+  const expired = new TRPCError({
+    code: "BAD_REQUEST",
+    message: "Cette inscription a expiré. Recommencez depuis le début.",
+  });
+  let pending: PendingTotpSignUp;
+  try {
+    pending = JSON.parse(openTotpSecret(token)) as PendingTotpSignUp;
+  } catch {
+    throw expired;
+  }
+  if (typeof pending.expiresAt !== "number" || pending.expiresAt < now.getTime()) throw expired;
+  return pending;
+}
+
+async function assertIdentifiersAvailable(email: string | undefined, phone: string | undefined) {
+  const existing = await adminDb.user.findFirst({
+    where: {
+      OR: [email ? { email } : undefined, phone ? { phone } : undefined].filter(Boolean) as never,
+    },
+  });
+  if (existing) {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message: "Un compte existe déjà avec cet identifiant.",
+    });
+  }
+}
 
 /** Envoi d'OTP impossible (RG-M01-04, cas limite « aucun réseau ») : message lisible. */
 function otpDeliveryUnavailable(): TRPCError {
@@ -148,17 +199,7 @@ export const authRouter = router({
 
     assertPasswordPolicy(input.password, { phone: input.phone });
 
-    const existing = await adminDb.user.findFirst({
-      where: {
-        OR: [email ? { email } : undefined, phone ? { phone } : undefined].filter(Boolean) as never,
-      },
-    });
-    if (existing) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: "Un compte existe déjà avec cet identifiant.",
-      });
-    }
+    await assertIdentifiersAvailable(email, phone);
 
     const otpChannel = phone ? "WHATSAPP" : "EMAIL";
     // Sans canal pour envoyer le code, le compte serait créé mais impossible à valider.
@@ -192,6 +233,107 @@ export const authRouter = router({
       return { userId: user.id, otpChannel, devCode: undefined, deliveryFailed: true as const };
     }
   }),
+
+  /** Options d'inscription : l'envoi d'un code par message n'est proposé que s'il peut partir. */
+  signUpOptions: publicProcedure.query(() => ({
+    messageCodeAvailable: canDeliverOtp("EMAIL") || canDeliverOtp("WHATSAPP"),
+  })),
+
+  /**
+   * Inscription avec application d'authentification, étape 1 : rien n'est encore créé.
+   * Les données (mot de passe déjà haché, secret TOTP) partent dans un jeton chiffré
+   * AES-256-GCM, infalsifiable, valable 15 minutes.
+   */
+  signUpTotpStart: publicProcedure.input(signUpInputSchema).mutation(async ({ input, ctx }) => {
+    await assertSensitiveRateLimit(`signup-totp:${ctx.ip}`, DEFAULT_RATE_LIMITS.loginByIp);
+    const email = input.email?.toLowerCase().trim();
+    const phone = input.phone ? resolveIdentifier(input.phone).value : undefined;
+    assertPasswordPolicy(input.password, { phone: input.phone });
+    await assertIdentifiersAvailable(email, phone);
+
+    const secret = generateTotpSecret();
+    const pending: PendingTotpSignUp = {
+      name: input.name,
+      email,
+      phone,
+      passwordHash: await hashPassword(input.password),
+      secret,
+      expiresAt: Date.now() + PENDING_TOTP_SIGNUP_MINUTES * 60_000,
+    };
+    const uri = buildTotpUri({ secretBase32: secret, accountLabel: email ?? phone ?? input.name });
+    return {
+      pendingToken: sealTotpSecret(JSON.stringify(pending)),
+      secret,
+      qrCode: await qrDataUrl(uri),
+    };
+  }),
+
+  /** Étape 2 : le premier code de l'appli crée le compte, approuve l'appareil et connecte. */
+  signUpTotpConfirm: publicProcedure
+    .input(signUpTotpConfirmInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      await assertSensitiveRateLimit(`signup-totp:${ctx.ip}`, DEFAULT_RATE_LIMITS.loginByIp);
+      const now = new Date();
+      const pending = openPendingTotpSignUp(input.pendingToken, now);
+
+      const check = verifyTotp({ secretBase32: pending.secret, code: input.code, now });
+      if (check.status !== "OK") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Code incorrect. Vérifiez l'heure de votre téléphone et réessayez.",
+        });
+      }
+      await assertIdentifiersAvailable(pending.email, pending.phone);
+
+      const user = await adminDb.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            name: pending.name,
+            email: pending.email,
+            phone: pending.phone,
+            locale: "fr",
+            // Email/téléphone NON vérifiés : aucun code ne leur a été envoyé.
+            totpSecret: sealTotpSecret(pending.secret),
+            totpEnabledAt: now,
+            totpLastUsedStep: check.step,
+            lastLoginAt: now,
+          },
+        });
+        await tx.account.create({
+          data: {
+            userId: createdUser.id,
+            providerId: "credential",
+            accountId: createdUser.id,
+            password: pending.passwordHash,
+          },
+        });
+        await tx.trustedDevice.upsert({
+          where: { deviceId: input.deviceId },
+          create: {
+            deviceId: input.deviceId,
+            userId: createdUser.id,
+            expiresAt: computeTrustedDeviceExpiry(now),
+          },
+          update: {
+            userId: createdUser.id,
+            organizationId: null,
+            expiresAt: computeTrustedDeviceExpiry(now),
+          },
+        });
+        return createdUser;
+      });
+
+      const session = await createSessionForUser(
+        user.id,
+        input.deviceId,
+        ctx.ip,
+        ctx.userAgent,
+        now,
+        null,
+      );
+      ctx.resHeaders.append("set-cookie", buildSessionCookie(session.token, session.expiresAt));
+      return { ok: true as const, userId: user.id };
+    }),
 
   sendOtp: publicProcedure.input(sendOtpInputSchema).mutation(async ({ input, ctx }) => {
     const resolved = resolveIdentifier(input.identifier);
@@ -314,22 +456,65 @@ export const authRouter = router({
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Identifiants invalides." });
     }
 
+    let security: SecuritySettingsLike | undefined;
     if (activeMembership) {
       const org = await adminDb.organization.findUniqueOrThrow({
         where: { id: activeMembership.organizationId },
       });
-      const security = (org.settings as { security?: SecuritySettingsLike } | null)?.security;
+      security = (org.settings as { security?: SecuritySettingsLike } | null)?.security;
+    }
 
-      if (requiresNewDeviceOtp(security, activeMembership.membership.role)) {
-        const trustedDevice = await adminDb.trustedDevice.findFirst({
-          where: {
-            deviceId: input.deviceId,
-            userId: user.id,
-            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-          },
-        });
+    // RG-M01-07 — vérification « nouvel appareil ». Un compte qui a activé une application
+    // d'authentification y est toujours soumis, quel que soit son rôle, et le code vient de
+    // l'appli au lieu d'un email/WhatsApp/SMS.
+    const totpEnabled = hasTotpEnabled(user);
+    const deviceCheckRequired =
+      totpEnabled ||
+      (activeMembership !== null &&
+        requiresNewDeviceOtp(security, activeMembership.membership.role));
 
-        if (!trustedDevice) {
+    if (deviceCheckRequired) {
+      const trustedDevice = await adminDb.trustedDevice.findFirst({
+        where: {
+          deviceId: input.deviceId,
+          userId: user.id,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+      });
+
+      if (!trustedDevice) {
+        if (totpEnabled) {
+          if (!input.otpCode) {
+            return { status: "OTP_REQUIRED" as const, method: "TOTP" as const };
+          }
+          if (!(await checkAndConsumeTotp(user, input.otpCode, now))) {
+            // Un code faux compte comme un échec de connexion : verrouillage RG-M01-05.
+            const nextState = recordFailedLogin(
+              {
+                failedLoginCount: user.failedLoginCount,
+                lockCount: user.lockCount,
+                lockedUntil: user.lockedUntil,
+              },
+              now,
+            );
+            await adminDb.user.update({
+              where: { id: user.id },
+              data: {
+                failedLoginCount: nextState.failedLoginCount,
+                lockCount: nextState.lockCount,
+                lockedUntil: nextState.lockedUntil,
+              },
+            });
+            if (nextState.lockedUntil) {
+              await writeAuditLogToAllMemberships(user.id, "auth.locked", ctx.ip, ctx.userAgent);
+              return { status: "LOCKED" as const, lockedUntil: nextState.lockedUntil };
+            }
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Code incorrect. Saisissez le code affiché dans votre application.",
+            });
+          }
+        } else {
           const otpChannel = resolved.kind === "PHONE" ? "WHATSAPP" : "EMAIL";
 
           if (!input.otpCode) {
@@ -340,34 +525,36 @@ export const authRouter = router({
               if (error instanceof OtpDeliveryError) throw otpDeliveryUnavailable();
               // Un code a déjà été envoyé récemment : le client peut saisir le dernier reçu.
             }
-            return { status: "OTP_REQUIRED" as const, devCode };
+            return { status: "OTP_REQUIRED" as const, method: otpChannel, devCode };
           }
 
           const outcome = await verifyOtpCode(resolved.value, input.otpCode, "NEW_DEVICE", now);
           if (outcome !== "OK") {
             throw new TRPCError({ code: "BAD_REQUEST", message: "Code incorrect ou expiré." });
           }
+        }
 
-          const device = await adminDb.trustedDevice.upsert({
-            where: { deviceId: input.deviceId },
-            create: {
-              deviceId: input.deviceId,
-              userId: user.id,
-              organizationId: activeMembership.organizationId,
-              expiresAt: computeTrustedDeviceExpiry(now),
-            },
-            update: {
-              userId: user.id,
-              organizationId: activeMembership.organizationId,
-              expiresAt: computeTrustedDeviceExpiry(now),
-            },
-          });
+        const device = await adminDb.trustedDevice.upsert({
+          where: { deviceId: input.deviceId },
+          create: {
+            deviceId: input.deviceId,
+            userId: user.id,
+            organizationId: activeMembership?.organizationId ?? null,
+            expiresAt: computeTrustedDeviceExpiry(now),
+          },
+          update: {
+            userId: user.id,
+            organizationId: activeMembership?.organizationId ?? null,
+            expiresAt: computeTrustedDeviceExpiry(now),
+          },
+        });
 
+        if (activeMembership) {
           await writeAuditLog({
             organizationId: activeMembership.organizationId,
             userId: user.id,
             membershipId: activeMembership.membership.id,
-            action: "auth.otp_new_device",
+            action: totpEnabled ? "auth.totp_new_device" : "auth.otp_new_device",
             entity: "TrustedDevice",
             entityId: device.id,
             ip: ctx.ip,
@@ -452,10 +639,23 @@ export const authRouter = router({
         }),
         adminDb.session.deleteMany({ where: { userId } }),
         adminDb.verification.delete({ where: { id: row.id } }),
-        adminDb.user.update({ where: { id: userId }, data: { ...INITIAL_LOCKOUT_STATE } }),
+        // Téléphone perdu : la réinitialisation (prouvée par OTP email/SMS) retire aussi
+        // l'application d'authentification, sinon le compte resterait inaccessible.
+        adminDb.user.update({
+          where: { id: userId },
+          data: {
+            ...INITIAL_LOCKOUT_STATE,
+            totpSecret: null,
+            totpEnabledAt: null,
+            totpLastUsedStep: null,
+          },
+        }),
       ]);
 
       await writeAuditLogToAllMemberships(userId, "auth.password_reset", ctx.ip, ctx.userAgent);
+      if (user.totpEnabledAt) {
+        await writeAuditLogToAllMemberships(userId, "auth.totp_disabled", ctx.ip, ctx.userAgent);
+      }
 
       return { ok: true as const };
     }),

@@ -284,6 +284,11 @@ model User {
   lastLoginAt              DateTime?
   lastActiveOrganizationId String?
   lastActiveSiteId         String?
+  // Application d'authentification (TOTP) : secret base32 chiffré AES-256-GCM (ENCRYPTION_KEY).
+  // Renseigné à la configuration ; actif seulement une fois totpEnabledAt posé (code confirmé).
+  totpSecret               String?
+  totpEnabledAt            DateTime?
+  totpLastUsedStep         Int? // dernier pas de 30 s accepté (anti-rejeu)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 

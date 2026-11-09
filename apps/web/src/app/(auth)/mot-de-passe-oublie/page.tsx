@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { checkPasswordPolicy } from "@atelieros/core/src/auth/password-policy";
 import { Button, Field, Input, OtpInput } from "@atelieros/ui";
 import { t } from "@/i18n/t";
@@ -10,11 +10,22 @@ import { trpc } from "@/trpc/client";
 type Step = "identifier" | "code" | "newPassword";
 
 export default function MotDePasseOubliePage() {
+  return (
+    <Suspense fallback={null}>
+      <MotDePasseOublieForm />
+    </Suspense>
+  );
+}
+
+function MotDePasseOublieForm() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("identifier");
+  // Lien de récupération généré sur le serveur (commande `account:reset-link`) : on passe
+  // directement au choix du nouveau mot de passe, sans code envoyé par message.
+  const linkToken = useSearchParams().get("token");
+  const [step, setStep] = useState<Step>(linkToken ? "newPassword" : "identifier");
   const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
-  const [resetToken, setResetToken] = useState("");
+  const [resetToken, setResetToken] = useState(linkToken ?? "");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 

@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "account:reset-link": "tsx src/cli/account-reset-link.ts"
   },
   "dependencies": {
     "@atelieros/core": "workspace:*",

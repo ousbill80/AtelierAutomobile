@@ -63,6 +63,7 @@ import { reminderSettingsRouter } from "./reminderSettings";
 import { roleRouter } from "./role";
 import { searchRouter } from "./search";
 import { segmentRouter } from "./segment";
+import { totpRouter } from "./totp";
 import { sessionRouter } from "./session";
 import { settingsRouter } from "./settings";
 import { dataExportRouter, planRouter, supportRouter } from "./subscription";
@@ -93,6 +94,7 @@ export const appRouter = router({
   auth: authRouter,
   me: meRouter,
   session: sessionRouter,
+  totp: totpRouter,
   org: orgRouter,
   site: siteRouter,
   holiday: holidayRouter,
