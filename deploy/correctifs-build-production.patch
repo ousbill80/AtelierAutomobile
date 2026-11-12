@@ -1,0 +1,111 @@
+Correctifs indispensables au build de production du site ONAD.
+Voir deploy/DEPLOIEMENT-EQUIPE.md. Appliquer depuis la racine du dépôt :
+
+    git apply deploy/correctifs-build-production.patch
+    git add -A && git commit -m "Corrige le build de production"
+
+Ces quatre changements n'altèrent aucun comportement visible du site : ils
+rendent seulement `next build` capable d'aboutir sans base de données et sans
+erreur de type. Une fois commités dans votre dépôt, il n'y a plus rien à
+refaire : deploy/deployer.sh vérifie leur présence et ne dira plus rien.
+
+diff --git a/src/app/(frontend)/layout.tsx b/src/app/(frontend)/layout.tsx
+index 7efd9e6..76fd307 100644
+--- a/src/app/(frontend)/layout.tsx
++++ b/src/app/(frontend)/layout.tsx
+@@ -78,6 +78,21 @@ export async function generateMetadata(): Promise<Metadata> {
+   };
+ }
+ 
++/**
++ * Tout le site public est rendu à la demande, jamais pré-généré au build.
++ *
++ * Deux raisons : (1) chaque page lit son contenu dans Payload, et une
++ * modification faite dans l'administration doit être visible immédiatement,
++ * sans reconstruire l'image ; (2) le build de l'image Docker s'exécute avant
++ * que le service `migrate` n'ait créé le schéma, donc sans base interrogeable
++ * — le pré-rendu échoue sur les pages ne portant pas déjà cette directive.
++ *
++ * La configuration de segment posée sur ce layout s'applique à tous les
++ * segments enfants : les `export const dynamic` déjà présents dans certaines
++ * pages deviennent redondants, ils sont conservés sans effet.
++ */
++export const dynamic = "force-dynamic";
++
+ export const viewport: Viewport = {
+   themeColor: "#00498e",
+   width: "device-width",
+diff --git a/src/app/manifest.ts b/src/app/manifest.ts
+index 4226fc4..d3f7d2a 100644
+--- a/src/app/manifest.ts
++++ b/src/app/manifest.ts
+@@ -47,26 +47,29 @@ export default function manifest(): MetadataRoute.Manifest {
+         icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+       },
+     ].filter((shortcut) => !isHiddenPublicHref(shortcut.url)),
++    // Le `.filter` final sort ce tableau du typage contextuel de
++    // `MetadataRoute.Manifest` : sans `as const`, `form_factor` serait
++    // élargi en `string` et ne correspondrait plus à `"wide" | "narrow"`.
+     screenshots: [
+       {
+         src: "/screenshots/accueil-large.webp",
+         sizes: "1280x720",
+         type: "image/webp",
+-        form_factor: "wide",
++        form_factor: "wide" as const,
+         label: "Page d'accueil du portail ONAD",
+       },
+       {
+         src: "/screenshots/accueil-mobile.webp",
+         sizes: "390x844",
+         type: "image/webp",
+-        form_factor: "narrow",
++        form_factor: "narrow" as const,
+         label: "Accueil sur mobile",
+       },
+       {
+         src: "/screenshots/signalement-mobile.webp",
+         sizes: "390x844",
+         type: "image/webp",
+-        form_factor: "narrow",
++        form_factor: "narrow" as const,
+         label: "Signalement d'un problème d'assainissement",
+       },
+     ].filter((shot) => !isHiddenPublicHref("/espace-usagers") || !shot.src.includes("signalement")),
+diff --git a/src/app/sitemap.ts b/src/app/sitemap.ts
+index 53fd84c..d43d905 100644
+--- a/src/app/sitemap.ts
++++ b/src/app/sitemap.ts
+@@ -5,6 +5,9 @@ import { SITE_URL } from "@/lib/constants";
+ import { MERGED_PRESENTATION_SLUGS } from "@/lib/presentation-merged";
+ import { isHiddenPublicHref } from "@/lib/publicMenus";
+ 
++/** Généré à la demande : le sitemap interroge Payload (voir le layout public). */
++export const dynamic = "force-dynamic";
++
+ const STATIC_ROUTES = [
+   "",
+   "activites",
+diff --git a/src/types/page-flip.d.ts b/src/types/page-flip.d.ts
+new file mode 100644
+index 0000000..9bfaa1f
+--- /dev/null
++++ b/src/types/page-flip.d.ts
+@@ -0,0 +1,17 @@
++/**
++ * `page-flip` (2.0.7) ne livre aucune définition de types, et son champ `main`
++ * pointe un bundle UMD qui s'enregistre sur un objet global (`St`) au lieu
++ * d'exporter `PageFlip`. Le lecteur du code de l'assainissement importe donc
++ * directement le build ESM `dist/js/page-flip.module.js`, seul à fournir
++ * `export { PageFlip }`.
++ *
++ * Sans cette déclaration, TypeScript refuse ce chemin d'import (TS7016 : type
++ * `any` implicite) et `next build` échoue au type-check.
++ *
++ * `PageFlip` est volontairement typé en `unknown` : le composant le caste déjà
++ * vers son propre contrat (`FlipApi` dans `CodeDocumentReader.tsx`), et
++ * décrire ici une surface d'API non vérifiable donnerait une fausse garantie.
++ */
++declare module "page-flip/dist/js/page-flip.module.js" {
++  export const PageFlip: unknown;
++}
