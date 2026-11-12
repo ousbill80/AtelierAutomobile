@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { classifyOrangeSmsError, createOrangeSmsProvider } from "./orange-sms";
+import { classifyOrangeSmsError, createOrangeSmsProvider, orangeSender } from "./orange-sms";
 
 const credentials = { clientId: "client_1", clientSecret: "secret_1", senderName: "EXCELAUTO" };
 
@@ -36,6 +36,13 @@ describe("createOrangeSmsProvider.send", () => {
     expect(result).toEqual({ providerMessageId: "abc123" });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://api.orange.com/oauth/v3/token");
+    const [url, init] = fetchImpl.mock.calls[1] ?? [];
+    expect(url).toBe("https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B2250000/requests");
+    expect(JSON.parse(init.body).outboundSMSMessageRequest).toMatchObject({
+      address: "tel:+2250747218890",
+      senderAddress: "tel:+2250000",
+      senderName: "EXCELAUTO",
+    });
   });
 
   it("réutilise le jeton tant qu'il n'est pas expiré", async () => {
@@ -145,5 +152,38 @@ describe("createOrangeSmsProvider.parseWebhook", () => {
         occurredAt: expect.any(Date),
       },
     ]);
+  });
+});
+
+describe("orangeSender", () => {
+  it("nom affiché séparé du numéro expéditeur par défaut (tel:+2250000)", () => {
+    expect(orangeSender({ clientId: "", clientSecret: "", senderName: "EXCELAUTO" })).toEqual({
+      senderAddress: "tel:+2250000",
+      senderName: "EXCELAUTO",
+    });
+  });
+
+  it("ancienne clé senderId du formulaire lue comme nom affiché", () => {
+    expect(
+      orangeSender({ clientId: "", clientSecret: "", senderId: "GARAGEKONE" }).senderName,
+    ).toBe("GARAGEKONE");
+  });
+
+  it("sans nom : numéro par défaut, pas de senderName", () => {
+    expect(orangeSender({ clientId: "", clientSecret: "" })).toEqual({
+      senderAddress: "tel:+2250000",
+    });
+  });
+
+  it("numéro saisi comme nom → utilisé comme numéro expéditeur", () => {
+    expect(orangeSender({ clientId: "", clientSecret: "", senderName: "+2250700000000" })).toEqual({
+      senderAddress: "tel:+2250700000000",
+    });
+  });
+
+  it("numéro expéditeur explicite conservé", () => {
+    expect(
+      orangeSender({ clientId: "", clientSecret: "", senderName: "X", senderAddress: "+2250101" }),
+    ).toEqual({ senderAddress: "tel:+2250101", senderName: "X" });
   });
 });

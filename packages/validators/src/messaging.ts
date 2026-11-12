@@ -108,6 +108,7 @@ export const channelProviderSchema = z.enum([
   "orange_sms",
   "twilio",
   "http_sms",
+  "smpp",
   "resend",
   "smtp",
 ]);

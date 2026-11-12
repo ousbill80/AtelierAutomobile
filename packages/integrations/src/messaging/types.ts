@@ -1,5 +1,5 @@
 // Interface d'adaptateur messagerie (docs/01-architecture-technique.md §10, M11 §4.2 RG-M11-04).
-// Chaque fournisseur réel (whatsapp_cloud, wa_link, orange_sms, twilio, http_sms, smtp,
+// Chaque fournisseur réel (whatsapp_cloud, wa_link, orange_sms, twilio, http_sms, smpp, smtp,
 // resend) implémente ce contrat ; `console` (ce module) est l'implémentation de
 // développement/tests, sans dépendance à un compte fournisseur réel.
 //

@@ -1682,7 +1682,7 @@ model ChannelConfig {
   id             String @id @default(cuid())
   organizationId String
   channel        Channel
-  provider       String                          // whatsapp_cloud | wa_link | orange_sms | twilio | http_sms | smtp | resend | console
+  provider       String                          // whatsapp_cloud | wa_link | orange_sms | twilio | http_sms | smpp | smtp | resend | console
   isActive       Boolean @default(false)
   priority       Int @default(1)
   credentials    String                          // JSON chiffré (AES-256-GCM)

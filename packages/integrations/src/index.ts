@@ -21,6 +21,8 @@ export { createTwilioProvider, classifyTwilioError } from "./messaging";
 export type { TwilioCredentials } from "./messaging";
 export { createHttpSmsProvider, classifyHttpSmsError } from "./messaging";
 export type { HttpSmsCredentials } from "./messaging";
+export { classifySmppStatus, createSmppProvider } from "./messaging";
+export type { SmppCredentials } from "./messaging";
 export { createResendProvider, classifyResendError } from "./messaging";
 export type { ResendCredentials } from "./messaging";
 export { createSmtpProvider, classifySmtpError } from "./messaging";

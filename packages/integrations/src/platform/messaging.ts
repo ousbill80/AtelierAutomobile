@@ -10,6 +10,7 @@ import {
   type OrangeSmsCredentials,
 } from "../messaging/providers/orange-sms";
 import { createResendProvider } from "../messaging/providers/resend";
+import { createSmppProvider, type SmppCredentials } from "../messaging/providers/smpp";
 import { createSmtpProvider } from "../messaging/providers/smtp";
 import { createTwilioProvider, type TwilioCredentials } from "../messaging/providers/twilio";
 import {
@@ -17,7 +18,7 @@ import {
   type WhatsappCloudSendInput,
 } from "../messaging/providers/whatsapp-cloud";
 
-export type PlatformSmsProvider = "twilio" | "orange_sms" | "http_sms";
+export type PlatformSmsProvider = "twilio" | "orange_sms" | "http_sms" | "smpp";
 export type PlatformEmailProvider = "resend" | "smtp";
 
 export interface PlatformMessagingConfig {
@@ -39,7 +40,7 @@ export interface PlatformMessagingConfig {
 
 type Env = Record<string, string | undefined>;
 
-const SMS_PROVIDERS: readonly PlatformSmsProvider[] = ["twilio", "orange_sms", "http_sms"];
+const SMS_PROVIDERS: readonly PlatformSmsProvider[] = ["twilio", "orange_sms", "http_sms", "smpp"];
 const EMAIL_PROVIDERS: readonly PlatformEmailProvider[] = ["resend", "smtp"];
 
 function value(env: Env, name: string): string | undefined {
@@ -171,6 +172,8 @@ export function createPlatformMessagingProvider(
         return createOrangeSmsProvider(credentials as unknown as OrangeSmsCredentials, fetchDeps);
       case "http_sms":
         return createHttpSmsProvider(credentials as unknown as HttpSmsCredentials, fetchDeps);
+      case "smpp":
+        return createSmppProvider(credentials as unknown as SmppCredentials);
     }
   }
   if (!config.email) return null;

@@ -307,6 +307,8 @@ export { clientNamespace, garageNamespace, vehicleNamespace } from "./reminders/
 
 export type { SmsSegmentsResult } from "./messaging/smsSegments";
 export { isGsm7, nonGsmChars, smsSegments, transliterate } from "./messaging/smsSegments";
+export type { EncodedSms, SmsDefaultAlphabet } from "./messaging/smsEncoding";
+export { encodeSms } from "./messaging/smsEncoding";
 
 export { isStartKeyword, isStopKeyword } from "./messaging/keywords";
 

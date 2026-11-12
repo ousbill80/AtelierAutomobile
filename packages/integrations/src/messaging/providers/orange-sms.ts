@@ -17,7 +17,34 @@ import type {
 export interface OrangeSmsCredentials {
   clientId: string;
   clientSecret: string;
-  senderName: string;
+  /** Nom affiché au destinataire (≤ 11 car.), validé par Orange. Facultatif. */
+  senderName?: string;
+  /** Ancienne clé du formulaire Paramètres › Canaux, lue comme `senderName`. */
+  senderId?: string;
+  /** Numéro expéditeur de l'API ; défaut Côte d'Ivoire `tel:+2250000`. */
+  senderAddress?: string;
+}
+
+const DEFAULT_SENDER_ADDRESS = "tel:+2250000";
+
+/**
+ * Sépare numéro expéditeur (chemin de l'API) et nom affiché (`senderName` du corps).
+ * Compatibilité : un « nom » purement numérique est un numéro saisi au mauvais endroit.
+ */
+export function orangeSender(credentials: OrangeSmsCredentials): {
+  senderAddress: string;
+  senderName?: string;
+} {
+  const name = (credentials.senderName ?? credentials.senderId ?? "").trim();
+  const explicitAddress = credentials.senderAddress?.trim();
+  if (!explicitAddress && /^(tel:)?\+?\d+$/.test(name)) {
+    return { senderAddress: `tel:+${name.replace(/^(tel:)?\+?/, "")}` };
+  }
+  const address = explicitAddress || DEFAULT_SENDER_ADDRESS;
+  return {
+    senderAddress: address.startsWith("tel:") ? address : `tel:${address}`,
+    ...(name ? { senderName: name } : {}),
+  };
 }
 
 export type ProviderErrorCategory =
@@ -94,7 +121,7 @@ export function createOrangeSmsProvider(
     return cachedToken.accessToken;
   }
 
-  const senderAddress = `tel:${credentials.senderName}`;
+  const { senderAddress, senderName } = orangeSender(credentials);
 
   return {
     channel: "SMS",
@@ -113,6 +140,7 @@ export function createOrangeSmsProvider(
             outboundSMSMessageRequest: {
               address: `tel:${msg.to}`,
               senderAddress,
+              ...(senderName ? { senderName } : {}),
               outboundSMSTextMessage: { message: msg.body },
             },
           }),

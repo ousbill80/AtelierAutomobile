@@ -17,13 +17,14 @@ type Provider =
   | "orange_sms"
   | "twilio"
   | "http_sms"
+  | "smpp"
   | "resend"
   | "smtp";
 
 const CHANNELS: Channel[] = ["WHATSAPP", "SMS", "EMAIL"];
 const PROVIDERS_BY_CHANNEL: Record<Channel, Provider[]> = {
   WHATSAPP: ["console", "wa_link", "whatsapp_cloud"],
-  SMS: ["console", "orange_sms", "twilio", "http_sms"],
+  SMS: ["console", "orange_sms", "twilio", "http_sms", "smpp"],
   EMAIL: ["console", "resend", "smtp"],
 };
 
@@ -40,6 +41,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   orange_sms: t("settings.channelsPage.providers.orange_sms"),
   twilio: t("settings.channelsPage.providers.twilio"),
   http_sms: t("settings.channelsPage.providers.http_sms"),
+  smpp: t("settings.channelsPage.providers.smpp"),
   resend: t("settings.channelsPage.providers.resend"),
   smtp: t("settings.channelsPage.providers.smtp"),
 };
@@ -89,7 +91,12 @@ const CREDENTIAL_FIELDS: Partial<Record<Provider, CredentialField[]>> = {
       label: t("settings.channelsPage.fields.orangeClientSecret"),
       type: "password",
     },
-    { key: "senderId", label: t("settings.channelsPage.fields.orangeSenderId") },
+    {
+      key: "senderName",
+      label: t("settings.channelsPage.fields.orangeSenderId"),
+      optional: true,
+      hint: t("settings.channelsPage.fields.orangeSenderIdHint"),
+    },
   ],
   whatsapp_cloud: [
     {
@@ -98,6 +105,43 @@ const CREDENTIAL_FIELDS: Partial<Record<Provider, CredentialField[]>> = {
       type: "password",
     },
     { key: "phoneNumberId", label: t("settings.channelsPage.fields.waPhoneNumberId") },
+  ],
+  smpp: [
+    { key: "host", label: t("settings.channelsPage.fields.smppHost") },
+    { key: "port", label: t("settings.channelsPage.fields.smppPort"), defaultValue: "2775" },
+    {
+      key: "tls",
+      label: t("settings.channelsPage.fields.smppTls"),
+      type: "select",
+      defaultValue: "false",
+      options: [
+        { value: "false", label: t("settings.channelsPage.fields.smppTlsNo") },
+        { value: "true", label: t("settings.channelsPage.fields.smppTlsYes") },
+      ],
+    },
+    { key: "systemId", label: t("settings.channelsPage.fields.smppSystemId") },
+    { key: "password", label: t("settings.channelsPage.fields.smppPassword"), type: "password" },
+    {
+      key: "systemType",
+      label: t("settings.channelsPage.fields.smppSystemType"),
+      optional: true,
+    },
+    {
+      key: "sourceAddr",
+      label: t("settings.channelsPage.fields.smppSourceAddr"),
+      hint: t("settings.channelsPage.fields.smppSourceAddrHint"),
+    },
+    {
+      key: "defaultAlphabet",
+      label: t("settings.channelsPage.fields.smppAlphabet"),
+      type: "select",
+      defaultValue: "gsm7",
+      options: [
+        { value: "gsm7", label: t("settings.channelsPage.fields.smppAlphabetGsm") },
+        { value: "latin1", label: t("settings.channelsPage.fields.smppAlphabetLatin1") },
+      ],
+      hint: t("settings.channelsPage.fields.smppAlphabetHint"),
+    },
   ],
   http_sms: [
     { key: "url", label: t("settings.channelsPage.fields.httpUrl") },
@@ -532,6 +576,7 @@ export default function ChannelsPage() {
                       className={inputClass}
                       value={value}
                       required={required}
+                      aria-describedby={field.hint ? `${id}-hint` : undefined}
                       onChange={(e) => onChange(e.target.value)}
                     />
                   )}

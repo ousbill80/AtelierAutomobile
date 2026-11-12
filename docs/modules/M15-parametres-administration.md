@@ -91,15 +91,16 @@ Regrouper en un seul endroit, `/parametres`, tout ce qui configure le garage : i
 - **RG-M15-14 — Règles de relance** : écran `/parametres/relances` = **frise** par `ReminderType` (spécification complète et validations dans M10) ; M15 fournit le conteneur, la navigation et l'audit `reminder_rule.update`.
 - **RG-M15-15 — Canaux** : une carte par canal (WhatsApp, SMS, Email) avec fournisseurs listés (`ChannelConfig.provider`) et champs par fournisseur :
 
-| Fournisseur      | Champs (secrets en gras)                                                                      |
-| ---------------- | --------------------------------------------------------------------------------------------- |
-| `whatsapp_cloud` | phoneNumberId, wabaId, **accessToken**, **appSecret** (vérif. webhook), verifyToken (généré)  |
-| `wa_link`        | numéro affiché (aucun secret)                                                                 |
-| `orange_sms`     | **clientId**, **clientSecret**, senderName (≤ 11 car.), senderAddress (`tel:+225…`)           |
-| `twilio`         | accountSid, **authToken**, from / messagingServiceSid                                         |
-| `http_sms`       | URL, méthode, **en-têtes d'authentification**, gabarit de corps JSON avec `{{to}}` `{{text}}` |
-| `smtp`           | hôte, port, sécurité, utilisateur, **mot de passe**, from                                     |
-| `resend`         | **apiKey**, from (domaine vérifié)                                                            |
+| Fournisseur      | Champs (secrets en gras)                                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `whatsapp_cloud` | phoneNumberId, wabaId, **accessToken**, **appSecret** (vérif. webhook), verifyToken (généré)                                                    |
+| `wa_link`        | numéro affiché (aucun secret)                                                                                                                   |
+| `orange_sms`     | **clientId**, **clientSecret**, senderName (≤ 11 car., facultatif), senderAddress (défaut `tel:+2250000`)                                       |
+| `twilio`         | accountSid, **authToken**, from / messagingServiceSid                                                                                           |
+| `http_sms`       | URL, méthode, **en-têtes d'authentification**, gabarit de corps JSON avec `{{to}}` `{{text}}`                                                   |
+| `smpp`           | hôte, port (2775), TLS oui/non, systemId, **password**, systemType, sourceAddr (≤ 11 car. ou numéro), alphabet par défaut (GSM 03.38 / Latin-1) |
+| `smtp`           | hôte, port, sécurité, utilisateur, **mot de passe**, from                                                                                       |
+| `resend`         | **apiKey**, from (domaine vérifié)                                                                                                              |
 
 Actions : « Tester » (`healthCheck` + envoi d'un message réel au numéro/email de l'utilisateur courant), « Activer », ordre de priorité et de repli (WhatsApp → SMS → Email, `ChannelConfig.priority`), URL de webhook à copier (`/api/webhooks/whatsapp/{orgPublicId}`), solde SMS (`balance`) rafraîchi toutes les 6 h, seuil d'alerte `settings.channels.lowBalanceThreshold` (défaut 500).
 

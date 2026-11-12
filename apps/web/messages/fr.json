@@ -991,6 +991,7 @@
         "orange_sms": "Orange SMS API",
         "twilio": "Twilio",
         "http_sms": "Agrégateur SMS (HTTP)",
+        "smpp": "Opérateur / agrégateur SMS (SMPP)",
         "resend": "Resend",
         "smtp": "Serveur SMTP"
       },
@@ -1008,7 +1009,8 @@
         "twilioFromNumber": "Numéro d'envoi (le « From » Twilio, ex. : +17372508034)",
         "orangeClientId": "Client ID",
         "orangeClientSecret": "Client Secret",
-        "orangeSenderId": "Sender ID",
+        "orangeSenderId": "Nom d'expéditeur (Sender Name)",
+        "orangeSenderIdHint": "Nom affiché sur le téléphone du client, 11 caractères maximum, validé par Orange. Laissez vide pour envoyer depuis le numéro Orange par défaut.",
         "waAccessToken": "Access Token",
         "waPhoneNumberId": "Phone Number ID",
         "httpUrl": "URL d'envoi de l'agrégateur",
@@ -1019,7 +1021,21 @@
         "httpBodyTemplate": "Gabarit du corps (POST) ou des paramètres (GET)",
         "httpBodyTemplateHint": "{{to}} est remplacé par le numéro du destinataire et {{body}} par le texte du message. Exemple JSON : {\"to\":\"{{to}}\",\"text\":\"{{body}}\"} ; exemple GET : to={{to}}&text={{body}}",
         "httpResponseIdPath": "Chemin de l'identifiant du message dans la réponse (ex. : data.id)",
-        "httpWebhookToken": "Jeton partagé des accusés de réception (facultatif)"
+        "httpWebhookToken": "Jeton partagé des accusés de réception (facultatif)",
+        "smppHost": "Serveur SMPP (hôte ou adresse IP)",
+        "smppPort": "Port SMPP",
+        "smppTls": "Connexion chiffrée (TLS)",
+        "smppTlsNo": "Non (SMPP standard)",
+        "smppTlsYes": "Oui (SMPP sur TLS)",
+        "smppSystemId": "Identifiant (system_id)",
+        "smppPassword": "Mot de passe",
+        "smppSystemType": "Type de système (system_type, facultatif)",
+        "smppSourceAddr": "Expéditeur (source address)",
+        "smppSourceAddrHint": "Nom affiché sur le téléphone du client, 11 caractères maximum (ex. : GARAGEKONE), ou un numéro. Il doit être enregistré auprès de votre fournisseur.",
+        "smppAlphabet": "Alphabet par défaut du serveur",
+        "smppAlphabetGsm": "GSM 03.38 (recommandé)",
+        "smppAlphabetLatin1": "Latin-1 (ISO-8859-1)",
+        "smppAlphabetHint": "Si les accents ou le signe @ arrivent mal sur le téléphone, essayez Latin-1. Les messages avec ç, ê ou des emojis partent toujours en Unicode."
       }
     }
   },

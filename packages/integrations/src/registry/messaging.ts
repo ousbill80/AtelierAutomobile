@@ -5,6 +5,7 @@ import type { MessageChannel, MessagingProvider } from "../messaging/types";
 import { createHttpSmsProvider } from "../messaging/providers/http-sms";
 import { createOrangeSmsProvider } from "../messaging/providers/orange-sms";
 import { createResendProvider } from "../messaging/providers/resend";
+import { createSmppProvider } from "../messaging/providers/smpp";
 import { createSmtpProvider } from "../messaging/providers/smtp";
 import { createTwilioProvider } from "../messaging/providers/twilio";
 import { createWaLinkProvider } from "../messaging/providers/wa-link";
@@ -63,6 +64,8 @@ export async function resolveMessagingProvider(
       return createHttpSmsProvider(
         credentials as unknown as Parameters<typeof createHttpSmsProvider>[0],
       );
+    case "smpp":
+      return createSmppProvider(credentials as unknown as Parameters<typeof createSmppProvider>[0]);
     case "resend":
       return createResendProvider(
         credentials as unknown as Parameters<typeof createResendProvider>[0],

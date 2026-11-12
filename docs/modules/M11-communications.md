@@ -91,15 +91,16 @@ Crée un `Message` `QUEUED` pour le **premier canal disponible** (RG-M11-05), pu
 
 **RG-M11-04 — Fournisseurs** (interface `MessagingProvider`, `01` §10), configurés par organisation dans `ChannelConfig` :
 
-| Canal    | `provider`        | Notes                                                                                                                           |
-| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| WHATSAPP | `whatsapp_cloud`  | Numéro WhatsApp Business vérifié chez Meta ; credentials : `phoneNumberId`, `wabaId`, `accessToken`, `appSecret`, `verifyToken` |
-| WHATSAPP | `wa_link`         | Pas d'API : envoi humain via `wa.me` ; aucun envoi automatique possible, aucun statut                                           |
-| SMS      | `orange_sms`      | Orange SMS API Côte d'Ivoire (OAuth2 client credentials, nom d'expéditeur à faire valider par l'opérateur)                      |
-| SMS      | `twilio`          | Expéditeur alphanumérique selon disponibilité pays                                                                              |
-| SMS      | `http_sms`        | Agrégateur local générique : URL, méthode, gabarit de corps JSON/form, mapping de réponse, URL de rapport de livraison          |
-| EMAIL    | `resend` / `smtp` | Domaine expéditeur avec SPF/DKIM vérifiés (assistant M15)                                                                       |
-| *        | `console`         | Développement et tests                                                                                                          |
+| Canal    | `provider`        | Notes                                                                                                                                                                                                                                                                                       |
+| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WHATSAPP | `whatsapp_cloud`  | Numéro WhatsApp Business vérifié chez Meta ; credentials : `phoneNumberId`, `wabaId`, `accessToken`, `appSecret`, `verifyToken`                                                                                                                                                             |
+| WHATSAPP | `wa_link`         | Pas d'API : envoi humain via `wa.me` ; aucun envoi automatique possible, aucun statut                                                                                                                                                                                                       |
+| SMS      | `orange_sms`      | Orange SMS API Côte d'Ivoire (OAuth2 client credentials, nom d'expéditeur à faire valider par l'opérateur)                                                                                                                                                                                  |
+| SMS      | `twilio`          | Expéditeur alphanumérique selon disponibilité pays                                                                                                                                                                                                                                          |
+| SMS      | `http_sms`        | Agrégateur local générique : URL, méthode, gabarit de corps JSON/form, mapping de réponse, URL de rapport de livraison                                                                                                                                                                      |
+| SMS      | `smpp`            | Opérateur/agrégateur en SMPP v3.4 (TCP ou TLS) : session courte par envoi (bind_transmitter → submit_sm par segment → unbind), concaténation UDH, GSM-7/Latin-1/UCS-2 (`core/messaging/smsEncoding`). Pas d'accusé de livraison (bind receiver non géré) : statut laissé `SENT` (RG-M11-16) |
+| EMAIL    | `resend` / `smtp` | Domaine expéditeur avec SPF/DKIM vérifiés (assistant M15)                                                                                                                                                                                                                                   |
+| *        | `console`         | Développement et tests                                                                                                                                                                                                                                                                      |
 
 **RG-M11-05 — Choix et repli.** Ordre reçu de l'appelant (M10 RG-M10-12), filtré par RG-M11-02. Déclencheurs de repli vers le canal suivant :
 
