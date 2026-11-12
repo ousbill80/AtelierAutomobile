@@ -73,6 +73,7 @@ EXCLUSIONS=(
   --exclude='.data'
   --exclude='dist'
   --exclude='*.tsbuildinfo'
+  --exclude='next-env.d.ts'
   --include='.env.example'
   --exclude='.env'
   --exclude='.env.*'
