@@ -1,0 +1,90 @@
+# Surcharge pour le serveur mutualise cei-prod.
+#
+# POURQUOI CE FICHIER
+# Le compose de production lance Caddy sur 80/443 et lui confie HTTPS. Sur ce
+# serveur, ces deux ports appartiennent a cei-nginx, le reverse proxy commun a
+# sept projets : AtelierOS se branche derriere lui et n expose aucun port.
+# Caddy est place dans un profil inactif plutot que supprime, pour que le
+# fichier de production reste utilisable tel quel sur un serveur dedie.
+#
+# Usage :
+#   docker compose --env-file .env \
+#     -f docker/docker-compose.prod.yml \
+#     -f docker/docker-compose.edge.yml <commande>
+#
+# `--env-file .env` est indispensable : Compose cherche le .env a cote du
+# PREMIER fichier compose (donc dans docker/), pas a la racine du depot.
+
+services:
+  caddy:
+    profiles:
+      - caddy-disabled
+
+  # ── Construction de l image web ──────────────────────────────
+  # Ce service ne tourne jamais : il ne sert qu a construire l image que les
+  # deux couleurs partagent. Le profil evite qu un `up` global ne demarre une
+  # troisieme instance a cote de web-blue et web-green.
+  web:
+    profiles:
+      - build-only
+
+  # ── Deploiement sans coupure (blue-green) ────────────────────
+  # Les deux couleurs sont identiques et alternent a chaque deploiement :
+  # la nouvelle version demarre a cote de celle qui sert, et ne recoit du
+  # trafic qu une fois saine. Recreer un conteneur unique laissait 30 a 60 s
+  # de 502, le temps du demarrage de Next.js.
+  #
+  # cei-nginx vise l alias reseau `atelieros-web`. La bascule consiste a
+  # deplacer cet alias d une couleur a l autre (scripts/deploy-swap.sh) :
+  # la configuration de nginx, partagee par sept projets, n est jamais
+  # modifiee par un deploiement.
+  #
+  # L alias n est volontairement declare sur aucune des deux couleurs : il est
+  # pose a chaud par le script. Le figer ici le reattribuerait a chaque `up`,
+  # donc avant meme que la nouvelle version soit saine.
+  web-blue: &web_color
+    extends:
+      file: docker-compose.prod.yml
+      service: web
+    # Image unique, construite par le service `web`. Sans cette ligne, chaque
+    # couleur produirait sa propre image (atelieros-prod-web-blue/-green) et
+    # les deux divergeraient.
+    image: atelieros-prod-web:latest
+    networks:
+      - atelieros-network
+    environment:
+      # Recette : /dev/outbox lisible (protege par mot de passe cote nginx) et
+      # fournisseurs "console" acceptes. Le compose de production force
+      # "production", qui refuserait de demarrer sans canal OTP reel.
+      APP_ENV: development
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+
+  web-green:
+    <<: *web_color
+
+  worker:
+    environment:
+      APP_ENV: development
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+
+  # MinIO : quay.io et Docker Hub refusent desormais `minio/minio` et
+  # `minio/mc` sans authentification (401). L image presente sur ce serveur,
+  # deja utilisee par cei et cnps, est donc epinglee par digest : Docker ne
+  # tente aucun telechargement et la version ne peut pas deriver.
+  # RELEASE.2025-09-07T16-13-09Z
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # "minio" tout court serait ambigu : nginx est aussi connecte aux reseaux
+    # de cei et de cnps, qui ont chacun un service nomme "minio".
+    networks:
+      atelieros-network:
+        aliases:
+          - atelieros-minio-s3
+
+  # `minio/mc` est inaccessible (401 sur Docker Hub, 410 sur dl.min.io) : le
+  # bucket est cree sans lui, comme repertoire de premier niveau sous /data,
+  # ce que MinIO reconnait comme un bucket (verifie par HeadBucket via
+  # /api/health).
+  minio-init:
+    profiles:
+      - mc-unavailable

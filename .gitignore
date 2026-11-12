@@ -29,3 +29,6 @@ prisma/generated/
 
 # Étape 7.2 — dumps chiffrés locaux (jamais versionnés)
 backups/
+
+# deploy/deployer.sh : rapports locaux
+simulation-deploiement.txt

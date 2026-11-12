@@ -14,9 +14,15 @@
 #
 # Il enchaîne : contrôles préalables, vérification du code (typecheck + lint),
 # simulation puis transfert des fichiers par rsync, puis, sur le serveur,
-# scripts/deploy.sh (sauvegarde chiffrée de la base, reconstruction des images
-# web/worker/migrate, migrations Prisma, bascule seulement si /api/health
-# répond), et enfin une vérification du site en ligne.
+# scripts/deploy-swap.sh : sauvegarde chiffrée de la base, reconstruction des
+# images, migrations Prisma, démarrage de la nouvelle version À CÔTÉ de celle
+# qui sert (blue-green) et bascule du trafic seulement quand elle est saine.
+# Enfin, une vérification du site en ligne.
+#
+# SERVEUR MUTUALISÉ : les ports 80/443 appartiennent à cei-nginx, le proxy
+# commun à plusieurs projets. AtelierOS y tourne avec docker/docker-compose.edge.yml
+# (Caddy désactivé). scripts/deploy.sh, prévu pour un serveur dédié, n'y est
+# jamais lancé.
 # Il s'arrête à la première anomalie, en disant quoi faire.
 #
 # CE QUE LE SCRIPT NE TOUCHE JAMAIS, sur le serveur :
@@ -28,7 +34,7 @@
 #
 # FILET DE SÉCURITÉ : l'application tourne depuis les images Docker, pas
 # depuis les fichiers transférés. Si la reconstruction échoue, la production
-# continue sur l'ancienne image. scripts/deploy.sh ne bascule le conteneur web
+# continue sur l'ancienne image. scripts/deploy-swap.sh ne bascule le trafic
 # que si /api/health répond.
 #
 # OPTIONS
@@ -39,20 +45,23 @@
 #                             retirés du dépôt, sans demander
 #
 # RÉGLAGES (variables d'environnement, valeurs par défaut entre crochets)
-#   ATELIER_SSH_HOST    [atelier-prod]                  alias SSH du serveur (~/.ssh/config)
+#   ATELIER_SSH_HOST    [onad-prod]                     alias SSH du serveur (~/.ssh/config)
 #   ATELIER_REMOTE_DIR  [/opt/atelieros]                dossier du projet sur le VPS
 #   ATELIER_SITE_URL    [https://atelier.prodestic.net] URL vérifiée à la fin
+#   ATELIER_REMOTE_SCRIPT [scripts/deploy-swap.sh]      script lancé sur le serveur
+#                         (scripts/deploy-edge.sh : instance unique, 30 à 60 s de coupure)
 #
 # =============================================================================
 
 set -euo pipefail
 
-SSH_HOST="${ATELIER_SSH_HOST:-atelier-prod}"
+SSH_HOST="${ATELIER_SSH_HOST:-onad-prod}"
 REMOTE_DIR="${ATELIER_REMOTE_DIR:-/opt/atelieros}"
 SITE_URL="${ATELIER_SITE_URL:-https://atelier.prodestic.net}"
+REMOTE_SCRIPT="${ATELIER_REMOTE_SCRIPT:-scripts/deploy-swap.sh}"
 NODE_ATTENDU=20 # même version majeure que les Dockerfile (node:20-alpine)
 
-# Chemins transférés : tout ce que les Dockerfile (docker/) et scripts/deploy.sh lisent.
+# Chemins transférés : tout ce que les Dockerfile (docker/) et les scripts du serveur lisent.
 CHEMINS=(apps packages docker scripts deploy package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json .npmrc .dockerignore)
 
 # Jamais transférés (ni supprimés côté serveur : rsync protège les fichiers exclus).
@@ -150,8 +159,16 @@ RACINE="$(git rev-parse --show-toplevel 2>/dev/null)" ||
 cd "$RACINE"
 ok "dépôt : $RACINE"
 
-[ -f docker/docker-compose.prod.yml ] && [ -f scripts/deploy.sh ] ||
-  abandon "docker/docker-compose.prod.yml ou scripts/deploy.sh absent : ce dépôt n'est pas celui d'AtelierOS."
+[ -f docker/docker-compose.prod.yml ] ||
+  abandon "docker/docker-compose.prod.yml absent : ce dépôt n'est pas celui d'AtelierOS."
+
+# Le script du serveur et la surcharge « edge » doivent être dans le dépôt :
+# sinon le rsync --delete les effacerait du serveur.
+for requis in "$REMOTE_SCRIPT" docker/docker-compose.edge.yml; do
+  [ -f "$requis" ] ||
+    abandon "« $requis » est absent du dépôt. Le transfert l'effacerait du serveur. Récupérez-le d'abord : scp $SSH_HOST:$REMOTE_DIR/$requis $requis"
+done
+ok "$REMOTE_SCRIPT et docker/docker-compose.edge.yml présents"
 
 ACTUELLE="$(git rev-parse --abbrev-ref HEAD)"
 VERSION="$(git rev-parse --short HEAD)"
@@ -203,9 +220,9 @@ ok "connexion SSH établie"
 
 # Garde-fou : sans ces éléments, on ne parle pas au bon serveur ou au bon
 # dossier, et un rsync --delete y ferait des dégâts.
-ssh "$SSH_HOST" "cd '$REMOTE_DIR' && test -f .env && test -f docker/docker-compose.prod.yml" 2>/dev/null ||
-  abandon "Dans « $REMOTE_DIR » sur $SSH_HOST, il manque .env ou docker/docker-compose.prod.yml. Transfert interrompu : ce n'est pas l'installation attendue (voir ATELIER_REMOTE_DIR)."
-ok "$REMOTE_DIR : .env et docker/docker-compose.prod.yml sont en place"
+ssh "$SSH_HOST" "cd '$REMOTE_DIR' && test -f .env && test -f docker/docker-compose.prod.yml && test -f docker/docker-compose.edge.yml" 2>/dev/null ||
+  abandon "Dans « $REMOTE_DIR » sur $SSH_HOST, il manque .env, docker/docker-compose.prod.yml ou docker/docker-compose.edge.yml. Transfert interrompu : ce n'est pas l'installation attendue (voir ATELIER_REMOTE_DIR)."
+ok "$REMOTE_DIR : .env, docker-compose.prod.yml et docker-compose.edge.yml sont en place"
 
 ssh "$SSH_HOST" "docker compose version >/dev/null 2>&1" ||
   abandon "« docker compose » n'est pas utilisable par votre compte sur le serveur (il faut appartenir au groupe docker)."
@@ -247,7 +264,7 @@ fi
 # -----------------------------------------------------------------------------
 etape "Simulation du transfert"
 
-rsync -azn --relative --no-perms --omit-dir-times --delete --itemize-changes "${EXCLUSIONS[@]}" \
+rsync -azn --checksum --relative --no-perms --omit-dir-times --delete --itemize-changes "${EXCLUSIONS[@]}" \
   "${CHEMINS[@]}" "$SSH_HOST:$REMOTE_DIR/" >"$TRAVAIL/simulation.txt" 2>&1 ||
   {
     cat "$TRAVAIL/simulation.txt" >&2
@@ -289,7 +306,7 @@ fi
 # -----------------------------------------------------------------------------
 etape "Transfert des fichiers"
 
-rsync -az --relative --no-perms --omit-dir-times --delete --itemize-changes --stats "${EXCLUSIONS[@]}" \
+rsync -az --checksum --relative --no-perms --omit-dir-times --delete --itemize-changes --stats "${EXCLUSIONS[@]}" \
   "${CHEMINS[@]}" "$SSH_HOST:$REMOTE_DIR/" >"$TRAVAIL/transfert.txt" 2>&1 ||
   {
     cp "$TRAVAIL/transfert.txt" ./transfert-echec.log 2>/dev/null || true
@@ -304,18 +321,19 @@ ssh "$SSH_HOST" "cd '$REMOTE_DIR' && test -f .env" ||
 ok ".env toujours en place"
 
 # -----------------------------------------------------------------------------
-# 6. Déploiement sur le serveur (scripts/deploy.sh)
+# 6. Déploiement sur le serveur ($REMOTE_SCRIPT)
 # -----------------------------------------------------------------------------
-# Sauvegarde chiffrée, reconstruction des images, migrations, bascule web si
-# /api/health répond, puis worker et Caddy. Sortie affichée en direct.
+# Sauvegarde chiffrée, reconstruction des images, migrations, nouvelle version
+# démarrée à côté de l'ancienne, bascule du trafic seulement si elle est saine,
+# puis worker. Sortie affichée en direct.
 etape "Sauvegarde, images, migrations et bascule sur le serveur (plusieurs minutes)"
 
-if ssh -t "$SSH_HOST" "cd '$REMOTE_DIR' && ATELIEROS_VERSION='$VERSION' bash scripts/deploy.sh" 2>&1 |
+if ssh "$SSH_HOST" "cd '$REMOTE_DIR' && ATELIEROS_VERSION='$VERSION' bash '$REMOTE_SCRIPT'" 2>&1 |
   tee "$TRAVAIL/deploy.log"; then
-  ok "scripts/deploy.sh terminé"
+  ok "$REMOTE_SCRIPT terminé"
 else
   cp "$TRAVAIL/deploy.log" ./deploiement-echec.log 2>/dev/null || true
-  printf '\n%sSi l'"'"'échec a eu lieu avant la bascule, la production tourne toujours sur l'"'"'ancienne image.%s\n' "$JAUNE" "$FIN" >&2
+  printf '\n%sSi la nouvelle version n'"'"'est pas devenue saine, rien n'"'"'a basculé : l'"'"'ancienne sert toujours.%s\n' "$JAUNE" "$FIN" >&2
   abandon "Le déploiement sur le serveur a échoué. Journal complet copié dans ./deploiement-echec.log"
 fi
 
@@ -342,7 +360,8 @@ else
   printf '%s%s✗ %d page(s) ne répondent pas correctement.%s\n\n' "$GRAS" "$ROUGE" "$ECHECS" "$FIN"
   cat <<AIDE
 Pour diagnostiquer :
-  ssh $SSH_HOST "cd $REMOTE_DIR && docker compose -f docker/docker-compose.prod.yml logs web --tail 50"
+  ssh $SSH_HOST "cd $REMOTE_DIR && docker compose --env-file .env -f docker/docker-compose.prod.yml -f docker/docker-compose.edge.yml ps"
+  ssh $SSH_HOST "cd $REMOTE_DIR && docker logs --tail 50 atelieros-prod-web-blue-1"   # ou -green-1
 
 Les sauvegardes de la base sont dans $REMOTE_DIR/backups/ (chiffrées,
 voir docs/exploitation.md pour la restauration). Prévenez le responsable du
