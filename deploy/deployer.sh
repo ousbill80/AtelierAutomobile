@@ -62,7 +62,9 @@ REMOTE_SCRIPT="${ATELIER_REMOTE_SCRIPT:-scripts/deploy-swap.sh}"
 NODE_ATTENDU=20 # même version majeure que les Dockerfile (node:20-alpine)
 
 # Chemins transférés : tout ce que les Dockerfile (docker/) et les scripts du serveur lisent.
-CHEMINS=(apps packages docker scripts deploy package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json .npmrc .dockerignore)
+# deploy/ n'y est pas : ce sont les outils de la machine locale, et le compte de
+# déploiement ne peut pas créer de dossier à la racine de $REMOTE_DIR.
+CHEMINS=(apps packages docker scripts package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json .npmrc .dockerignore)
 
 # Jamais transférés (ni supprimés côté serveur : rsync protège les fichiers exclus).
 EXCLUSIONS=(
@@ -263,9 +265,12 @@ fi
 # -----------------------------------------------------------------------------
 # 4. Simulation du transfert — aucune écriture
 # -----------------------------------------------------------------------------
+# -rlz sans -t ni -p : le compte de déploiement n'est pas propriétaire des fichiers
+# du serveur ; il peut en changer le contenu, pas la date ni les droits. La
+# comparaison se fait par contenu (--checksum), les dates sont donc inutiles.
 etape "Simulation du transfert"
 
-rsync -azn --checksum --relative --no-perms --omit-dir-times --delete --itemize-changes "${EXCLUSIONS[@]}" \
+rsync -rlzn --checksum --relative --omit-dir-times --delete --itemize-changes "${EXCLUSIONS[@]}" \
   "${CHEMINS[@]}" "$SSH_HOST:$REMOTE_DIR/" >"$TRAVAIL/simulation.txt" 2>&1 ||
   {
     cat "$TRAVAIL/simulation.txt" >&2
@@ -307,7 +312,7 @@ fi
 # -----------------------------------------------------------------------------
 etape "Transfert des fichiers"
 
-rsync -az --checksum --relative --no-perms --omit-dir-times --delete --itemize-changes --stats "${EXCLUSIONS[@]}" \
+rsync -rlz --checksum --relative --omit-dir-times --delete --itemize-changes --stats "${EXCLUSIONS[@]}" \
   "${CHEMINS[@]}" "$SSH_HOST:$REMOTE_DIR/" >"$TRAVAIL/transfert.txt" 2>&1 ||
   {
     cp "$TRAVAIL/transfert.txt" ./transfert-echec.log 2>/dev/null || true
