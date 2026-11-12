@@ -15,7 +15,7 @@ COPY packages/emails/package.json ./packages/emails/
 COPY packages/import/package.json ./packages/import/
 COPY packages/integrations/package.json ./packages/integrations/
 COPY packages/pdf/package.json ./packages/pdf/
-COPY packages/sync-agent/package.json ./packages/sync-agent/
+COPY apps/sync-agent/package.json ./apps/sync-agent/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/validators/package.json ./packages/validators/
 COPY apps/web/package.json ./apps/web/
@@ -29,6 +29,13 @@ COPY --from=deps /app/apps ./apps
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
+# Les tests de apps/web importent apps/worker (jobs, files) et
+# @atelieros/sync-agent ; `next build` type-vérifie ces fichiers, car le
+# tsconfig inclut `**/*.ts`. Sans leurs sources l'image échoue en TS2307,
+# alors que `pnpm check` passe en local où tout le workspace est présent.
+# Le runner ne copie que `.next/standalone` : l'image finale est inchangée.
+COPY apps/worker ./apps/worker
+COPY apps/sync-agent ./apps/sync-agent
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production

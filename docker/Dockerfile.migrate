@@ -3,6 +3,11 @@ FROM node:20-alpine
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
 COPY packages/db/prisma ./prisma
-COPY packages/db/package.json ./package.json
-RUN pnpm add prisma@6.19.3
+# Manifeste autonome plutôt que `packages/db/package.json` : celui-ci déclare
+# des dépendances workspace (@atelieros/core, @atelieros/config) qui n'existent
+# pas dans cette image, et pnpm refuse alors d'installer
+# (ERR_PNPM_WORKSPACE_PKG_NOT_FOUND). `migrate deploy` n'a besoin que du CLI
+# Prisma et du dossier prisma/ (schéma + migrations).
+RUN printf '{"name":"atelieros-migrate","private":true}\n' > package.json \
+ && pnpm add prisma@6.19.3
 CMD ["pnpm", "exec", "prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"]

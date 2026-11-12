@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CircleCheck, CircleOff, KeyRound, Smartphone } from "lucide-react";
-import { formatDate } from "@atelieros/core";
+import { formatDate } from "@atelieros/core/calendar";
 import { Button, Card, Field, Input, OtpInput, StatusBadge } from "@atelieros/ui";
 import { t } from "@/i18n/t";
 import { trpc } from "@/trpc/client";
