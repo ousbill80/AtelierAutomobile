@@ -2377,6 +2377,9 @@
     "mechanicLink": "Ouvrir la tablette atelier",
     "today": {
       "newReception": "Nouvelle réception",
+      "priorityTitle": "À relancer en priorité",
+      "priorityHint": "Créances clients et visites techniques : ce qui fait revenir le client et rentrer l'argent.",
+      "operationsTitle": "Atelier et caisse",
       "cards": {
         "vehicles": "Véhicules en atelier",
         "vehiclesSub": "{repair} en réparation · {ready} prêts à livrer",
@@ -2384,10 +2387,15 @@
         "collectedSub": "{count} paiements · {state}",
         "cashOpen": "caisse ouverte",
         "cashClosed": "caisse fermée",
-        "unpaid": "Factures impayées",
-        "unpaidSub": "{count} factures · {long} échues depuis plus de 15 jours",
+        "unpaid": "Créances à relancer",
+        "unpaidSub": "{count} factures · {longAmount} échus depuis plus de 15 jours",
+        "unpaidBadge": "{count} en retard",
         "inspections": "Visites techniques à relancer",
         "inspectionsSub": "{j60} à J-60 · {j30} à J-30 · {j15} à J-15",
+        "inspectionsBadge": "{count} à J-15",
+        "inspectionsAction": "Planifier les J-15",
+        "remindersBadge": "{count} à envoyer",
+        "collectedMini": "Encaissé aujourd'hui · {amount} · {state}",
         "vehiclesHelp": "Voitures encore dans le garage, de la réception jusqu'au « prêt à livrer ». Le véhicule sort de ce chiffre seulement quand le client le récupère.",
         "vehiclesExample": "{customer} a sa {vehicle} ({plate}) au statut « {stage} ». Elle compte parmi les {total} tant qu'elle n'est pas restituée.",
         "vehiclesExampleEmpty": "Le garage est vide pour l'instant. Dès qu'un client dépose sa voiture, elle entre dans ce chiffre et en sort seulement à la restitution.",
@@ -2499,7 +2507,7 @@
         "exampleEmpty": "Aucun sinistre en cours. Dès qu'un dossier a un montant à recevoir, il apparaît ici jusqu'au paiement de la compagnie."
       },
       "unpaid": {
-        "title": "Factures impayées",
+        "title": "Créances à relancer",
         "total": "Total dû par les clients",
         "invoices": "{count} factures",
         "overdueFor": "Échue depuis {days} jours",

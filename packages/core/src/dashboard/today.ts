@@ -235,6 +235,8 @@ export interface UnpaidSummary {
   count: number;
   overdueCount: number;
   longOverdueCount: number;
+  /** Somme des soldes échus depuis plus de `LONG_OVERDUE_DAYS` jours. */
+  longOverdueAmount: number;
   overdue: {
     id: string;
     number: string | null;
@@ -268,11 +270,13 @@ export function summarizeUnpaid(
     }))
     .sort((a, b) => b.daysOverdue - a.daysOverdue || b.balance - a.balance);
   const rest = overdue.slice(limit);
+  const longOverdue = overdue.filter((i) => i.daysOverdue > LONG_OVERDUE_DAYS);
   return {
     total: open.reduce((s, i) => s + i.balance, 0),
     count: open.length,
     overdueCount: overdue.length,
-    longOverdueCount: overdue.filter((i) => i.daysOverdue > LONG_OVERDUE_DAYS).length,
+    longOverdueCount: longOverdue.length,
+    longOverdueAmount: longOverdue.reduce((s, i) => s + i.balance, 0),
     overdue: overdue.slice(0, limit),
     more: { count: rest.length, amount: rest.reduce((s, i) => s + i.balance, 0) },
   };

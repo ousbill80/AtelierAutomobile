@@ -211,6 +211,7 @@ describe("factures impayées", () => {
     expect(summary.count).toBe(5);
     expect(summary.overdueCount).toBe(3);
     expect(summary.longOverdueCount).toBe(2);
+    expect(summary.longOverdueAmount).toBe(320_000 + 215_000);
     expect(summary.overdue.map((i) => [i.id, i.daysOverdue])).toEqual([
       ["a", 19],
       ["b", 16],
@@ -224,6 +225,7 @@ describe("factures impayées", () => {
       count: 0,
       overdueCount: 0,
       longOverdueCount: 0,
+      longOverdueAmount: 0,
       overdue: [],
       more: { count: 0, amount: 0 },
     });

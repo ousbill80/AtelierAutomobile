@@ -54,21 +54,55 @@ export function TodayTab({ input, timeZone }: { input: TabInput; timeZone: strin
   if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
   const data = q.data;
   const { workshop, cash, unpaid, inspections, reminders, claims } = data;
+  const unpaidTone =
+    unpaid && unpaid.longOverdueCount > 0
+      ? "bad"
+      : unpaid && unpaid.overdueCount > 0
+        ? "warn"
+        : "neutral";
+  const inspectionTone =
+    inspections && inspections.bands.j15 > 0
+      ? "bad"
+      : inspections && inspections.total > 0
+        ? "warn"
+        : "neutral";
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-5">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {workshop && (
+        {unpaid && (
           <KpiCard
-            label={T.cards.vehicles}
-            value={String(workshop.total)}
-            sub={fmt(T.cards.vehiclesSub, {
-              repair: workshop.stages.repair,
-              ready: workshop.stages.ready,
+            label={T.cards.unpaid}
+            value={formatAmount(unpaid.total)}
+            sub={fmt(T.cards.unpaidSub, {
+              count: unpaid.count,
+              longAmount: formatAmount(unpaid.longOverdueAmount),
             })}
-            help={T.cards.vehiclesHelp}
-            example={vehicleExample(workshop)}
-            href="/ordres"
+            help={T.cards.unpaidHelp}
+            example={unpaidExample(unpaid)}
+            href="/creances?filtre=en-retard"
+            tone={unpaidTone}
+            badge={
+              unpaid.overdueCount > 0
+                ? fmt(T.cards.unpaidBadge, { count: unpaid.overdueCount })
+                : undefined
+            }
+          />
+        )}
+        {inspections && (
+          <KpiCard
+            label={T.cards.inspections}
+            value={String(inspections.total)}
+            sub={fmt(T.cards.inspectionsSub, inspections.bands)}
+            help={T.cards.inspectionsHelp}
+            example={inspectionExample(inspections)}
+            href="/relances/echeances"
+            tone={inspectionTone}
+            badge={
+              inspections.bands.j15 > 0
+                ? fmt(T.cards.inspectionsBadge, { count: inspections.bands.j15 })
+                : undefined
+            }
           />
         )}
         {cash && (
@@ -84,56 +118,74 @@ export function TodayTab({ input, timeZone }: { input: TabInput; timeZone: strin
             href="/caisse"
           />
         )}
-        {unpaid && (
-          <KpiCard
-            label={T.cards.unpaid}
-            value={formatAmount(unpaid.total)}
-            sub={fmt(T.cards.unpaidSub, { count: unpaid.count, long: unpaid.longOverdueCount })}
-            help={T.cards.unpaidHelp}
-            example={unpaidExample(unpaid)}
-            href="/creances?filtre=en-retard"
-          />
-        )}
-        {inspections && (
-          <KpiCard
-            label={T.cards.inspections}
-            value={String(inspections.total)}
-            sub={fmt(T.cards.inspectionsSub, inspections.bands)}
-            help={T.cards.inspectionsHelp}
-            example={inspectionExample(inspections)}
-            href="/relances/echeances"
-          />
-        )}
-      </div>
-
-      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         {workshop && (
-          <div className="min-w-0 lg:col-span-2">
-            <WorkshopBlock workshop={workshop} timeZone={timeZone} />
-          </div>
+          <KpiCard
+            label={T.cards.vehicles}
+            value={String(workshop.total)}
+            sub={fmt(T.cards.vehiclesSub, {
+              repair: workshop.stages.repair,
+              ready: workshop.stages.ready,
+            })}
+            help={T.cards.vehiclesHelp}
+            example={vehicleExample(workshop)}
+            href="/ordres"
+          />
         )}
-        {cash && <CashBlock cash={cash} timeZone={timeZone} />}
       </div>
 
-      {data.inspections ? (
-        <InspectionsBlock inspections={data.inspections} />
-      ) : (
-        input.siteId &&
-        data.reminders && (
-          <Section
-            title={T.inspections.title}
-            help={T.inspections.help}
-            example={T.inspections.siteFiltered}
-          >
-            <p className="text-sm text-muted">{T.inspections.siteFiltered}</p>
-          </Section>
-        )
+      {(unpaid || inspections || reminders) && (
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold">{T.priorityTitle}</h2>
+              <p className="text-sm text-muted">{T.priorityHint}</p>
+            </div>
+            {inspections && inspections.bands.j15 > 0 && (
+              <Link
+                href="/relances/echeances"
+                className="btn btn-primary min-h-11 px-4 text-sm font-semibold"
+              >
+                {T.cards.inspectionsAction}
+              </Link>
+            )}
+          </div>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            {unpaid && <UnpaidBlock unpaid={unpaid} />}
+            {reminders && <RemindersBlock reminders={reminders} />}
+          </div>
+          {inspections ? (
+            <InspectionsBlock inspections={inspections} />
+          ) : (
+            input.siteId &&
+            reminders && (
+              <Section
+                title={T.inspections.title}
+                help={T.inspections.help}
+                example={T.inspections.siteFiltered}
+              >
+                <p className="text-sm text-muted">{T.inspections.siteFiltered}</p>
+              </Section>
+            )
+          )}
+        </div>
+      )}
+
+      {(workshop || cash) && (
+        <div className="flex min-w-0 flex-col gap-3">
+          <h2 className="text-base font-semibold">{T.operationsTitle}</h2>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+            {workshop && (
+              <div className="min-w-0 lg:col-span-2">
+                <WorkshopBlock workshop={workshop} timeZone={timeZone} />
+              </div>
+            )}
+            {cash && <CashBlock cash={cash} timeZone={timeZone} />}
+          </div>
+        </div>
       )}
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        {reminders && <RemindersBlock reminders={reminders} />}
         {claims && <ClaimsBlock claims={claims} />}
-        {unpaid && <UnpaidBlock unpaid={unpaid} />}
         {cash && <CollectedChart daily={cash.daily} today={data.today} />}
       </div>
     </div>

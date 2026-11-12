@@ -47,6 +47,7 @@ export function KpiCard({
   example,
   href,
   badge,
+  tone = "neutral",
 }: {
   label: string;
   value: string;
@@ -58,22 +59,41 @@ export function KpiCard({
   example?: string;
   href?: string;
   badge?: string;
+  /** Met en avant une carte qui demande une action (créances, VT…). */
+  tone?: "neutral" | "ok" | "warn" | "bad";
 }) {
+  const toneBorder =
+    tone === "bad"
+      ? "border-status-bad/50 bg-status-bad-bg/30"
+      : tone === "warn"
+        ? "border-status-warn/50 bg-status-warn-bg/30"
+        : tone === "ok"
+          ? "border-status-ok/40 bg-status-ok-bg/20"
+          : "border-border bg-surface";
+  const toneValue =
+    tone === "bad"
+      ? "text-status-bad"
+      : tone === "warn"
+        ? "text-status-warn"
+        : tone === "ok"
+          ? "text-status-ok"
+          : "";
   const content = (
     <>
       <span className={`text-xs font-medium text-muted ${help ? "pr-8" : ""}`}>{label}</span>
-      <KpiValue value={value} />
+      <span className={toneValue || undefined}>
+        <KpiValue value={value} />
+      </span>
       {sub && <span className="text-xs text-muted">{sub}</span>}
       {variation && <VariationText variation={variation} />}
       {badge && (
         <span className="w-fit">
-          <StatusBadge tone="warn">{badge}</StatusBadge>
+          <StatusBadge tone={tone === "neutral" ? "warn" : tone}>{badge}</StatusBadge>
         </span>
       )}
     </>
   );
-  const className =
-    "relative flex min-h-28 min-w-0 flex-col break-words rounded-xl border border-border bg-surface shadow-sm";
+  const className = `relative flex min-h-28 min-w-0 flex-col break-words rounded-xl border shadow-sm ${toneBorder}`;
   const inner = "flex min-h-28 min-w-0 flex-1 flex-col gap-1.5 p-4";
   const tip = help ? (
     <span className="absolute right-0.5 top-0.5 z-10">
