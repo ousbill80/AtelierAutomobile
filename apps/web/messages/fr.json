@@ -5630,6 +5630,8 @@
       "submit": "Valider l'encaissement",
       "success": "Paiement {number} enregistré.",
       "receipt": "Imprimer le reçu",
+      "sendReceipt": "Envoyer le reçu au client",
+      "receiptSent": "Reçu envoyé par {channel}.",
       "overpaid": "Trop-perçu de {amount} : il reste au crédit du client (remboursable depuis Caisse > Paiements).",
       "cashClosed": "Ouvrez la caisse pour encaisser en espèces.",
       "openCash": "Ouvrir la caisse",

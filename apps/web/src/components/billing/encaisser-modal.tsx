@@ -1,13 +1,14 @@
 "use client";
 
 // M08 §7 `/factures/[id]/encaisser` — modale d'encaissement : gros boutons par mode, montant
-// (défaut = solde), référence obligatoire pour mobile money / chèque / virement, reçu.
+// (défaut = solde), référence obligatoire pour mobile money / chèque / virement, reçu à
+// imprimer ou à envoyer au client (WhatsApp, SMS, email avec le PDF).
 import { useState } from "react";
 import Link from "next/link";
 import { formatFCFA } from "@atelieros/core/money";
 import { Button, Input, Modal, MoneyInput } from "@atelieros/ui";
 import { trpc } from "@/trpc/react";
-import { PAYMENT_METHODS, REFERENCE_REQUIRED, t, type PaymentMethod } from "./i18n";
+import { PAYMENT_METHODS, REFERENCE_REQUIRED, t, tc, type PaymentMethod } from "./i18n";
 import { PaymentAccountNotice, usePaymentAccountBlock } from "./payment-account";
 
 export function EncaisserModal({
@@ -29,14 +30,18 @@ export function EncaisserModal({
   const [amount, setAmount] = useState<number | null>(balance || null);
   const [reference, setReference] = useState("");
   const [done, setDone] = useState<{
+    id: string;
     number: string;
+    status: string;
     receiptUrl: string;
     unallocated: number;
   } | null>(null);
   const create = trpc.payment.create.useMutation({
     onSuccess: (res) => {
       setDone({
+        id: res.payment.id,
         number: res.payment.number,
+        status: res.payment.status,
         receiptUrl: res.receiptUrl,
         unallocated: res.unallocated,
       });
@@ -71,6 +76,7 @@ export function EncaisserModal({
           >
             🧾 {t("encaisser.receipt")}
           </a>
+          {done.status === "CONFIRMED" && <SendReceiptChoices paymentId={done.id} />}
           <Button variant="secondary" onClick={close}>
             {t("back")}
           </Button>
@@ -147,5 +153,42 @@ export function EncaisserModal({
         </form>
       )}
     </Modal>
+  );
+}
+
+/** Envoi du reçu juste après l'encaissement, par le canal choisi (même envoi que Caisse > Paiements). */
+function SendReceiptChoices({ paymentId }: { paymentId: string }) {
+  const [sentBy, setSentBy] = useState<string | null>(null);
+  const send = trpc.payment.sendReceipt.useMutation({
+    onSuccess: (_res, input) => setSentBy(input.channel),
+  });
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+      <p className="text-sm font-medium">{t("encaisser.sendReceipt")}</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {(["WHATSAPP", "SMS", "EMAIL"] as const).map((channel) => (
+          <Button
+            key={channel}
+            variant="secondary"
+            className="min-h-11"
+            loading={send.isPending && send.variables?.channel === channel}
+            disabled={send.isPending}
+            onClick={() => send.mutate({ paymentId, channel })}
+          >
+            {tc(`receiptSend.channels.${channel}`)}
+          </Button>
+        ))}
+      </div>
+      {sentBy && !send.error && (
+        <p role="status" className="text-sm text-status-ok">
+          ✓ {t("encaisser.receiptSent", { channel: tc(`receiptSend.channels.${sentBy}`) })}
+        </p>
+      )}
+      {send.error && (
+        <p role="alert" className="text-sm text-status-bad">
+          ⚠ {send.error.message}
+        </p>
+      )}
+    </div>
   );
 }
