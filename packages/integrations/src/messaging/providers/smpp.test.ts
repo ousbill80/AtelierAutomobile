@@ -165,6 +165,14 @@ describe("createSmppProvider.send", () => {
     });
   });
 
+  it("espaces de début/fin des identifiants retirés (copier-coller)", async () => {
+    const smsc = await startFakeSmsc();
+    await createSmppProvider(
+      credentials(smsc.port, { systemId: " garage ", password: "abcd1234 ", systemType: " " }),
+    ).healthCheck();
+    expect(smsc.binds[0]).toEqual({ systemId: "garage", password: "abcd1234", systemType: "" });
+  });
+
   it("message long : un submit_sm par segment, esm_class UDH, même référence", async () => {
     const smsc = await startFakeSmsc();
     const provider = createSmppProvider(credentials(smsc.port));

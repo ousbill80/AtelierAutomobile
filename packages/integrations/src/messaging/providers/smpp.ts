@@ -157,9 +157,11 @@ export function createSmppProvider(
       const bind = await session.request(
         SMPP_COMMANDS.BIND_TRANSMITTER,
         encodeBindTransmitter({
-          systemId: credentials.systemId,
-          password: credentials.password,
-          systemType: credentials.systemType,
+          // Espaces de début/fin retirés : un copier-coller en ajoute souvent un, invisible
+          // dans le champ masqué, et le SMSC répond alors « mot de passe incorrect ».
+          systemId: String(credentials.systemId ?? "").trim(),
+          password: String(credentials.password ?? "").trim(),
+          systemType: credentials.systemType?.trim() || undefined,
         }),
       );
       expectOk(bind, SMPP_COMMANDS.BIND_TRANSMITTER_RESP);
