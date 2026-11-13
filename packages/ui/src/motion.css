@@ -24,11 +24,17 @@
   100% { transform: scaleX(0.9); }
 }
 
-/* Entrée de page (app/(app)/template.tsx) */
-.page-enter { animation: rise-in var(--dur-slow) var(--ease-out) both; }
+/* Entrée de page (app/(app)/template.tsx).
+   `backwards` et non `both` : avec `both`, l'animation de transform reste « en vigueur »
+   après la fin et le navigateur traite l'élément comme bloc conteneur des éléments
+   `position: fixed` descendants. Les fenêtres en `fixed inset-0` rendues dans la page
+   (ex. relance groupée des échéances) se calaient alors sur la zone de contenu au lieu
+   de l'écran : voile partiel, haut de fenêtre coupé. La dernière image clé est l'état
+   naturel (opacité 1, sans transform) : le rendu final est identique. */
+.page-enter { animation: rise-in var(--dur-slow) var(--ease-out) backwards; }
 
 /* Listes : apparition en cascade des premiers éléments */
-.stagger > * { animation: rise-in var(--dur-slow) var(--ease-out) both; }
+.stagger > * { animation: rise-in var(--dur-slow) var(--ease-out) backwards; }
 .stagger > :nth-child(2) { animation-delay: 30ms; }
 .stagger > :nth-child(3) { animation-delay: 60ms; }
 .stagger > :nth-child(4) { animation-delay: 90ms; }
