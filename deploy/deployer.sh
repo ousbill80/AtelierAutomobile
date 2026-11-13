@@ -227,6 +227,16 @@ ssh "$SSH_HOST" "cd '$REMOTE_DIR' && test -f .env && test -f docker/docker-compo
   abandon "Dans « $REMOTE_DIR » sur $SSH_HOST, il manque .env, docker/docker-compose.prod.yml ou docker/docker-compose.edge.yml. Transfert interrompu : ce n'est pas l'installation attendue (voir ATELIER_REMOTE_DIR)."
 ok "$REMOTE_DIR : .env, docker-compose.prod.yml et docker-compose.edge.yml sont en place"
 
+# Droits d'écriture : rsync doit créer des fichiers temporaires dans chaque
+# dossier modifié. Sans ce contrôle, l'échec n'apparaît qu'en plein transfert.
+SANS_DROITS="$(ssh "$SSH_HOST" "cd '$REMOTE_DIR' && for d in apps/web apps/web/messages apps/web/src packages packages/core/src packages/integrations/src docker scripts; do [ -w \"\$d\" ] || echo \"\$d\"; done" 2>/dev/null || echo "?")"
+if [ -n "$SANS_DROITS" ]; then
+  printf '    %s✗%s pas de droit d'"'"'écriture pour le compte de « %s » sur :\n' "$ROUGE" "$FIN" "$SSH_HOST"
+  printf '%s\n' "$SANS_DROITS" | sed "s#^#      $REMOTE_DIR/#"
+  abandon "Le transfert échouerait. Demandez au responsable du serveur un compte qui peut écrire dans $REMOTE_DIR (ATELIER_SSH_HOST=...), ou les droits d'écriture pour ce compte."
+fi
+ok "droits d'écriture sur $REMOTE_DIR"
+
 ssh "$SSH_HOST" "docker compose version >/dev/null 2>&1" ||
   abandon "« docker compose » n'est pas utilisable par votre compte sur le serveur (il faut appartenir au groupe docker)."
 ok "docker compose utilisable"
