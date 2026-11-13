@@ -77,9 +77,13 @@ export function decodePdus(buffer: Buffer): { pdus: SmppPdu[]; rest: Buffer } {
   return { pdus, rest: Buffer.from(buffer.subarray(offset)) };
 }
 
-/** C-Octet String : ASCII terminé par NUL, tronqué à `maxLength - 1` caractères utiles. */
-function cString(value: string, maxLength: number): Buffer {
-  const text = Buffer.from(value, "latin1").subarray(0, maxLength - 1);
+/**
+ * C-Octet String : ASCII terminé par NUL, tronqué à `maxLength - 1` caractères utiles.
+ * Sans `maxLength`, la valeur part en entier.
+ */
+function cString(value: string, maxLength?: number): Buffer {
+  const bytes = Buffer.from(value, "latin1");
+  const text = maxLength === undefined ? bytes : bytes.subarray(0, maxLength - 1);
   return Buffer.concat([text, Buffer.from([0])]);
 }
 
@@ -91,8 +95,11 @@ export interface BindTransmitterBody {
 
 export function encodeBindTransmitter(body: BindTransmitterBody): Buffer {
   return Buffer.concat([
-    cString(body.systemId, 16),
-    cString(body.password, 9),
+    // system_id et password : jamais tronqués. La norme les limite à 15 et 8 caractères,
+    // mais beaucoup d'opérateurs délivrent des identifiants plus longs et les vérifient en
+    // entier ; tronquer donnait « mot de passe incorrect » avec un mot de passe juste.
+    cString(body.systemId),
+    cString(body.password),
     cString(body.systemType ?? "", 13),
     Buffer.from([0x34, 0x00, 0x00]), // interface_version 3.4, addr_ton, addr_npi
     cString("", 41), // address_range

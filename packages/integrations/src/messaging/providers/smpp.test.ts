@@ -154,6 +154,17 @@ describe("createSmppProvider.send", () => {
     ]);
   });
 
+  it("identifiant et mot de passe longs envoyés en entier (jamais tronqués)", async () => {
+    const smsc = await startFakeSmsc();
+    await createSmppProvider(
+      credentials(smsc.port, { systemId: "garage_kone_frere_ci", password: "MotDePasse2026!" }),
+    ).healthCheck();
+    expect(smsc.binds[0]).toMatchObject({
+      systemId: "garage_kone_frere_ci",
+      password: "MotDePasse2026!",
+    });
+  });
+
   it("message long : un submit_sm par segment, esm_class UDH, même référence", async () => {
     const smsc = await startFakeSmsc();
     const provider = createSmppProvider(credentials(smsc.port));

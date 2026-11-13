@@ -389,7 +389,8 @@ export default function ChannelsPage() {
                         })}
                       </p>
                     )}
-                    {config.lastError && (
+                    {/* Après « Vérifier maintenant », le résultat ci-dessous redit la même erreur. */}
+                    {config.lastError && !(result && !result.ok) && (
                       <p className="text-xs text-status-bad">{config.lastError}</p>
                     )}
                     {result && (
