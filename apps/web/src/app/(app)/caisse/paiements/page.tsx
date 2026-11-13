@@ -25,6 +25,7 @@ import { ErrorBox, ListSkeleton } from "@/components/repair-orders/error-box";
 import { formatDateTime } from "@/components/repair-orders/i18n";
 import { Kpi } from "@/components/cash/cash-ui";
 import { PAYMENT_METHODS, t, tc } from "@/components/billing/i18n";
+import { CollectInvoiceButton } from "@/components/billing/collect-invoice";
 
 type Action = { kind: "void" | "fail" | "refund"; id: string; max: number };
 type StatusFilter = "" | "CONFIRMED" | "PENDING" | "FAILED" | "REFUNDED" | "VOIDED";
@@ -111,8 +112,15 @@ export default function PaymentsPage() {
         >
           ← {t("back")}
         </Link>
-        <h1 className="text-2xl font-semibold">{tc("paymentsList.title")}</h1>
-        <p className="mt-1 text-sm text-muted">{tc("paymentsList.subtitle")}</p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">{tc("paymentsList.title")}</h1>
+            <p className="mt-1 text-sm text-muted">{tc("paymentsList.subtitle")}</p>
+          </div>
+          {perms.has("payment:create") && perms.has("invoice:read") && (
+            <CollectInvoiceButton onDone={() => void q.refetch()} />
+          )}
+        </div>
       </header>
       {q.data && (
         <section

@@ -5635,6 +5635,16 @@
       "openCash": "Ouvrir la caisse",
       "createAccount": "Créer le compte"
     },
+    "collectInvoice": {
+      "button": "Encaisser une facture",
+      "title": "Encaisser une facture",
+      "search": "Rechercher la facture",
+      "searchPlaceholder": "N° de facture, nom du client ou plaque",
+      "balance": "Reste à payer",
+      "empty": "Aucune facture en attente de paiement.",
+      "noMatch": "Aucune facture en attente ne correspond à cette recherche.",
+      "hint": "Seules les factures émises et pas encore soldées apparaissent ici."
+    },
     "method": {
       "CASH": "Espèces",
       "WAVE": "Wave",

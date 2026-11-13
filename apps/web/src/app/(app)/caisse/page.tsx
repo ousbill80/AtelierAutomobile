@@ -30,6 +30,7 @@ import { ErrorBox } from "@/components/repair-orders/error-box";
 import { formatDateTime } from "@/components/repair-orders/i18n";
 import { t, tc } from "@/components/billing/i18n";
 import { GuideLink } from "@/components/guide-link";
+import { CollectInvoiceButton } from "@/components/billing/collect-invoice";
 import {
   AmountRow,
   CashJournal,
@@ -159,6 +160,7 @@ export default function CashPage() {
           perms={perms}
           onAction={setModal}
           onDecide={(id, d) => setDecision({ id, decision: d })}
+          onCollected={() => void refresh()}
         />
       )}
 
@@ -229,11 +231,13 @@ function OpenSession({
   perms,
   onAction,
   onDecide,
+  onCollected,
 }: {
   session: SessionSummaryData;
   timeZone: string;
   perms: Set<string>;
   onAction: (kind: ModalKind) => void;
+  onCollected: () => void;
   onDecide: (id: string, decision: "approve" | "reject") => void;
 }) {
   const canApprove = perms.has("cash:expense_approve");
@@ -249,6 +253,9 @@ function OpenSession({
           })}
         </span>
         <div className="flex flex-wrap gap-2">
+          {perms.has("payment:create") && perms.has("invoice:read") && (
+            <CollectInvoiceButton variant="secondary" onDone={onCollected} />
+          )}
           {perms.has("cash:expense") && (
             <Button variant="secondary" className="min-h-11" onClick={() => onAction("expense")}>
               <ArrowUpRight size={16} aria-hidden /> {tc("newExpense")}
