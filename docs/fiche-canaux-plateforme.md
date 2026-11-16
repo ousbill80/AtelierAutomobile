@@ -20,23 +20,21 @@ Vérification : `APP_ENV=production` doit être présent, sinon les OTP peuvent 
 
 ---
 
-## 2. Email (SMTP)
+## 2. Email (Resend)
 
-| Champ AtelierOS            | Signification                              | Exemple                         |
-| -------------------------- | ------------------------------------------ | ------------------------------- |
-| `host`                     | Serveur SMTP                               | `smtp.votredomaine.ci`          |
-| `port`                     | Port                                       | `587` (STARTTLS) ou `465` (TLS) |
-| `secure`                   | `true` seulement pour le port 465          | `false` pour 587                |
-| `username`                 | Compte SMTP                                | `codes@votredomaine.ci`         |
-| `password`                 | Mot de passe SMTP                          | _(secret)_                      |
-| `PLATFORM_EMAIL_FROM`      | Adresse d’expédition (doit être autorisée) | `codes@votredomaine.ci`         |
-| `PLATFORM_EMAIL_FROM_NAME` | Nom affiché                                | `AtelierOS`                     |
+| Champ AtelierOS                              | Signification                                           | Exemple                 |
+| -------------------------------------------- | ------------------------------------------------------- | ----------------------- |
+| `PLATFORM_EMAIL_PROVIDER`                    | Toujours `resend`                                       | `resend`                |
+| `apiKey` (dans `PLATFORM_EMAIL_CREDENTIALS`) | Clé API Resend                                          | `re_…` (secret)         |
+| `PLATFORM_EMAIL_FROM`                        | Expéditeur (domaine / adresse **vérifiés** dans Resend) | `codes@votredomaine.ci` |
+| `PLATFORM_EMAIL_FROM_NAME`                   | Nom affiché                                             | `AtelierOS`             |
 
 Règles :
 
-- Port **587** → `secure: false`
-- Port **465** → `secure: true`
-- L’adresse `PLATFORM_EMAIL_FROM` doit être acceptée par le serveur SMTP (SPF/DKIM recommandés sur le domaine)
+- Créer une clé API sur [resend.com/api-keys](https://resend.com/api-keys)
+- Vérifier le domaine (ou une adresse) dans Resend avant la prod
+- `PLATFORM_EMAIL_FROM` doit appartenir à un domaine autorisé chez Resend
+- Alternative possible plus tard : `smtp` (voir `.env.example`) — **ici on utilise Resend**
 
 ---
 
