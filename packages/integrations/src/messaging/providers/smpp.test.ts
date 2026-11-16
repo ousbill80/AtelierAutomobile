@@ -280,6 +280,23 @@ describe("adresses et classement", () => {
     expect(destinationAddress("+225 07 47 21 88 90").address).toBe("2250747218890");
   });
 
+  it("accepte les TON/NPI fournis par l'opérateur", () => {
+    expect(sourceAddress("GARAGEKONE", { ton: 5, npi: 0 })).toEqual({
+      ton: 5,
+      npi: 0,
+      address: "GARAGEKONE",
+    });
+    expect(destinationAddress("+2250747218890", { ton: 1, npi: 1 })).toEqual({
+      ton: 1,
+      npi: 1,
+      address: "2250747218890",
+    });
+    expect(sourceAddress("2250700000000", { ton: "2", npi: "0" })).toMatchObject({
+      ton: 2,
+      npi: 0,
+    });
+  });
+
   it.each([
     [SMPP_STATUS.ESME_RINVPASWD, "PERMANENT_CONFIG"],
     [SMPP_STATUS.ESME_RINVSRCADR, "PERMANENT_CONFIG"],

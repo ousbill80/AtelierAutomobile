@@ -132,6 +132,27 @@ const CREDENTIAL_FIELDS: Partial<Record<Provider, CredentialField[]>> = {
       hint: t("settings.channelsPage.fields.smppSourceAddrHint"),
     },
     {
+      key: "sourceAddrTon",
+      label: t("settings.channelsPage.fields.smppSourceAddrTon"),
+      optional: true,
+      hint: t("settings.channelsPage.fields.smppTonNpiHint"),
+    },
+    {
+      key: "sourceAddrNpi",
+      label: t("settings.channelsPage.fields.smppSourceAddrNpi"),
+      optional: true,
+    },
+    {
+      key: "destAddrTon",
+      label: t("settings.channelsPage.fields.smppDestAddrTon"),
+      optional: true,
+    },
+    {
+      key: "destAddrNpi",
+      label: t("settings.channelsPage.fields.smppDestAddrNpi"),
+      optional: true,
+    },
+    {
       key: "defaultAlphabet",
       label: t("settings.channelsPage.fields.smppAlphabet"),
       type: "select",

@@ -33,14 +33,25 @@ import { SmppNetworkError, SmppSession } from "./smpp-session";
 export interface SmppCredentials {
   host: string;
   port: number | string;
+  /** Identifiant SMPP (= Username chez la plupart des opérateurs). */
   systemId: string;
+  /** Mot de passe SMPP (souvent limité à 8 caractères côté SMSC). */
   password: string;
+  /** system_type (souvent appelé « type » sur la fiche opérateur). */
   systemType?: string;
   /** Expéditeur : nom alphanumérique ≤ 11 car. (ex. GARAGEKONE) ou numéro. */
   sourceAddr: string;
   tls?: boolean | string;
   /** Alphabet par défaut du SMSC pour data_coding 0 (voir encodeSms). */
   defaultAlphabet?: SmsDefaultAlphabet;
+  /** source_addr_ton — si omis : 1 (numérique) ou 5 (alphanumérique). */
+  sourceAddrTon?: number | string;
+  /** source_addr_npi — si omis : 1 (numérique) ou 0 (alphanumérique). */
+  sourceAddrNpi?: number | string;
+  /** dest_addr_ton — si omis : 1 (international). */
+  destAddrTon?: number | string;
+  /** dest_addr_npi — si omis : 1 (ISDN/E.164). */
+  destAddrNpi?: number | string;
 }
 
 export interface SmppDeps {
@@ -122,16 +133,39 @@ function asBoolean(value: unknown): boolean {
   return value === true || value === "true" || value === "1";
 }
 
-/** Expéditeur : numérique → international (TON 1, NPI 1) ; sinon alphanumérique (TON 5). */
-export function sourceAddress(sourceAddr: string): SmppAddress {
-  const trimmed = sourceAddr.trim();
-  if (/^\+?\d+$/.test(trimmed)) return { ton: 1, npi: 1, address: trimmed.replace(/^\+/, "") };
-  return { ton: 5, npi: 0, address: trimmed.slice(0, 11) };
+/** TON/NPI SMPP : entier 0–255, sinon repli sur la valeur par défaut. */
+export function asAddrByte(value: unknown, fallback: number): number {
+  if (value === undefined || value === null || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 255 || !Number.isInteger(n)) return fallback;
+  return n;
 }
 
-/** Destinataire E.164 (+225…) → format international sans « + » (TON 1, NPI 1). */
-export function destinationAddress(to: string): SmppAddress {
-  return { ton: 1, npi: 1, address: to.replace(/[^\d]/g, "") };
+/** Expéditeur : numérique → international (TON 1, NPI 1) ; sinon alphanumérique (TON 5). */
+export function sourceAddress(
+  sourceAddr: string,
+  overrides?: { ton?: unknown; npi?: unknown },
+): SmppAddress {
+  const trimmed = sourceAddr.trim();
+  const numeric = /^\+?\d+$/.test(trimmed);
+  const address = numeric ? trimmed.replace(/^\+/, "") : trimmed.slice(0, 11);
+  return {
+    ton: asAddrByte(overrides?.ton, numeric ? 1 : 5),
+    npi: asAddrByte(overrides?.npi, numeric ? 1 : 0),
+    address,
+  };
+}
+
+/** Destinataire E.164 (+225…) → format international sans « + » (TON 1, NPI 1 par défaut). */
+export function destinationAddress(
+  to: string,
+  overrides?: { ton?: unknown; npi?: unknown },
+): SmppAddress {
+  return {
+    ton: asAddrByte(overrides?.ton, 1),
+    npi: asAddrByte(overrides?.npi, 1),
+    address: to.replace(/[^\d]/g, ""),
+  };
 }
 
 /** Référence de concaténation dérivée de la clé d'idempotence : stable entre deux tentatives. */
@@ -187,8 +221,14 @@ export function createSmppProvider(
         defaultAlphabet: credentials.defaultAlphabet === "latin1" ? "latin1" : "gsm7",
         reference: concatReference(msg.idempotencyKey),
       });
-      const source = sourceAddress(credentials.sourceAddr);
-      const destination = destinationAddress(msg.to);
+      const source = sourceAddress(credentials.sourceAddr, {
+        ton: credentials.sourceAddrTon,
+        npi: credentials.sourceAddrNpi,
+      });
+      const destination = destinationAddress(msg.to, {
+        ton: credentials.destAddrTon,
+        npi: credentials.destAddrNpi,
+      });
       try {
         return await withBoundSession(async (session) => {
           const ids: string[] = [];
