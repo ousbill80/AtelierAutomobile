@@ -106,8 +106,10 @@ self.addEventListener("push", (event) => {
     data = { title: "AtelierOS", body: event.data ? event.data.text() : "" };
   }
   const title = data.title || "AtelierOS";
-  const link =
-    typeof data.link === "string" && data.link.startsWith("/") ? data.link : "/notifications";
+  // Aligné sur safeInternalLink (core/notifications/push) : chemin relatif same-origin
+  // uniquement — rejette les protocol-relative `//host` qui ouvriraient un domaine externe.
+  const rawLink = typeof data.link === "string" ? data.link : "";
+  const link = rawLink.startsWith("/") && !rawLink.startsWith("//") ? rawLink : "/notifications";
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(title, {
@@ -130,8 +132,17 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const link = (event.notification.data && event.notification.data.link) || "/notifications";
-  const target = new URL(link, self.location.origin).href;
+  const raw = (event.notification.data && event.notification.data.link) || "/notifications";
+  const candidate =
+    typeof raw === "string" && raw.startsWith("/") && !raw.startsWith("//")
+      ? raw
+      : "/notifications";
+  const targetUrl = new URL(candidate, self.location.origin);
+  // Ceinture : n'ouvrir que des URLs same-origin (défense si data.link a été altéré).
+  const target =
+    targetUrl.origin === self.location.origin
+      ? targetUrl.href
+      : new URL("/notifications", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
       for (const w of windows) {

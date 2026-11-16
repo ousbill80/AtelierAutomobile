@@ -22,10 +22,16 @@ for name in "${required_vars[@]}"; do
     exit 1
   fi
 done
-# RG-M01-04 : sans canal plateforme, aucun code OTP ne part (inscription, nouvel appareil).
-if [ -z "${PLATFORM_EMAIL_PROVIDER:-}" ] && [ -z "${PLATFORM_SMS_PROVIDER:-}" ] && [ -z "${PLATFORM_WHATSAPP_PHONE_ID:-}" ]; then
-  echo "ATTENTION: aucun canal plateforme (PLATFORM_EMAIL_*, PLATFORM_SMS_*, PLATFORM_WHATSAPP_*) :" >&2
-  echo "           les codes de vérification ne pourront pas être envoyés. Voir docs/exploitation.md §2." >&2
+# RG-M01-04 : en production, sans canal plateforme aucun code OTP ne part
+# (inscription, nouvel appareil). Échec dur — un warning ne suffit pas.
+if [ "${APP_ENV:-}" = "production" ] \
+  && [ -z "${PLATFORM_EMAIL_PROVIDER:-}" ] \
+  && [ -z "${PLATFORM_SMS_PROVIDER:-}" ] \
+  && [ -z "${PLATFORM_WHATSAPP_PHONE_ID:-}" ]; then
+  echo "ERREUR: APP_ENV=production sans canal plateforme (PLATFORM_EMAIL_*, PLATFORM_SMS_*," >&2
+  echo "        PLATFORM_WHATSAPP_*) : les codes de vérification ne partiraient pas." >&2
+  echo "        Voir docs/exploitation.md §2." >&2
+  exit 1
 fi
 
 echo "=== Déploiement AtelierOS (${ATELIEROS_VERSION}) ==="
@@ -44,9 +50,12 @@ echo "→ [3/6] Migrations Prisma..."
 docker compose -f "${COMPOSE_FILE}" --profile tools run --rm migrate
 
 echo "→ [4/6] Mot de passe du rôle applicatif atelieros_app..."
+# Mot de passe passé via stdin (heredoc), jamais dans l'argv de psql (`ps aux`).
+sql_app_password=${POSTGRES_APP_PASSWORD//\'/\'\'}
 docker compose -f "${COMPOSE_FILE}" exec -T postgres \
-  psql -U "${POSTGRES_USER:-atelieros}" -d "${POSTGRES_DB:-atelieros}" \
-  -c "ALTER ROLE atelieros_app WITH PASSWORD '${POSTGRES_APP_PASSWORD}';"
+  psql -U "${POSTGRES_USER:-atelieros}" -d "${POSTGRES_DB:-atelieros}" -v ON_ERROR_STOP=1 <<SQL
+ALTER ROLE atelieros_app WITH PASSWORD '${sql_app_password}';
+SQL
 
 echo "→ [5/6] Bascule web (santé obligatoire)..."
 docker compose -f "${COMPOSE_FILE}" up -d --no-deps --wait web

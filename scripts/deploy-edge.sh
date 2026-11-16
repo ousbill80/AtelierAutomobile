@@ -68,9 +68,12 @@ echo "→ [4/6] Construction des images web, worker, migrate..."
 
 echo "→ [5/6] Migrations Prisma, puis mot de passe du rôle applicatif..."
 "${COMPOSE[@]}" --profile tools run --rm migrate
+# Mot de passe passé via stdin (heredoc), jamais dans l'argv de psql (`ps aux`).
+sql_app_password=${POSTGRES_APP_PASSWORD//\'/\'\'}
 "${COMPOSE[@]}" exec -T postgres \
-  psql -U "${POSTGRES_USER:-atelieros}" -d "${POSTGRES_DB:-atelieros}" \
-  -c "ALTER ROLE atelieros_app WITH PASSWORD '${POSTGRES_APP_PASSWORD}';"
+  psql -U "${POSTGRES_USER:-atelieros}" -d "${POSTGRES_DB:-atelieros}" -v ON_ERROR_STOP=1 <<SQL
+ALTER ROLE atelieros_app WITH PASSWORD '${sql_app_password}';
+SQL
 
 echo "→ [6/6] Bascule web et worker (santé obligatoire)..."
 "${COMPOSE[@]}" up -d --no-deps --wait web
