@@ -23,7 +23,7 @@ export { createHttpSmsProvider, classifyHttpSmsError } from "./messaging";
 export type { HttpSmsCredentials } from "./messaging";
 export { createResendProvider, classifyResendError } from "./messaging";
 export type { ResendCredentials } from "./messaging";
-export { createSmtpProvider, classifySmtpError } from "./messaging";
+export { createSmtpProvider, classifySmtpError, normalizeSmtpCredentials } from "./messaging";
 export type { SmtpCredentials } from "./messaging";
 
 export { decryptSecret, encryptSecret, loadEncryptionKey } from "./encryption";
@@ -90,7 +90,7 @@ export type {
   PaymentConfigStore,
 } from "./registry/types";
 export { isLocalProvider } from "./registry/types";
-export { resolveMessagingProvider } from "./registry/messaging";
+export { resolveMessagingProvider, messagingProviderFromCredentials } from "./registry/messaging";
 export type { MessagingRegistryDeps } from "./registry/messaging";
 export {
   buildPaymentProvider,

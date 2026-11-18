@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Transporter } from "nodemailer";
-import { classifySmtpError, createSmtpProvider } from "./smtp";
+import { classifySmtpError, createSmtpProvider, normalizeSmtpCredentials } from "./smtp";
 
 const credentials = {
   host: "smtp.garage.ci",
@@ -19,6 +19,28 @@ function fakeTransporter(overrides: Partial<Transporter> = {}): Transporter {
     ...overrides,
   } as unknown as Transporter;
 }
+
+describe("normalizeSmtpCredentials", () => {
+  it("accepte user à la place de username et déduit secure du port 465", () => {
+    expect(
+      normalizeSmtpCredentials({
+        host: "smtp.resend.com",
+        port: "465",
+        user: "resend",
+        password: "re_secret",
+        fromEmail: "noreply@prodestic.com",
+      }),
+    ).toEqual({
+      host: "smtp.resend.com",
+      port: 465,
+      secure: true,
+      username: "resend",
+      password: "re_secret",
+      fromEmail: "noreply@prodestic.com",
+      fromName: "noreply@prodestic.com",
+    });
+  });
+});
 
 describe("createSmtpProvider.send", () => {
   it("envoie un email via le transporteur et renvoie le messageId", async () => {

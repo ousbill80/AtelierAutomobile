@@ -45,8 +45,23 @@ export async function resolveMessagingProvider(
     string,
     unknown
   >;
+  return messagingProviderFromCredentials(active.provider, channel, credentials, deps.outbox);
+}
 
-  switch (active.provider) {
+/** Construit le fournisseur pour un `ChannelConfig` précis (test « Vérifier maintenant »). */
+export function messagingProviderFromCredentials(
+  provider: string,
+  channel: MessageChannel,
+  credentials: Record<string, unknown>,
+  outbox: MessagingOutbox = new MessagingOutbox(),
+): MessagingProvider {
+  if (isLocalProvider(provider)) {
+    return createConsoleMessagingProvider(channel, outbox);
+  }
+  if (provider === "wa_link") {
+    return createWaLinkProvider();
+  }
+  switch (provider) {
     case "whatsapp_cloud":
       return createWhatsappCloudProvider(
         credentials as unknown as Parameters<typeof createWhatsappCloudProvider>[0],
@@ -68,12 +83,12 @@ export async function resolveMessagingProvider(
         credentials as unknown as Parameters<typeof createResendProvider>[0],
       );
     case "smtp":
-      return createSmtpProvider(credentials as unknown as Parameters<typeof createSmtpProvider>[0]);
+      return createSmtpProvider(credentials);
     default:
       throw new DomainError(
         "messaging.provider_not_implemented",
-        `Fournisseur de messagerie « ${active.provider} » pas encore implémenté.`,
-        { provider: active.provider, channel },
+        `Fournisseur de messagerie « ${provider} » pas encore implémenté.`,
+        { provider, channel },
       );
   }
 }

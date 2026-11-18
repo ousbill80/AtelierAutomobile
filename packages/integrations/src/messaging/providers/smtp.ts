@@ -21,6 +21,21 @@ export interface SmtpCredentials {
   fromName: string;
 }
 
+/**
+ * Normalise le JSON saisi dans Paramètres → Canaux (clés `user`/`port` en texte,
+ * `secure` souvent omis) vers le contrat attendu par Nodemailer.
+ */
+export function normalizeSmtpCredentials(raw: Record<string, unknown>): SmtpCredentials {
+  const host = String(raw.host ?? "").trim();
+  const port = Number(raw.port ?? 587);
+  const username = String(raw.username ?? raw.user ?? "").trim();
+  const password = String(raw.password ?? "");
+  const fromEmail = String(raw.fromEmail ?? "").trim();
+  const fromName = String(raw.fromName ?? "").trim() || fromEmail;
+  const secure = typeof raw.secure === "boolean" ? raw.secure : port === 465 || port === 2465;
+  return { host, port, secure, username, password, fromEmail, fromName };
+}
+
 export type ProviderErrorCategory =
   "TEMPORARY" | "PERMANENT_RECIPIENT" | "PERMANENT_TEMPLATE" | "PERMANENT_CONFIG" | "RATE_LIMIT";
 
@@ -44,16 +59,17 @@ interface SmtpDeps {
 }
 
 export function createSmtpProvider(
-  credentials: SmtpCredentials,
+  credentials: SmtpCredentials | Record<string, unknown>,
   deps: SmtpDeps = {},
 ): MessagingProvider {
+  const creds = normalizeSmtpCredentials(credentials as Record<string, unknown>);
   const transporter =
     deps.transporter ??
     nodemailer.createTransport({
-      host: credentials.host,
-      port: credentials.port,
-      secure: credentials.secure,
-      auth: { user: credentials.username, pass: credentials.password },
+      host: creds.host,
+      port: creds.port,
+      secure: creds.secure,
+      auth: { user: creds.username, pass: creds.password },
     });
 
   return {
@@ -62,7 +78,7 @@ export function createSmtpProvider(
     async send(msg: OutboundMessage): Promise<SendResult> {
       try {
         const info = await transporter.sendMail({
-          from: `${credentials.fromName} <${credentials.fromEmail}>`,
+          from: `${creds.fromName} <${creds.fromEmail}>`,
           to: msg.to,
           subject: msg.subject ?? "AtelierOS",
           html: msg.body,

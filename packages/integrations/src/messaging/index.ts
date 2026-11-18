@@ -26,5 +26,5 @@ export { createHttpSmsProvider, classifyHttpSmsError } from "./providers/http-sm
 export type { HttpSmsCredentials } from "./providers/http-sms";
 export { createResendProvider, classifyResendError } from "./providers/resend";
 export type { ResendCredentials } from "./providers/resend";
-export { createSmtpProvider, classifySmtpError } from "./providers/smtp";
+export { createSmtpProvider, classifySmtpError, normalizeSmtpCredentials } from "./providers/smtp";
 export type { SmtpCredentials } from "./providers/smtp";
