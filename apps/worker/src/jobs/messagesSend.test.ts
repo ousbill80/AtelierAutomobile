@@ -125,4 +125,73 @@ describe("processMessagesSendJob — NOT_ON_WHATSAPP (US-M11-01, RG-M11-05, RG-M
 
     vi.unstubAllGlobals();
   });
+
+  it("repli saute un canal sans config et prend le suivant (EMAIL)", async () => {
+    // SMS retiré : seul EMAIL reste comme repli après échec WhatsApp.
+    await adminDb.channelConfig.deleteMany({
+      where: { organizationId: org.id, channel: "SMS" },
+    });
+    await adminDb.channelConfig.create({
+      data: {
+        organizationId: org.id,
+        channel: "EMAIL",
+        provider: "console",
+        isActive: true,
+        priority: 1,
+        credentials: "",
+      },
+    });
+    await adminDb.customer.update({
+      where: { id: customer.id },
+      data: { email: "kouassi@example.ci", emailInvalidAt: null },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ error: { code: 131026, message: "Recipient not on WhatsApp" } }),
+            { status: 400 },
+          ),
+        ),
+    );
+
+    const message = await adminDb.message.create({
+      data: {
+        organizationId: org.id,
+        customerId: customer.id,
+        direction: "OUTBOUND",
+        channel: "WHATSAPP",
+        to: "+2250747218890",
+        body: "Rappel VT.",
+        status: "QUEUED",
+        provider: "whatsapp_cloud",
+        kind: "REMINDER",
+        idempotencyKey: "rem:fallback-skip-sms",
+      },
+    });
+
+    await processMessagesSendJob(fakeJob(message.id));
+
+    const fallback = await adminDb.message.findFirst({ where: { fallbackOfId: message.id } });
+    expect(fallback).not.toBeNull();
+    expect(fallback?.channel).toBe("EMAIL");
+    expect(fallback?.to).toBe("kouassi@example.ci");
+
+    vi.unstubAllGlobals();
+
+    // Restaure SMS pour les autres tests éventuels / afterAll.
+    await adminDb.channelConfig.create({
+      data: {
+        organizationId: org.id,
+        channel: "SMS",
+        provider: "console",
+        isActive: true,
+        priority: 1,
+        credentials: "",
+      },
+    });
+  });
 });

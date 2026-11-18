@@ -105,4 +105,36 @@ describe("messagingEnqueue (RG-M11-01)", () => {
     expect(result.created).toBe(false);
     expect("reason" in result && result.reason).toBe("NO_CHANNEL_AVAILABLE");
   });
+
+  it("exclut wa_link : WhatsApp actif en wa_link → NO_CHANNEL_AVAILABLE (pas de QUEUED)", async () => {
+    const tenantDb = db.forTenant({ organizationId: org.id });
+    await adminDb.channelConfig.create({
+      data: {
+        organizationId: org.id,
+        channel: "WHATSAPP",
+        provider: "wa_link",
+        isActive: true,
+        priority: 1,
+        credentials: "{}",
+      },
+    });
+
+    const result = await tenantDb.transaction((tx) =>
+      messagingEnqueue(tx, org.id, {
+        idempotencyKey: "rem:test-wa-link-excluded",
+        kind: "transactional",
+        customerId: customer.id,
+        to: { phone: customer.phone },
+        channels: ["WHATSAPP"],
+        bodyOverride: "RDV confirmé.",
+      }),
+    );
+
+    expect(result.created).toBe(false);
+    expect("reason" in result && result.reason).toBe("NO_CHANNEL_AVAILABLE");
+    const count = await adminDb.message.count({
+      where: { organizationId: org.id, idempotencyKey: "rem:test-wa-link-excluded" },
+    });
+    expect(count).toBe(0);
+  });
 });

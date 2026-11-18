@@ -28,9 +28,10 @@ async function main(): Promise<void> {
   const { logger } = await import("./logger");
   const { createRedisConnection } = await import("./redis");
   const { startImportsWorker } = await import("./jobs/imports");
-  const { MESSAGES_QUEUE_NAME } = await import("./queues/messages");
+  const { MESSAGES_QUEUE_NAME, MESSAGES_RESCUE_JOB_NAME, scheduleMessagesRescueJob } =
+    await import("./queues/messages");
   type MessagesSendJobData = import("./queues/messages").MessagesSendJobData;
-  const { processMessagesSendJob } = await import("./jobs/messagesSend");
+  const { processMessagesSendJob, processMessagesRescueJob } = await import("./jobs/messagesSend");
   const { REMINDERS_JOB_NAMES, REMINDERS_QUEUE_NAME, scheduleReminderJobs } =
     await import("./queues/reminders");
   const { processRemindersPlanJob } = await import("./jobs/remindersPlan");
@@ -138,9 +139,14 @@ async function main(): Promise<void> {
   const importsWorker = startImportsWorker();
   logger.info({ queue: "imports" }, "worker: file « imports » prête");
 
+  await scheduleMessagesRescueJob();
+
   const messagesWorker = new Worker<MessagesSendJobData>(
     MESSAGES_QUEUE_NAME,
-    (job: Job<MessagesSendJobData>, token?: string) => processMessagesSendJob(job, token),
+    async (job: Job<MessagesSendJobData>, token?: string) => {
+      if (job.name === MESSAGES_RESCUE_JOB_NAME) return processMessagesRescueJob();
+      return processMessagesSendJob(job, token);
+    },
     {
       connection: createRedisConnection(),
       settings: {

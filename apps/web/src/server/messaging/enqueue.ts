@@ -104,7 +104,13 @@ async function buildCandidates(
   return req.channels.map((channel): ChannelCandidate => {
     const addr = address[channel];
     const activeConfig = [...configs]
-      .filter((c) => c.channel === channel && c.isActive && c.status !== "ERROR")
+      .filter(
+        // wa_link n'envoie pas automatiquement (US-M11-02 / RG-M11-04) : exclure du pick
+        // automatique afin que le canal reste NO_CHANNEL_AVAILABLE et ne génère jamais de
+        // Message QUEUED qui aboutirait à une erreur TEMPORARY en boucle (fix bug 1).
+        (c) =>
+          c.channel === channel && c.isActive && c.status !== "ERROR" && c.provider !== "wa_link",
+      )
       .sort((a, b) => a.priority - b.priority)[0];
     const candidate: ChannelCandidate = {
       channel,

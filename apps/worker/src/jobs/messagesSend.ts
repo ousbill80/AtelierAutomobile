@@ -33,9 +33,7 @@ import {
   MAX_RETRY_ATTEMPTS,
   nextSendWindowStart,
   nextStatus,
-  pickChannel,
   type Channel,
-  type ChannelCandidate,
 } from "@atelieros/core";
 import { logger } from "../logger";
 import { enqueueMessageSendJob, type MessagesSendJobData } from "../queues/messages";
@@ -94,8 +92,11 @@ function channelConfigStore(tx: TenantDb): MessagingConfigStore {
 async function findActiveChannelConfig(tx: TenantDb, channel: Channel) {
   const configs = await tx.channelConfig.findMany({ where: { channel, isActive: true } });
   // `status: { not: "ERROR" }` exclurait aussi les lignes status = NULL (sémantique SQL NULL) : filtré en JS.
+  // wa_link exclu : pas d'envoi automatique (US-M11-02 / RG-M11-04).
   return (
-    configs.filter((c) => c.status !== "ERROR").sort((a, b) => a.priority - b.priority)[0] ?? null
+    configs
+      .filter((c) => c.status !== "ERROR" && c.provider !== "wa_link")
+      .sort((a, b) => a.priority - b.priority)[0] ?? null
   );
 }
 
@@ -139,61 +140,57 @@ async function createFallbackMessage(
     ? await tx.customer.findFirst({ where: { id: failed.customerId } })
     : null;
 
-  const candidates: ChannelCandidate[] = CHANNEL_ORDER.filter((c) => !triedChannels.has(c)).map(
-    (channel): ChannelCandidate => {
-      const address =
-        channel === "WHATSAPP"
-          ? (customer?.whatsappPhone ?? customer?.phone ?? null)
-          : channel === "SMS"
-            ? (customer?.phone ?? null)
-            : (customer?.email ?? null);
-      return {
+  // Itère sur tous les canaux restants dans l'ordre par défaut jusqu'à trouver un canal
+  // avec une adresse ET une ChannelConfig active. Ne pas abandonner dès le premier canal
+  // sans config (fix bug 3 : repli incomplet). wa_link exclu : même raison que l'enqueue.
+  for (const channel of CHANNEL_ORDER) {
+    if (triedChannels.has(channel)) continue;
+
+    const address =
+      channel === "WHATSAPP"
+        ? (customer?.whatsappPhone ?? customer?.phone ?? null)
+        : channel === "SMS"
+          ? (customer?.phone ?? null)
+          : (customer?.email ?? null);
+    if (!address) continue;
+
+    if (channel === "EMAIL" && customer?.emailInvalidAt) continue;
+
+    const activeConfig = await findActiveChannelConfig(tx, channel);
+    if (!activeConfig) continue;
+    // wa_link ne peut pas envoyer automatiquement (US-M11-02 / RG-M11-04).
+    if (activeConfig.provider === "wa_link") continue;
+
+    const fallback = await tx.message.create({
+      data: {
+        organizationId,
+        conversationId: failed.conversationId,
+        customerId: failed.customerId,
+        reminderId: failed.reminderId,
+        direction: "OUTBOUND",
         channel,
-        address,
-        isOptedOut: false, // revérifié par la conformité (RG-M11-02) au moment de l'envoi réel
-        isAddressInvalid: channel === "EMAIL" ? !!customer?.emailInvalidAt : false,
-        isChannelActive: true, // affiné par findActiveChannelConfig ci-dessous
-      };
-    },
+        to: address,
+        subject: failed.subject,
+        body: failed.body,
+        attachments: (failed.attachments ?? []) as Prisma.InputJsonValue,
+        status: "QUEUED",
+        provider: activeConfig.provider,
+        kind: failed.kind as "REMINDER" | "TRANSACTIONAL" | "CONVERSATION" | "DIGEST" | "SYSTEM",
+        templateKey: failed.templateKey,
+        idempotencyKey: failed.idempotencyKey,
+        sentById: failed.sentById,
+        fallbackOfId: failed.id,
+      },
+    });
+
+    return { id: fallback.id, channel };
+  }
+
+  logger.warn(
+    { messageId: failed.id },
+    "message.failed_all : plus aucun canal de repli disponible",
   );
-
-  const picked = pickChannel({ candidates });
-  if (picked.channel === null) {
-    logger.warn(
-      { messageId: failed.id },
-      "message.failed_all : plus aucun canal de repli disponible",
-    );
-    return null;
-  }
-
-  const activeConfig = await findActiveChannelConfig(tx, picked.channel);
-  if (!activeConfig) {
-    return null;
-  }
-
-  const fallback = await tx.message.create({
-    data: {
-      organizationId,
-      conversationId: failed.conversationId,
-      customerId: failed.customerId,
-      reminderId: failed.reminderId,
-      direction: "OUTBOUND",
-      channel: picked.channel,
-      to: picked.address,
-      subject: failed.subject,
-      body: failed.body,
-      attachments: (failed.attachments ?? []) as Prisma.InputJsonValue,
-      status: "QUEUED",
-      provider: activeConfig.provider,
-      kind: failed.kind as "REMINDER" | "TRANSACTIONAL" | "CONVERSATION" | "DIGEST" | "SYSTEM",
-      templateKey: failed.templateKey,
-      idempotencyKey: failed.idempotencyKey,
-      sentById: failed.sentById,
-      fallbackOfId: failed.id,
-    },
-  });
-
-  return { id: fallback.id, channel: picked.channel };
+  return null;
 }
 
 function contentTypeFor(kind: string, filename: string): string {
@@ -503,5 +500,39 @@ export async function processMessagesSendJob(
 
     // PERMANENT_RECIPIENT, PERMANENT_TEMPLATE, PERMANENT_CONFIG
     await handlePermanentFailure(tx, organizationId, message, providerCode ?? category);
+  }
+}
+
+/**
+ * Fix bug 2 — QUEUED orphelins : si Redis est tombé après `message.create` mais avant
+ * l'ajout du job BullMQ, le message reste `QUEUED` indéfiniment. Ce job tourne toutes les
+ * 5 min et ré-enfile tout message `QUEUED` vieux de plus de 10 min.
+ *
+ * Idempotent : `enqueueMessageSendJob` utilise `jobId = message.id` (RG-M11-01), donc un
+ * message déjà dans la file ne génère pas de doublon.
+ */
+export async function processMessagesRescueJob(): Promise<void> {
+  const ORPHAN_THRESHOLD_MINUTES = 10;
+  const threshold = new Date(Date.now() - ORPHAN_THRESHOLD_MINUTES * 60_000);
+
+  const orphans = await adminDb.message.findMany({
+    where: {
+      status: "QUEUED",
+      direction: "OUTBOUND",
+      createdAt: { lt: threshold },
+    },
+    select: { id: true, organizationId: true },
+    orderBy: { createdAt: "asc" },
+    take: 500, // limite de sécurité par passe
+  });
+
+  if (orphans.length === 0) return;
+
+  logger.info(
+    { count: orphans.length },
+    "messages.rescue : ré-enfilement de messages QUEUED orphelins",
+  );
+  for (const { id } of orphans) {
+    await enqueueMessageSendJob(id);
   }
 }

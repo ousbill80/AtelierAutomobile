@@ -60,8 +60,13 @@ async function queueReceipt(
   const configs = await tenantDb.channelConfig.findMany({
     where: { isActive: true, channel: { in: ["SMS", "WHATSAPP"] } },
   });
-  const sms = configs.find((c) => c.channel === "SMS" && c.status !== "ERROR");
-  const whatsapp = configs.find((c) => c.channel === "WHATSAPP" && c.status !== "ERROR");
+  // Même règle que messagingEnqueue : exclure wa_link (pas d'envoi auto) et respecter priority.
+  const pick = (channel: "SMS" | "WHATSAPP") =>
+    [...configs]
+      .filter((c) => c.channel === channel && c.status !== "ERROR" && c.provider !== "wa_link")
+      .sort((a, b) => a.priority - b.priority)[0];
+  const sms = pick("SMS");
+  const whatsapp = pick("WHATSAPP");
   const target =
     sms && customer.phone
       ? { channel: "SMS" as const, to: customer.phone, provider: sms.provider }
