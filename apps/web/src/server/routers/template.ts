@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { isDomainError, renderTemplate, smsSegments } from "@atelieros/core";
 import { db } from "@atelieros/db";
 import {
+  templateBulkToggleInputSchema,
   templateListInputSchema,
   templatePreviewInputSchema,
   templateUpsertInputSchema,
@@ -47,6 +48,16 @@ export const templateRouter = router({
           isDefault: false,
         },
       });
+    }),
+
+  bulkToggle: requirePermission("template:manage")
+    .input(templateBulkToggleInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const tenantDb = db.forTenant({ organizationId: ctx.organizationId });
+      await tenantDb.messageTemplate.updateMany({
+        data: { isActive: input.isActive },
+      });
+      return { isActive: input.isActive };
     }),
 
   preview: requirePermission("template:manage")

@@ -166,3 +166,9 @@ export const devOutboxSimulateReplyInputSchema = z.object({
   body: z.string().trim().min(1),
 });
 export type DevOutboxSimulateReplyInput = z.infer<typeof devOutboxSimulateReplyInputSchema>;
+
+// Activation/désactivation en masse de tous les modèles du tenant (page Paramètres → Modèles).
+export const templateBulkToggleInputSchema = z.object({
+  isActive: z.boolean(),
+});
+export type TemplateBulkToggleInput = z.infer<typeof templateBulkToggleInputSchema>;

@@ -341,6 +341,40 @@
         "action": "Action",
         "period": "Période"
       }
+    },
+    "templatesPage": {
+      "title": "Modèles",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger les modèles.",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucun modèle de message.",
+      "emptyHint": "Les modèles livrés par défaut sont installés pendant la configuration initiale.",
+      "selectHint": "Choisissez un modèle dans la liste pour le consulter ou le modifier.",
+      "bodyLabel": "Texte du message",
+      "readOnly": "Lecture seule : seul le gérant peut modifier les modèles et voir l'aperçu.",
+      "previewTitle": "Aperçu (données de démonstration)",
+      "previewLoading": "Calcul de l'aperçu…",
+      "previewError": "Aperçu indisponible : {message}",
+      "smsCounter": "{chars} caractère(s) · {segments} SMS · encodage {encoding}",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saved": "Modèle enregistré.",
+      "saveError": "Enregistrement impossible : {message}",
+      "activateAll": "Activer tout",
+      "deactivateAll": "Désactiver tout",
+      "deactivateConfirmTitle": "Désactiver tous les modèles ?",
+      "deactivateConfirmBody": "Tous vos modèles de messages seront désactivés. Aucun envoi (automatique ou manuel) ne pourra partir pour les canaux concernés. Vous pourrez réactiver les modèles un par un ou via « Activer tout ».",
+      "deactivateConfirmCta": "Désactiver tout",
+      "bulkActivated": "Tous les modèles ont été activés.",
+      "bulkDeactivated": "Tous les modèles ont été désactivés.",
+      "bulkError": "Opération impossible : {message}",
+      "autoSendNote": "Les modèles marqués « (inactif par défaut) » sont techniquement actifs. L'envoi automatique est contrôlé par le palier correspondant dans vos",
+      "autoSendNoteLink": "Règles de relance",
+      "channels": {
+        "WHATSAPP": "WhatsApp",
+        "SMS": "SMS",
+        "EMAIL": "Email"
+      }
     }
   },
   "profile": {
